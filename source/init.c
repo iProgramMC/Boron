@@ -24,6 +24,8 @@ volatile struct limine_memmap_request g_MemMapRequest =
 	.response = NULL,
 };
 
+ATOMIC bool fuck;
+
 // The entry point to our kernel.
 void KiSystemStartup(void)
 {

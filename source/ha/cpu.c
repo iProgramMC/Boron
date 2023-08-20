@@ -20,3 +20,8 @@ void HalSetInterruptsEnabled(bool b)
 	else
 		ASM("cli":::"memory");
 }
+
+void HalInterruptHint()
+{
+	ASM("pause":::"memory");
+}

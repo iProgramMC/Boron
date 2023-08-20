@@ -117,6 +117,7 @@ PageFrame* MmGetPageFrameFromPFN(int pfn)
 
 // for the page frame allocator
 int g_firstPFN = PFN_INVALID, g_lastPFN = PFN_INVALID;
+SpinLock g_pfnLock;
 
 // Note! Initialization is done on the BSP. So no locking needed
 void MiInitPMM()
@@ -244,8 +245,12 @@ void MiInitPMM()
 
 int MmAllocatePhysicalPage()
 {
+	KeLock(&g_pfnLock);
 	if (g_firstPFN == PFN_INVALID)
+	{
+		KeUnlock(&g_pfnLock);
 		return PFN_INVALID;
+	}
 	
 	int currPFN = g_firstPFN;
 	PageFrame *pPF = MmGetPageFrameFromPFN(g_firstPFN);
@@ -265,11 +270,13 @@ int MmAllocatePhysicalPage()
 	if (g_firstPFN == PFN_INVALID)
 		g_lastPFN  =  PFN_INVALID;
 	
+	KeUnlock(&g_pfnLock);
 	return currPFN;
 }
 
 void MmFreePhysicalPage(int pfn)
 {
+	KeLock(&g_pfnLock);
 	if (g_firstPFN == PFN_INVALID)
 	{
 		// add it in as The Only One.
@@ -280,6 +287,8 @@ void MmFreePhysicalPage(int pfn)
 		PageFrame* pPF = MmGetPageFrameFromPFN(pfn);
 		pPF->m_nextFrame = PFN_INVALID;
 		pPF->m_prevFrame = PFN_INVALID;
+		
+		KeUnlock(&g_pfnLock);
 		
 		return;
 	}
@@ -293,6 +302,7 @@ void MmFreePhysicalPage(int pfn)
 		LogMsg("Error, you can't free page %d twice", pfn);
 		SLogMsg("Error, you can't free page %d twice", pfn);
 		// TODO: panic
+		KeUnlock(&g_pfnLock);
 		return;
 	}
 	
@@ -301,4 +311,5 @@ void MmFreePhysicalPage(int pfn)
 	pCurrPFN->m_nextFrame = PFN_INVALID;
 	pCurrPFN->m_flags &= ~PF_FLAG_ALLOCATED;
 	g_lastPFN = pfn;
+	KeUnlock(&g_pfnLock);
 }

@@ -15,5 +15,6 @@ void HalInvalidatePage(void* page);
 void HalSetInterruptsEnabled(bool b);      // no tracking of previous state currently. This does the relevant instruction
 void HalSetCurrentPageTable(uintptr_t pa); // set the value of the CR3 register
 uintptr_t HalGetCurrentPageTable(void);    // get the value of the CR3 register
+void HalInterruptHint();
 
 #endif//NS64_HAL_H
