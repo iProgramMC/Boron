@@ -9,15 +9,31 @@
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
-// interrupt priority level enum
-enum eIpl
+// Interrupt priority level enum
+typedef enum eIPL
 {
 	IPL_NORMAL, // business as usual
 	IPL_APC,    // asynch procedure calls and page faults
 	IPL_DPC,    // deferred procedure calls and the scheduler
 	IPL_IPI,    // inter-processor interrupt. For TLB shootdown etc.
 	IPL_NOINTS, // total control of the CPU. Interrupts are disabled in this IPL and this IPL only.
-};
+}
+eIPL;
+
+// Raises or lowers the IPL of the current CPU.
+// Returns the previous IPL.
+
+// The reason I didn't opt for a KeIPLSet is because it
+// could help create dangerous programming patterns.
+
+// To raise the IPL temporarily, opt for the following structure;
+//     eIPL oldIPL = KeIPLRaise(IPL_WHATEVER);
+//     .... your code here
+//     KeIPLLower(oldIPL);
+// .. and the reverse for lowering the IPL (but you really should not)
+eIPL KeIPLRaise(eIPL newIPL);
+eIPL KeIPLLower(eIPL newIPL);
+eIPL KeGetIPL();
 
 // per CPU struct
 typedef struct
@@ -35,9 +51,11 @@ typedef struct
 	uintptr_t m_pageTable;
 	
 	// the current IPL that we are running at
-	int m_ipl;
+	eIPL m_ipl;
 }
 CPU;
+
+CPU * KeGetThisCPU();
 
 static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the page size, for objective reasons");
 

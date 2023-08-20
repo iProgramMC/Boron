@@ -39,6 +39,9 @@ Currently, the OS's source is structured into the following:
 * `mm/`  - Memory manager
 * `*.*`  - Misc stuff
 
+Kernel DLL exports will use the prefix `Bn`. I know this isn't the chemical symbol for boron (that being B),
+but it is what it is.
+
 #### Architecture design
 There's hardly a decided architecture design, as this is right now at the experimental stage.
 Here are some ideas. Think of it like a scribble board of randon junk:
@@ -52,8 +55,8 @@ Here are some ideas. Think of it like a scribble board of randon junk:
 #### Primordial tasks
 * [x] Hello World
 * [x] Physical memory manager
-* [ ] Safe locking
-* [ ] SMP Bootstrap
+* [x] Safe locking
+* [x] SMP Bootstrap
 * [ ] Inter-processor communication (through IPIs)
 * [ ] Task switching and concurrency
 * [ ] Virtual memory manager

@@ -18,9 +18,73 @@ volatile struct limine_smp_request g_SMPRequest =
 // structure of the CPU is passed in RDI
 NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 {
+	CPU *pCpu = (CPU *)pInfo->extra_argument;
+	HalSetCPUPointer(pCpu);
+	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
 	KeStopCurrentCPU();
+}
+
+CPU* KeGetThisCPU()
+{
+	return HalGetCPUPointer();
+}
+
+eIPL KeGetIPL()
+{
+	CPU* thisCPU = KeGetThisCPU();
+	return thisCPU->m_ipl;
+}
+
+eIPL KeIPLRaise(eIPL newIPL)
+{
+	CPU* thisCPU = KeGetThisCPU();
+	eIPL oldIPL = thisCPU->m_ipl;
+	
+	if (oldIPL == newIPL)
+		return oldIPL; // no changes
+	
+	if (oldIPL > newIPL)
+	{
+		LogMsg("Error, can't raise the IPL to a lower level than we are (old %d, new %d)", oldIPL, newIPL);
+		// TODO: panic here
+		return oldIPL;
+	}
+	
+	// Set the current IPL
+	thisCPU->m_ipl = newIPL;
+	return oldIPL;
+}
+
+// similar logic, except we will also call DPCs if needed
+eIPL KeIPLLower(eIPL newIPL)
+{
+	CPU* thisCPU = KeGetThisCPU();
+	eIPL oldIPL = thisCPU->m_ipl;
+	
+	if (oldIPL == newIPL)
+		return oldIPL; // no changes
+	
+	if (oldIPL > newIPL)
+	{
+		LogMsg("Error, can't raise the IPL to a lower level than we are (old %d, new %d)", oldIPL, newIPL);
+		// TODO: panic here
+		return oldIPL;
+	}
+	
+	// Set the current IPL
+	thisCPU->m_ipl = newIPL;
+	
+	// TODO: call DPCs
+	// ideally we'd have something as follows:
+	// while (thisCPU->m_ipl > newIPL) {
+	//     thisCPU->m_ipl--;  // lower the IPL by one stage..
+	//     executeDPCs();     // execute the DPCs at this IPL
+	// }                      // continue until we are at the current IPL
+	// executeDPCs();         // do that one more time because we weren't in the while loop
+	
+	return oldIPL;
 }
 
 NO_RETURN void KeInitSMP()
