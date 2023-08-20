@@ -3,9 +3,43 @@
 #define NS64_KE_H
 
 #include <main.h>
+#include <_limine.h>
 
 // === CPU ===
-NO_RETURN void KeStopCurrentCPU(); // stops the current CPU
+
+NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
+
+// interrupt priority level enum
+enum eIpl
+{
+	IPL_NORMAL, // business as usual
+	IPL_APC,    // asynch procedure calls and page faults
+	IPL_DPC,    // deferred procedure calls and the scheduler
+	IPL_IPI,    // inter-processor interrupt. For TLB shootdown etc.
+	IPL_NOINTS, // total control of the CPU. Interrupts are disabled in this IPL and this IPL only.
+};
+
+// per CPU struct
+typedef struct
+{
+	// the APIC ID of the processor
+	uint32_t m_apicID;
+	
+	// are we the bootstrap processor?
+	bool m_bIsBSP;
+	
+	// the SMP info we're given
+	struct limine_smp_info* m_pSMPInfo;
+	
+	// the page table we're currently using (physical address)
+	uintptr_t m_pageTable;
+	
+	// the current IPL that we are running at
+	int m_ipl;
+}
+CPU;
+
+static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the page size, for objective reasons");
 
 // === Atomics ===
 
@@ -53,5 +87,8 @@ SpinLock;
 void KeLock(SpinLock* pLock);
 void KeUnlock(SpinLock* pLock);
 bool KeTryLock(SpinLock* pLock);
+
+// === SMP ===
+NO_RETURN void KeInitSMP(void);
 
 #endif//NS64_KE_H

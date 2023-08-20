@@ -16,6 +16,9 @@
 
 #define ASM __asm__ __volatile__
 
+// We're using C11
+#define static_assert _Static_assert
+
 // Include stb printf so we have definitions ready
 #define STB_SPRINTF_NOFLOAT
 #define STB_SPRINTF_DECORATE        // don't decorate
