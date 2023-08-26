@@ -1,6 +1,8 @@
 ; Boron - CPU abstraction functions
 bits 64
 
+%include "hal/amd64.inc"
+
 ; these functions set the CR3
 global HalSetCurrentPageTable
 global HalGetCurrentPageTable
@@ -12,3 +14,93 @@ HalGetCurrentPageTable:
 HalSetCurrentPageTable:
 	mov cr3, rdi
 	ret
+
+; interrupt handlers list
+global HalInterruptHandlers
+
+; this list has to be INT_COUNT sized!!
+HalInterruptHandlers:
+	dq 0
+	dq 0
+	dq 0
+	dq 0
+
+
+
+; At this point, RAX contains the interrupt handler type.
+; We already preserved RAX.
+HalInterruptEntry:
+	; Push the int type, then the rest of the registers.
+	push rax
+	mov  rax, [HalInterruptHandlers + 4 * rax] ; resolve the interrupt handler
+	test rax, rax
+	jz   .end  ; if the interrupt handler is zero, go straight to the part where we're about to exit
+	push rbx
+	push rcx
+	push rdx
+	push rsi
+	push rdi
+	push rbp
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
+	mov  rbx, cr2 ; why in rbx? we are using rax..
+	push rbx
+	mov  bx, gs
+	push bx
+	mov  bx, fs
+	push bx
+	mov  bx, es
+	push bx
+	mov  bx, ds
+	push bx
+
+	; call the actual interrupt handler!
+	mov  rdi, rsp   ; set the first argument as the state parameter
+	call rax        ; call the ISR itself.
+	
+	pop  bx
+	mov  ds, bx
+	pop  bx
+	mov  es, bx
+	pop  bx
+	mov  fs, bx
+	pop  bx
+	mov  gs, bx
+	add  rsp,  8  ; skip cr2
+	pop  r15
+	pop  r14
+	pop  r13
+	pop  r12
+	pop  r11
+	pop  r10
+	pop  r9
+	pop  r8
+	pop  rbp
+	pop  rdi
+	pop  rsi
+	pop  rdx
+	pop  rcx
+	pop  rbx
+.end:
+	pop  rax      ; pop the interrupt type
+	pop  rax      ; pop the old value of RAX
+	add  rsp,  8  ; pop and discard the error code
+	iretq         ; Return from the interrupt!!
+
+
+; Here's how a normal interrupt handler would look like
+;global HalExampleInterruptHandler
+;HalExampleInterruptHandler:
+;	push 0                 ; error code
+;	push rax               ; preserve RAX
+;	mov rax, INT_UNKNOWN   ; just an example
+;	jmp  HalInterruptEntry ; everything else is handled here. This keeps
+;	                       ; the individual interrupt handlers small.
+;;end
+

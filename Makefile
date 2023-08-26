@@ -16,7 +16,7 @@ ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
 # The platform we are targetting
-TARGET=X86_64
+TARGET=AMD64
 
 # This is the name that our final kernel executable will have.
 # Change as needed.
@@ -54,7 +54,7 @@ CXXFLAGS ?= -g -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINE
 CPPFLAGS ?=
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -g
+NASMFLAGS ?= -F dwarf -g -Isource -Iinclude
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=

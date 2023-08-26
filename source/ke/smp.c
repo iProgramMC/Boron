@@ -52,6 +52,8 @@ eIPL KeIPLRaise(eIPL newIPL)
 		return oldIPL;
 	}
 	
+	HalOnUpdateIPL(newIPL, oldIPL);
+	
 	// Set the current IPL
 	thisCPU->m_ipl = newIPL;
 	return oldIPL;
@@ -75,6 +77,8 @@ eIPL KeIPLLower(eIPL newIPL)
 	
 	// Set the current IPL
 	thisCPU->m_ipl = newIPL;
+	
+	HalOnUpdateIPL(newIPL, oldIPL);
 	
 	// TODO: call DPCs
 	// ideally we'd have something as follows:

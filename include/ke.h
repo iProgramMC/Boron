@@ -5,21 +5,8 @@
 #include <main.h>
 #include <_limine.h>
 
-// === CPU ===
-
-NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
-
-// Interrupt priority level enum
-typedef enum eIPL
-{
-	IPL_NORMAL, // business as usual
-	IPL_APC,    // asynch procedure calls and page faults
-	IPL_DPC,    // deferred procedure calls and the scheduler
-	IPL_IPI,    // inter-processor interrupt. For TLB shootdown etc.
-	IPI_CLOCK,  // for clock timers
-	IPL_NOINTS, // total control of the CPU. Interrupts are disabled in this IPL and this IPL only.
-}
-eIPL;
+// === Interrupt priority levels ===
+#include <ke/ipl.h>
 
 // Raises or lowers the IPL of the current CPU.
 // Returns the previous IPL.
@@ -35,6 +22,10 @@ eIPL;
 eIPL KeIPLRaise(eIPL newIPL);
 eIPL KeIPLLower(eIPL newIPL);
 eIPL KeGetIPL();
+
+// === CPU ===
+
+NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
 // per CPU struct
 typedef struct
@@ -110,12 +101,12 @@ bool KeTryLock(SpinLock* pLock);
 // === SMP ===
 NO_RETURN void KeInitSMP(void);
 
-struct KDPC_tag
-
+struct KDPC_tag;
 
 // === Deferred procedure calls ===
 // TODO
 typedef void(*KDeferredProcedure)(struct KDPC_tag*, void* pContext, void* pSysArg1, void* pSysArg2);
+
 typedef struct KDPC_tag
 {
 	KDeferredProcedure m_deferredProcedure;

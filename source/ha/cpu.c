@@ -27,9 +27,6 @@ void HalInterruptHint()
 }
 
 // Model specific registers
-#define MSR_FS_BASE        (0xC0000100)
-#define MSR_GS_BASE        (0xC0000101)
-#define MSR_GS_BASE_KERNEL (0xC0000102)
 
 uint64_t HalGetMSR(uint32_t msr)
 {
