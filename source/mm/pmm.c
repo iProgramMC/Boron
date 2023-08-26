@@ -64,6 +64,7 @@ static uintptr_t MiAllocatePageFromMemMap()
 
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
+#ifdef TARGET_AMD64
 	// Maps a new page at an address, if needed.
 	PageMapLevel *pPML[4];
 	pPML[3] = (PageMapLevel*) MmGetHHDMOffsetAddr(pageTable);
@@ -96,6 +97,9 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	}
 	
 	return true;
+#else
+	#error "Implement this for your platform!"
+#endif
 }
 
 int MmPhysPageToPFN(uintptr_t physAddr)

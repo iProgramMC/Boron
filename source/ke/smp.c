@@ -21,6 +21,9 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	CPU *pCpu = (CPU *)pInfo->extra_argument;
 	HalSetCPUPointer(pCpu);
 	
+	// Update the IPL when initing. Currently we start at the highest IPL
+	HalOnUpdateIPL(0, KeGetIPL());
+	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
 	KeStopCurrentCPU();
@@ -79,6 +82,8 @@ eIPL KeIPLLower(eIPL newIPL)
 	thisCPU->m_ipl = newIPL;
 	
 	HalOnUpdateIPL(newIPL, oldIPL);
+	
+	// TODO (updated): Issue a self-IPI to call DPCs.
 	
 	// TODO: call DPCs
 	// ideally we'd have something as follows:

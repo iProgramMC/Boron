@@ -34,7 +34,7 @@ void HalAssignISR(int vector, InterruptServiceRoutine routine);
 
 // ==== Platform specific defintions ====
 #ifdef TARGET_AMD64
-#include <hal/amd64.h>
+#include <hal/amd64/pd.h>
 #endif
 
 // ==== Interrupt Type ====

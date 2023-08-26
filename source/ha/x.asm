@@ -7,12 +7,21 @@ bits 64
 global HalSetCurrentPageTable
 global HalGetCurrentPageTable
 
+; void* HalGetCurrentPageTable()
 HalGetCurrentPageTable:
 	mov rax, cr3
 	ret
 
+; void HalSetCurrentPageTable(void* pt)
 HalSetCurrentPageTable:
 	mov cr3, rdi
+	ret
+
+global HalOnUpdateIPL
+
+; void HalOnUpdateIPL(eIPL oldIPL, eIPL newIPL)
+HalOnUpdateIPL:
+	mov cr8, rsi
 	ret
 
 ; interrupt handlers list
@@ -24,8 +33,6 @@ HalInterruptHandlers:
 	dq 0
 	dq 0
 	dq 0
-
-
 
 ; At this point, RAX contains the interrupt handler type.
 ; We already preserved RAX.

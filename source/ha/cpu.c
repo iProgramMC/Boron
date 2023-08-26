@@ -13,6 +13,8 @@ void HalInvalidatePage(void* page)
 	ASM("invlpg (%0)"::"r"((uintptr_t)page):"memory");
 }
 
+extern void HalOnUpdateIPL(eIPL oldIPL, eIPL newIPL); // defined in x.asm
+
 void HalSetInterruptsEnabled(bool b)
 {
 	if (b)
