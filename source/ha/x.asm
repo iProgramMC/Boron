@@ -29,7 +29,7 @@ HalOnUpdateIPL:
 HalInterruptEntry:
 	; Push the int type, then the rest of the registers.
 	push rax
-	mov  rax, [HalInterruptHandlers + 4 * rax] ; resolve the interrupt handler
+	mov  rax, [HalInterruptHandlers + 8 * rax] ; resolve the interrupt handler
 	test rax, rax
 	jz   .end  ; if the interrupt handler is zero, go straight to the part where we're about to exit. Probably not a great idea?
 	push rbx

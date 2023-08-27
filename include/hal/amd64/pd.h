@@ -110,6 +110,7 @@ typedef struct
 	// bytes 12, 13, 14, 15
 	uint64_t Reserved2  : 32;
 }
+PACKED
 IDTEntry;
 
 // Interrupt descriptor table

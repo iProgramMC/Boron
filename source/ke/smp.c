@@ -41,7 +41,7 @@ void KeHandlePageFault(CPUState* State)
 #	error "Add a page fault handler for your own platform!"
 #endif
 	
-	LogMsg("Page fault at %p (tried to access %p, error code %d)", FaultPC, FaultTarget, FaultCode);
+	LogMsg("Page fault at %p (tried to access %p, error code %d) on CPU %u", FaultPC, FaultTarget, FaultCode, KeGetCPU()->m_apicID);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -63,10 +63,10 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	HalAssignISR(INT_DOUBLE_FAULT, KeHandleDoubleFault);
 	HalAssignISR(INT_PAGE_FAULT,   KeHandlePageFault);
 	
-	// issue a page fault right now
-	//*((uint64_t*)0x5adfdeadbeef) = 420;
-	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
+	
+	// issue a page fault right now
+	*((uint64_t*)0x5adfdeadbeef) = 420;
 	
 	KeStopCurrentCPU();
 }
