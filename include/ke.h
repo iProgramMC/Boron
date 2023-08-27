@@ -4,6 +4,7 @@
 
 #include <main.h>
 #include <_limine.h>
+#include <hal.h>
 
 // === Interrupt priority levels ===
 #include <ke/ipl.h>
@@ -44,10 +45,13 @@ typedef struct
 	
 	// the current IPL that we are running at
 	eIPL m_ipl;
+	
+	// architecture specific details
+	HalArchData ArchData;
 }
 CPU;
 
-CPU * KeGetThisCPU();
+CPU * KeGetCPU();
 
 static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the page size, for objective reasons");
 

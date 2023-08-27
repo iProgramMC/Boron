@@ -14,6 +14,9 @@ void HalDebugTerminalInit(void);
 void HalPrintString(const char* str);
 void HalPrintStringDebug(const char* str);
 
+// ==== Initialization ====
+void HalInitCPU(); // initializes the current CPU
+
 // ==== CPU intrinsics ====
 void HalWaitForNextInterrupt(void);
 void HalInvalidatePage(void* page);
@@ -48,5 +51,7 @@ enum eInterruptType
 	//....
 	INT_COUNT
 };
+
+HalArchData* HalGetData();
 
 #endif//NS64_HAL_H

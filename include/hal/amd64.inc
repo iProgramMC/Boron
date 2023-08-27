@@ -7,7 +7,7 @@ bits 64
 INT_UNKNOWN      equ 0
 INT_DOUBLE_FAULT equ 1
 INT_PAGE_FAULT   equ 2
-INT_IPI          equ 3
+INT_DPC_IPI      equ 3
 INT_COUNT        equ 4
 
 

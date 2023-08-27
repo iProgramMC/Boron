@@ -100,6 +100,35 @@ HalInterruptEntry:
 	add  rsp,  8  ; pop and discard the error code
 	iretq         ; Return from the interrupt!!
 
+global HalpDoubleFaultHandler
+global HalpPageFaultHandler
+global HalpDpcIpiHandler
+global HalpClockIrqHandler
+
+HalpDoubleFaultHandler:
+	; error code already pushed
+	push rax                   ; rax already pushed
+	mov  rax, INT_DOUBLE_FAULT ; interrupt type
+	jmp  HalInterruptEntry     ; handles the rest including returning
+
+HalpPageFaultHandler:
+	; error code already pushed
+	push rax                   ; rax already pushed
+	mov  rax, INT_PAGE_FAULT   ; interrupt type
+	jmp  HalInterruptEntry     ; handles the rest including returning
+
+HalpDpcIpiHandler:
+	push 0                     ; fake error code
+	push rax                   ; rax already pushed
+	mov  rax, INT_DPC_IPI      ; interrupt type
+	jmp  HalInterruptEntry     ; handles the rest including returning
+
+HalpClockIrqHandler:
+	push 0                     ; fake error code
+	push rax                   ; rax already pushed
+	mov  rax, INT_DPC_IPI      ; interrupt type
+	jmp  HalInterruptEntry     ; handles the rest including returning
+
 
 ; Here's how a normal interrupt handler would look like
 ;global HalExampleInterruptHandler
@@ -111,3 +140,34 @@ HalInterruptEntry:
 ;	                       ; the individual interrupt handlers small.
 ;;end
 
+; And here's also an example of how the interrupt handler would look on the C-side. Pretty simple, don't you think?!
+; void KeExampleInterruptHandler(CPUState* pState)
+; {
+; 	eIPL old_ipl = KeRaiseIPL(myiplhere); // in the case of page faults, APC level. Depends on the device
+; 	
+; 	// do all your interrupt shenanigans here
+; 	
+; 	KeLowerIPL(old_ipl); // also sends a self-IPI to dispatch DPCs
+; }
+
+; void HalpLoadGdt(GdtDescriptor* desc);
+global HalpLoadGdt
+HalpLoadGdt:
+	mov rax, rdi
+	lgdt [rax]
+	
+	; update the code segment
+	push 0x08           ; code segment
+	lea rax, [rel .a]   ; jump address
+	push rax
+	retfq               ; return far - will go to .a now
+.a:
+	; update the segments
+	mov ax, 0x10
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+	ret
+	

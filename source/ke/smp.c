@@ -24,25 +24,27 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	// Update the IPL when initing. Currently we start at the highest IPL
 	HalOnUpdateIPL(0, KeGetIPL());
 	
+	HalInitCPU();
+	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
 	KeStopCurrentCPU();
 }
 
-CPU* KeGetThisCPU()
+CPU* KeGetCPU()
 {
 	return HalGetCPUPointer();
 }
 
 eIPL KeGetIPL()
 {
-	CPU* thisCPU = KeGetThisCPU();
+	CPU* thisCPU = KeGetCPU();
 	return thisCPU->m_ipl;
 }
 
 eIPL KeIPLRaise(eIPL newIPL)
 {
-	CPU* thisCPU = KeGetThisCPU();
+	CPU* thisCPU = KeGetCPU();
 	eIPL oldIPL = thisCPU->m_ipl;
 	
 	if (oldIPL == newIPL)
@@ -65,7 +67,7 @@ eIPL KeIPLRaise(eIPL newIPL)
 // similar logic, except we will also call DPCs if needed
 eIPL KeIPLLower(eIPL newIPL)
 {
-	CPU* thisCPU = KeGetThisCPU();
+	CPU* thisCPU = KeGetCPU();
 	eIPL oldIPL = thisCPU->m_ipl;
 	
 	if (oldIPL == newIPL)

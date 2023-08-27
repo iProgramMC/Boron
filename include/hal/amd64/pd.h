@@ -76,4 +76,93 @@ struct CPUState
 	uint64_t ss;
 };
 
+// Interrupt vector list:
+#define INTV_PAGE_FAULT (0x0E) // exempt from the IPL stuff, but any page fault above IPL_APC is considered an error
+#define INTV_DPC_IPI    (0x50)
+#define INTV_APIC_TIMER (0xF0)
+
+#define SEG_NULL        (0x00)
+#define SEG_RING_0_CODE (0x08)
+#define SEG_RING_0_DATA (0x10)
+#define SEG_RING_3_CODE (0x18)
+#define SEG_RING_3_DATA (0x20)
+#define C_GDT_SEG_COUNT (5)
+
+#define MAX_IDT_ENTRIES (256)
+
+typedef struct
+{
+	// bytes 0 and 1
+	uint64_t OffsetLow  : 16;
+	// bytes 2 and 3
+	uint64_t SegmentSel : 16;
+	// byte 4
+	uint64_t IST        : 3;
+	uint64_t Reserved0  : 5;
+	// byte 5
+	uint64_t GateType   : 4;
+	uint64_t Reserved1  : 1;
+	uint64_t DPL        : 2;
+	uint64_t Present    : 1;
+	// bytes 6, 7, 8, 9, 10, 11
+	uint64_t OffsetHigh : 48;
+	// bytes 12, 13, 14, 15
+	uint64_t Reserved2  : 32;
+}
+IDTEntry;
+
+// Interrupt descriptor table
+typedef struct
+{
+	IDTEntry Entries[MAX_IDT_ENTRIES];
+}
+IDT;
+
+typedef struct
+{
+	uint32_t Reserved0;
+	uint64_t RSP[3]; // RSP 0-2
+	uint64_t Reserved1;
+	uint64_t IST[7]; // IST 1-7
+	uint64_t Reserved2;
+	uint16_t Reserved3;
+	uint16_t IOPB;
+}
+PACKED
+TSS;
+
+// This is pretty much the same as a GDT entry except that there's an extra 8 bytes.
+typedef struct
+{
+	uint64_t Limit1 : 16;
+	uint64_t Base1  : 24;
+	uint64_t Access : 8;
+	uint64_t Limit2 : 4;
+	uint64_t Flags  : 4;
+	uint64_t Base2  : 40;
+	uint64_t Resvd  : 32;
+}
+PACKED
+TSSEntry;
+
+// Global Descriptor Table
+typedef struct
+{
+	uint64_t Segments[C_GDT_SEG_COUNT];
+	TSSEntry TssEntry;
+}
+GDT;
+
+typedef struct
+{
+	void* IntStack;
+	GDT Gdt;
+	TSS Tss;
+	IDT* Idt;
+}
+HalArchData;
+
+// Platform specific functions
+void HalAmd64SetupIdt(IDT* idt);
+
 #endif//NS64_HAL_AMD64_H

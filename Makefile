@@ -45,16 +45,16 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -g -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
+CFLAGS ?= -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -g -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
+CXXFLAGS ?= -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
 
 # User controllable preprocessor flags. We set none by default.
 CPPFLAGS ?=
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -g -Isource -Iinclude
+NASMFLAGS ?= -F dwarf -Isource -Iinclude
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=
