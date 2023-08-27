@@ -24,16 +24,6 @@ HalOnUpdateIPL:
 	mov cr8, rsi
 	ret
 
-; interrupt handlers list
-global HalInterruptHandlers
-
-; this list has to be INT_COUNT sized!!
-HalInterruptHandlers:
-	dq 0
-	dq 0
-	dq 0
-	dq 0
-
 ; At this point, RAX contains the interrupt handler type.
 ; We already preserved RAX.
 HalInterruptEntry:
@@ -41,7 +31,7 @@ HalInterruptEntry:
 	push rax
 	mov  rax, [HalInterruptHandlers + 4 * rax] ; resolve the interrupt handler
 	test rax, rax
-	jz   .end  ; if the interrupt handler is zero, go straight to the part where we're about to exit
+	jz   .end  ; if the interrupt handler is zero, go straight to the part where we're about to exit. Probably not a great idea?
 	push rbx
 	push rcx
 	push rdx
@@ -177,3 +167,11 @@ HalpLoadTss:
 	mov ax, di
 	ltr ax
 	ret
+
+
+section .bss
+
+; interrupt handlers list
+global HalInterruptHandlers
+HalInterruptHandlers:
+	resq INT_COUNT

@@ -5,13 +5,47 @@
 #include <string.h>
 #include <_limine.h>
 
-volatile struct limine_smp_request g_SMPRequest =
+volatile struct limine_smp_request KeLimineSmpRequest =
 {
 	.id = LIMINE_SMP_REQUEST,
 	.revision = 0,
 	.response = NULL,
 	.flags = 0,
 };
+
+void KeHandleDoubleFault(CPUState* State)
+{
+	uintptr_t FaultPC, FaultCode;
+#ifdef TARGET_AMD64
+	FaultPC     = State->rip;
+	FaultCode   = State->error_code;
+#else
+#	error "Add a double fault handler for your own platform!"
+#endif
+	
+	LogMsg("Double fault at %p (error code %d)", FaultPC, FaultCode);
+	
+	// TODO: crash properly
+	KeStopCurrentCPU();
+}
+
+void KeHandlePageFault(CPUState* State)
+{
+	uintptr_t FaultPC, FaultTarget, FaultCode;
+	
+#ifdef TARGET_AMD64
+	FaultPC     = State->rip;
+	FaultTarget = State->cr2;
+	FaultCode   = State->error_code;
+#else
+#	error "Add a page fault handler for your own platform!"
+#endif
+	
+	LogMsg("Page fault at %p (tried to access %p, error code %d)", FaultPC, FaultTarget, FaultCode);
+	
+	// TODO: crash properly
+	KeStopCurrentCPU();
+}
 
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
@@ -25,6 +59,12 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	HalOnUpdateIPL(0, KeGetIPL());
 	
 	HalInitCPU();
+	// assign our own arch independent ISRs
+	HalAssignISR(INT_DOUBLE_FAULT, KeHandleDoubleFault);
+	HalAssignISR(INT_PAGE_FAULT,   KeHandlePageFault);
+	
+	// issue a page fault right now
+	//*((uint64_t*)0x5adfdeadbeef) = 420;
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
@@ -100,7 +140,7 @@ eIPL KeIPLLower(eIPL newIPL)
 
 NO_RETURN void KeInitSMP()
 {
-	struct limine_smp_response* pSMP = g_SMPRequest.response;
+	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;
 	
 	// Initialize all the CPUs in series.

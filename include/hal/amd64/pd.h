@@ -77,6 +77,7 @@ struct CPUState
 };
 
 // Interrupt vector list:
+#define INTV_DBL_FAULT  (0x08) // just an outright crash
 #define INTV_PAGE_FAULT (0x0E) // exempt from the IPL stuff, but any page fault above IPL_APC is considered an error
 #define INTV_DPC_IPI    (0x50)
 #define INTV_APIC_TIMER (0xF0)
@@ -161,8 +162,5 @@ typedef struct
 	IDT* Idt;
 }
 HalArchData;
-
-// Platform specific functions
-void HalAmd64SetupIdt(IDT* idt);
 
 #endif//NS64_HAL_AMD64_H

@@ -7,10 +7,11 @@ set NSPath=%CD%
 cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
-qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
+qemu-system-x86_64.exe -no-reboot -no-shutdown -d int,cpu_reset ^
 -M q35                                          ^
 -m 256M                                         ^
--smp 4                                          ^
+-smp 1                                          ^
+-D %nspath%\keep\out.txt                        ^
 -boot d                                         ^
 -cdrom %nspath%\build\image.iso                 ^
 -debugcon stdio                                 ^

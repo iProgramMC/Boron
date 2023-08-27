@@ -33,7 +33,7 @@ void HalOnUpdateIPL(eIPL newIPL, eIPL oldIPL);
 
 // interrupt service routines
 typedef void(*InterruptServiceRoutine)(CPUState* pState);
-void HalAssignISR(int vector, InterruptServiceRoutine routine);
+void HalAssignISR(int type, InterruptServiceRoutine routine); // type is an eInterruptType
 
 // ==== Platform specific defintions ====
 #ifdef TARGET_AMD64
