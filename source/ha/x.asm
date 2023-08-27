@@ -170,4 +170,10 @@ HalpLoadGdt:
 	mov gs, ax
 	mov ss, ax
 	ret
-	
+
+; void HalpLoadTss(int descriptor)
+global HalpLoadTss
+HalpLoadTss:
+	mov ax, di
+	ltr ax
+	ret

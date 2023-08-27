@@ -90,6 +90,7 @@ static uint64_t HalpGdtEntries[] =
 };
 
 extern void HalpLoadGdt(void* desc);
+extern void HalpLoadTss(int descriptor);
 
 static void HalpSetupGdt(HalArchData* Data)
 {
@@ -106,7 +107,7 @@ static void HalpSetupGdt(HalArchData* Data)
 	
 	Gdt->TssEntry.Limit1 = sizeof(TSS);
 	Gdt->TssEntry.Base1  = TssAddress;
-	Gdt->TssEntry.Access = 0x9;
+	Gdt->TssEntry.Access = 0x89;
 	Gdt->TssEntry.Limit2 = 0x0;
 	Gdt->TssEntry.Flags  = 0x0;
 	Gdt->TssEntry.Base2  = TssAddress >> 24;
@@ -124,8 +125,8 @@ static void HalpSetupGdt(HalArchData* Data)
 	
 	HalpLoadGdt(&GdtDescriptor);
 	
-	// Also load the task register:
-	//ASM("ltr %0"::"rm"((uint16_t) offsetof (GDT, TssEntry)));
+	// also load the TSS
+	HalpLoadTss(offsetof(GDT, TssEntry));
 }
 
 static void HalpSetupTss(TSS* Tss)
