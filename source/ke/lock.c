@@ -15,7 +15,7 @@ void KeLock(SpinLock* pLock)
 			return;
 		
 		while (AtLoadMO(pLock->m_bLocked, ATOMIC_MEMORD_ACQUIRE))
-			HalInterruptHint();
+			KeInterruptHint();
 	}
 }
 

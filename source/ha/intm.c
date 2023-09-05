@@ -1,9 +1,9 @@
 // Boron64 - Interrupt manager
 #include <hal.h>
 
-extern InterruptServiceRoutine HalInterruptHandlers[];
+extern InterruptServiceRoutine KeInterruptHandlers[];
 
-void HalAssignISR(int type, InterruptServiceRoutine routine)
+void KeAssignISR(int type, InterruptServiceRoutine routine)
 {
-	HalInterruptHandlers[type] = routine;
+	KeInterruptHandlers[type] = routine;
 }

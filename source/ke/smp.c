@@ -53,15 +53,15 @@ void KeHandlePageFault(CPUState* State)
 NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 {
 	CPU *pCpu = (CPU *)pInfo->extra_argument;
-	HalSetCPUPointer(pCpu);
+	KeSetCPUPointer(pCpu);
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
-	HalOnUpdateIPL(0, KeGetIPL());
+	KeOnUpdateIPL(0, KeGetIPL());
 	
-	HalInitCPU();
+	KeInitCPU();
 	// assign our own arch independent ISRs
-	HalAssignISR(INT_DOUBLE_FAULT, KeHandleDoubleFault);
-	HalAssignISR(INT_PAGE_FAULT,   KeHandlePageFault);
+	KeAssignISR(INT_DOUBLE_FAULT, KeHandleDoubleFault);
+	KeAssignISR(INT_PAGE_FAULT,   KeHandlePageFault);
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
@@ -73,7 +73,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 
 CPU* KeGetCPU()
 {
-	return HalGetCPUPointer();
+	return KeGetCPUPointer();
 }
 
 eIPL KeGetIPL()
@@ -97,7 +97,7 @@ eIPL KeIPLRaise(eIPL newIPL)
 		return oldIPL;
 	}
 	
-	HalOnUpdateIPL(newIPL, oldIPL);
+	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	// Set the current IPL
 	thisCPU->m_ipl = newIPL;
@@ -123,7 +123,7 @@ eIPL KeIPLLower(eIPL newIPL)
 	// Set the current IPL
 	thisCPU->m_ipl = newIPL;
 	
-	HalOnUpdateIPL(newIPL, oldIPL);
+	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	// TODO (updated): Issue a self-IPI to call DPCs.
 	
@@ -165,7 +165,7 @@ NO_RETURN void KeInitSMP()
 		pCPU->m_apicID    = pInfo->lapic_id;
 		pCPU->m_bIsBSP    = bIsBSP;
 		pCPU->m_pSMPInfo  = pInfo;
-		pCPU->m_pageTable = HalGetCurrentPageTable(); // it'd better be that
+		pCPU->m_pageTable = KeGetCurrentPageTable(); // it'd better be that
 		pCPU->m_ipl       = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
 		
 		pInfo->extra_argument = (uint64_t)pCPU;

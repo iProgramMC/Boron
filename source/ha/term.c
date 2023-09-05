@@ -119,7 +119,7 @@ void HalPrintStringDebug(const char* str)
 {
 	while (*str)
 	{
-		HalPortWriteByte(0xE9, *str);
+		KePortWriteByte(0xE9, *str);
 		str++;
 	}
 }

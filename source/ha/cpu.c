@@ -6,19 +6,19 @@
 #include <mm.h>
 #include <string.h>
 
-void HalWaitForNextInterrupt()
+void KeWaitForNextInterrupt()
 {
 	ASM("hlt":::"memory");
 }
 
-void HalInvalidatePage(void* page)
+void KeInvalidatePage(void* page)
 {
 	ASM("invlpg (%0)"::"r"((uintptr_t)page):"memory");
 }
 
-extern void HalOnUpdateIPL(eIPL oldIPL, eIPL newIPL); // defined in x.asm
+extern void KeOnUpdateIPL(eIPL oldIPL, eIPL newIPL); // defined in x.asm
 
-void HalSetInterruptsEnabled(bool b)
+void KeSetInterruptsEnabled(bool b)
 {
 	if (b)
 		ASM("sti":::"memory");
@@ -26,14 +26,14 @@ void HalSetInterruptsEnabled(bool b)
 		ASM("cli":::"memory");
 }
 
-void HalInterruptHint()
+void KeInterruptHint()
 {
 	ASM("pause":::"memory");
 }
 
 // Model specific registers
 
-uint64_t HalGetMSR(uint32_t msr)
+uint64_t KeGetMSR(uint32_t msr)
 {
 	uint32_t edx, eax;
 	
@@ -42,7 +42,7 @@ uint64_t HalGetMSR(uint32_t msr)
 	return ((uint64_t)edx << 32) | eax;
 }
 
-void HalSetMSR(uint32_t msr, uint64_t value)
+void KeSetMSR(uint32_t msr, uint64_t value)
 {
 	uint32_t edx = (uint32_t)(value >> 32);
 	uint32_t eax = (uint32_t)(value);
@@ -50,27 +50,27 @@ void HalSetMSR(uint32_t msr, uint64_t value)
 	ASM("wrmsr"::"d"(edx),"a"(eax),"c"(msr));
 }
 
-void HalSetCPUPointer(void* pGS)
+void KeSetCPUPointer(void* pGS)
 {
-	HalSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) pGS);
+	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) pGS);
 }
 
-void* HalGetCPUPointer(void)
+void* KeGetCPUPointer(void)
 {
-	return (void*) HalGetMSR(MSR_GS_BASE_KERNEL);
+	return (void*) KeGetMSR(MSR_GS_BASE_KERNEL);
 }
 
-HalArchData* HalGetData()
+KeArchData* KeGetData()
 {
 	return &KeGetCPU()->ArchData;
 }
 
 // This loads the bare interrupt vector handler into the IDT. It does not handle CPU independent IRQ handlers.
-typedef void(*HalpInterruptVector)();
+typedef void(*KepInterruptVector)();
 
 // Probably not going to be used because SYSCALL and SYSENTER both bypass the ring system.
 // These are going to be optimized out, and are also niceties when needed, so I will keep them.
-static UNUSED void HalpSetInterruptDPL(IDT* Idt, int Vector, int Ring)
+static UNUSED void KepSetInterruptDPL(IDT* Idt, int Vector, int Ring)
 {
 	Idt->Entries[Vector].DPL = Ring;
 }
@@ -80,7 +80,7 @@ static UNUSED void HalpSetInterruptDPL(IDT* Idt, int Vector, int Ring)
 // This is bad, since a keyboard interrupt could manage to sneak past an important clock interrupt
 // before we manage to raise the IPL in the clock interrupt.
 // Not to mention the performance gains would be minimal if at all existent.
-static UNUSED void HalpSetInterruptGateType(IDT* Idt, int Vector, int GateType)
+static UNUSED void KepSetInterruptGateType(IDT* Idt, int Vector, int GateType)
 {
 	Idt->Entries[Vector].GateType = GateType;
 }
@@ -88,7 +88,7 @@ static UNUSED void HalpSetInterruptGateType(IDT* Idt, int Vector, int GateType)
 // Set the IST of an interrupt vector. This is probably useful for the double fault handler,
 // as it is triggered only when another interrupt failed to be called, which is useful in cases
 // where the kernel stack went missing and bad (Which I hope there aren't any!)
-static UNUSED void HalpSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
+static UNUSED void KepSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
 {
 	Idt->Entries[Vector].IST = Ist;
 }
@@ -96,7 +96,7 @@ static UNUSED void HalpSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
 // Parameters:
 // Idt     - The IDT that the interrupt vector will be loaded in.
 // Vector  - The interrupt number that the handler will be assigned to.
-static void HalpLoadInterruptVector(IDT* Idt, int Vector, HalpInterruptVector Handler)
+static void KepLoadInterruptVector(IDT* Idt, int Vector, KepInterruptVector Handler)
 {
 	IDTEntry* Entry = &Idt->Entries[Vector];
 	memset(Entry, 0, sizeof * Entry);
@@ -125,12 +125,12 @@ static void HalpLoadInterruptVector(IDT* Idt, int Vector, HalpInterruptVector Ha
 	Entry->Present = true;
 }
 
-extern void HalpDoubleFaultHandler();
-extern void HalpPageFaultHandler();
-extern void HalpDpcIpiHandler();
-extern void HalpClockIrqHandler();
+extern void KepDoubleFaultHandler();
+extern void KepPageFaultHandler();
+extern void KepDpcIpiHandler();
+extern void KepClockIrqHandler();
 
-static void HalpSetupIdt(IDT* Idt)
+static void KepSetupIdt(IDT* Idt)
 {
 	struct
 	{
@@ -143,15 +143,15 @@ static void HalpSetupIdt(IDT* Idt)
 	IdtDescriptor.Pointer = (uint64_t) Idt;
 	
 	// Load interrupt vectors.
-	HalpLoadInterruptVector(Idt, INTV_DBL_FAULT,  HalpDoubleFaultHandler);
-	HalpLoadInterruptVector(Idt, INTV_PAGE_FAULT, HalpPageFaultHandler);
-	HalpLoadInterruptVector(Idt, INTV_DPC_IPI,    HalpDpcIpiHandler);
-	HalpLoadInterruptVector(Idt, INTV_APIC_TIMER, HalpClockIrqHandler);
+	KepLoadInterruptVector(Idt, INTV_DBL_FAULT,  KepDoubleFaultHandler);
+	KepLoadInterruptVector(Idt, INTV_PAGE_FAULT, KepPageFaultHandler);
+	KepLoadInterruptVector(Idt, INTV_DPC_IPI,    KepDpcIpiHandler);
+	KepLoadInterruptVector(Idt, INTV_APIC_TIMER, KepClockIrqHandler);
 	
 	ASM("lidt (%0)"::"r"(&IdtDescriptor));
 }
 
-static uint64_t HalpGdtEntries[] =
+static uint64_t KepGdtEntries[] =
 {
 	0x0000000000000000, // Null descriptor
 	0x00af9b000000ffff, // 64-bit ring-0 code
@@ -160,17 +160,17 @@ static uint64_t HalpGdtEntries[] =
 	0x00aff3000000ffff, // 64-bit ring-3 data
 };
 
-extern void HalpLoadGdt(void* desc);
-extern void HalpLoadTss(int descriptor);
+extern void KepLoadGdt(void* desc);
+extern void KepLoadTss(int descriptor);
 
-static void HalpSetupGdt(HalArchData* Data)
+static void KepSetupGdt(KeArchData* Data)
 {
 	GDT* Gdt = &Data->Gdt;
 	TSS* Tss = &Data->Tss;
 	
 	for (int i = 0; i < C_GDT_SEG_COUNT; i++)
 	{
-		Gdt->Segments[i] = HalpGdtEntries[i];
+		Gdt->Segments[i] = KepGdtEntries[i];
 	}
 	
 	// setup the TSS entry:
@@ -194,24 +194,24 @@ static void HalpSetupGdt(HalArchData* Data)
 	GdtDescriptor.Length  = sizeof   * Gdt;
 	GdtDescriptor.Pointer = (uint64_t) Gdt;
 	
-	HalpLoadGdt(&GdtDescriptor);
+	KepLoadGdt(&GdtDescriptor);
 	
 	// also load the TSS
-	HalpLoadTss(offsetof(GDT, TssEntry));
+	KepLoadTss(offsetof(GDT, TssEntry));
 }
 
-static void HalpSetupTss(TSS* Tss)
+static void KepSetupTss(TSS* Tss)
 {
 	// we'll set it up later..
 	memset(Tss, 0, sizeof * Tss);
 }
 
-static void HalPlaceholderHandler(CPUState* State)
+static void KePlaceholderHandler(CPUState* State)
 {
-	LogMsg("Error, HalPlaceholderHandler isn't actually supposed to run!");
+	LogMsg("Error, KePlaceholderHandler isn't actually supposed to run!");
 }
 
-void HalInitCPU()
+void KeInitCPU()
 {
 	int ispPFN = MmAllocatePhysicalPage();
 	int idtPFN = MmAllocatePhysicalPage();
@@ -223,7 +223,7 @@ void HalInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	HalArchData* Data = HalGetData();
+	KeArchData* Data = KeGetData();
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
 	
 	IDT* idt = MmGetHHDMOffsetAddr(MmPFNToPhysPage(idtPFN));
@@ -233,12 +233,12 @@ void HalInitCPU()
 	Data->IntStack = intStack;
 	memset(intStack, 0, 4096);
 	
-	HalpSetupTss(&Data->Tss);
-	HalpSetupGdt(Data);
-	HalpSetupIdt(idt);
+	KepSetupTss(&Data->Tss);
+	KepSetupGdt(Data);
+	KepSetupIdt(idt);
 	Data->Idt = idt;
 	
 	// Load the default ISR places with a placeholder.
 	for (int i = 0; i < INT_COUNT; i++)
-		HalAssignISR(i, HalPlaceholderHandler);
+		KeAssignISR(i, KePlaceholderHandler);
 }

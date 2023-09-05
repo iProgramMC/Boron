@@ -47,7 +47,7 @@ typedef struct
 	eIPL m_ipl;
 	
 	// architecture specific details
-	HalArchData ArchData;
+	KeArchData ArchData;
 }
 CPU;
 

@@ -4,32 +4,32 @@ bits 64
 %include "hal/amd64.inc"
 
 ; these functions set the CR3
-global HalSetCurrentPageTable
-global HalGetCurrentPageTable
+global KeSetCurrentPageTable
+global KeGetCurrentPageTable
 
-; void* HalGetCurrentPageTable()
-HalGetCurrentPageTable:
+; void* KeGetCurrentPageTable()
+KeGetCurrentPageTable:
 	mov rax, cr3
 	ret
 
-; void HalSetCurrentPageTable(void* pt)
-HalSetCurrentPageTable:
+; void KeSetCurrentPageTable(void* pt)
+KeSetCurrentPageTable:
 	mov cr3, rdi
 	ret
 
-global HalOnUpdateIPL
+global KeOnUpdateIPL
 
-; void HalOnUpdateIPL(eIPL oldIPL, eIPL newIPL)
-HalOnUpdateIPL:
+; void KeOnUpdateIPL(eIPL oldIPL, eIPL newIPL)
+KeOnUpdateIPL:
 	mov cr8, rsi
 	ret
 
 ; At this point, RAX contains the interrupt handler type.
 ; We already preserved RAX.
-HalInterruptEntry:
+KeInterruptEntry:
 	; Push the int type, then the rest of the registers.
 	push rax
-	mov  rax, [HalInterruptHandlers + 8 * rax] ; resolve the interrupt handler
+	mov  rax, [KeInterruptHandlers + 8 * rax] ; resolve the interrupt handler
 	test rax, rax
 	jz   .end  ; if the interrupt handler is zero, go straight to the part where we're about to exit. Probably not a great idea?
 	push rbx
@@ -90,43 +90,43 @@ HalInterruptEntry:
 	add  rsp,  8  ; pop and discard the error code
 	iretq         ; Return from the interrupt!!
 
-global HalpDoubleFaultHandler
-global HalpPageFaultHandler
-global HalpDpcIpiHandler
-global HalpClockIrqHandler
+global KepDoubleFaultHandler
+global KepPageFaultHandler
+global KepDpcIpiHandler
+global KepClockIrqHandler
 
-HalpDoubleFaultHandler:
+KepDoubleFaultHandler:
 	; error code already pushed
 	push rax                   ; rax already pushed
 	mov  rax, INT_DOUBLE_FAULT ; interrupt type
-	jmp  HalInterruptEntry     ; handles the rest including returning
+	jmp  KeInterruptEntry     ; handles the rest including returning
 
-HalpPageFaultHandler:
+KepPageFaultHandler:
 	; error code already pushed
 	push rax                   ; rax already pushed
 	mov  rax, INT_PAGE_FAULT   ; interrupt type
-	jmp  HalInterruptEntry     ; handles the rest including returning
+	jmp  KeInterruptEntry     ; handles the rest including returning
 
-HalpDpcIpiHandler:
+KepDpcIpiHandler:
 	push 0                     ; fake error code
 	push rax                   ; rax already pushed
 	mov  rax, INT_DPC_IPI      ; interrupt type
-	jmp  HalInterruptEntry     ; handles the rest including returning
+	jmp  KeInterruptEntry     ; handles the rest including returning
 
-HalpClockIrqHandler:
+KepClockIrqHandler:
 	push 0                     ; fake error code
 	push rax                   ; rax already pushed
 	mov  rax, INT_DPC_IPI      ; interrupt type
-	jmp  HalInterruptEntry     ; handles the rest including returning
+	jmp  KeInterruptEntry     ; handles the rest including returning
 
 
 ; Here's how a normal interrupt handler would look like
-;global HalExampleInterruptHandler
-;HalExampleInterruptHandler:
+;global KeExampleInterruptHandler
+;KeExampleInterruptHandler:
 ;	push 0                 ; error code
 ;	push rax               ; preserve RAX
 ;	mov rax, INT_UNKNOWN   ; just an example
-;	jmp  HalInterruptEntry ; everything else is handled here. This keeps
+;	jmp  KeInterruptEntry ; everything else is handled here. This keeps
 ;	                       ; the individual interrupt handlers small.
 ;;end
 
@@ -140,9 +140,9 @@ HalpClockIrqHandler:
 ; 	KeLowerIPL(old_ipl); // also sends a self-IPI to dispatch DPCs
 ; }
 
-; void HalpLoadGdt(GdtDescriptor* desc);
-global HalpLoadGdt
-HalpLoadGdt:
+; void KepLoadGdt(GdtDescriptor* desc);
+global KepLoadGdt
+KepLoadGdt:
 	mov rax, rdi
 	lgdt [rax]
 	
@@ -161,9 +161,9 @@ HalpLoadGdt:
 	mov ss, ax
 	ret
 
-; void HalpLoadTss(int descriptor)
-global HalpLoadTss
-HalpLoadTss:
+; void KepLoadTss(int descriptor)
+global KepLoadTss
+KepLoadTss:
 	mov ax, di
 	ltr ax
 	ret
@@ -172,6 +172,6 @@ HalpLoadTss:
 section .bss
 
 ; interrupt handlers list
-global HalInterruptHandlers
-HalInterruptHandlers:
+global KeInterruptHandlers
+KeInterruptHandlers:
 	resq INT_COUNT

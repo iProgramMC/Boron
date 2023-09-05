@@ -15,25 +15,25 @@ void HalPrintString(const char* str);
 void HalPrintStringDebug(const char* str);
 
 // ==== Initialization ====
-void HalInitCPU(); // initializes the current CPU
+void KeInitCPU(); // initializes the current CPU
 
 // ==== CPU intrinsics ====
-void HalWaitForNextInterrupt(void);
-void HalInvalidatePage(void* page);
-void HalSetInterruptsEnabled(bool b);      // no tracking of previous state currently. This does the relevant instruction
-void HalSetCurrentPageTable(uintptr_t pa); // set the value of the CR3 register
-uintptr_t HalGetCurrentPageTable(void);    // get the value of the CR3 register
-void HalInterruptHint(void);
-void HalSetCPUPointer(void* pGS);          // sets the kernel's GS base
-void*HalGetCPUPointer(void);               // gts the kernel's GS base
+void KeWaitForNextInterrupt(void);
+void KeInvalidatePage(void* page);
+void KeSetInterruptsEnabled(bool b);      // no tracking of previous state currently. This does the relevant instruction
+void KeSetCurrentPageTable(uintptr_t pa); // set the value of the CR3 register
+uintptr_t KeGetCurrentPageTable(void);    // get the value of the CR3 register
+void KeInterruptHint(void);
+void KeSetCPUPointer(void* pGS);          // sets the kernel's GS base
+void*KeGetCPUPointer(void);               // gts the kernel's GS base
 
 // ==== Interrupts ====
 #include <ke/ipl.h>
-void HalOnUpdateIPL(eIPL newIPL, eIPL oldIPL);
+void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL);
 
 // interrupt service routines
 typedef void(*InterruptServiceRoutine)(CPUState* pState);
-void HalAssignISR(int type, InterruptServiceRoutine routine); // type is an eInterruptType
+void KeAssignISR(int type, InterruptServiceRoutine routine); // type is an eInterruptType
 
 // ==== Platform specific defintions ====
 #ifdef TARGET_AMD64
@@ -52,6 +52,6 @@ enum eInterruptType
 	INT_COUNT
 };
 
-HalArchData* HalGetData();
+KeArchData* KeGetData();
 
 #endif//NS64_HAL_H

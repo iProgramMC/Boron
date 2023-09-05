@@ -162,6 +162,6 @@ typedef struct
 	TSS Tss;
 	IDT* Idt;
 }
-HalArchData;
+KeArchData;
 
 #endif//NS64_HAL_AMD64_H

@@ -59,7 +59,7 @@ uintptr_t MmClonePageTable(uintptr_t pt, bool copy_user_half)
 	
 	uintptr_t new_pt = MmPFNToPhysPage(pfn_pml4);
 	
-	MmClonePageTableLevel (new_pt, pt, 0x0, 4, copy_user_half, pt == HalGetCurrentPageTable());
+	MmClonePageTableLevel (new_pt, pt, 0x0, 4, copy_user_half, pt == KeGetCurrentPageTable());
 	
 	return new_pt;
 }

@@ -139,7 +139,7 @@ void MiInitPMM()
 		LogMsg("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) g_HHDMRequest.response->offset);
 	}
 	
-	uintptr_t currPageTablePhys = HalGetCurrentPageTable();
+	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
 	
 	// allocate the entries in the page frame number database
 	struct limine_memmap_response* pResponse = g_MemMapRequest.response;

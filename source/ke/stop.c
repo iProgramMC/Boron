@@ -4,8 +4,8 @@
 // Stops the current CPU
 void KeStopCurrentCPU()
 {
-	HalSetInterruptsEnabled(false);
+	KeSetInterruptsEnabled(false);
 	
 	while (true)
-		HalWaitForNextInterrupt();
+		KeWaitForNextInterrupt();
 }
