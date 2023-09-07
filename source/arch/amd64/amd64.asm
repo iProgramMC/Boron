@@ -1,7 +1,7 @@
 ; Boron - CPU abstraction functions
 bits 64
 
-%include "hal/amd64.inc"
+%include "arch/amd64.inc"
 
 ; these functions set the CR3
 global KeSetCurrentPageTable

@@ -1,7 +1,7 @@
 // Boron64 - Memory mapping functions.
 // - These allow mutation and cloning of the current page table.
 #include <mm.h>
-#include <hal.h>
+#include <arch.h>
 
 void MmClonePageTableLevel(uintptr_t new_pl, uintptr_t old_pl, uintptr_t base_address, int level, bool copy_user_half, bool invalidate_if_updating_old_pt)
 {

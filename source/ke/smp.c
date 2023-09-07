@@ -1,7 +1,7 @@
 // Boron64 - SMP initialization
 #include <ke.h>
 #include <mm.h>
-#include <hal.h>
+#include <arch.h>
 #include <string.h>
 #include <_limine.h>
 

@@ -1,5 +1,5 @@
 #include <ke.h>
-#include <hal.h>
+#include <arch.h>
 
 // Stops the current CPU
 void KeStopCurrentCPU()

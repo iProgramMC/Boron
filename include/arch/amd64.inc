@@ -1,4 +1,4 @@
-; Boron64 - HAL include file for assembly functions
+; Boron64 - Include file for platform specific assembly stuff
 %ifndef NS64_AMD64_INC
 %define NS64_AMD64_INC
 bits 64

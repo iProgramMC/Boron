@@ -3,7 +3,10 @@
 #include <main.h>
 #include <string.h>
 #include <hal.h>
-#include "io.h"
+
+#ifdef TARGET_AMD64
+#include "../arch/amd64/pio.h"
+#endif
 
 #include "font.h"
 
@@ -119,7 +122,12 @@ void HalPrintStringDebug(const char* str)
 {
 	while (*str)
 	{
+	#ifdef TARGET_AMD64
 		KePortWriteByte(0xE9, *str);
+	#else
+		#error "May want to implement this for your platform ..."
+	#endif
+		
 		str++;
 	}
 }

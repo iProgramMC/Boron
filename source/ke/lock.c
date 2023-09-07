@@ -1,6 +1,6 @@
 // Boron64 - Spin locks
 #include <ke.h>
-#include <hal.h>
+#include <arch.h>
 
 bool KeTryLock(SpinLock* pLock)
 {

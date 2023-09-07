@@ -1,7 +1,7 @@
 // Boron - Hardware abstraction
 // CPU management
 #include <main.h>
-#include <hal.h>
+#include <arch.h>
 #include <ke.h>
 #include <mm.h>
 #include <string.h>

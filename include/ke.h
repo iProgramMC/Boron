@@ -4,10 +4,10 @@
 
 #include <main.h>
 #include <_limine.h>
-#include <hal.h>
+#include <arch.h>
 
 // === Interrupt priority levels ===
-#include <ke/ipl.h>
+#include <arch.h>
 
 // Raises or lowers the IPL of the current CPU.
 // Returns the previous IPL.

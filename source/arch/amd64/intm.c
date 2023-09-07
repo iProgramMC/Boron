@@ -1,5 +1,5 @@
 // Boron64 - Interrupt manager
-#include <hal.h>
+#include <arch.h>
 
 extern InterruptServiceRoutine KeInterruptHandlers[];
 
