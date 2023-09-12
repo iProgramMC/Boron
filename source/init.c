@@ -5,19 +5,19 @@
 #include <ke.h>
 
 // bootloader requests
-volatile struct limine_hhdm_request g_HHDMRequest =
+volatile struct limine_hhdm_request KeLimineHhdmRequest =
 {
 	.id = LIMINE_HHDM_REQUEST,
 	.revision = 0,
 	.response = NULL,
 };
-volatile struct limine_framebuffer_request g_FramebufferRequest =
+volatile struct limine_framebuffer_request KeLimineFramebufferRequest =
 {
 	.id = LIMINE_FRAMEBUFFER_REQUEST,
 	.revision = 0,
 	.response = NULL,
 };
-volatile struct limine_memmap_request g_MemMapRequest =
+volatile struct limine_memmap_request KeLimineMemMapRequest =
 {
 	.id       = LIMINE_MEMMAP_REQUEST,
 	.revision = 0,

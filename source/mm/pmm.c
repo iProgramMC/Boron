@@ -1,27 +1,11 @@
-#include <mm.h>
-#include <hal.h>
-#include <ke.h>
-#include <_limine.h>
+#include "mi.h"
 
-extern volatile struct limine_hhdm_request   g_HHDMRequest;
-extern volatile struct limine_memmap_request g_MemMapRequest;
-
-typedef struct {
-	uint8_t data[PAGE_SIZE];
-} OnePage;
-
-struct PmmSentinelTAG;
-typedef struct PmmSentinelTAG
-{
-	struct PmmSentinelTAG * m_pNext;
-	struct PmmSentinelTAG * m_pPrev;
-	size_t m_nPages;
-}
-PmmSentinel;
+extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
+extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
 uint8_t* MmGetHHDMBase()
 {
-	return (uint8_t*)g_HHDMRequest.response->offset;
+	return (uint8_t*)KeLimineHhdmRequest.response->offset;
 }
 
 void* MmGetHHDMOffsetAddr(uintptr_t physAddr)
@@ -29,12 +13,15 @@ void* MmGetHHDMOffsetAddr(uintptr_t physAddr)
 	return (void*) (MmGetHHDMBase() + physAddr);
 }
 
-PmmSentinel *g_pFirstPMMSentinel, *g_pLastPMMSentinel;
+uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
+{
+	return (uintptr_t) addr - (uintptr_t) MmGetHHDMBase();
+}
 
 // Allocates a page from the memmap for eternity during init.  Used to prepare the PFN database.
 static uintptr_t MiAllocatePageFromMemMap()
 {
-	struct limine_memmap_response* pResponse = g_MemMapRequest.response;
+	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
 	
 	for (uint64_t i = 0; i < pResponse->entry_count; i++)
 	{
@@ -126,7 +113,7 @@ SpinLock g_pfnLock;
 // Note! Initialization is done on the BSP. So no locking needed
 void MiInitPMM()
 {
-	if (!g_MemMapRequest.response || !g_HHDMRequest.response)
+	if (!KeLimineMemMapRequest.response || !KeLimineHhdmRequest.response)
 	{
 		LogMsg("Error, no memory map was provided");
 		KeStopCurrentCPU();
@@ -134,15 +121,15 @@ void MiInitPMM()
 	
 	// with 4-level paging, limine seems to be hardcoded at this address, so we're probably good. Although
 	// the protocol does NOT specify that, and it does seem to be affected by KASLR...
-	if (g_HHDMRequest.response->offset != 0xFFFF800000000000)
+	if (KeLimineHhdmRequest.response->offset != 0xFFFF800000000000)
 	{
-		LogMsg("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) g_HHDMRequest.response->offset);
+		LogMsg("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLimineHhdmRequest.response->offset);
 	}
 	
 	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
 	
 	// allocate the entries in the page frame number database
-	struct limine_memmap_response* pResponse = g_MemMapRequest.response;
+	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
 	
 	// pass 0: print out all the entries for debugging
 	for (uint64_t i = 0; i < pResponse->entry_count; i++)
@@ -316,4 +303,19 @@ void MmFreePhysicalPage(int pfn)
 	pCurrPFN->m_flags &= ~PF_FLAG_ALLOCATED;
 	g_lastPFN = pfn;
 	KeUnlock(&g_pfnLock);
+}
+
+void* MmAllocatePhysicalPageHHDM()
+{
+	int PhysicalPage = MmAllocatePhysicalPage();
+	
+	if (PhysicalPage == PFN_INVALID)
+		return NULL;
+	
+	return MmGetHHDMOffsetAddr(MmPFNToPhysPage(PhysicalPage));
+}
+
+void MmFreePhysicalPageHHDM(void* page)
+{
+	return MmFreePhysicalPage(MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(page)));
 }

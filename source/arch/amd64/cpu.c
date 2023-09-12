@@ -206,20 +206,32 @@ static void KepSetupTss(TSS* Tss)
 	memset(Tss, 0, sizeof * Tss);
 }
 
-static void KePlaceholderHandler(CPUState* State)
+static void KePlaceholderHandler(UNUSED CPUState* State)
 {
 	LogMsg("Error, KePlaceholderHandler isn't actually supposed to run!");
 }
 
 void KeInitCPU()
 {
+	// create a new page mapping based on the one that already exists:
+	uintptr_t Map = MmCreatePageMapping(KeGetCurrentPageTable());
+	if (Map == 0)
+	{
+		LogMsg("Error, mapping is zero");
+		KeStopCurrentCPU();
+	}
+	
+	LogMsg("Map for CPU %u is %x", KeGetCPU()->LapicId, Map);
+	
+	KeSetCurrentPageTable(Map);
+	
 	int ispPFN = MmAllocatePhysicalPage();
 	int idtPFN = MmAllocatePhysicalPage();
 	
 	if (ispPFN == PFN_INVALID || idtPFN == PFN_INVALID)
 	{
 		// TODO: crash
-		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create IDT & interrupt stack", KeGetCPU()->m_apicID);
+		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create IDT & interrupt stack", KeGetCPU()->LapicId);
 		KeStopCurrentCPU();
 	}
 	

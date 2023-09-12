@@ -19,6 +19,7 @@ void KeInterruptHint(void);
 void KeSetCPUPointer(void* pGS);
 void*KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);
+void KeSetCurrentPageTable(uintptr_t pt);
 
 // CPU initialization function
 void KeInitCPU(); // initializes the current CPU

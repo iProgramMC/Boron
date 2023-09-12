@@ -5,8 +5,6 @@
 #error "Don't include this if you aren't building for amd64!"
 #endif
 
-#include <arch.h>
-
 // Model specific registers
 uint64_t KeGetMSR(uint32_t msr);
 void KeSetMSR(uint32_t msr, uint64_t value);
@@ -178,5 +176,7 @@ typedef struct
 	IDT* Idt;
 }
 KeArchData;
+
+#include <arch.h>
 
 #endif//NS64_ARCH_AMD64_H

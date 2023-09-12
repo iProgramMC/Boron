@@ -32,19 +32,19 @@ NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 typedef struct
 {
 	// the APIC ID of the processor
-	uint32_t m_apicID;
+	uint32_t LapicId;
 	
 	// are we the bootstrap processor?
-	bool m_bIsBSP;
+	bool IsBootstrap;
 	
 	// the SMP info we're given
-	struct limine_smp_info* m_pSMPInfo;
+	struct limine_smp_info* SmpInfo;
 	
-	// the page table we're currently using (physical address)
-	uintptr_t m_pageTable;
+	// the page mapping we're currently using (physical address)
+	uintptr_t PageMapping;
 	
 	// the current IPL that we are running at
-	eIPL m_ipl;
+	eIPL Ipl;
 	
 	// architecture specific details
 	KeArchData ArchData;
@@ -92,15 +92,29 @@ static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the
 #define AtExchangeMO(var,val,ret,mo) __atomic_exchange(&(var), &(val), &(ret), mo)
 
 // === Locking ===
+
+// simple spin locks, for when contention is rare
 typedef struct
 {
-	bool m_bLocked;
+	bool Locked;
 }
 SpinLock;
 
 void KeLock(SpinLock* pLock);
 void KeUnlock(SpinLock* pLock);
 bool KeTryLock(SpinLock* pLock);
+
+// ticket locks, for when contention is definitely possible
+typedef struct
+{
+	int NowServing;
+	int NextNumber;
+}
+TicketLock;
+
+void KeInitTicketLock(TicketLock* pLock);
+void KeLockTicket(TicketLock* pLock);
+void KeUnlockTicket(TicketLock* pLock);
 
 // === SMP ===
 NO_RETURN void KeInitSMP(void);

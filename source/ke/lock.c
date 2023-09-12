@@ -4,7 +4,7 @@
 
 bool KeTryLock(SpinLock* pLock)
 {
-	return !AtTestAndSetMO(pLock->m_bLocked, ATOMIC_MEMORD_ACQUIRE);
+	return !AtTestAndSetMO(pLock->Locked, ATOMIC_MEMORD_ACQUIRE);
 }
 
 void KeLock(SpinLock* pLock)
@@ -14,12 +14,31 @@ void KeLock(SpinLock* pLock)
 		if (KeTryLock(pLock))
 			return;
 		
-		while (AtLoadMO(pLock->m_bLocked, ATOMIC_MEMORD_ACQUIRE))
+		while (AtLoadMO(pLock->Locked, ATOMIC_MEMORD_ACQUIRE))
 			KeInterruptHint();
 	}
 }
 
 void KeUnlock(SpinLock* pLock)
 {
-	AtClearMO(pLock->m_bLocked, ATOMIC_MEMORD_RELEASE);
+	AtClearMO(pLock->Locked, ATOMIC_MEMORD_RELEASE);
+}
+
+void KeInitTicketLock(TicketLock* pLock)
+{
+	AtClear(pLock->NowServing);
+	AtClear(pLock->NextNumber);
+}
+
+void KeLockTicket(TicketLock* pLock)
+{
+	int MyTicket = AtFetchAddMO(pLock->NextNumber, 1, ATOMIC_MEMORD_ACQUIRE);
+	
+	while (AtLoadMO(pLock->NowServing, ATOMIC_MEMORD_ACQUIRE) != MyTicket)
+		KeInterruptHint();
+}
+
+void KeUnlockTicket(TicketLock* pLock)
+{
+	AtAddFetchMO(pLock->NowServing, 1, ATOMIC_MEMORD_RELEASE);
 }

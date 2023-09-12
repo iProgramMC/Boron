@@ -15,35 +15,35 @@
 #include "flanterm/backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
-uint8_t g_HalTerminalMemory[512*1024];
-int     g_HalTerminalMemoryHead;
-#define HAL_TERM_MEM_SIZE (sizeof g_HalTerminalMemory)
+uint8_t HalpTerminalMemory[512*1024];
+int     HalpTerminalMemoryHead;
+#define HAL_TERM_MEM_SIZE (sizeof HalpTerminalMemory)
 
 // This is defined in init.c
-extern volatile struct limine_framebuffer_request g_FramebufferRequest;
+extern volatile struct limine_framebuffer_request KeLimineFramebufferRequest;
 
-struct flanterm_context* g_pTerminalContext;
+static struct flanterm_context* HalpTerminalContext;
 
-void* HalTerminalMemAlloc(size_t sz)
+static void* HalpTerminalMemAlloc(size_t sz)
 {
-	if (g_HalTerminalMemoryHead + sz > HAL_TERM_MEM_SIZE)
+	if (HalpTerminalMemoryHead + sz > HAL_TERM_MEM_SIZE)
 	{
 		SLogMsg("Error, running out of memory in the terminal heap");
 		return NULL;
 	}
 	
-	uint8_t* pCurMem = &g_HalTerminalMemory[g_HalTerminalMemoryHead];
-	g_HalTerminalMemoryHead += sz;
+	uint8_t* pCurMem = &HalpTerminalMemory[HalpTerminalMemoryHead];
+	HalpTerminalMemoryHead += sz;
 	return pCurMem;
 }
 
-void HalTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
+static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 {
 }
 
 void HalTerminalInit()
 {
-	struct limine_framebuffer* pFramebuffer = g_FramebufferRequest.response->framebuffers[0];
+	struct limine_framebuffer* pFramebuffer = KeLimineFramebufferRequest.response->framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
 	uint32_t defaultFG = 0x00ffffff;
 	
@@ -73,9 +73,9 @@ void HalTerminalInit()
 		charScale++;
 	}
 	
-	g_pTerminalContext = flanterm_fb_init(
-		&HalTerminalMemAlloc,
-		&HalTerminalFree,
+	HalpTerminalContext = flanterm_fb_init(
+		&HalpTerminalMemAlloc,
+		&HalpTerminalFree,
 		(uint32_t*) pFramebuffer->address,
 		pFramebuffer->width,
 		pFramebuffer->height,
@@ -87,7 +87,7 @@ void HalTerminalInit()
 		&defaultFG, // default foreground
 		NULL,       // default background bright
 		NULL,       // default fontground bright
-		g_BuiltInFont, // font pointer
+		HalpBuiltInFont, // font pointer
 		charWidth,     // font width
 		charHeight,    // font height
 		0,             // character spacing
@@ -96,7 +96,7 @@ void HalTerminalInit()
 		0
 	);
 	
-	if (!g_pTerminalContext)
+	if (!HalpTerminalContext)
 	{
 		SLogMsg("Error, no terminal context");
 	}
@@ -109,13 +109,13 @@ void HalDebugTerminalInit()
 
 void HalPrintString(const char* str)
 {
-	if (!g_pTerminalContext)
+	if (!HalpTerminalContext)
 	{
 		HalPrintStringDebug(str);
 		return;
 	}
 	
-	flanterm_write(g_pTerminalContext, str, strlen(str));
+	flanterm_write(HalpTerminalContext, str, strlen(str));
 }
 
 void HalPrintStringDebug(const char* str)

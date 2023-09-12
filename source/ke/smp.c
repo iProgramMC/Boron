@@ -41,7 +41,7 @@ void KeHandlePageFault(CPUState* State)
 #	error "Add a page fault handler for your own platform!"
 #endif
 	
-	LogMsg("Page fault at %p (tried to access %p, error code %d) on CPU %u", FaultPC, FaultTarget, FaultCode, KeGetCPU()->m_apicID);
+	LogMsg("Page fault at %p (tried to access %p, error code %d) on CPU %u", FaultPC, FaultTarget, FaultCode, KeGetCPU()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -79,13 +79,13 @@ CPU* KeGetCPU()
 eIPL KeGetIPL()
 {
 	CPU* thisCPU = KeGetCPU();
-	return thisCPU->m_ipl;
+	return thisCPU->Ipl;
 }
 
 eIPL KeIPLRaise(eIPL newIPL)
 {
 	CPU* thisCPU = KeGetCPU();
-	eIPL oldIPL = thisCPU->m_ipl;
+	eIPL oldIPL = thisCPU->Ipl;
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
@@ -100,7 +100,7 @@ eIPL KeIPLRaise(eIPL newIPL)
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	// Set the current IPL
-	thisCPU->m_ipl = newIPL;
+	thisCPU->Ipl = newIPL;
 	return oldIPL;
 }
 
@@ -108,7 +108,7 @@ eIPL KeIPLRaise(eIPL newIPL)
 eIPL KeIPLLower(eIPL newIPL)
 {
 	CPU* thisCPU = KeGetCPU();
-	eIPL oldIPL = thisCPU->m_ipl;
+	eIPL oldIPL = thisCPU->Ipl;
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
@@ -121,7 +121,7 @@ eIPL KeIPLLower(eIPL newIPL)
 	}
 	
 	// Set the current IPL
-	thisCPU->m_ipl = newIPL;
+	thisCPU->Ipl = newIPL;
 	
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
@@ -129,8 +129,8 @@ eIPL KeIPLLower(eIPL newIPL)
 	
 	// TODO: call DPCs
 	// ideally we'd have something as follows:
-	// while (thisCPU->m_ipl > newIPL) {
-	//     thisCPU->m_ipl--;  // lower the IPL by one stage..
+	// while (thisCPU->Ipl > newIPL) {
+	//     thisCPU->Ipl--;  // lower the IPL by one stage..
 	//     executeDPCs();     // execute the DPCs at this IPL
 	// }                      // continue until we are at the current IPL
 	// executeDPCs();         // do that one more time because we weren't in the while loop
@@ -162,11 +162,11 @@ NO_RETURN void KeInitSMP()
 		struct limine_smp_info* pInfo = pSMP->cpus[i];
 		
 		// initialize the struct
-		pCPU->m_apicID    = pInfo->lapic_id;
-		pCPU->m_bIsBSP    = bIsBSP;
-		pCPU->m_pSMPInfo  = pInfo;
-		pCPU->m_pageTable = KeGetCurrentPageTable(); // it'd better be that
-		pCPU->m_ipl       = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
+		pCPU->LapicId    = pInfo->lapic_id;
+		pCPU->IsBootstrap    = bIsBSP;
+		pCPU->SmpInfo  = pInfo;
+		pCPU->PageMapping = KeGetCurrentPageTable(); // it'd better be that
+		pCPU->Ipl       = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
 		
 		pInfo->extra_argument = (uint64_t)pCPU;
 		
