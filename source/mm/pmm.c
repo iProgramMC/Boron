@@ -1,5 +1,9 @@
 #include "mi.h"
 
+// TODO: An 'int' PFN is sufficient for now! It allows up to 16 TB
+// of physical memory to be represented right now, which is 1024 times
+// what's in my computer
+
 extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
@@ -106,9 +110,15 @@ PageFrame* MmGetPageFrameFromPFN(int pfn)
 	return &pPFNDB[pfn];
 }
 
-// for the page frame allocator
-int g_firstPFN = PFN_INVALID, g_lastPFN = PFN_INVALID;
-SpinLock g_pfnLock;
+void MmZeroOutFirstPFN();
+
+// Two lists: a list of "ZERO" pfns and a list of "FREE" pfns.
+// The zeroed PFN list will be prioritised for speed. If there
+// are no free zero pfns, then a free PFN will be zeroed before
+// being issued.
+static int MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
+static int MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
+static SpinLock MmPfnLock;
 
 // Note! Initialization is done on the BSP. So no locking needed
 void MiInitPMM()
@@ -144,6 +154,7 @@ void MiInitPMM()
 	}
 	
 	// pass 1: mapping the pages themselves
+	int numAllocatedPages = 0;
 	for (uint64_t i = 0; i < pResponse->entry_count; i++)
 	{
 		// if the entry isn't usable, skip it
@@ -169,10 +180,11 @@ void MiInitPMM()
 				LogMsg("Error, couldn't actually setup PFN database");
 			
 			lastAllocatedPage = currPage;
+			numAllocatedPages++;
 		}
 	}
 	
-	SLogMsg("Initializing the PFN database");
+	SLogMsg("Initializing the PFN database.", sizeof(PageFrame));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	
@@ -188,121 +200,198 @@ void MiInitPMM()
 		{
 			int currPFN = MmPhysPageToPFN(pEntry->base + j);
 			
-			if (g_firstPFN == PFN_INVALID)
-				g_firstPFN =  currPFN;
+			if (MiFirstFreePFN == PFN_INVALID)
+				MiFirstFreePFN =  currPFN;
 			
 			PageFrame* pPF = MmGetPageFrameFromPFN(currPFN);
 			
 			// initialize this PFN
-			pPF->m_flags = 0;
-			pPF->m_refCount = 0;
+			memset(pPF, 0, sizeof *pPF);
 			
 			if (j == 0)
 			{
-				pPF->m_prevFrame = lastPfnOfPrevBlock;
+				pPF->PrevFrame = lastPfnOfPrevBlock;
 				
 				// also update the last PF's next frame idx
 				if (lastPfnOfPrevBlock != PFN_INVALID)
 				{
 					PageFrame* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
-					pPrevPF->m_nextFrame = currPFN;
+					pPrevPF->NextFrame = currPFN;
 				}
 			}
 			else
 			{
-				pPF->m_prevFrame = currPFN - 1;
+				pPF->PrevFrame = currPFN - 1;
 			}
 			
 			if (j + PAGE_SIZE >= pEntry->length)
 			{
-				pPF->m_nextFrame = PFN_INVALID; // it's going to be updated by the next block if there's one
+				pPF->NextFrame = PFN_INVALID; // it's going to be updated by the next block if there's one
 			}
 			else
 			{
-				pPF->m_nextFrame = currPFN + 1;
+				pPF->NextFrame = currPFN + 1;
 			}
 			
 			lastPfnOfPrevBlock = currPFN;
 		}
 	}
 	
-	g_lastPFN = lastPfnOfPrevBlock;
+	MiLastFreePFN = lastPfnOfPrevBlock;
 	
-	SLogMsg("PFN database initialized.");
-	LogMsg("PFN database initialized.");
+	// zero out like 200 of these
+	for (int i = 0; i < 200; i++)
+		MmZeroOutFirstPFN();
+	
+	SLogMsg("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
+	
+	// final evaluation of the current amount of memory:
+	size_t TotalMemory = 0;
+	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	{
+		// if the entry isn't usable, skip it
+		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		
+		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+			continue;
+		
+		TotalMemory += pEntry->length;
+	}
+	
+	LogMsg("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
 }
 
 // TODO: Add locking
 
-int MmAllocatePhysicalPage()
+static void MmpRemovePfnFromList(int* First, int* Last, int Current)
 {
-	KeLock(&g_pfnLock);
-	if (g_firstPFN == PFN_INVALID)
-	{
-		KeUnlock(&g_pfnLock);
-		return PFN_INVALID;
-	}
-	
-	int currPFN = g_firstPFN;
-	PageFrame *pPF = MmGetPageFrameFromPFN(g_firstPFN);
-	
-	pPF->m_flags |= PF_FLAG_ALLOCATED;
+	PageFrame *pPF = MmGetPageFrameFromPFN(Current);
 	
 	// disconnect its neighbors from this one
-	if (pPF->m_nextFrame != PFN_INVALID)
-		MmGetPageFrameFromPFN(pPF->m_nextFrame)->m_prevFrame = pPF->m_prevFrame;
-	if (pPF->m_prevFrame != PFN_INVALID)
-		MmGetPageFrameFromPFN(pPF->m_prevFrame)->m_nextFrame = pPF->m_nextFrame;
+	if (pPF->NextFrame != PFN_INVALID)
+		MmGetPageFrameFromPFN(pPF->NextFrame)->PrevFrame = pPF->PrevFrame;
+	if (pPF->PrevFrame != PFN_INVALID)
+		MmGetPageFrameFromPFN(pPF->PrevFrame)->NextFrame = pPF->NextFrame;
 	
-	// set the first PFN of the list to the next PFN
-	g_firstPFN = pPF->m_nextFrame;
+	if (*First == Current)
+	{
+		// set the first PFN of the list to the next PFN
+		*First = pPF->NextFrame;
+		
+		// if the next frame is PFN_INVALID, we're done with the list entirely...
+		if (*First == PFN_INVALID)
+			*Last  =  PFN_INVALID;
+	}
+	if (*Last == Current)
+	{
+		// set the last PFN of the list to the prev PFN
+		*Last = pPF->PrevFrame;
+		
+		// if the prev frame is PFN_INVALID, we're done with the list entirely...
+		if (*Last  == PFN_INVALID)
+			*First =  PFN_INVALID;
+	}
+}
+
+static void MmpAddPfnToList(int* First, int* Last, int Current)
+{
+	if (*First == PFN_INVALID)
+	{
+		*First = *Last = Current;
+		
+		PageFrame* pPF = MmGetPageFrameFromPFN(Current);
+		pPF->NextFrame = PFN_INVALID;
+		pPF->PrevFrame = PFN_INVALID;
+	}
 	
-	// if the next frame is PFN_INVALID, we're done with the list entirely...
-	if (g_firstPFN == PFN_INVALID)
-		g_lastPFN  =  PFN_INVALID;
+	PageFrame *pLastPFN = MmGetPageFrameFromPFN(*Last), *pCurrPFN = MmGetPageFrameFromPFN(Current);
 	
-	KeUnlock(&g_pfnLock);
+	pLastPFN->NextFrame = Current;
+	pCurrPFN->PrevFrame = *Last;
+	pCurrPFN->NextFrame = PFN_INVALID;
+	// type will be updated by caller
+	*Last = Current;
+}
+
+static int MmpAllocateFromFreeList(int* First, int* Last)
+{
+	if (*First == PFN_INVALID)
+		return PFN_INVALID;
+	
+	int currPFN = *First;
+	PageFrame *pPF = MmGetPageFrameFromPFN(*First);
+	
+	pPF->Type = PF_TYPE_USED;
+	MmpRemovePfnFromList(First, Last, *First);
+	
+	return currPFN;
+}
+
+int MmAllocatePhysicalPage()
+{
+	KeLock(&MmPfnLock);
+	
+	int currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
+	if (currPFN == PFN_INVALID)
+		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
+	
+	KeUnlock(&MmPfnLock);
 	return currPFN;
 }
 
 void MmFreePhysicalPage(int pfn)
 {
-	KeLock(&g_pfnLock);
-	if (g_firstPFN == PFN_INVALID)
+	KeLock(&MmPfnLock);
+	MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+	MmGetPageFrameFromPFN(pfn)->Type = PF_TYPE_FREE;
+	KeUnlock(&MmPfnLock);
+}
+
+// Zeroes out a free PFN, takes it off the free PFN list and adds it to
+// the zero PFN list.
+static void MmpZeroOutPFN(int pfn)
+{
+	PageFrame* pPF = MmGetPageFrameFromPFN(pfn);
+	if (pPF->Type == PF_TYPE_ZEROED)
+		return;
+	
+	if (pPF->Type != PF_TYPE_FREE)
 	{
-		// add it in as The Only One.
-		// Ideally this code path isn't reached. However, the system
-		// may have a hard time with exhausted physical memory.
-		g_firstPFN = g_lastPFN = pfn;
-		
-		PageFrame* pPF = MmGetPageFrameFromPFN(pfn);
-		pPF->m_nextFrame = PFN_INVALID;
-		pPF->m_prevFrame = PFN_INVALID;
-		
-		KeUnlock(&g_pfnLock);
-		
+		SLogMsg("Error, attempting to zero out pfn %d which is used", pfn);
 		return;
 	}
 	
-	// connect it to the last PFN.
-	PageFrame *pLastPFN = MmGetPageFrameFromPFN(g_lastPFN), *pCurrPFN = MmGetPageFrameFromPFN(pfn);
+	pPF->Type = PF_TYPE_ZEROED;
 	
-	// Attempt to detect double frees.
-	if (~pCurrPFN->m_flags & PF_FLAG_ALLOCATED)
+	MmpRemovePfnFromList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+	
+	// zero out the page itself
+	uint8_t* mem = MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn));
+	memset(mem, 0, PAGE_SIZE);
+	
+	MmpAddPfnToList(&MiFirstZeroPFN, &MiLastZeroPFN, pfn);
+}
+
+void MmZeroOutPFN(int pfn)
+{
+	KeLock(&MmPfnLock);
+	MmpZeroOutPFN(pfn);
+	KeUnlock(&MmPfnLock);
+}
+
+void MmZeroOutFirstPFN()
+{
+	KeLock(&MmPfnLock);
+	
+	if (MiFirstFreePFN == PFN_INVALID)
 	{
-		LogMsg("Error, you can't free page %d twice", pfn);
-		SLogMsg("Error, you can't free page %d twice", pfn);
-		// TODO: panic
-		KeUnlock(&g_pfnLock);
+		KeUnlock(&MmPfnLock);
 		return;
 	}
 	
-	pLastPFN->m_nextFrame = pfn;
-	pCurrPFN->m_prevFrame = g_lastPFN;
-	pCurrPFN->m_nextFrame = PFN_INVALID;
-	pCurrPFN->m_flags &= ~PF_FLAG_ALLOCATED;
-	g_lastPFN = pfn;
-	KeUnlock(&g_pfnLock);
+	MmpZeroOutPFN(MiFirstFreePFN);
+	
+	KeUnlock(&MmPfnLock);
 }
 
 void* MmAllocatePhysicalPageHHDM()

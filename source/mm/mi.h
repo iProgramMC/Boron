@@ -3,6 +3,7 @@
 #define NS64_MI_H
 
 #include <mm.h>
+#include <string.h>
 #include <hal.h>
 #include <ke.h>
 #include <_limine.h>

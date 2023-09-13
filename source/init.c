@@ -31,7 +31,7 @@ void KiSystemStartup(void)
 	SLogMsg("Boron is starting up");
 	
 	HalTerminalInit();
-	LogMsg("Boron (TM), August 2023 - V0.001");
+	LogMsg("Boron (TM), September 2023 - V0.002");
 	
 	// initialize the physical memory manager
 	MiInitPMM();
