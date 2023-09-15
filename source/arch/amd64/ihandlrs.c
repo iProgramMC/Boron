@@ -1,8 +1,17 @@
 // Boron64 - Interrupt handlers
 #include <arch.h>
 #include <except.h>
+#include <ke.h>
 
-static void KiDumpCPUState(CPUState* State)
+#define ENTER_INTERRUPT(ipl)              \
+	eIPL __current_ipl = KeRaiseIPL(ipl); \
+	KeSetInterruptsEnabled(true);
+
+#define LEAVE_INTERRUPT                   \
+	KeSetInterruptsEnabled(false);        \
+	KeLowerIPL(__current_ipl);
+
+static UNUSED void KiDumpCPUState(CPUState* State)
 {
     LogMsg("cr2:    %llx",State->cr2);
     LogMsg("rip:    %llx",State->rip);
@@ -36,23 +45,39 @@ static void KiDumpCPUState(CPUState* State)
 // Used in case an interrupt is not implemented
 void KiTrapUnknownHandler(CPUState* State)
 {
+	ENTER_INTERRUPT(IPL_NOINTS);
+	
 	KeOnUnknownInterrupt(State->rip);
+	
+	LEAVE_INTERRUPT;
 }
 
 // Double fault handler.
 void KiTrap08Handler(CPUState* State)
 {
+	ENTER_INTERRUPT(IPL_NOINTS);
+	
 	KeOnDoubleFault(State->rip);
+	
+	LEAVE_INTERRUPT;
 }
 
 // General protection fault handler.
 void KiTrap0DHandler(CPUState* State)
 {
+	ENTER_INTERRUPT(IPL_NOINTS);
+	
 	KeOnProtectionFault(State->rip);
+	
+	LEAVE_INTERRUPT;
 }
 
 // Page fault handler.
 void KiTrap0EHandler(CPUState* State)
 {
+	ENTER_INTERRUPT(IPL_DPC);
+	
 	KeOnPageFault(State->rip, State->cr2, State->error_code);
+	
+	LEAVE_INTERRUPT;
 }

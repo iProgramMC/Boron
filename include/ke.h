@@ -16,12 +16,12 @@
 // could help create dangerous programming patterns.
 
 // To raise the IPL temporarily, opt for the following structure;
-//     eIPL oldIPL = KeIPLRaise(IPL_WHATEVER);
+//     eIPL oldIPL = KeRaiseIPL(IPL_WHATEVER);
 //     .... your code here
-//     KeIPLLower(oldIPL);
+//     KeLowerIPL(oldIPL);
 // .. and the reverse for lowering the IPL (but you really should not)
-eIPL KeIPLRaise(eIPL newIPL);
-eIPL KeIPLLower(eIPL newIPL);
+eIPL KeRaiseIPL(eIPL newIPL);
+eIPL KeLowerIPL(eIPL newIPL);
 eIPL KeGetIPL();
 
 // === CPU ===
