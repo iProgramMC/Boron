@@ -61,14 +61,7 @@ struct CPUState
 	uint64_t cr2;
 	uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
 	uint64_t rbp, rdi, rsi;
-	uint64_t rdx, rcx, rbx;
-	
-	// The interrupt type we are handling. Neither the values nor its presence are
-	// platform specific. This field is guaranteed to appear in all HALs.
-	uint64_t int_type;
-	
-	// This is done for speed.
-	uint64_t rax;
+	uint64_t rdx, rcx, rbx, rax;
 	
 	// Registers pushed by the CPU when handling the interrupt.
 	uint64_t error_code; // only sometimes pushed - we'll push a 0 in the cases where that's not done
@@ -89,20 +82,13 @@ typedef enum eIPL
 }
 eIPL;
 
-// Interrupt vector list:
+// IDT
+#define C_IDT_MAX_ENTRIES (0x100)
+
 #define INTV_DBL_FAULT  (0x08) // just an outright crash
 #define INTV_PAGE_FAULT (0x0E) // exempt from the IPL stuff, but any page fault above IPL_APC is considered an error
 #define INTV_DPC_IPI    (0x50)
 #define INTV_APIC_TIMER (0xF0)
-
-#define SEG_NULL        (0x00)
-#define SEG_RING_0_CODE (0x08)
-#define SEG_RING_0_DATA (0x10)
-#define SEG_RING_3_CODE (0x18)
-#define SEG_RING_3_DATA (0x20)
-#define C_GDT_SEG_COUNT (5)
-
-#define MAX_IDT_ENTRIES (256)
 
 typedef struct
 {
@@ -126,12 +112,20 @@ typedef struct
 PACKED
 IDTEntry;
 
-// Interrupt descriptor table
 typedef struct
 {
-	IDTEntry Entries[MAX_IDT_ENTRIES];
+	IDTEntry Entries[C_IDT_MAX_ENTRIES];
 }
 IDT;
+
+// GDT
+
+#define SEG_NULL        (0x00)
+#define SEG_RING_0_CODE (0x08)
+#define SEG_RING_0_DATA (0x10)
+#define SEG_RING_3_CODE (0x18)
+#define SEG_RING_3_DATA (0x20)
+#define C_GDT_SEG_COUNT (5)
 
 typedef struct
 {
@@ -173,7 +167,6 @@ typedef struct
 	void* IntStack;
 	GDT Gdt;
 	TSS Tss;
-	IDT* Idt;
 }
 KeArchData;
 

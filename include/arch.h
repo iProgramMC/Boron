@@ -24,25 +24,8 @@ void KeSetCurrentPageTable(uintptr_t pt);
 // CPU initialization function
 void KeInitCPU(); // initializes the current CPU
 
-// ==== Interrupts ====
+// ==== Interrupt priority level ====
 void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL);
-
-// interrupt service routines
-typedef void(*InterruptServiceRoutine)(CPUState* pState);
-void KeAssignISR(int type, InterruptServiceRoutine routine); // type is an eInterruptType
-
-
-// ==== Interrupt Type ====
-// Note! These aren't interrupt _vectors_, they're interrupt types.
-enum eInterruptType
-{
-	INT_UNKNOWN,
-	INT_DOUBLE_FAULT,
-	INT_PAGE_FAULT,
-	INT_IPI,
-	//....
-	INT_COUNT
-};
 
 // Architecture specific data
 KeArchData* KeGetData();

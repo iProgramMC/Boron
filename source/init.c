@@ -4,6 +4,10 @@
 #include <mm.h>
 #include <ke.h>
 
+#ifdef TARGET_AMD64
+void KiSetupIdt();
+#endif
+
 // bootloader requests
 volatile struct limine_hhdm_request KeLimineHhdmRequest =
 {
@@ -35,6 +39,11 @@ void KiSystemStartup(void)
 	
 	// initialize the physical memory manager
 	MiInitPMM();
+	
+	// initialize the IDT if on x86_64
+	#ifdef TARGET_AMD64
+	KiSetupIdt();
+	#endif
 	
 	// initialize SMP. This function doesn't return
 	KeInitSMP();

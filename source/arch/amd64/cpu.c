@@ -65,90 +65,10 @@ KeArchData* KeGetData()
 	return &KeGetCPU()->ArchData;
 }
 
-// This loads the bare interrupt vector handler into the IDT. It does not handle CPU independent IRQ handlers.
-typedef void(*KepInterruptVector)();
-
-// Probably not going to be used because SYSCALL and SYSENTER both bypass the ring system.
-// These are going to be optimized out, and are also niceties when needed, so I will keep them.
-static UNUSED void KepSetInterruptDPL(IDT* Idt, int Vector, int Ring)
+extern void* KiIdtDescriptor;
+void KepLoadIdt()
 {
-	Idt->Entries[Vector].DPL = Ring;
-}
-
-// This is also not likely to be used. We need interrupts to be disabled automatically
-// before we raise the IPL to the interrupt's level, but trap gates will not disable interrupts.
-// This is bad, since a keyboard interrupt could manage to sneak past an important clock interrupt
-// before we manage to raise the IPL in the clock interrupt.
-// Not to mention the performance gains would be minimal if at all existent.
-static UNUSED void KepSetInterruptGateType(IDT* Idt, int Vector, int GateType)
-{
-	Idt->Entries[Vector].GateType = GateType;
-}
-
-// Set the IST of an interrupt vector. This is probably useful for the double fault handler,
-// as it is triggered only when another interrupt failed to be called, which is useful in cases
-// where the kernel stack went missing and bad (Which I hope there aren't any!)
-static UNUSED void KepSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
-{
-	Idt->Entries[Vector].IST = Ist;
-}
-
-// Parameters:
-// Idt     - The IDT that the interrupt vector will be loaded in.
-// Vector  - The interrupt number that the handler will be assigned to.
-static void KepLoadInterruptVector(IDT* Idt, int Vector, KepInterruptVector Handler)
-{
-	IDTEntry* Entry = &Idt->Entries[Vector];
-	memset(Entry, 0, sizeof * Entry);
-	
-	uintptr_t HandlerAddr = (uintptr_t) Handler;
-	
-	Entry->OffsetLow  = HandlerAddr & 0xFFFF;
-	Entry->OffsetHigh = HandlerAddr >> 16;
-	
-	// The code segment that the interrupt handler will run in.
-	Entry->SegmentSel = SEG_RING_0_CODE;
-	
-	// Ist = 0 means the stack is not switched when the interrupt keeps the CPL the same.
-	// The IST should only be used in case of a fatal exception, such as a double fault.
-	Entry->IST = 0;
-	
-	// The ring that the interrupt can be called from. It's usually 0 (so you can't fake
-	// an exception from user mode), however, it can be set to 3 for userspace system calls.
-	// Usually we use `syscall` or `sysenter` for that, though.
-	Entry->DPL = 0;
-	
-	// This is an interrupt gate.
-	Entry->GateType = 0xE;
-	
-	// The entry is present.
-	Entry->Present = true;
-}
-
-extern void KepDoubleFaultHandler();
-extern void KepPageFaultHandler();
-extern void KepDpcIpiHandler();
-extern void KepClockIrqHandler();
-
-static void KepSetupIdt(IDT* Idt)
-{
-	struct
-	{
-		uint16_t Length;
-		uint64_t Pointer;
-	}
-	PACKED IdtDescriptor;
-	
-	IdtDescriptor.Length  = sizeof   * Idt;
-	IdtDescriptor.Pointer = (uint64_t) Idt;
-	
-	// Load interrupt vectors.
-	KepLoadInterruptVector(Idt, INTV_DBL_FAULT,  KepDoubleFaultHandler);
-	KepLoadInterruptVector(Idt, INTV_PAGE_FAULT, KepPageFaultHandler);
-	KepLoadInterruptVector(Idt, INTV_DPC_IPI,    KepDpcIpiHandler);
-	KepLoadInterruptVector(Idt, INTV_APIC_TIMER, KepClockIrqHandler);
-	
-	ASM("lidt (%0)"::"r"(&IdtDescriptor));
+	ASM("lidt (%0)"::"r"(&KiIdtDescriptor));
 }
 
 static uint64_t KepGdtEntries[] =
@@ -206,11 +126,6 @@ static void KepSetupTss(TSS* Tss)
 	memset(Tss, 0, sizeof * Tss);
 }
 
-static void KePlaceholderHandler(UNUSED CPUState* State)
-{
-	LogMsg("Error, KePlaceholderHandler isn't actually supposed to run!");
-}
-
 void KeInitCPU()
 {
 	// create a new page mapping based on the one that already exists:
@@ -226,20 +141,16 @@ void KeInitCPU()
 	KeSetCurrentPageTable(Map);
 	
 	int ispPFN = MmAllocatePhysicalPage();
-	int idtPFN = MmAllocatePhysicalPage();
 	
-	if (ispPFN == PFN_INVALID || idtPFN == PFN_INVALID)
+	if (ispPFN == PFN_INVALID)
 	{
 		// TODO: crash
-		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create IDT & interrupt stack", KeGetCPU()->LapicId);
+		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create interrupt stack", KeGetCPU()->LapicId);
 		KeStopCurrentCPU();
 	}
 	
 	KeArchData* Data = KeGetData();
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
-	
-	IDT* idt = MmGetHHDMOffsetAddr(MmPFNToPhysPage(idtPFN));
-	memset(idt, 0, sizeof * idt);
 	
 	void* intStack = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ispPFN));
 	Data->IntStack = intStack;
@@ -247,10 +158,5 @@ void KeInitCPU()
 	
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
-	KepSetupIdt(idt);
-	Data->Idt = idt;
-	
-	// Load the default ISR places with a placeholder.
-	for (int i = 0; i < INT_COUNT; i++)
-		KeAssignISR(i, KePlaceholderHandler);
+	KepLoadIdt();
 }

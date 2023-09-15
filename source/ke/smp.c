@@ -13,35 +13,34 @@ volatile struct limine_smp_request KeLimineSmpRequest =
 	.flags = 0,
 };
 
-void KeHandleDoubleFault(CPUState* State)
+// TODO: Allow grabbing the interrupt code. For simplicity that isn't done
+void KeOnUnknownInterrupt(uintptr_t FaultPC)
 {
-	uintptr_t FaultPC, FaultCode;
-#ifdef TARGET_AMD64
-	FaultPC     = State->rip;
-	FaultCode   = State->error_code;
-#else
-#	error "Add a double fault handler for your own platform!"
-#endif
-	
-	LogMsg("Double fault at %p (error code %d)", FaultPC, FaultCode);
+	LogMsg("Unknown interrupt at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
 }
 
-void KeHandlePageFault(CPUState* State)
+void KeOnDoubleFault(uintptr_t FaultPC)
 {
-	uintptr_t FaultPC, FaultTarget, FaultCode;
+	LogMsg("Double fault at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
 	
-#ifdef TARGET_AMD64
-	FaultPC     = State->rip;
-	FaultTarget = State->cr2;
-	FaultCode   = State->error_code;
-#else
-#	error "Add a page fault handler for your own platform!"
-#endif
+	// TODO: crash properly
+	KeStopCurrentCPU();
+}
+
+void KeOnProtectionFault(uintptr_t FaultPC)
+{
+	LogMsg("General Protection Fault at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
 	
-	LogMsg("Page fault at %p (tried to access %p, error code %d) on CPU %u", FaultPC, FaultTarget, FaultCode, KeGetCPU()->LapicId);
+	// TODO: crash properly
+	KeStopCurrentCPU();
+}
+
+void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
+{
+	LogMsg("Page fault at %p (tried to access %p, error code %llx) on CPU %u", FaultPC, FaultAddress, FaultMode, KeGetCPU()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -59,9 +58,6 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeOnUpdateIPL(0, KeGetIPL());
 	
 	KeInitCPU();
-	// assign our own arch independent ISRs
-	KeAssignISR(INT_DOUBLE_FAULT, KeHandleDoubleFault);
-	KeAssignISR(INT_PAGE_FAULT,   KeHandlePageFault);
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
