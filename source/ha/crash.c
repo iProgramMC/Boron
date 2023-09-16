@@ -1,3 +1,18 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ha/crash.c
+	
+Abstract:
+	This module contains the AMD64 platform's specific
+	crash routine.
+	
+Author:
+	iProgramInCpp - 16 September 2023
+***/
+
 #include <ke.h>
 #include <hal.h>
 #include "apic.h"

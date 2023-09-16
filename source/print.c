@@ -1,4 +1,18 @@
-// Terminal driver
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	print.c
+	
+Abstract:
+	This module implements the platform independent part of the
+	printing code.
+	
+Author:
+	iProgramInCpp - 28 August 2023
+***/
+
 #define STB_SPRINTF_IMPLEMENTATION // implement the stb_sprintf right here
 #include <ke.h>
 #include <hal.h>

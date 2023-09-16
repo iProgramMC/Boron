@@ -1,5 +1,18 @@
-// Boron - Hardware abstraction.
-// This file provides the functions in the 'terminal' category.
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ha/term.c
+	
+Abstract:
+	This module implements the terminal functions for the AMD64
+	platform.
+	
+Author:
+	iProgramInCpp - 28 August 2023
+***/
+
 #include <main.h>
 #include <string.h>
 #include <hal.h>

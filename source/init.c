@@ -1,3 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	init.c
+	
+Abstract:
+	This module implements the system startup function.
+	
+Author:
+	iProgramInCpp - 28 August 2023
+***/
+
 #include <_limine.h>
 #include <main.h>
 #include <hal.h>
