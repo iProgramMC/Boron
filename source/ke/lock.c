@@ -15,7 +15,7 @@ void KeLock(SpinLock* pLock)
 			return;
 		
 		while (AtLoadMO(pLock->Locked, ATOMIC_MEMORD_ACQUIRE))
-			KeInterruptHint();
+			KeSpinningHint();
 	}
 }
 
@@ -35,7 +35,7 @@ void KeLockTicket(TicketLock* pLock)
 	int MyTicket = AtFetchAddMO(pLock->NextNumber, 1, ATOMIC_MEMORD_ACQUIRE);
 	
 	while (AtLoadMO(pLock->NowServing, ATOMIC_MEMORD_ACQUIRE) != MyTicket)
-		KeInterruptHint();
+		KeSpinningHint();
 }
 
 void KeUnlockTicket(TicketLock* pLock)

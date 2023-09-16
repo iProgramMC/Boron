@@ -2,6 +2,8 @@
 #include <arch.h>
 #include <except.h>
 #include <ke.h>
+#include <hal.h>
+#include "../../ha/apic.h"
 
 #define ENTER_INTERRUPT(ipl)              \
 	eIPL __current_ipl = KeRaiseIPL(ipl); \
@@ -80,4 +82,26 @@ void KiTrap0EHandler(CPUState* State)
 	KeOnPageFault(State->rip, State->cr2, State->error_code);
 	
 	LEAVE_INTERRUPT;
+}
+
+// Crash IPI (inter processor interrupt).
+void HalpOnCrashedCPU();
+void KiTrapFEHandler(UNUSED CPUState* State)
+{
+	// We have received an interrupt from the processor that has crashed. We should crash too!
+	
+	// we have no plans to return from the interrupt, so ignore the return value of KeRaiseIPL.
+	KeRaiseIPL(IPL_NOINTS);
+	
+	// notify the crash handler that we've stopped
+	HalpOnCrashedCPU();
+	
+	// and stop!!
+	KeStopCurrentCPU();
+}
+
+// Spurious interrupt.
+void KiTrapFFHandler(UNUSED CPUState* State)
+{
+	HalApicEoi();
 }

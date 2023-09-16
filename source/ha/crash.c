@@ -1,0 +1,54 @@
+#include <ke.h>
+#include <hal.h>
+#include "apic.h"
+
+static SpinLock HalpCrashLock;
+static int      HalpCrashedProcessors;
+extern int      KeProcessorCount;
+
+extern SpinLock g_PrintLock;
+extern SpinLock g_DebugPrintLock;
+
+void HalpOnCrashedCPU()
+{
+	AtAddFetch(HalpCrashedProcessors, 1);
+}
+
+void HalCrashSystem(const char* message)
+{
+	// lock the crash in so that no one else can crash but us
+	KeLock(&HalpCrashLock);
+	AtClear(HalpCrashedProcessors);
+	AtAddFetch(HalpCrashedProcessors, 1);
+	
+	// raise the IPL so that no interrupts will bug us
+	KeRaiseIPL(IPL_NOINTS);
+	
+	// pre-lock the print and debug print lock so there are no threading issues later from
+	// stopping the CPUs.
+	// TODO: Also lock other important used locks too
+	//KeLock(&g_PrintLock);
+	//KeLock(&g_DebugPrintLock);
+	
+	// Send IPI to the other processors to make them halt.
+	// Don't send an IPI to ourselves as we already are in the process of crashing.
+	HalBroadcastIpi(INTV_CRASH_IPI, false);
+	
+	//HalPrintStringDebug("CRASH: Waiting for all processors to halt!\n");
+	while (AtLoad(HalpCrashedProcessors) != KeProcessorCount)
+		KeSpinningHint();
+	
+	char buff[64];
+	snprintf(buff, sizeof buff, "\x1B[91m*** STOP (CPU %u): \x1B[0m", KeGetCPU()->LapicId);
+	
+	// now that we got that out of the way, print the error message
+	// (and the 'fatal error' tag in red) to the console..
+	HalPrintString(buff);
+	HalPrintString(message);
+	// and the debug console
+	HalPrintStringDebug(buff);
+	HalPrintStringDebug(message);
+	
+	// Now that all that's done, HALT!
+	KeStopCurrentCPU();
+}

@@ -21,11 +21,6 @@ struct
 PACKED
 KiIdtDescriptor;
 
-extern void KiTrapUnknown();
-extern void KiTrap08();
-extern void KiTrap0D();
-extern void KiTrap0E();
-
 // The interrupt vector function type.  It's not a function you can actually call from C.
 typedef void(*KiInterruptVector)();
 
@@ -87,6 +82,13 @@ static void KiLoadInterruptVector(IDT* Idt, int Vector, KiInterruptVector Handle
 	Entry->Present = true;
 }
 
+extern void KiTrapUnknown();
+extern void KiTrap08();
+extern void KiTrap0D();
+extern void KiTrap0E();
+extern void KiTrapFE();
+extern void KiTrapFF();
+
 // Run on the BSP only.
 void KiSetupIdt()
 {
@@ -96,7 +98,9 @@ void KiSetupIdt()
 	for (int i = 0; i < C_IDT_MAX_ENTRIES; i++)
 		KiLoadInterruptVector(&KiIdt, i, KiTrapUnknown);
 	
-	KiLoadInterruptVector(&KiIdt, 0x08, KiTrap08); // For double faults
-	KiLoadInterruptVector(&KiIdt, 0x0D, KiTrap0D); // For general protection faults
-	KiLoadInterruptVector(&KiIdt, 0x0E, KiTrap0E); // For page faults
+	KiLoadInterruptVector(&KiIdt, 0x08, KiTrap08); // double faults
+	KiLoadInterruptVector(&KiIdt, 0x0D, KiTrap0D); // general protection faults
+	KiLoadInterruptVector(&KiIdt, 0x0E, KiTrap0E); // page faults
+	KiLoadInterruptVector(&KiIdt, 0xFE, KiTrapFE); // crash IPI
+	KiLoadInterruptVector(&KiIdt, 0xFF, KiTrapFF); // spurious interrupts
 }

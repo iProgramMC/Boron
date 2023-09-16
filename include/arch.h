@@ -15,7 +15,7 @@ typedef struct CPUState CPUState; // List of registers.
 void KeWaitForNextInterrupt(void);
 void KeInvalidatePage(void* page);
 void KeSetInterruptsEnabled(bool b);      // no tracking of previous state currently. This does the relevant instruction
-void KeInterruptHint(void);
+void KeSpinningHint(void);
 void KeSetCPUPointer(void* pGS);
 void*KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);

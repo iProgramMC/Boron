@@ -49,8 +49,7 @@ static uintptr_t MiAllocatePageFromMemMap()
 		return curr_addr;
 	}
 	
-	LogMsg("Error, out of memory in the memmap allocate function");
-	return 0;
+	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
@@ -125,15 +124,14 @@ void MiInitPMM()
 {
 	if (!KeLimineMemMapRequest.response || !KeLimineHhdmRequest.response)
 	{
-		LogMsg("Error, no memory map was provided");
-		KeStopCurrentCPU();
+		KeCrashBeforeSMPInit("Error, no memory map was provided");
 	}
 	
 	// with 4-level paging, limine seems to be hardcoded at this address, so we're probably good. Although
 	// the protocol does NOT specify that, and it does seem to be affected by KASLR...
 	if (KeLimineHhdmRequest.response->offset != 0xFFFF800000000000)
 	{
-		LogMsg("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLimineHhdmRequest.response->offset);
+		KeCrashBeforeSMPInit("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLimineHhdmRequest.response->offset);
 	}
 	
 	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
@@ -177,7 +175,7 @@ void MiInitPMM()
 				continue;
 			
 			if (!MiMapNewPageAtAddressIfNeeded(currPageTablePhys, currPage))
-				LogMsg("Error, couldn't actually setup PFN database");
+				KeCrashBeforeSMPInit("Error, couldn't setup PFN database");
 			
 			lastAllocatedPage = currPage;
 			numAllocatedPages++;

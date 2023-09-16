@@ -25,6 +25,8 @@ qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
 : -debugcon stdio
 : -monitor telnet:127.0.0.1:55555,server,nowait -- to use the QEMU console
 :
+:-d int ^
+:-D %nspath%\keep/things.txt ^
 :qemu-system-i386 -m 16M -drive file=\\.\PHYSICALDRIVE1,format=raw
 rem -s -S 
 

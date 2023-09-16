@@ -1,5 +1,18 @@
-// Boron64 - LAPIC management.
-#include <arch.h>
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ha/apic.c
+	
+Abstract:
+	This module contains the support routines for the APIC.
+	
+Author:
+	iProgramInCpp - 14 September 2023
+***/
+
+#include <hal.h>
 #include <mm.h>
 
 #define C_SPURIOUS_INTERRUPT_VECTOR (0xFF)
@@ -50,10 +63,10 @@ enum
 
 enum
 {
-	APIC_ICR1_SINGLE           = (0 << 18),
-	APIC_ICR1_SELF             = (1 << 18),
-	APIC_ICR1_BROADCAST        = (2 << 18),
-	APIC_ICR1_BROADCAST_OTHERS = (3 << 18),
+	APIC_ICR0_SINGLE           = (0 << 18),
+	APIC_ICR0_SELF             = (1 << 18),
+	APIC_ICR0_BROADCAST        = (2 << 18),
+	APIC_ICR0_BROADCAST_OTHERS = (3 << 18),
 };
 
 static uintptr_t ApicGetPhysicalBase()
@@ -92,4 +105,48 @@ static bool ApicCheckExists()
 	ASM("cpuid":"=d"(edx),"=a"(eax):"a"(1));
 	
 	return edx & (1 << 9);
+}
+
+static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool includeSelf)
+{
+	// wait until our current IPI request is finished
+	while (ApicReadRegister(APIC_REG_ICR0) & APIC_ICR0_DELIVERY_STATUS)
+		KeSpinningHint();
+	
+	// write the destination CPU's lapic ID to the ICR1 register
+	ApicWriteRegister(APIC_REG_ICR1, lapicID << 24);
+	
+	// write the interrupt vector to the ICR0 register
+	int mode = APIC_ICR0_SINGLE;
+	if (broadcast)
+	{
+		mode = APIC_ICR0_BROADCAST_OTHERS;
+		if (includeSelf)
+			mode = APIC_ICR0_BROADCAST;
+	}
+	
+	ApicWriteRegister(APIC_REG_ICR0, mode | vector);
+}
+
+
+// Interface code.
+void HalSendIpi(uint32_t Processor, int Vector)
+{
+	ApicSendIpi(Processor, Vector, false, false);
+}
+
+void HalBroadcastIpi(int Vector, bool IncludeSelf)
+{
+	ApicSendIpi(0, Vector, true, IncludeSelf);
+}
+
+void HalApicEoi()
+{
+	ApicEndOfInterrupt();
+}
+
+void HalEnableApic()
+{
+	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
+	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | INTV_SPURIOUS);
 }

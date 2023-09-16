@@ -134,4 +134,8 @@ typedef struct KDPC_tag
 }
 KDeferredProcCall;
 
+// === Crashing ===
+NO_RETURN void KeCrash(const char* message, ...);
+NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
+
 #endif//NS64_KE_H

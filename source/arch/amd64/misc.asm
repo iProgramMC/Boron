@@ -19,9 +19,9 @@ KeSetCurrentPageTable:
 
 global KeOnUpdateIPL
 
-; void KeOnUpdateIPL(eIPL oldIPL, eIPL newIPL)
+; void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL)
 KeOnUpdateIPL:
-	mov cr8, rsi
+	mov cr8, rdi
 	ret
 
 ; void KepLoadGdt(GdtDescriptor* desc);
@@ -51,6 +51,5 @@ KepLoadTss:
 	mov ax, di
 	ltr ax
 	ret
-
 
 section .bss

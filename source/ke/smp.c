@@ -1,9 +1,13 @@
 // Boron64 - SMP initialization
 #include <ke.h>
 #include <mm.h>
+#include <hal.h>
 #include <arch.h>
 #include <string.h>
 #include <_limine.h>
+
+CPU** KeProcessorList;
+int   KeProcessorCount = 0;
 
 volatile struct limine_smp_request KeLimineSmpRequest =
 {
@@ -40,10 +44,12 @@ void KeOnProtectionFault(uintptr_t FaultPC)
 
 void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
-	LogMsg("Page fault at %p (tried to access %p, error code %llx) on CPU %u", FaultPC, FaultAddress, FaultMode, KeGetCPU()->LapicId);
+	//LogMsg("Page fault at %p (tried to access %p, error code %llx) on CPU %u", FaultPC, FaultAddress, FaultMode, KeGetCPU()->LapicId);
 	
-	// TODO: crash properly
-	KeStopCurrentCPU();
+	if (MmPageFault(FaultPC, FaultAddress, FaultMode))
+		return;
+	
+	KeCrash("unhandled fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 }
 
 // An atomic write to this field causes the parked CPU to jump to the written address,
@@ -55,7 +61,8 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeSetCPUPointer(pCpu);
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
-	KeOnUpdateIPL(0, KeGetIPL());
+	KeOnUpdateIPL(KeGetIPL(), 0);
+	KeSetInterruptsEnabled(true);
 	
 	KeInitCPU();
 	
@@ -74,10 +81,70 @@ CPU* KeGetCPU()
 	return KeGetCPUPointer();
 }
 
+static NO_RETURN void KiCrashedEntry()
+{
+	KeStopCurrentCPU();
+}
+
+extern SpinLock g_PrintLock;
+extern SpinLock g_DebugPrintLock;
+
+bool KeSmpInitted = false;
+
+NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
+{
+	if (KeSmpInitted) {
+		KeCrash("called KeCrashBeforeSMPInit after SMP init?! (message: %s, RA: %p)", message, __builtin_return_address(0));
+	}
+	
+	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
+	
+	// format the message
+	va_list va;
+	va_start(va, message);
+	char buffer[1024]; // may be a beefier message than a garden variety LogMsg
+	buffer[sizeof buffer - 3] = 0;
+	int chars = vsnprintf(buffer, sizeof buffer - 3, message, va);
+	strcpy(buffer + chars, "\n");
+	va_end(va);
+	
+	KeLock(&g_PrintLock);
+	HalPrintString("\x1B[35m*** Init error: \x1B[0m");
+	HalPrintString(buffer);
+	KeUnlock(&g_PrintLock);
+	
+	KeLock(&g_DebugPrintLock);
+	HalPrintStringDebug("\x1B[35m*** Init error: \x1B[0m");
+	HalPrintStringDebug(buffer);
+	KeUnlock(&g_DebugPrintLock);
+	
+	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+	{
+		struct limine_smp_info* pInfo = pSMP->cpus[i];
+		AtStore(pInfo->goto_address, &KiCrashedEntry);
+	}
+	
+	KiCrashedEntry();
+}
+
 NO_RETURN void KeInitSMP()
 {
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;
+	
+	const uint64_t ProcessorLimit = 512;
+	
+	if (pSMP->cpu_count > ProcessorLimit)
+	{
+		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs %llu (limit is %llu)", pSMP->cpu_count, ProcessorLimit);
+	}
+	
+	int cpuListPFN = MmAllocatePhysicalPage();
+	if (cpuListPFN == PFN_INVALID)
+		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
+	
+	KeProcessorList  = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuListPFN));
+	KeProcessorCount = pSMP->cpu_count;
 	
 	// Initialize all the CPUs in series.
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
@@ -88,8 +155,7 @@ NO_RETURN void KeInitSMP()
 		int cpuPFN = MmAllocatePhysicalPage();
 		if (cpuPFN == PFN_INVALID)
 		{
-			LogMsg("Error, can't initialize CPUs, we don't have enough memory");
-			KeStopCurrentCPU();
+			KeCrashBeforeSMPInit("Error, can't initialize CPUs, we don't have enough memory");
 		}
 		
 		CPU* pCPU = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuPFN));
@@ -106,11 +172,20 @@ NO_RETURN void KeInitSMP()
 		
 		pInfo->extra_argument = (uint64_t)pCPU;
 		
-		// Launch the CPU! Note, we won't actually go there if we are the bootstrap processor.
-		AtStore(pInfo->goto_address, &KiCPUBootstrap);
+		KeProcessorList[i] = pCPU;
 		
 		if (bIsBSP)
 			pBSPInfo = pInfo;
+	}
+	
+	KeSmpInitted = true;
+	
+	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+	{
+		struct limine_smp_info* pInfo = pSMP->cpus[i];
+		
+		// Launch the CPU! We won't actually go there immediately if we are the bootstrap processor.
+		AtStore(pInfo->goto_address, &KiCPUBootstrap);
 	}
 	
 	KiCPUBootstrap(pBSPInfo);

@@ -2,6 +2,7 @@
 // CPU management
 #include <main.h>
 #include <arch.h>
+#include <hal.h>
 #include <ke.h>
 #include <mm.h>
 #include <string.h>
@@ -16,7 +17,7 @@ void KeInvalidatePage(void* page)
 	ASM("invlpg (%0)"::"r"((uintptr_t)page):"memory");
 }
 
-extern void KeOnUpdateIPL(eIPL oldIPL, eIPL newIPL); // defined in x.asm
+extern void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL); // defined in x.asm
 
 void KeSetInterruptsEnabled(bool b)
 {
@@ -26,7 +27,7 @@ void KeSetInterruptsEnabled(bool b)
 		ASM("cli":::"memory");
 }
 
-void KeInterruptHint()
+void KeSpinningHint()
 {
 	ASM("pause":::"memory");
 }
@@ -159,4 +160,8 @@ void KeInitCPU()
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
 	KepLoadIdt();
+	
+	#ifdef TARGET_AMD64
+	HalEnableApic();
+	#endif
 }

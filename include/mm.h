@@ -96,4 +96,7 @@ void MmFreePhysicalPageHHDM(void* page);
 // Creates a page mapping.
 PageMapping MmCreatePageMapping(PageMapping OldPageMapping);
 
+// Handles a page fault. Returns whether or not the page fault was handled.
+bool MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
+
 #endif//NS64_MM_H
