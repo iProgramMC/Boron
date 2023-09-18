@@ -25,6 +25,7 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 #define MM_PTE_ACCESSED   (1ULL <<  5)
 #define MM_PTE_DIRTY      (1ULL <<  6)
 #define MM_PTE_PAT        (1ULL <<  7)
+#define MM_PTE_PAGESIZE   (1ULL <<  7) // in terms of PML3/PML2 entries, for 1GB/2MB pages respectively. Not Used by the kernel
 #define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
 #define MM_PTE_WASRDWR    (1ULL << 10) // if after cloning, the page was read/write
@@ -37,6 +38,8 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 	// 58..52 - more available bits
 
 #define PAGE_SIZE (0x1000)
+
+typedef uint64_t PageTableEntry;
 
 // bits 0.11   - Offset within the page
 // bits 12..20 - Index within the PML1

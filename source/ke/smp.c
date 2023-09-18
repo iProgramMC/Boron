@@ -52,6 +52,8 @@ void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMod
 	KeCrash("unhandled fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 }
 
+extern bool Log;
+
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
@@ -70,8 +72,19 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
+	PageMapping pm = KeGetCurrentPageTable();
+	
+	if (MmMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR))
+	{
+		*((uintptr_t*)0x5adfdeadbeef) = 420;
+		LogMsg("Read back from there: %p", *((uintptr_t*)0x5adfdeadbeef));
+	}
+	else
+	{
+		LogMsg("Error, failed to map to %p", 0x5ADFDEADB000);
+	}
+	
 	// issue a page fault right now
-	*((uint64_t*)0x5adfdeadbeef) = 420;
 	
 	KeStopCurrentCPU();
 }

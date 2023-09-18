@@ -93,8 +93,22 @@ void MmFreePhysicalPageHHDM(void* page);
 
 // ==== VMM ====
 
+// ====== Platform independent interface for page table management ======
+
 // Creates a page mapping.
 PageMapping MmCreatePageMapping(PageMapping OldPageMapping);
+
+// Deletes a page mapping.
+void MmFreePageMapping(PageMapping OldPageMapping);
+
+// Resolves a page table entry pointer (virtual address offset by HHDM) relative to an address.
+// Can allocate the missing page mapping levels on its way if the flag is set.
+// If on its way, it hits a higher page size, currently it will return null since it's not really
+// designed for that..
+PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool AllocateMissingPMLs);
+
+// Attempts to map a physical page into the specified address space. Placeholder Function
+bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions);
 
 // Handles a page fault. Returns whether or not the page fault was handled.
 bool MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);

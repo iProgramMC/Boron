@@ -24,7 +24,6 @@ SpinLock g_DebugPrintLock;
 
 void LogMsg(const char* msg, ...)
 {
-	KeLock(&g_PrintLock);
 	va_list va;
 	va_start(va, msg);
 	char buffer[512]; // should be big enough...
@@ -34,13 +33,13 @@ void LogMsg(const char* msg, ...)
 	va_end(va);
 	
 	// this one goes to the screen
+	KeLock(&g_PrintLock);
 	HalPrintString(buffer);
 	KeUnlock(&g_PrintLock);
 }
 
 void SLogMsg(const char* msg, ...)
 {
-	KeLock(&g_DebugPrintLock);
 	va_list va;
 	va_start(va, msg);
 	char buffer[512]; // should be big enough...
@@ -50,6 +49,7 @@ void SLogMsg(const char* msg, ...)
 	va_end(va);
 	
 	// this one goes to the screen
+	KeLock(&g_DebugPrintLock);
 	HalPrintStringDebug(buffer);
 	KeUnlock(&g_DebugPrintLock);
 }
