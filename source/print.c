@@ -49,7 +49,11 @@ void SLogMsg(const char* msg, ...)
 	va_end(va);
 	
 	// This one goes to the debug log.
+#ifndef DEBUG2
 	KeLock(&g_DebugPrintLock);
+#endif
 	HalPrintStringDebug(buffer);
+#ifndef DEBUG2
 	KeUnlock(&g_DebugPrintLock);
+#endif
 }

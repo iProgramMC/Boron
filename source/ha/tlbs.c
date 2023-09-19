@@ -21,11 +21,11 @@ extern int   KeProcessorCount;
 
 // only one thread can perform a TLB shootdown at once.. don't exactly know why
 // the locks inside the CPUs themselves are used for synchronization of the operation itself
-TicketLock HalTLBSLock;
+SpinLock HalTLBSLock;
 
 void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 {
-	KeLockTicket(&HalTLBSLock);
+	KeLock(&HalTLBSLock);
 	
 	// Invalidate the pages on the local CPU
 	for (size_t i = 0; i < Length; i++)
@@ -35,7 +35,10 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 	
 	// If we are the only processor, return
 	if (KeProcessorCount == 1)
+	{
+		KeUnlock(&HalTLBSLock);
 		return;
+	}
 	
 	int OwnId = KeGetCPU()->Id;
 	
@@ -62,5 +65,5 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 		KeUnlock(&KeProcessorList[i]->TlbsLock);
 	}
 	
-	KeUnlockTicket(&HalTLBSLock);
+	KeUnlock(&HalTLBSLock);
 }

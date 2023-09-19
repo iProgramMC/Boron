@@ -44,7 +44,9 @@ void KeOnProtectionFault(uintptr_t FaultPC)
 
 void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
-	//SLogMsg("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
+#ifdef DEBUG2
+	SLogMsg("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
+#endif
 	
 	if (MmPageFault(FaultPC, FaultAddress, FaultMode))
 		return;

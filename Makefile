@@ -1,7 +1,16 @@
 # Boron kernel makefile
 
 # DEBUG flag
-DEBUG ?= 1
+DEBUG ?= yes
+DEBUG2 ?= no
+
+# debug1: general debugging text, works all the time and keeps the
+#   kernel behaving how it should
+
+# debug2: in-depth debugging, printing of page faults and stuff.
+#   careful because you might get jumbled output on SMP since the
+#   debug console won't lock. The advantage is that you'll be able
+#   to log basically anywhere
 
 # The build directory
 BUILD_DIR = build
@@ -38,8 +47,12 @@ endef
 # Defines - I would edit flanterm itself but then submodules would get rid of our work.
 DEFINES = -DFLANTERM_FB_DISABLE_CANVAS -DFLANTERM_FB_DISABLE_BUMP_ALLOC
 
-ifeq ($(DEBUG), 1)
+ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
+endif
+
+ifeq ($(DEBUG2), yes)
+	DEFINES += -DDEBUG2
 endif
 
 # It is highly recommended to use a custom built cross toolchain to build a kernel.

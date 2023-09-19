@@ -89,7 +89,7 @@ void KiTrapFDHandler(UNUSED CPUState* State)
 {
 	CPU* myCPU = KeGetCPU();
 	
-#ifdef DEBUG
+#ifdef DEBUG2
 	SLogMsg("Handling TLB shootdown on CPU %u", myCPU->LapicId);
 #endif
 	
