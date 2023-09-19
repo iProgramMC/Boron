@@ -94,6 +94,7 @@ void MmFreePhysicalPageHHDM(void* page);
 // ==== VMM ====
 
 // ====== Platform independent interface for page table management ======
+// WARNING! This is not thread safe! So please take care of thread safety yourself.
 
 // Creates a page mapping.
 PageMapping MmCreatePageMapping(PageMapping OldPageMapping);
@@ -110,7 +111,13 @@ PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool All
 // Attempts to map a physical page into the specified address space. Placeholder Function
 bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions);
 
+// Unmaps some memory. Automatically frees it if it is handled by the PMM.
+void MmUnmapPages(PageMapping Mapping, uintptr_t Address, size_t LengthPages); 
+
 // Handles a page fault. Returns whether or not the page fault was handled.
 bool MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
+
+// Issue a TLB shootdown request. This is the official API for this purpose.
+void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);
 
 #endif//NS64_MM_H

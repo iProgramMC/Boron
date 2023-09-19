@@ -10,7 +10,7 @@ set path=%path%;%NSPath%
 qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
 -M q35                                          ^
 -m 64M                                          ^
--smp 1                                          ^
+-smp 2                                          ^
 -boot d                                         ^
 -cdrom %nspath%\build\image.iso                 ^
 -debugcon stdio                                 ^

@@ -84,6 +84,25 @@ void KiTrap0EHandler(CPUState* State)
 	LEAVE_INTERRUPT;
 }
 
+// TLB shootdown interrupt.
+void KiTrapFDHandler(UNUSED CPUState* State)
+{
+	CPU* myCPU = KeGetCPU();
+	
+#ifdef DEBUG
+	SLogMsg("Handling TLB shootdown on CPU %u", myCPU->LapicId);
+#endif
+	
+	for (size_t i = 0; i < myCPU->TlbsLength; i++)
+	{
+		KeInvalidatePage((void*)(myCPU->TlbsAddress + i * PAGE_SIZE));
+	}
+	
+	KeUnlock(&myCPU->TlbsLock);
+	
+	HalApicEoi();
+}
+
 // Crash IPI (inter processor interrupt).
 void HalpOnCrashedCPU();
 void KiTrapFEHandler(UNUSED CPUState* State)

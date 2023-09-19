@@ -17,6 +17,9 @@ void HalPrintString(const char* str);
 // Warning: You need to lock g_DebugPrintLock to use this:
 void HalPrintStringDebug(const char* str);
 
+// ==== TLB Shootdown ====
+void HalIssueTLBShootDown(uintptr_t Address, size_t Length);
+
 // ==== Crashing ====
 // don't use. Use KeCrash instead
 NO_RETURN void HalCrashSystem(const char* message);

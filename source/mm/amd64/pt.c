@@ -231,6 +231,69 @@ PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool All
 	return EntryPointer;
 }
 
+static void MmpFreeVacantPMLsSub(PageMapping Mapping, uintptr_t Address)
+{
+	// Lot of code was copied from MmGetPTEPointer.
+	const uintptr_t FiveElevenMask = 0x1FF;
+	
+	uintptr_t indices[] = {
+		0,
+		(Address >> 12) & FiveElevenMask,
+		(Address >> 21) & FiveElevenMask,
+		(Address >> 30) & FiveElevenMask,
+		(Address >> 39) & FiveElevenMask,
+		0,
+	};
+	
+	PageMapping CurrentLevel = Mapping;
+	PageTableEntry *EntryPointer = NULL, *ParentEntryPointer = NULL;
+	
+	for (int pml = 4; pml >= 1; pml--)
+	{
+		PageTableEntry* Entries = MmGetHHDMOffsetAddr(CurrentLevel);
+		
+		EntryPointer = &Entries[indices[pml]];
+		
+		PageTableEntry Entry = *EntryPointer;
+		
+		if (pml > 1 && (~Entry & MM_PTE_PRESENT))
+		{
+			// if we don't have a parent, return
+			if (!ParentEntryPointer)
+				return;
+			
+			// check if this entire page is vacant
+			for (int i = 0; i < 512; i++)
+			{
+				if (Entries[i] != 0)
+					return; // isn't vacant
+			}
+			
+			// is vacant, so free it
+			*ParentEntryPointer = 0;
+			
+			int pfn = MmPhysPageToPFN(CurrentLevel);
+			MmFreePhysicalPage(pfn);
+		}
+		
+		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
+		{
+			// Higher page size, we can't do that here.  Probably HHDM or something - the kernel itself doesn't use this
+			return;
+		}
+		
+		CurrentLevel = Entry & MM_PTE_ADDRESSMASK;
+		ParentEntryPointer = EntryPointer;
+	}
+}
+
+static void MmpFreeVacantPMLs(PageMapping Mapping, uintptr_t Address)
+{
+	// Do this 4 times to ensure all levels are freed.  Could be done better
+	for (int i = 0; i < 4; i++)
+		MmpFreeVacantPMLsSub(Mapping, Address);
+}
+
 bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions)
 {
 	PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address, true);
@@ -251,4 +314,56 @@ bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions
 	*pPTE = MM_PTE_PRESENT | Permissions | MmPFNToPhysPage(pfn);
 	
 	return true;
+}
+
+void MmUnmapPages(PageMapping Mapping, uintptr_t Address, size_t LengthPages)
+{
+	// Step 1. Unset the PRESENT bit on all pages in the range.
+	for (size_t i = 0; i < LengthPages; i++)
+	{
+		PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		
+		if (!pPTE)
+			continue;
+		
+		if (*pPTE & MM_PTE_PRESENT)
+		{
+			*pPTE &= ~MM_PTE_PRESENT;
+			*pPTE |= MM_DPTE_WASPRESENT;
+		}
+		else
+		{
+			*pPTE &= ~MM_DPTE_WASPRESENT;
+		}
+	}
+	
+	// Step 2. Issue a single TLB shootdown command to all CPUs to flush the TLB.
+	// TODO: This could be optimized, but eh, it's fine for now..
+	MmIssueTLBShootDown(Address, LengthPages);
+	
+	// Step 3. If needed, free the PMM pages related to this page mapping.
+	for (size_t i = 0; i < LengthPages; i++)
+	{
+		PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		
+		if (!pPTE)
+			continue;
+		
+		if (*pPTE & MM_DPTE_WASPRESENT)
+		{
+			uintptr_t PhysPage = *pPTE & MM_PTE_ADDRESSMASK;
+			
+			MmFreePhysicalPage(MmPhysPageToPFN(PhysPage));
+			
+			*pPTE = 0;
+		}
+	}
+	
+	return;
+	
+	// Step 4. Free higher PMLs if they're fully vacant
+	for (size_t i = 0; i < LengthPages; i++)
+	{
+		MmpFreeVacantPMLs(Mapping, Address + i * PAGE_SIZE);
+	}
 }

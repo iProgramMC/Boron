@@ -90,5 +90,6 @@ BASEINT TrapUnknown, PUSH, TrapUnknown
 TRAP_ENTRY 08, DONTPUSH  ; double fault
 TRAP_ENTRY 0D, DONTPUSH  ; general protection fault
 TRAP_ENTRY 0E, DONTPUSH  ; page fault
+TRAP_ENTRY FD, PUSH      ; TLB shootdown IPI
 TRAP_ENTRY FE, PUSH      ; crash IPI
 TRAP_ENTRY FF, PUSH      ; spurious interrupt

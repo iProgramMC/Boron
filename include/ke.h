@@ -24,6 +24,31 @@ eIPL KeRaiseIPL(eIPL newIPL);
 eIPL KeLowerIPL(eIPL newIPL);
 eIPL KeGetIPL();
 
+// === Locking ===
+
+// simple spin locks, for when contention is rare
+typedef struct
+{
+	bool Locked;
+}
+SpinLock;
+
+void KeLock(SpinLock* pLock);
+void KeUnlock(SpinLock* pLock);
+bool KeTryLock(SpinLock* pLock);
+
+// ticket locks, for when contention is definitely possible
+typedef struct
+{
+	int NowServing;
+	int NextNumber;
+}
+TicketLock;
+
+void KeInitTicketLock(TicketLock* pLock);
+void KeLockTicket(TicketLock* pLock);
+void KeUnlockTicket(TicketLock* pLock);
+
 // === CPU ===
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
@@ -31,6 +56,9 @@ NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 // per CPU struct
 typedef struct
 {
+	// the index of the processor within the KeProcessorList
+	int Id;
+	
 	// the APIC ID of the processor
 	uint32_t LapicId;
 	
@@ -45,6 +73,19 @@ typedef struct
 	
 	// the current IPL that we are running at
 	eIPL Ipl;
+	
+	// TLB shootdown information.
+	// Address - the address where the TLB shootdown process will start
+	uintptr_t TlbsAddress;
+	// Length - the number of pages the TLB shootdown handler will invalidate
+	size_t    TlbsLength;
+	// Lock - Used to synchronize TLB shootdown calls.
+	// - First it is locked by the TLB shootdown emitter.
+	// - Then the same core tries to lock it again, waiting until the receiver
+	//   of the TLB shootdown unlocks this lock.
+	// - In the TLB shootdown handler, this lock is unlocked, letting other TLB
+	//   shootdown requests come in.
+	SpinLock  TlbsLock;
 	
 	// architecture specific details
 	KeArchData ArchData;
@@ -90,31 +131,6 @@ static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the
 #define AtAddFetchMO(var,val,mo)     __atomic_add_fetch(&(var), (val), mo)
 #define AtExchange(var,val,ret)      __atomic_exchange(&(var), &(val), &(ret), ATOMIC_DEFAULT_MEMORDER)
 #define AtExchangeMO(var,val,ret,mo) __atomic_exchange(&(var), &(val), &(ret), mo)
-
-// === Locking ===
-
-// simple spin locks, for when contention is rare
-typedef struct
-{
-	bool Locked;
-}
-SpinLock;
-
-void KeLock(SpinLock* pLock);
-void KeUnlock(SpinLock* pLock);
-bool KeTryLock(SpinLock* pLock);
-
-// ticket locks, for when contention is definitely possible
-typedef struct
-{
-	int NowServing;
-	int NextNumber;
-}
-TicketLock;
-
-void KeInitTicketLock(TicketLock* pLock);
-void KeLockTicket(TicketLock* pLock);
-void KeUnlockTicket(TicketLock* pLock);
 
 // === SMP ===
 NO_RETURN void KeInitSMP(void);

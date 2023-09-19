@@ -44,7 +44,7 @@ void KeOnProtectionFault(uintptr_t FaultPC)
 
 void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
-	//LogMsg("Page fault at %p (tried to access %p, error code %llx) on CPU %u", FaultPC, FaultAddress, FaultMode, KeGetCPU()->LapicId);
+	//SLogMsg("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 	
 	if (MmPageFault(FaultPC, FaultAddress, FaultMode))
 		return;
@@ -77,16 +77,26 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	if (MmMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR))
 	{
 		*((uintptr_t*)0x5adfdeadbeef) = 420;
-		LogMsg("Read back from there: %p", *((uintptr_t*)0x5adfdeadbeef));
+		LogMsg("[CPU %u] Read back from there: %p", pInfo->lapic_id, *((uintptr_t*)0x5adfdeadbeef));
+		
+		// Get rid of that shiza
+		MmUnmapPages(pm, 0x5ADFDEADB000, 1);
+		
+		MmMapAnonPage(pm, 0x5ADFDEADD000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR);
+		MmUnmapPages (pm, 0x5ADFDEADD000, 1);
+		
+		// Try again!  We should get a page fault if we did everything correctly.
+		*((uintptr_t*)0x5adfdeadbeef) = 420;
+		
+		LogMsg("[CPU %u] Read back from there: %p", pInfo->lapic_id, *((uintptr_t*)0x5adfdeadbeef));
 	}
 	else
 	{
 		LogMsg("Error, failed to map to %p", 0x5ADFDEADB000);
 	}
 	
-	// issue a page fault right now
-	
-	KeStopCurrentCPU();
+	while (true)
+		KeWaitForNextInterrupt();
 }
 
 CPU* KeGetCPU()
@@ -177,6 +187,7 @@ NO_RETURN void KeInitSMP()
 		struct limine_smp_info* pInfo = pSMP->cpus[i];
 		
 		// initialize the struct
+		pCPU->Id          = i;
 		pCPU->LapicId     = pInfo->lapic_id;
 		pCPU->IsBootstrap = bIsBSP;
 		pCPU->SmpInfo     = pInfo;

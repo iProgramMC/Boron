@@ -48,7 +48,7 @@ void SLogMsg(const char* msg, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
-	// this one goes to the screen
+	// This one goes to the debug log.
 	KeLock(&g_DebugPrintLock);
 	HalPrintStringDebug(buffer);
 	KeUnlock(&g_DebugPrintLock);

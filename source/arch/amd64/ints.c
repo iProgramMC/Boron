@@ -86,6 +86,7 @@ extern void KiTrapUnknown();
 extern void KiTrap08();
 extern void KiTrap0D();
 extern void KiTrap0E();
+extern void KiTrapFD();
 extern void KiTrapFE();
 extern void KiTrapFF();
 
@@ -101,6 +102,7 @@ void KiSetupIdt()
 	KiLoadInterruptVector(&KiIdt, 0x08, KiTrap08); // double faults
 	KiLoadInterruptVector(&KiIdt, 0x0D, KiTrap0D); // general protection faults
 	KiLoadInterruptVector(&KiIdt, 0x0E, KiTrap0E); // page faults
+	KiLoadInterruptVector(&KiIdt, 0xFD, KiTrapFD); // TLB shootdown IPI
 	KiLoadInterruptVector(&KiIdt, 0xFE, KiTrapFE); // crash IPI
 	KiLoadInterruptVector(&KiIdt, 0xFF, KiTrapFF); // spurious interrupts
 }

@@ -334,11 +334,20 @@ int MmAllocatePhysicalPage()
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
 	
 	KeUnlock(&MmPfnLock);
+	
+#ifdef DEBUG
+	SLogMsg("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
+#endif
+	
 	return currPFN;
 }
 
 void MmFreePhysicalPage(int pfn)
 {
+#ifdef DEBUG
+	SLogMsg("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
+#endif
+	
 	KeLock(&MmPfnLock);
 	MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 	MmGetPageFrameFromPFN(pfn)->Type = PF_TYPE_FREE;

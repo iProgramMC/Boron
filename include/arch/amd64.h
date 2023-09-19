@@ -37,6 +37,12 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 	// 62..59 - protection key (unused)
 	// 58..52 - more available bits
 
+// Bits for a disabled PTE.
+#define MM_DPTE_WASPRESENT (1ULL << 62) // Used by the unmap code temporarily. (1)
+
+// (1) - If MM_DPTE_WASPRESENT is set, it's treated as a regular PTE in terms of flags, except that MM_PTE_PRESENT is zero.
+//       It contains a valid PMM address which should be freed.
+
 #define PAGE_SIZE (0x1000)
 
 typedef uint64_t PageTableEntry;
@@ -92,6 +98,7 @@ eIPL;
 #define INTV_PAGE_FAULT (0x0E) // exempt from the IPL stuff, but any page fault above IPL_APC is considered an error
 #define INTV_DPC_IPI    (0x50)
 #define INTV_APIC_TIMER (0xF0)
+#define INTV_TLBS_IPI   (0xFD)
 #define INTV_CRASH_IPI  (0xFE)
 #define INTV_SPURIOUS   (0xFF)
 

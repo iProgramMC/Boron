@@ -1,4 +1,7 @@
-# NanoShell 64 kernel makefile
+# Boron kernel makefile
+
+# DEBUG flag
+DEBUG ?= 1
 
 # The build directory
 BUILD_DIR = build
@@ -34,6 +37,10 @@ endef
 
 # Defines - I would edit flanterm itself but then submodules would get rid of our work.
 DEFINES = -DFLANTERM_FB_DISABLE_CANVAS -DFLANTERM_FB_DISABLE_BUMP_ALLOC
+
+ifeq ($(DEBUG), 1)
+	DEFINES += -DDEBUG
+endif
 
 # It is highly recommended to use a custom built cross toolchain to build a kernel.
 # We are only using "cc" as a placeholder here. It may work by using
