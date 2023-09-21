@@ -45,47 +45,51 @@ static UNUSED void KiDumpCPUState(CPUState* State)
 
 // Generic interrupt handler.
 // Used in case an interrupt is not implemented
-void KiTrapUnknownHandler(CPUState* State)
+CPUState* KiTrapUnknownHandler(CPUState* State)
 {
 	ENTER_INTERRUPT(IPL_NOINTS);
 	
 	KeOnUnknownInterrupt(State->rip);
 	
 	LEAVE_INTERRUPT;
+	return State;
 }
 
 // Double fault handler.
-void KiTrap08Handler(CPUState* State)
+CPUState* KiTrap08Handler(CPUState* State)
 {
 	ENTER_INTERRUPT(IPL_NOINTS);
 	
 	KeOnDoubleFault(State->rip);
 	
 	LEAVE_INTERRUPT;
+	return State;
 }
 
 // General protection fault handler.
-void KiTrap0DHandler(CPUState* State)
+CPUState* KiTrap0DHandler(CPUState* State)
 {
 	ENTER_INTERRUPT(IPL_NOINTS);
 	
 	KeOnProtectionFault(State->rip);
 	
 	LEAVE_INTERRUPT;
+	return State;
 }
 
 // Page fault handler.
-void KiTrap0EHandler(CPUState* State)
+CPUState* KiTrap0EHandler(CPUState* State)
 {
 	ENTER_INTERRUPT(IPL_DPC);
 	
 	KeOnPageFault(State->rip, State->cr2, State->error_code);
 	
 	LEAVE_INTERRUPT;
+	return State;
 }
 
 // TLB shootdown interrupt.
-void KiTrapFDHandler(UNUSED CPUState* State)
+CPUState* KiTrapFDHandler(CPUState* State)
 {
 	CPU* myCPU = KeGetCPU();
 	
@@ -101,11 +105,12 @@ void KiTrapFDHandler(UNUSED CPUState* State)
 	KeUnlock(&myCPU->TlbsLock);
 	
 	HalApicEoi();
+	return State;
 }
 
 // Crash IPI (inter processor interrupt).
 void HalpOnCrashedCPU();
-void KiTrapFEHandler(UNUSED CPUState* State)
+CPUState* KiTrapFEHandler(CPUState* State)
 {
 	// We have received an interrupt from the processor that has crashed. We should crash too!
 	
@@ -117,10 +122,13 @@ void KiTrapFEHandler(UNUSED CPUState* State)
 	
 	// and stop!!
 	KeStopCurrentCPU();
+	
+	return State;
 }
 
 // Spurious interrupt.
-void KiTrapFFHandler(UNUSED CPUState* State)
+CPUState* KiTrapFFHandler(CPUState* State)
 {
 	HalApicEoi();
+	return State;
 }

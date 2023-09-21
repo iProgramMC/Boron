@@ -3,6 +3,11 @@ bits 64
 
 %include "arch/amd64.inc"
 
+; To define the handler for an interrupt, you define a function with the prototype:
+; CPUState*  KiTrap??Handler(CPUState*);
+; This can return the CPU state provided verbatim, or it can return a completely different CPU state.
+; This is useful for scheduling.
+
 %macro PUSHSTATE 0
 	push rax
 	push rbx
@@ -77,6 +82,7 @@ Ki%1:
 	PUSHSTATE
 	mov  rdi, rsp
 	call Ki%3Handler
+	mov  rsp, rax
 	POPSTATE
 	add  rsp, 8   ; get rid of the error code
 	iretq
