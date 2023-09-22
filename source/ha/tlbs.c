@@ -16,8 +16,8 @@ Author:
 #include <ke.h>
 #include "apic.h"
 
-extern CPU** KeProcessorList;
-extern int   KeProcessorCount;
+extern KPRCB** KeProcessorList;
+extern int     KeProcessorCount;
 
 // only one thread can perform a TLB shootdown at once.. don't exactly know why
 // the locks inside the CPUs themselves are used for synchronization of the operation itself
@@ -40,7 +40,7 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 		return;
 	}
 	
-	int OwnId = KeGetCPU()->Id;
+	int OwnId = KeGetCurrentPRCB()->Id;
 	
 	for (int i = 0; i < KeProcessorCount; i++)
 	{

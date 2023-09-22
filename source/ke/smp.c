@@ -6,8 +6,8 @@
 #include <string.h>
 #include <_limine.h>
 
-CPU** KeProcessorList;
-int   KeProcessorCount = 0;
+KPRCB** KeProcessorList;
+int     KeProcessorCount = 0;
 
 volatile struct limine_smp_request KeLimineSmpRequest =
 {
@@ -20,7 +20,7 @@ volatile struct limine_smp_request KeLimineSmpRequest =
 // TODO: Allow grabbing the interrupt code. For simplicity that isn't done
 void KeOnUnknownInterrupt(uintptr_t FaultPC)
 {
-	LogMsg("Unknown interrupt at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
+	LogMsg("Unknown interrupt at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -28,7 +28,7 @@ void KeOnUnknownInterrupt(uintptr_t FaultPC)
 
 void KeOnDoubleFault(uintptr_t FaultPC)
 {
-	LogMsg("Double fault at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
+	LogMsg("Double fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -36,7 +36,7 @@ void KeOnDoubleFault(uintptr_t FaultPC)
 
 void KeOnProtectionFault(uintptr_t FaultPC)
 {
-	LogMsg("General Protection Fault at %p on CPU %u", FaultPC, KeGetCPU()->LapicId);
+	LogMsg("General Protection Fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 	
 	// TODO: crash properly
 	KeStopCurrentCPU();
@@ -61,8 +61,7 @@ extern bool Log;
 // structure of the CPU is passed in RDI
 NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 {
-	CPU *pCpu = (CPU *)pInfo->extra_argument;
-	KeSetCPUPointer(pCpu);
+	KeSetCPUPointer((KPRCB*)pInfo->extra_argument);
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
 	KeOnUpdateIPL(KeGetIPL(), 0);
@@ -101,7 +100,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 		KeWaitForNextInterrupt();
 }
 
-CPU* KeGetCPU()
+KPRCB* KeGetCurrentPRCB()
 {
 	return KeGetCPUPointer();
 }
@@ -183,22 +182,22 @@ NO_RETURN void KeInitSMP()
 			KeCrashBeforeSMPInit("Error, can't initialize CPUs, we don't have enough memory");
 		}
 		
-		CPU* pCPU = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuPFN));
-		memset(pCPU, 0, sizeof * pCPU);
+		KPRCB* prcb = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuPFN));
+		memset(prcb, 0, sizeof * prcb);
 		
 		struct limine_smp_info* pInfo = pSMP->cpus[i];
 		
 		// initialize the struct
-		pCPU->Id          = i;
-		pCPU->LapicId     = pInfo->lapic_id;
-		pCPU->IsBootstrap = bIsBSP;
-		pCPU->SmpInfo     = pInfo;
-		pCPU->PageMapping = KeGetCurrentPageTable(); // it'd better be that
-		pCPU->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
+		prcb->Id          = i;
+		prcb->LapicId     = pInfo->lapic_id;
+		prcb->IsBootstrap = bIsBSP;
+		prcb->SmpInfo     = pInfo;
+		prcb->PageMapping = KeGetCurrentPageTable(); // it'd better be that
+		prcb->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
 		
-		pInfo->extra_argument = (uint64_t)pCPU;
+		pInfo->extra_argument = (uint64_t)prcb;
 		
-		KeProcessorList[i] = pCPU;
+		KeProcessorList[i] = prcb;
 		
 		if (bIsBSP)
 			pBSPInfo = pInfo;

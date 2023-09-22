@@ -54,7 +54,7 @@ void HalCrashSystem(const char* message)
 		KeSpinningHint();
 	
 	char buff[64];
-	snprintf(buff, sizeof buff, "\x1B[91m*** STOP (CPU %u): \x1B[0m", KeGetCPU()->LapicId);
+	snprintf(buff, sizeof buff, "\x1B[91m*** STOP (CPU %u): \x1B[0m", KeGetCurrentPRCB()->LapicId);
 	
 	// now that we got that out of the way, print the error message
 	// (and the 'fatal error' tag in red) to the console..

@@ -7,7 +7,6 @@
 #include <arch.h>
 
 // === Interrupt priority levels ===
-#include <arch.h>
 
 // Raises or lowers the IPL of the current CPU.
 // Returns the previous IPL.
@@ -50,51 +49,7 @@ void KeLockTicket(TicketLock* pLock);
 void KeUnlockTicket(TicketLock* pLock);
 
 // === CPU ===
-
-NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
-
-// per CPU struct
-typedef struct
-{
-	// the index of the processor within the KeProcessorList
-	int Id;
-	
-	// the APIC ID of the processor
-	uint32_t LapicId;
-	
-	// are we the bootstrap processor?
-	bool IsBootstrap;
-	
-	// the SMP info we're given
-	struct limine_smp_info* SmpInfo;
-	
-	// the page mapping we're currently using (physical address)
-	uintptr_t PageMapping;
-	
-	// the current IPL that we are running at
-	eIPL Ipl;
-	
-	// TLB shootdown information.
-	// Address - the address where the TLB shootdown process will start
-	uintptr_t TlbsAddress;
-	// Length - the number of pages the TLB shootdown handler will invalidate
-	size_t    TlbsLength;
-	// Lock - Used to synchronize TLB shootdown calls.
-	// - First it is locked by the TLB shootdown emitter.
-	// - Then the same core tries to lock it again, waiting until the receiver
-	//   of the TLB shootdown unlocks this lock.
-	// - In the TLB shootdown handler, this lock is unlocked, letting other TLB
-	//   shootdown requests come in.
-	SpinLock  TlbsLock;
-	
-	// architecture specific details
-	KeArchData ArchData;
-}
-CPU;
-
-CPU * KeGetCPU();
-
-static_assert(sizeof(CPU) <= 4096, "struct CPU should be smaller or equal to the page size, for objective reasons");
+#include <ke/prcb.h>
 
 // === Atomics ===
 

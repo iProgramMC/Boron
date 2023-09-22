@@ -19,15 +19,15 @@
 
 eIPL KeGetIPL()
 {
-	CPU* thisCPU = KeGetCPU();
-	return thisCPU->Ipl;
+	KPRCB* me = KeGetCurrentPRCB();
+	return me->Ipl;
 }
 
 eIPL KeRaiseIPL(eIPL newIPL)
 {
-	CPU* thisCPU = KeGetCPU();
-	eIPL oldIPL = thisCPU->Ipl;
-	//SLogMsg2("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, thisCPU->LapicId, __builtin_return_address(0));
+	KPRCB* me = KeGetCurrentPRCB();
+	eIPL oldIPL = me->Ipl;
+	//SLogMsg2("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
@@ -38,16 +38,16 @@ eIPL KeRaiseIPL(eIPL newIPL)
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	// Set the current IPL
-	thisCPU->Ipl = newIPL;
+	me->Ipl = newIPL;
 	return oldIPL;
 }
 
 // similar logic, except we will also call DPCs if needed
 eIPL KeLowerIPL(eIPL newIPL)
 {
-	CPU* thisCPU = KeGetCPU();
-	eIPL oldIPL = thisCPU->Ipl;
-	//SLogMsg2("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, thisCPU->LapicId, __builtin_return_address(0));
+	KPRCB* me = KeGetCurrentPRCB();
+	eIPL oldIPL = me->Ipl;
+	//SLogMsg2("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
@@ -56,19 +56,12 @@ eIPL KeLowerIPL(eIPL newIPL)
 		KeCrash("Error, can't lower the IPL to a higher level than we are (old %d, new %d)", oldIPL, newIPL);
 	
 	// Set the current IPL
-	thisCPU->Ipl = newIPL;
+	me->Ipl = newIPL;
 	
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	// TODO (updated): Issue a self-IPI to call DPCs.
-	
 	// TODO: call DPCs
-	// ideally we'd have something as follows:
-	// while (thisCPU->Ipl > newIPL) {
-	//     thisCPU->Ipl--;  // lower the IPL by one stage..
-	//     executeDPCs();     // execute the DPCs at this IPL
-	// }                      // continue until we are at the current IPL
-	// executeDPCs();         // do that one more time because we weren't in the while loop
 	
 	return oldIPL;
 }

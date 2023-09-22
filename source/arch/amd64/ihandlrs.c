@@ -91,7 +91,7 @@ CPUState* KiTrap0EHandler(CPUState* State)
 // TLB shootdown interrupt.
 CPUState* KiTrapFDHandler(CPUState* State)
 {
-	CPU* myCPU = KeGetCPU();
+	KPRCB* myCPU = KeGetCurrentPRCB();
 	
 #ifdef DEBUG2
 	SLogMsg("Handling TLB shootdown on CPU %u", myCPU->LapicId);

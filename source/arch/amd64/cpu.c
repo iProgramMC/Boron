@@ -63,7 +63,7 @@ void* KeGetCPUPointer(void)
 
 KeArchData* KeGetData()
 {
-	return &KeGetCPU()->ArchData;
+	return &KeGetCurrentPRCB()->ArchData;
 }
 
 extern void* KiIdtDescriptor;
@@ -137,7 +137,7 @@ void KeInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	LogMsg("Map for CPU %u is %x", KeGetCPU()->LapicId, Map);
+	LogMsg("Map for CPU %u is %x", KeGetCurrentPRCB()->LapicId, Map);
 	
 	KeSetCurrentPageTable(Map);
 	
@@ -146,7 +146,7 @@ void KeInitCPU()
 	if (ispPFN == PFN_INVALID)
 	{
 		// TODO: crash
-		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create interrupt stack", KeGetCPU()->LapicId);
+		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create interrupt stack", KeGetCurrentPRCB()->LapicId);
 		KeStopCurrentCPU();
 	}
 	
