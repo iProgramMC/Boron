@@ -33,9 +33,9 @@ typedef struct
 	// Unused for now.
 	uint64_t qword3;
 }
-PageFrame;
+MMPFN, *PMMPFN;
 
-enum ePageFrameType
+enum MMPFN_TYPE_tag
 {
 	PF_TYPE_FREE,
 	PF_TYPE_ZEROED,
@@ -44,9 +44,9 @@ enum ePageFrameType
 
 #define PFN_INVALID (-1)
 
-#define PFNS_PER_PAGE (PAGE_SIZE / sizeof(PageFrame))
+#define PFNS_PER_PAGE (PAGE_SIZE / sizeof(MMPFN))
 
-_Static_assert((sizeof(PageFrame) & (sizeof(PageFrame) - 1)) == 0,  "THe page frame struct should be a power of two");
+_Static_assert((sizeof(MMPFN) & (sizeof(MMPFN) - 1)) == 0,  "The page frame struct should be a power of two");
 
 typedef struct
 {

@@ -102,9 +102,9 @@ uintptr_t MmPFNToPhysPage(int pfn)
 	return (uintptr_t) pfn * PAGE_SIZE;
 }
 
-PageFrame* MmGetPageFrameFromPFN(int pfn)
+MMPFN* MmGetPageFrameFromPFN(int pfn)
 {
-	PageFrame* pPFNDB = (PageFrame*) MM_PFNDB_BASE;
+	MMPFN* pPFNDB = (MMPFN*) MM_PFNDB_BASE;
 	
 	return &pPFNDB[pfn];
 }
@@ -170,7 +170,7 @@ void MiInitPMM()
 		uint64_t lastAllocatedPage = 0;
 		for (int pfn = pfnStart; pfn < pfnEnd; pfn++)
 		{
-			uint64_t currPage = (MM_PFNDB_BASE + sizeof(PageFrame) * pfn) & ~(PAGE_SIZE - 1);
+			uint64_t currPage = (MM_PFNDB_BASE + sizeof(MMPFN) * pfn) & ~(PAGE_SIZE - 1);
 			if (lastAllocatedPage == currPage) // check is probably useless
 				continue;
 			
@@ -182,7 +182,7 @@ void MiInitPMM()
 		}
 	}
 	
-	SLogMsg("Initializing the PFN database.", sizeof(PageFrame));
+	SLogMsg("Initializing the PFN database.", sizeof(MMPFN));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	
@@ -201,7 +201,7 @@ void MiInitPMM()
 			if (MiFirstFreePFN == PFN_INVALID)
 				MiFirstFreePFN =  currPFN;
 			
-			PageFrame* pPF = MmGetPageFrameFromPFN(currPFN);
+			MMPFN* pPF = MmGetPageFrameFromPFN(currPFN);
 			
 			// initialize this PFN
 			memset(pPF, 0, sizeof *pPF);
@@ -213,7 +213,7 @@ void MiInitPMM()
 				// also update the last PF's next frame idx
 				if (lastPfnOfPrevBlock != PFN_INVALID)
 				{
-					PageFrame* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
+					MMPFN* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
 					pPrevPF->NextFrame = currPFN;
 				}
 			}
@@ -263,7 +263,7 @@ void MiInitPMM()
 
 static void MmpRemovePfnFromList(int* First, int* Last, int Current)
 {
-	PageFrame *pPF = MmGetPageFrameFromPFN(Current);
+	MMPFN *pPF = MmGetPageFrameFromPFN(Current);
 	
 	// disconnect its neighbors from this one
 	if (pPF->NextFrame != PFN_INVALID)
@@ -297,12 +297,12 @@ static void MmpAddPfnToList(int* First, int* Last, int Current)
 	{
 		*First = *Last = Current;
 		
-		PageFrame* pPF = MmGetPageFrameFromPFN(Current);
+		MMPFN* pPF = MmGetPageFrameFromPFN(Current);
 		pPF->NextFrame = PFN_INVALID;
 		pPF->PrevFrame = PFN_INVALID;
 	}
 	
-	PageFrame *pLastPFN = MmGetPageFrameFromPFN(*Last), *pCurrPFN = MmGetPageFrameFromPFN(Current);
+	MMPFN *pLastPFN = MmGetPageFrameFromPFN(*Last), *pCurrPFN = MmGetPageFrameFromPFN(Current);
 	
 	pLastPFN->NextFrame = Current;
 	pCurrPFN->PrevFrame = *Last;
@@ -317,7 +317,7 @@ static int MmpAllocateFromFreeList(int* First, int* Last)
 		return PFN_INVALID;
 	
 	int currPFN = *First;
-	PageFrame *pPF = MmGetPageFrameFromPFN(*First);
+	MMPFN *pPF = MmGetPageFrameFromPFN(*First);
 	
 	pPF->Type = PF_TYPE_USED;
 	MmpRemovePfnFromList(First, Last, *First);
@@ -358,7 +358,7 @@ void MmFreePhysicalPage(int pfn)
 // the zero PFN list.
 static void MmpZeroOutPFN(int pfn)
 {
-	PageFrame* pPF = MmGetPageFrameFromPFN(pfn);
+	MMPFN* pPF = MmGetPageFrameFromPFN(pfn);
 	if (pPF->Type == PF_TYPE_ZEROED)
 		return;
 	
