@@ -19,9 +19,9 @@
 //     .... your code here
 //     KeLowerIPL(oldIPL);
 // .. and the reverse for lowering the IPL (but you really should not)
-eIPL KeRaiseIPL(eIPL newIPL);
-eIPL KeLowerIPL(eIPL newIPL);
-eIPL KeGetIPL();
+KIPL KeRaiseIPL(KIPL newIPL);
+KIPL KeLowerIPL(KIPL newIPL);
+KIPL KeGetIPL();
 
 // === Locking ===
 

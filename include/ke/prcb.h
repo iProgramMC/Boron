@@ -38,7 +38,7 @@ typedef struct KPRCB_tag
 	uintptr_t PageMapping;
 	
 	// the current IPL that we are running at
-	eIPL Ipl;
+	KIPL Ipl;
 	
 	// TLB shootdown information.
 	// Address - the address where the TLB shootdown process will start

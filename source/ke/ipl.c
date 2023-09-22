@@ -17,16 +17,16 @@
 	HalPrintStringDebug(buffer);
 }*/
 
-eIPL KeGetIPL()
+KIPL KeGetIPL()
 {
 	KPRCB* me = KeGetCurrentPRCB();
 	return me->Ipl;
 }
 
-eIPL KeRaiseIPL(eIPL newIPL)
+KIPL KeRaiseIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
-	eIPL oldIPL = me->Ipl;
+	KIPL oldIPL = me->Ipl;
 	//SLogMsg2("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
@@ -43,10 +43,10 @@ eIPL KeRaiseIPL(eIPL newIPL)
 }
 
 // similar logic, except we will also call DPCs if needed
-eIPL KeLowerIPL(eIPL newIPL)
+KIPL KeLowerIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
-	eIPL oldIPL = me->Ipl;
+	KIPL oldIPL = me->Ipl;
 	//SLogMsg2("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)

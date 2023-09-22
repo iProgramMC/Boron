@@ -25,7 +25,7 @@ void KeSetCurrentPageTable(uintptr_t pt);
 void KeInitCPU(); // initializes the current CPU
 
 // ==== Interrupt priority level ====
-void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL);
+void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
 // Architecture specific data
 KeArchData* KeGetData();

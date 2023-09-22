@@ -6,7 +6,7 @@
 #include "../../ha/apic.h"
 
 #define ENTER_INTERRUPT(ipl)              \
-	eIPL __current_ipl = KeRaiseIPL(ipl); \
+	KIPL __current_ipl = KeRaiseIPL(ipl); \
 	KeSetInterruptsEnabled(true);
 
 #define LEAVE_INTERRUPT                   \

@@ -17,7 +17,7 @@ void KeInvalidatePage(void* page)
 	ASM("invlpg (%0)"::"r"((uintptr_t)page):"memory");
 }
 
-extern void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL); // defined in x.asm
+extern void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL); // defined in x.asm
 
 void KeSetInterruptsEnabled(bool b)
 {

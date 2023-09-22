@@ -81,7 +81,7 @@ struct CPUState
 	uint64_t ss;
 };
 
-typedef enum eIPL
+typedef enum KIPL_tag
 {
 	IPL_NORMAL = 0x0, // business as usual
 	IPL_APC    = 0x3, // asynch procedure calls. Page faults only allowed up to this IPL
@@ -89,7 +89,7 @@ typedef enum eIPL
 	IPI_CLOCK  = 0xE, // for clock timers
 	IPL_NOINTS = 0xF, // total control of the CPU. Interrupts are disabled in this IPL and this IPL only.
 }
-eIPL;
+KIPL;
 
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
