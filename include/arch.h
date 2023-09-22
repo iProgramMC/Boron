@@ -8,7 +8,7 @@
 #include <arch/amd64.h>
 #endif
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
-typedef struct CPUState CPUState; // List of registers.
+typedef struct KREGISTERS_tag KREGISTERS; // List of registers.
 
 // Functions that do different things based on architecture,
 // but exist everywhere
@@ -28,6 +28,6 @@ void KeInitCPU(); // initializes the current CPU
 void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
 // Architecture specific data
-KeArchData* KeGetData();
+KARCH_DATA* KeGetData();
 
 #endif//NS64_ARCH_H

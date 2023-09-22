@@ -63,7 +63,7 @@ typedef uint64_t PageTableEntry;
 #define MSR_GS_BASE        (0xC0000101)
 #define MSR_GS_BASE_KERNEL (0xC0000102)
 
-struct CPUState
+struct KREGISTERS_tag
 {
 	// Registers pushed by our entry code. Pushed in reverse order from how they're laid out.
 	uint16_t ds, es, fs, gs;
@@ -102,7 +102,7 @@ KIPL;
 #define INTV_CRASH_IPI  (0xFE)
 #define INTV_SPURIOUS   (0xFF)
 
-typedef struct
+typedef struct KIDT_ENTRY_tag
 {
 	// bytes 0 and 1
 	uint64_t OffsetLow  : 16;
@@ -122,13 +122,13 @@ typedef struct
 	uint64_t Reserved2  : 32;
 }
 PACKED
-IDTEntry;
+KIDT_ENTRY;
 
 typedef struct
 {
-	IDTEntry Entries[C_IDT_MAX_ENTRIES];
+	KIDT_ENTRY Entries[C_IDT_MAX_ENTRIES];
 }
-IDT;
+KIDT;
 
 // GDT
 
@@ -150,10 +150,10 @@ typedef struct
 	uint16_t IOPB;
 }
 PACKED
-TSS;
+KTSS;
 
 // This is pretty much the same as a GDT entry except that there's an extra 8 bytes.
-typedef struct
+typedef struct KTSS_ENTRY_tag
 {
 	uint64_t Limit1 : 16;
 	uint64_t Base1  : 24;
@@ -164,23 +164,23 @@ typedef struct
 	uint64_t Resvd  : 32;
 }
 PACKED
-TSSEntry;
+KTSS_ENTRY;
 
 // Global Descriptor Table
 typedef struct
 {
-	uint64_t Segments[C_GDT_SEG_COUNT];
-	TSSEntry TssEntry;
+	uint64_t   Segments[C_GDT_SEG_COUNT];
+	KTSS_ENTRY TssEntry;
 }
-GDT;
+KGDT;
 
 typedef struct
 {
 	void* IntStack;
-	GDT Gdt;
-	TSS Tss;
+	KGDT Gdt;
+	KTSS Tss;
 }
-KeArchData;
+KARCH_DATA;
 
 #include <arch.h>
 

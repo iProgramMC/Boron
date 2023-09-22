@@ -61,7 +61,7 @@ void* KeGetCPUPointer(void)
 	return (void*) KeGetMSR(MSR_GS_BASE_KERNEL);
 }
 
-KeArchData* KeGetData()
+KARCH_DATA* KeGetData()
 {
 	return &KeGetCurrentPRCB()->ArchData;
 }
@@ -84,10 +84,10 @@ static uint64_t KepGdtEntries[] =
 extern void KepLoadGdt(void* desc);
 extern void KepLoadTss(int descriptor);
 
-static void KepSetupGdt(KeArchData* Data)
+static void KepSetupGdt(KARCH_DATA* Data)
 {
-	GDT* Gdt = &Data->Gdt;
-	TSS* Tss = &Data->Tss;
+	KGDT* Gdt = &Data->Gdt;
+	KTSS* Tss = &Data->Tss;
 	
 	for (int i = 0; i < C_GDT_SEG_COUNT; i++)
 	{
@@ -97,7 +97,7 @@ static void KepSetupGdt(KeArchData* Data)
 	// setup the TSS entry:
 	uintptr_t TssAddress = (uintptr_t) Tss;
 	
-	Gdt->TssEntry.Limit1 = sizeof(TSS);
+	Gdt->TssEntry.Limit1 = sizeof(KTSS);
 	Gdt->TssEntry.Base1  = TssAddress;
 	Gdt->TssEntry.Access = 0x89;
 	Gdt->TssEntry.Limit2 = 0x0;
@@ -118,10 +118,10 @@ static void KepSetupGdt(KeArchData* Data)
 	KepLoadGdt(&GdtDescriptor);
 	
 	// also load the TSS
-	KepLoadTss(offsetof(GDT, TssEntry));
+	KepLoadTss(offsetof(KGDT, TssEntry));
 }
 
-static void KepSetupTss(TSS* Tss)
+static void KepSetupTss(KTSS* Tss)
 {
 	// we'll set it up later..
 	memset(Tss, 0, sizeof * Tss);
@@ -150,7 +150,7 @@ void KeInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	KeArchData* Data = KeGetData();
+	KARCH_DATA* Data = KeGetData();
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
 	
 	void* intStack = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ispPFN));

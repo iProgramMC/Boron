@@ -4,19 +4,19 @@
 
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
-enum
+enum KGATE_TYPE
 {
 	GATE_INT  = 0xE,
 	GATE_TRAP = 0xF
 };
 
 // The IDT itself.
-IDT KiIdt;
+KIDT KiIdt;
 
-struct
+struct KIDT_DESCRIPTOR_tag
 {
 	uint16_t Limit;
-	IDT*     Base;
+	KIDT*    Base;
 }
 PACKED
 KiIdtDescriptor;
@@ -26,7 +26,7 @@ typedef void(*KiInterruptVector)();
 
 // Probably not going to be used because SYSCALL and SYSENTER both bypass the interrupt system.
 // These are going to be optimized out, and are also niceties when needed, so I will keep them.
-static UNUSED void KiSetInterruptDPL(IDT* Idt, int Vector, int Ring)
+static UNUSED void KiSetInterruptDPL(KIDT* Idt, int Vector, int Ring)
 {
 	Idt->Entries[Vector].DPL = Ring;
 }
@@ -36,7 +36,7 @@ static UNUSED void KiSetInterruptDPL(IDT* Idt, int Vector, int Ring)
 // This is bad, since a keyboard interrupt could manage to sneak past an important clock interrupt
 // before we manage to raise the IPL in the clock interrupt.
 // Not to mention the performance gains would be minimal if at all existent.
-static UNUSED void KiSetInterruptGateType(IDT* Idt, int Vector, int GateType)
+static UNUSED void KiSetInterruptGateType(KIDT* Idt, int Vector, int GateType)
 {
 	Idt->Entries[Vector].GateType = GateType;
 }
@@ -44,7 +44,7 @@ static UNUSED void KiSetInterruptGateType(IDT* Idt, int Vector, int GateType)
 // Set the IST of an interrupt vector. This is probably useful for the double fault handler,
 // as it is triggered only when another interrupt failed to be called, which is useful in cases
 // where the kernel stack went missing and bad (Which I hope there aren't any!)
-static UNUSED void KiSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
+static UNUSED void KiSetInterruptStackIndex(KIDT* Idt, int Vector, int Ist)
 {
 	Idt->Entries[Vector].IST = Ist;
 }
@@ -53,9 +53,9 @@ static UNUSED void KiSetInterruptStackIndex(IDT* Idt, int Vector, int Ist)
 // Parameters:
 // Idt     - The IDT that the interrupt vector will be loaded in.
 // Vector  - The interrupt number that the handler will be assigned to.
-static void KiLoadInterruptVector(IDT* Idt, int Vector, KiInterruptVector Handler)
+static void KiLoadInterruptVector(KIDT* Idt, int Vector, KiInterruptVector Handler)
 {
-	IDTEntry* Entry = &Idt->Entries[Vector];
+	KIDT_ENTRY* Entry = &Idt->Entries[Vector];
 	memset(Entry, 0, sizeof * Entry);
 	
 	uintptr_t HandlerAddr = (uintptr_t) Handler;

@@ -54,7 +54,7 @@ typedef struct KPRCB_tag
 	SpinLock  TlbsLock;
 	
 	// architecture specific details
-	KeArchData ArchData;
+	KARCH_DATA ArchData;
 }
 KPRCB;
 
