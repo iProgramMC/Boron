@@ -5,8 +5,11 @@
 #include <main.h>
 #include <arch.h>
 
+// Debug flags. Use if something's gone awry
+#define MM_DBG_NO_DEMAND_PAGING (0)
+
 // handle to a page mapping.
-typedef uintptr_t PageMapping;
+typedef uintptr_t HPAGEMAP;
 
 // Page frame item in the page frame database.
 // Keep this a power of 2, please.
@@ -95,24 +98,28 @@ void MmFreePhysicalPageHHDM(void* page);
 
 // ====== Platform independent interface for page table management ======
 // WARNING! This is not thread safe! So please take care of thread safety yourself.
+// Ideally the address space of a process will be managed by some other structure
+
+// Gets the current page mapping.
+HPAGEMAP MmGetCurrentPageMap();
 
 // Creates a page mapping.
-PageMapping MmCreatePageMapping(PageMapping OldPageMapping);
+HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping);
 
 // Deletes a page mapping.
-void MmFreePageMapping(PageMapping OldPageMapping);
+void MmFreePageMapping(HPAGEMAP OldPageMapping);
 
 // Resolves a page table entry pointer (virtual address offset by HHDM) relative to an address.
 // Can allocate the missing page mapping levels on its way if the flag is set.
 // If on its way, it hits a higher page size, currently it will return null since it's not really
 // designed for that..
-PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool AllocateMissingPMLs);
+PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
 // Attempts to map a physical page into the specified address space. Placeholder Function
-bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions);
+bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions);
 
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
-void MmUnmapPages(PageMapping Mapping, uintptr_t Address, size_t LengthPages); 
+void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
 
 // Handles a page fault. Returns whether or not the page fault was handled.
 bool MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);

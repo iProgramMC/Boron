@@ -19,7 +19,7 @@ Author:
 #include <arch/amd64.h>
 
 // Creates a page mapping.
-PageMapping MmCreatePageMapping(PageMapping OldPageMapping)
+HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 {
 	// Allocate the PML4.
 	int NewPageMappingPFN = MmAllocatePhysicalPage();
@@ -30,8 +30,8 @@ PageMapping MmCreatePageMapping(PageMapping OldPageMapping)
 	}
 	
 	uintptr_t NewPageMappingResult = MmPFNToPhysPage (NewPageMappingPFN);
-	PageTableEntry* NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMappingResult);
-	PageTableEntry* OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
+	PMMPTE NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMappingResult);
+	PMMPTE OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
 	
 	// copy the kernel's 256 entries, and zero out the first 256
 	for (int i = 0; i < 256; i++)
@@ -44,10 +44,10 @@ PageMapping MmCreatePageMapping(PageMapping OldPageMapping)
 		NewPageMappingAccess[i] = OldPageMappingAccess[i];
 	}
 	
-	return (PageMapping) NewPageMappingResult;
+	return (HPAGEMAP) NewPageMappingResult;
 }
 
-bool MmpCloneUserHalfLevel(int Level, PageTableEntry* New, PageTableEntry* Old, int Index)
+bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 {
 	New[Index] = 0;
 	
@@ -73,12 +73,12 @@ bool MmpCloneUserHalfLevel(int Level, PageTableEntry* New, PageTableEntry* Old, 
 	// write it to the new with the same flags as old, except that we set the PMM flag
 	New[Index] = PageForThisLevel | (Old[Index] & 0xFFF) | MM_PTE_ISFROMPMM;
 	
-	PageTableEntry* PageAccess = MmGetHHDMOffsetAddr (PageForThisLevel);
+	PMMPTE PageAccess = MmGetHHDMOffsetAddr (PageForThisLevel);
 	
 	if (Level == 1)
 	{
 		// Copy the contents of the page.
-		PageTableEntry* OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
+		PMMPTE OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
 		
 		memcpy (PageAccess, OldPageAccess, PAGE_SIZE);
 		
@@ -88,7 +88,7 @@ bool MmpCloneUserHalfLevel(int Level, PageTableEntry* New, PageTableEntry* Old, 
 	// Recursively copy the next level.
 	for (int i = 0; i < 512; i++)
 	{
-		PageTableEntry* OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
+		PMMPTE OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
 		
 		MmpCloneUserHalfLevel (Level - 1, PageAccess, OldPageAccess, i);
 	}
@@ -97,16 +97,16 @@ bool MmpCloneUserHalfLevel(int Level, PageTableEntry* New, PageTableEntry* Old, 
 }
 
 // Clones a user page mapping
-PageMapping MmClonePageMapping(PageMapping OldPageMapping)
+HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
 {
-	PageMapping NewPageMapping = MmCreatePageMapping(OldPageMapping);
+	HPAGEMAP NewPageMapping = MmCreatePageMapping(OldPageMapping);
 	
 	// If the new page mapping is zero, we can't proceed!
 	if (NewPageMapping == 0)
 		return 0;
 	
-	PageTableEntry* NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMapping);
-	PageTableEntry* OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
+	PMMPTE NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMapping);
+	PMMPTE OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
 	
 	// Clone the user half now.
 	for (int i = 0; i < 256; i++)
@@ -129,7 +129,7 @@ PageMapping MmClonePageMapping(PageMapping OldPageMapping)
 void MmpFreePageMappingLevel(uint64_t PageMappingLevel, int Index, int Level)
 {
     // Convert the physical address to virtual address for inspection
-    PageTableEntry* PageMappingAccess = MmGetHHDMOffsetAddr(PageMappingLevel);
+    PMMPTE PageMappingAccess = MmGetHHDMOffsetAddr(PageMappingLevel);
 	
 	if (~PageMappingAccess[Index] & MM_PTE_PRESENT)
 	{
@@ -157,7 +157,7 @@ void MmpFreePageMappingLevel(uint64_t PageMappingLevel, int Index, int Level)
     }
 }
 
-void MmFreePageMapping(PageMapping OldPageMapping)
+void MmFreePageMapping(HPAGEMAP OldPageMapping)
 {
 	for (int i = 0; i < 512; i++)
 	{
@@ -168,7 +168,7 @@ void MmFreePageMapping(PageMapping OldPageMapping)
 	MmFreePhysicalPage(MmPhysPageToPFN(OldPageMapping));
 }
 
-PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool AllocateMissingPMLs)
+PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs)
 {
 	const uintptr_t FiveElevenMask = 0x1FF;
 	
@@ -181,21 +181,21 @@ PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool All
 		0,
 	};
 	
-	int          NumPfnsAllocated = 0;
-	int             PfnsAllocated[5];
-	PageTableEntry  PtesOriginals[5];
-	PageTableEntry* PtesModified [5];
+	int    NumPfnsAllocated = 0;
+	int    PfnsAllocated[5];
+	MMPTE  PtesOriginals[5];
+	PMMPTE PtesModified [5];
 	
-	PageMapping CurrentLevel = Mapping;
-	PageTableEntry* EntryPointer = NULL;
+	HPAGEMAP CurrentLevel = Mapping;
+	PMMPTE EntryPointer = NULL;
 	
 	for (int pml = 4; pml >= 1; pml--)
 	{
-		PageTableEntry* Entries = MmGetHHDMOffsetAddr(CurrentLevel);
+		PMMPTE Entries = MmGetHHDMOffsetAddr(CurrentLevel);
 		
 		EntryPointer = &Entries[indices[pml]];
 		
-		PageTableEntry Entry = *EntryPointer;
+		MMPTE Entry = *EntryPointer;
 		
 		if (pml > 1 && (~Entry & MM_PTE_PRESENT))
 		{
@@ -245,7 +245,7 @@ PageTableEntry* MmGetPTEPointer(PageMapping Mapping, uintptr_t Address, bool All
 	return EntryPointer;
 }
 
-static void MmpFreeVacantPMLsSub(PageMapping Mapping, uintptr_t Address)
+static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 {
 	// Lot of code was copied from MmGetPTEPointer.
 	const uintptr_t FiveElevenMask = 0x1FF;
@@ -259,16 +259,16 @@ static void MmpFreeVacantPMLsSub(PageMapping Mapping, uintptr_t Address)
 		0,
 	};
 	
-	PageMapping CurrentLevel = Mapping;
-	PageTableEntry *EntryPointer = NULL, *ParentEntryPointer = NULL;
+	HPAGEMAP CurrentLevel = Mapping;
+	PMMPTE EntryPointer = NULL, ParentEntryPointer = NULL;
 	
 	for (int pml = 4; pml >= 1; pml--)
 	{
-		PageTableEntry* Entries = MmGetHHDMOffsetAddr(CurrentLevel);
+		PMMPTE Entries = MmGetHHDMOffsetAddr(CurrentLevel);
 		
 		EntryPointer = &Entries[indices[pml]];
 		
-		PageTableEntry Entry = *EntryPointer;
+		MMPTE Entry = *EntryPointer;
 		
 		if (pml > 1 && (~Entry & MM_PTE_PRESENT))
 		{
@@ -301,17 +301,18 @@ static void MmpFreeVacantPMLsSub(PageMapping Mapping, uintptr_t Address)
 	}
 }
 
-static void MmpFreeVacantPMLs(PageMapping Mapping, uintptr_t Address)
+static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 {
 	// Do this 4 times to ensure all levels are freed.  Could be done better
 	for (int i = 0; i < 4; i++)
 		MmpFreeVacantPMLsSub(Mapping, Address);
 }
 
-bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions)
+bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions)
 {
-	PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address, true);
+	PMMPTE pPTE = MmGetPTEPointer(Mapping, Address, true);
 	
+#if MM_DBG_NO_DEMAND_PAGING
 	int pfn = MmAllocatePhysicalPage();
 	if (pfn == PFN_INVALID)
 	{
@@ -326,16 +327,19 @@ bool MmMapAnonPage(PageMapping Mapping, uintptr_t Address, uintptr_t Permissions
 	}
 	
 	*pPTE = MM_PTE_PRESENT | Permissions | MmPFNToPhysPage(pfn);
+#else
+	*pPTE = MM_DPTE_DEMANDPAGED | Permissions;
+#endif
 	
 	return true;
 }
 
-void MmUnmapPages(PageMapping Mapping, uintptr_t Address, size_t LengthPages)
+void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 {
 	// Step 1. Unset the PRESENT bit on all pages in the range.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
-		PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		PMMPTE pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
 		
 		if (!pPTE)
 			continue;
@@ -358,7 +362,7 @@ void MmUnmapPages(PageMapping Mapping, uintptr_t Address, size_t LengthPages)
 	// Step 3. If needed, free the PMM pages related to this page mapping.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
-		PageTableEntry* pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		PMMPTE pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
 		
 		if (!pPTE)
 			continue;

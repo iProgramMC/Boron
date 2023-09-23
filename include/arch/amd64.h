@@ -11,6 +11,8 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 
 // ======== used by the Memory Manager ========
 
+// Note! Most of these are going to be present everywhere we'll port to.
+
 // memory layout:
 // hhdm base - FFFF'8000'0000'0000 - FFFF'80FF'FFFF'FFFF (usually. Could be different, but it'd better not be!)
 // PFN DB    - FFFF'A000'0000'0000 - FFFF'A00F'FFFF'FFFF (for the physical addresses, doubt you need more than 48 bits)
@@ -31,21 +33,35 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 #define MM_PTE_WASRDWR    (1ULL << 10) // if after cloning, the page was read/write
 #define MM_PTE_DEMAND     (1ULL << 11) // is waiting for an allocation (demand paging)
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
+#define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
 
 #define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
 	// 63 - execute disable
 	// 62..59 - protection key (unused)
 	// 58..52 - more available bits
 
-// Bits for a disabled PTE.
-#define MM_DPTE_WASPRESENT (1ULL << 62) // Used by the unmap code temporarily. (1)
+// Disabled PTE (present bit is zero):
+// bits 0..7 and 63 - Permission bits as usual
+// bit  8           - Is demand paged
+// bit  9           - 0 if from PMM (anonymous), 1 if mapped from a file
+// bit  62          - used by the unmap code, see (1)
 
 // (1) - If MM_DPTE_WASPRESENT is set, it's treated as a regular PTE in terms of flags, except that MM_PTE_PRESENT is zero.
 //       It contains a valid PMM address which should be freed.
 
+#define MM_DPTE_DEMANDPAGED  (1ULL << 8)
+#define MM_DPTE_BACKEDBYFILE (1ULL << 8)
+#define MM_DPTE_WASPRESENT   (1ULL << 62)
+
+// Page fault reasons
+#define MM_FAULT_PROTECTION (1ULL << 0) // 0: Page wasn't marked present; 1: Page protection violation (e.g. writing to a readonly page)
+#define MM_FAULT_WRITE      (1ULL << 1) // 0: Caused by a read; 1: Caused by a write
+#define MM_FAULT_USER       (1ULL << 2) // 1: Fault was caused in user mode
+#define MM_FAULT_INSNFETCH  (1ULL << 4) // 1: Attempted to execute code from a page marked with the NOEXEC bit
+
 #define PAGE_SIZE (0x1000)
 
-typedef uint64_t PageTableEntry;
+typedef uint64_t MMPTE, *PMMPTE;
 
 // bits 0.11   - Offset within the page
 // bits 12..20 - Index within the PML1

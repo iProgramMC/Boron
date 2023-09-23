@@ -86,7 +86,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
-	PageMapping pm = KeGetCurrentPageTable();
+	HPAGEMAP pm = KeGetCurrentPageTable();
 	
 	if (MmMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR))
 	{
@@ -205,7 +205,6 @@ NO_RETURN void KeInitSMP()
 		prcb->LapicId     = pInfo->lapic_id;
 		prcb->IsBootstrap = bIsBSP;
 		prcb->SmpInfo     = pInfo;
-		prcb->PageMapping = KeGetCurrentPageTable(); // it'd better be that
 		prcb->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
 		
 		pInfo->extra_argument = (uint64_t)prcb;

@@ -34,9 +34,6 @@ typedef struct KPRCB_tag
 	// the SMP info we're given
 	struct limine_smp_info* SmpInfo;
 	
-	// the page mapping we're currently using (physical address)
-	uintptr_t PageMapping;
-	
 	// the current IPL that we are running at
 	KIPL Ipl;
 	
