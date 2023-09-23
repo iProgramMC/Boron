@@ -1,3 +1,16 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	arch/amd64/pio.c
+	
+Abstract:
+	This module implements x86 specific Port I/O functions.
+	
+Author:
+	iProgramInCpp - 7 September 2023
+***/
 #include <main.h>
 #include "pio.h"
 

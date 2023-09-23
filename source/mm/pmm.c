@@ -1,3 +1,18 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	mm/pmm.c
+	
+Abstract:
+	This module contains the implementation for the physical
+	memory manager in Boron.
+	
+Author:
+	iProgramInCpp - 28 August 2023
+***/
+
 #include "mi.h"
 
 // TODO: An 'int' PFN is sufficient for now! It allows up to 16 TB

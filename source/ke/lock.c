@@ -1,4 +1,18 @@
-// Boron64 - Spin locks
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke/lock.c
+	
+Abstract:
+	This module implements the spin lock and ticket lock, two
+	basic locking primitives.
+	
+Author:
+	iProgramInCpp - 20 August 2023
+***/
+
 #include <ke.h>
 #include <arch.h>
 

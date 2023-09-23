@@ -1,4 +1,18 @@
-// Boron64 - Amd64 page table management
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	mm/amd64/pt.c
+	
+Abstract:
+	This module implements page table management for
+	the AMD64 platform.
+	
+Author:
+	iProgramInCpp - 8 September 2023
+***/
+
 #include <main.h>
 #include <string.h>
 #include <mm.h>

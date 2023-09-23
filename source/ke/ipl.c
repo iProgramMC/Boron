@@ -1,4 +1,18 @@
-// Boron64 - Interrupt priority levels
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke/ipl.c
+	
+Abstract:
+	This module implements the interrupt priority level
+	(IPL) setter and getter.
+	
+Author:
+	iProgramInCpp - 15 September 2023
+***/
+
 #include <ke.h>
 #include <hal.h>
 #include <string.h>

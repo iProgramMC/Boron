@@ -1,3 +1,19 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke/crash.c
+	
+Abstract:
+	This module contains the crash handler thunk.
+	Its job is to format the message and invoke the HAL
+	to perform the crash itself.
+	
+Author:
+	iProgramInCpp - 16 September 2023
+***/
+
 #include <ke.h>
 #include <hal.h>
 #include <string.h>
