@@ -344,6 +344,8 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
+		*pPTE &= ~MM_DPTE_DEMANDPAGED;
+		
 		if (*pPTE & MM_PTE_PRESENT)
 		{
 			*pPTE &= ~MM_PTE_PRESENT;
