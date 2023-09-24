@@ -17,18 +17,11 @@ Author:
 #include <hal.h>
 #include <arch.h>
 #include <string.h>
-#include <_limine.h>
+#include <limreq.h>
 
-KPRCB** KeProcessorList;
-int     KeProcessorCount = 0;
-
-volatile struct limine_smp_request KeLimineSmpRequest =
-{
-	.id = LIMINE_SMP_REQUEST,
-	.revision = 0,
-	.response = NULL,
-	.flags = 0,
-};
+KPRCB**  KeProcessorList;
+int      KeProcessorCount = 0;
+uint32_t KeBootstrapLapicId = 0;
 
 // TODO: Allow grabbing the interrupt code. For simplicity that isn't done
 void KeOnUnknownInterrupt(uintptr_t FaultPC)
@@ -127,11 +120,11 @@ static NO_RETURN void KiCrashedEntry()
 extern SpinLock g_PrintLock;
 extern SpinLock g_DebugPrintLock;
 
-bool KeSmpInitted = false;
+static bool KiSmpInitted = false;
 
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 {
-	if (KeSmpInitted) {
+	if (KiSmpInitted) {
 		KeCrash("called KeCrashBeforeSMPInit after SMP init?! (message: %s, RA: %p)", message, __builtin_return_address(0));
 	}
 	
@@ -169,6 +162,13 @@ NO_RETURN void KeInitSMP()
 {
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;
+	
+	if (!pSMP)
+	{
+		KeCrashBeforeSMPInit("Error, a response to the SMP request wasn't provided");
+	}
+	
+	KeBootstrapLapicId = pSMP->bsp_lapic_id;
 	
 	const uint64_t ProcessorLimit = 512;
 	
@@ -216,7 +216,7 @@ NO_RETURN void KeInitSMP()
 			pBSPInfo = pInfo;
 	}
 	
-	KeSmpInitted = true;
+	KiSmpInitted = true;
 	
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
 	{

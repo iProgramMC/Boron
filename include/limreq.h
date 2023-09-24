@@ -20,6 +20,7 @@ Author:
 extern volatile struct limine_hhdm_request KeLimineHhdmRequest;
 extern volatile struct limine_framebuffer_request KeLimineFramebufferRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
+extern volatile struct limine_smp_request KeLimineSmpRequest;
 extern volatile struct limine_rsdp_request KeLimineRsdpRequest;
 
 #endif//BORON_LIMREQ_H

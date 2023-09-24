@@ -68,6 +68,36 @@ typedef struct RSDT_TABLE_tag
 PACKED
 RSDT_TABLE, *PRSDT_TABLE;
 
+typedef struct MADT_HEADER_tag
+{
+	SDT_HEADER Header;     // base SDT header
+	uint32_t LapicAddress; // address of the LAPIC. Also found in an MSR
+	uint32_t Flags;        // Bit 0 set - legacy 8259 PIC is installed.
+}
+PACKED
+MADT_HEADER, *PMADT_HEADER;
+
+typedef struct MADT_ENTRY_HEADER_tag
+{
+	uint8_t EntryType;
+	uint8_t RecordLength;
+}
+PACKED
+MADT_ENTRY_HEADER;
+
+typedef enum MADT_ENTRY_TYPE_tag
+{
+	MADT_ENTRY_LAPIC,
+	MADT_ENTRY_IOAPIC,
+	MADT_ENTRY_IOAPIC_ISO,
+	MADT_ENTRY_IOAPIC_NMI,
+	MADT_ENTRY_LAPIC_NMI,
+	MADT_ENTRY_LAPIC_AO,
+	
+}
+MADT_ENTRY_TYPE;
+
 void HalInitAcpi();
+void HalInitIoApic();
 
 #endif//BORON_HA_ACPI_H

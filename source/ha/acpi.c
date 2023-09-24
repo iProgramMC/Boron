@@ -10,7 +10,7 @@ Abstract:
 	functions.
 	
 Author:
-	iProgramInCpp - 23 September 2023
+	iProgramInCpp - 24 September 2023
 ***/
 #include "acpi.h"
 

@@ -24,6 +24,7 @@ void HalUPInit()
 	// Initialize the IDT
 	KiSetupIdt();
 	HalInitAcpi();
+	HalInitIoApic();
 }
 
 // Initialize the HAL separately for each processor.
