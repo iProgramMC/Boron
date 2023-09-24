@@ -14,6 +14,7 @@ Author:
 ***/
 #include <hal.h>
 #include <ke.h>
+#include "acpi.h"
 
 void KiSetupIdt();
 
@@ -22,6 +23,7 @@ void HalUPInit()
 {
 	// Initialize the IDT
 	KiSetupIdt();
+	HalInitAcpi();
 }
 
 // Initialize the HAL separately for each processor.
