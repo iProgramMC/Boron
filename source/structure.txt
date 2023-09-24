@@ -15,3 +15,5 @@ Currently this is only a plan.
 * `arch/`: Architecture abstractions. These abstract the CPU away from other
   parts of the kernel. It handles page table management, context switching,
   interrupt priority level setting, and CPU intrinsics
+
+* `rtl/` - Run-time library - Includes functions such as sprint, memcpy, strcpy.
