@@ -15,6 +15,7 @@ Author:
 #include <hal.h>
 #include <ke.h>
 #include "acpi.h"
+#include "../mm/mi.h"
 
 void KiSetupIdt();
 
@@ -23,6 +24,7 @@ void HalUPInit()
 {
 	// Initialize the IDT
 	KiSetupIdt();
+	MiInitSlabs();
 	HalInitAcpi();
 	HalInitIoApic();
 }

@@ -88,3 +88,7 @@ The Boron kernel is currently structured in the following namespaces:
 * `Io` - I/O manager (ex: `IoAllocateIrp`)
 * `Bn` - System calls/native interfaces (ex: `BnCreateFile`)
 
+Sometimes one doesn't need to expose a function to the rest of the system. In that case, the prefix should be mutated to mark this.
+
+* `p` is added after the prefix if the function is private/static (ex. `MmpPlugLeaks`)
+* `i` replaces the last letter or is added after the prefix if the function is internal but may be needed by other parts of the kernel (ex. `MiAllocateSlab`)
