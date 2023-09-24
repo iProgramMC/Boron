@@ -18,10 +18,6 @@ Author:
 #include <mm.h>
 #include <ke.h>
 
-#ifdef TARGET_AMD64
-void KiSetupIdt();
-#endif
-
 // bootloader requests
 volatile struct limine_hhdm_request KeLimineHhdmRequest =
 {
@@ -49,15 +45,13 @@ void KiSystemStartup(void)
 	SLogMsg("Boron is starting up");
 	
 	HalTerminalInit();
-	LogMsg("Boron (TM), September 2023 - V0.002");
+	LogMsg("Boron (TM), September 2023 - V0.003");
 	
 	// initialize the physical memory manager
 	MiInitPMM();
 	
-	// initialize the IDT if on x86_64
-	#ifdef TARGET_AMD64
-	KiSetupIdt();
-	#endif
+	// phase 1 of HAL initialization on the BSP:
+	HalUPInit();
 	
 	// initialize SMP. This function doesn't return
 	KeInitSMP();

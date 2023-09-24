@@ -24,6 +24,10 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length);
 // don't use. Use KeCrash instead
 NO_RETURN void HalCrashSystem(const char* message);
 
+// ==== Initialization ====
+void HalUPInit();
+void HalMPInit();
+
 // ==== AMD64 specific features ====
 #ifdef TARGET_AMD64
 void HalEnableApic();

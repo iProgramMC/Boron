@@ -160,8 +160,4 @@ void KeInitCPU()
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
 	KepLoadIdt();
-	
-	#ifdef TARGET_AMD64
-	HalEnableApic();
-	#endif
 }

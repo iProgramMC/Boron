@@ -81,6 +81,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeSetInterruptsEnabled(true);
 	
 	KeInitCPU();
+	HalMPInit();
 	
 	KeLowerIPL(IPL_NORMAL);
 	
