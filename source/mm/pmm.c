@@ -350,7 +350,7 @@ int MmAllocatePhysicalPage()
 	
 	KeUnlock(&MmPfnLock);
 	
-#ifdef DEBUG
+#ifdef DEBUG2
 	SLogMsg("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
 #endif
 	
@@ -359,7 +359,7 @@ int MmAllocatePhysicalPage()
 
 void MmFreePhysicalPage(int pfn)
 {
-#ifdef DEBUG
+#ifdef DEBUG2
 	SLogMsg("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 	

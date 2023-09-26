@@ -34,7 +34,7 @@ void MiInitSlabs()
 	}
 }
 
-static int MmpGetSlabAllocatorTypeFromSize(size_t Size)
+int MmGetSmallestPO2ThatFitsSize(size_t Size)
 {
 	size_t MaxSize = 16;
 	int Index = 0;
@@ -197,7 +197,7 @@ void* MiSlabAllocate(size_t Size)
 	SLogMsg("[%d] MiSlabAllocate(%zu)", SomethingElse, Size);
 #endif
 	
-	int Index = MmpGetSlabAllocatorTypeFromSize(Size);
+	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{
@@ -216,7 +216,7 @@ void MiSlabFree(void* Ptr, size_t Size)
 	SLogMsg("[%d] MiSlabFree(%p, %zu)", SomethingElse, Ptr, Size);
 #endif
 
-	int Index = MmpGetSlabAllocatorTypeFromSize(Size);
+	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{

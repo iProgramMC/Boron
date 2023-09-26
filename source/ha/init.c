@@ -24,7 +24,6 @@ void HalUPInit()
 {
 	// Initialize the IDT
 	KiSetupIdt();
-	MiInitSlabs();
 	HalInitAcpi();
 	HalInitIoApic();
 }

@@ -14,8 +14,7 @@ Author:
 	iProgramInCpp - 28 August 2023
 ***/
 
-#include <mm.h>
-#include <hal.h>
+#include "mi.h"
 
 // forces all cores to issue a TLB shootdown (invalidate the address from the
 // TLB - with invlpg on amd64 for instance)
@@ -27,4 +26,10 @@ void MmIssueTLBShootDown(uintptr_t Address, size_t Length)
 HPAGEMAP MmGetCurrentPageMap()
 {
 	return (HPAGEMAP) KeGetCurrentPageTable();
+}
+
+void MmInitAllocators()
+{
+	MiInitSlabs();
+	MiInitPool();
 }

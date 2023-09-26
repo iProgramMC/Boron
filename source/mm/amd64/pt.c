@@ -387,3 +387,34 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 		MmpFreeVacantPMLs(Mapping, Address + i * PAGE_SIZE);
 	}
 }
+
+// start PML4 index will be 321. The PFN database's is 320
+#define MI_GLOBAL_AREA_START (321ULL)
+
+void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap)
+{
+	PMMPTE Ptes = MmGetHHDMOffsetAddr(PageMap);
+	
+	int Pfn = MmAllocatePhysicalPage();
+	if (Pfn == PFN_INVALID)
+	{
+		KeCrashBeforeSMPInit("MiPrepareGlobalAreaForPool: Can't allocate global pml4");
+	}
+	
+	Ptes[MI_GLOBAL_AREA_START] = 
+		MM_PTE_PRESENT    |
+		MM_PTE_READWRITE  |
+		MM_PTE_SUPERVISOR |
+		MM_PTE_GLOBAL     |
+		MM_PTE_ISFROMPMM  |
+		MM_PTE_NOEXEC     |
+		MmPFNToPhysPage(Pfn);
+}
+
+uintptr_t MiGetTopOfPoolManagedArea()
+{
+	// Sign extension | the start of the area managed by the PML4 index we specified.
+	// If we didn't have a sign extension, we'd have a non-canonical address, which we
+	// can never actually map to.
+	return 0xFFFF000000000000 | (MI_GLOBAL_AREA_START << 39);
+}

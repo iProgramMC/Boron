@@ -96,6 +96,9 @@ void MmFreePhysicalPageHHDM(void* page);
 
 // ==== VMM ====
 
+// Initialize the allocators.
+void MmInitAllocators();
+
 // ====== Platform independent interface for page table management ======
 // WARNING! This is not thread safe! So please take care of thread safety yourself.
 // Ideally the address space of a process will be managed by some other structure

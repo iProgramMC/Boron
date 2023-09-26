@@ -28,8 +28,8 @@ void KiSystemStartup(void)
 	HalTerminalInit();
 	LogMsg("Boron (TM), September 2023 - V0.003");
 	
-	// initialize the physical memory manager
 	MiInitPMM();
+	MmInitAllocators();
 	
 	// phase 1 of HAL initialization on the BSP:
 	HalUPInit();

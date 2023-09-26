@@ -16,7 +16,7 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 // memory layout:
 // hhdm base - FFFF'8000'0000'0000 - FFFF'80FF'FFFF'FFFF (usually. Could be different, but it'd better not be!)
 // PFN DB    - FFFF'A000'0000'0000 - FFFF'A00F'FFFF'FFFF (for the physical addresses, doubt you need more than 48 bits)
-#define MM_PFNDB_BASE (0xFFFFA00000000000)
+#define MM_PFNDB_BASE (0xFFFFA00000000000) // PML4 index: 320
 
 // Page table entry bits
 #define MM_PTE_PRESENT    (1ULL <<  0)
