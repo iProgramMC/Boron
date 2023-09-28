@@ -15,14 +15,15 @@ Author:
 
 #include <ke.h>
 #include <hal.h>
+#include <string.h>
 #include "apic.h"
 
-static SpinLock HalpCrashLock;
-static int      HalpCrashedProcessors;
-extern int      KeProcessorCount;
+static KSPIN_LOCK HalpCrashLock;
+static int        HalpCrashedProcessors;
+extern int        KeProcessorCount;
 
-extern SpinLock g_PrintLock;
-extern SpinLock g_DebugPrintLock;
+extern KSPIN_LOCK g_PrintLock;
+extern KSPIN_LOCK g_DebugPrintLock;
 
 void HalpOnCrashedCPU()
 {
@@ -32,7 +33,7 @@ void HalpOnCrashedCPU()
 void HalCrashSystem(const char* message)
 {
 	// lock the crash in so that no one else can crash but us
-	KeLock(&HalpCrashLock);
+	KeAcquireSpinLock(&HalpCrashLock);
 	AtClear(HalpCrashedProcessors);
 	AtAddFetch(HalpCrashedProcessors, 1);
 	
@@ -42,8 +43,8 @@ void HalCrashSystem(const char* message)
 	// pre-lock the print and debug print lock so there are no threading issues later from
 	// stopping the CPUs.
 	// TODO: Also lock other important used locks too
-	//KeLock(&g_PrintLock);
-	//KeLock(&g_DebugPrintLock);
+	//KeAcquireSpinLock(&g_PrintLock);
+	//KeAcquireSpinLock(&g_DebugPrintLock);
 	
 	// Send IPI to the other processors to make them halt.
 	// Don't send an IPI to ourselves as we already are in the process of crashing.

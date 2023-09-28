@@ -36,7 +36,7 @@ typedef struct RSDP_DESCRIPTION_tag
 PACKED
 RSDP_DESCRIPTION, *PRSDP_DESCRIPTION;
 
-_Static_assert(offsetof(RSDP_DESCRIPTION, Length) == 20, "RSDP 1 structure needs to be 20 bytes");
+static_assert(offsetof(RSDP_DESCRIPTION, Length) == 20, "RSDP 1 structure needs to be 20 bytes");
 
 typedef struct SDT_HEADER_tag
 {

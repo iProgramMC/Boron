@@ -1,4 +1,17 @@
-// Boron - Main include file.
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	string.h
+	
+Abstract:
+	This header file contains the definitions that
+	everyone should have available at all times.
+	
+Author:
+	iProgramInCpp - 20 August 2023
+***/
 #ifndef NS64_MAIN_H
 #define NS64_MAIN_H
 
@@ -18,11 +31,6 @@
 
 // We're using C11
 #define static_assert _Static_assert
-
-// Include stb printf so we have definitions ready
-#define STB_SPRINTF_NOFLOAT
-#define STB_SPRINTF_DECORATE        // don't decorate
-#include "_stb_sprintf.h"
 
 void LogMsg(const char* msg, ...);
 void SLogMsg(const char* msg, ...);

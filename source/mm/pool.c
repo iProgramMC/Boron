@@ -23,7 +23,7 @@ Author:
 //
 
 static PMIPOOL_ENTRY MmpPoolFirst, MmpPoolLast;
-static TicketLock    MmpPoolLock;
+static KTICKET_LOCK  MmpPoolLock;
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
@@ -91,7 +91,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 
 MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag)
 {
-	KeLockTicket(&MmpPoolLock);
+	KeAcquireTicketLock(&MmpPoolLock);
 	PMIPOOL_ENTRY Current = MmpPoolFirst;
 	
 	*OutputAddress = NULL;
@@ -110,7 +110,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 		if (Current->Size >= SizeInPages)
 		{
 			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag);
-			KeUnlockTicket(&MmpPoolLock);
+			KeReleaseTicketLock(&MmpPoolLock);
 			return Handle;
 		}
 		
@@ -123,7 +123,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	
 	*OutputAddress = NULL;
 	Current = Current->Flink;
-	KeUnlockTicket(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock);
 	return (MIPOOL_SPACE_HANDLE) NULL;
 }
 
@@ -152,14 +152,13 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 
 void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 {
-	KeLockTicket(&MmpPoolLock);
+	KeAcquireTicketLock(&MmpPoolLock);
 	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
 	
 	if (~Entry->Flags & MI_POOL_ENTRY_ALLOCATED)
 	{
-		SLogMsg("AAAA");
 		KeCrash("MiFreePoolSpace: Returned a free entry");
 	}
 	
@@ -169,13 +168,13 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	MmpTryConnectEntryWithItsFlink(Entry);
 	MmpTryConnectEntryWithItsFlink(Entry->Blink);
 	
-	KeUnlockTicket(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock);
 }
 
 void MiDumpPoolInfo()
 {
 #ifdef DEBUG
-	KeLockTicket(&MmpPoolLock);
+	KeAcquireTicketLock(&MmpPoolLock);
 	PMIPOOL_ENTRY Current = MmpPoolFirst;
 	
 	SLogMsg("MiDumpPoolInfo:");
@@ -203,7 +202,7 @@ void MiDumpPoolInfo()
 	}
 	
 	SLogMsg("MiDumpPoolInfo done");
-	KeUnlockTicket(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock);
 #endif
 }
 

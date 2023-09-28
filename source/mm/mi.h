@@ -43,7 +43,7 @@ MISLAB_ITEM, *PMISLAB_ITEM;
 typedef struct MISLAB_CONTAINER_tag
 {
 	int          ItemSize;
-	SpinLock     Lock;
+	KSPIN_LOCK   Lock;
 	PMISLAB_ITEM First, Last;
 }
 MISLAB_CONTAINER, *PMISLAB_CONTAINER;
@@ -61,7 +61,7 @@ typedef enum MISLAB_SIZE_tag
 }
 MISLAB_SIZE;
 
-_Static_assert(sizeof(MISLAB_ITEM) <= 4096, "This structure needs to fit inside one page.");
+static_assert(sizeof(MISLAB_ITEM) <= 4096, "This structure needs to fit inside one page.");
 
 void* MiSlabAllocate(size_t size);
 void  MiSlabFree(void* ptr, size_t size);

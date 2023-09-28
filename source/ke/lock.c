@@ -16,43 +16,48 @@ Author:
 #include <ke.h>
 #include <arch.h>
 
-bool KeTryLock(SpinLock* pLock)
+void KeInitializeSpinLock(PKSPIN_LOCK SpinLock)
 {
-	return !AtTestAndSetMO(pLock->Locked, ATOMIC_MEMORD_ACQUIRE);
+	SpinLock->Locked = 0;
 }
 
-void KeLock(SpinLock* pLock)
+bool KeAttemptAcquireSpinLock(PKSPIN_LOCK SpinLock)
+{
+	return !AtTestAndSetMO(SpinLock->Locked, ATOMIC_MEMORD_ACQUIRE);
+}
+
+void KeAcquireSpinLock(PKSPIN_LOCK SpinLock)
 {
 	while (true)
 	{
-		if (KeTryLock(pLock))
+		if (KeAttemptAcquireSpinLock(SpinLock))
 			return;
 		
-		while (AtLoadMO(pLock->Locked, ATOMIC_MEMORD_ACQUIRE))
+		while (AtLoadMO(SpinLock->Locked, ATOMIC_MEMORD_ACQUIRE))
 			KeSpinningHint();
 	}
 }
 
-void KeUnlock(SpinLock* pLock)
+void KeReleaseSpinLock(PKSPIN_LOCK SpinLock)
 {
-	AtClearMO(pLock->Locked, ATOMIC_MEMORD_RELEASE);
+	AtClearMO(SpinLock->Locked, ATOMIC_MEMORD_RELEASE);
 }
 
-void KeInitTicketLock(TicketLock* pLock)
+void KeInitializeTicketLock(PKTICKET_LOCK TicketLock)
 {
-	AtClear(pLock->NowServing);
-	AtClear(pLock->NextNumber);
+	AtClear(TicketLock->NowServing);
+	AtClear(TicketLock->NextNumber);
 }
 
-void KeLockTicket(TicketLock* pLock)
+void KeAcquireTicketLock(PKTICKET_LOCK TicketLock)
 {
-	int MyTicket = AtFetchAddMO(pLock->NextNumber, 1, ATOMIC_MEMORD_ACQUIRE);
+	int MyTicket = AtFetchAddMO(TicketLock->NextNumber, 1, ATOMIC_MEMORD_ACQUIRE);
 	
-	while (AtLoadMO(pLock->NowServing, ATOMIC_MEMORD_ACQUIRE) != MyTicket)
+	while (AtLoadMO(TicketLock->NowServing, ATOMIC_MEMORD_ACQUIRE) != MyTicket)
 		KeSpinningHint();
 }
 
-void KeUnlockTicket(TicketLock* pLock)
+void KeReleaseTicketLock(PKTICKET_LOCK TicketLock)
 {
-	AtAddFetchMO(pLock->NowServing, 1, ATOMIC_MEMORD_RELEASE);
+	AtAddFetchMO(TicketLock->NowServing, 1, ATOMIC_MEMORD_RELEASE);
 }

@@ -1,8 +1,26 @@
-// Boron - String operations
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	string.h
+	
+Abstract:
+	This header file contains the definitions for the
+	runtime string library.
+	
+Author:
+	iProgramInCpp - 20 August 2023
+***/
 #ifndef NS64_STRING_H
 #define NS64_STRING_H
 
 #include <stdint.h>
+
+// Include stb printf so we have definitions ready
+#define STB_SPRINTF_NOFLOAT
+#define STB_SPRINTF_DECORATE        // don't decorate
+#include "_stb_sprintf.h"
 
 void* memcpy(void* dst, const void* src, size_t n);
 void* memquadcpy(uint64_t* dst, const uint64_t* src, size_t n);

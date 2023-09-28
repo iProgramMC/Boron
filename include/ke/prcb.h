@@ -48,7 +48,7 @@ typedef struct KPRCB_tag
 	//   of the TLB shootdown unlocks this lock.
 	// - In the TLB shootdown handler, this lock is unlocked, letting other TLB
 	//   shootdown requests come in.
-	SpinLock  TlbsLock;
+	KSPIN_LOCK TlbsLock;
 	
 	// architecture specific details
 	KARCH_DATA ArchData;

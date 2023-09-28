@@ -132,7 +132,7 @@ void MmZeroOutFirstPFN();
 // being issued.
 static int MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
 static int MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
-static SpinLock MmPfnLock;
+static KSPIN_LOCK MmPfnLock;
 
 // Note! Initialization is done on the BSP. So no locking needed
 void MiInitPMM()
@@ -342,13 +342,13 @@ static int MmpAllocateFromFreeList(int* First, int* Last)
 
 int MmAllocatePhysicalPage()
 {
-	KeLock(&MmPfnLock);
+	KeAcquireSpinLock(&MmPfnLock);
 	
 	int currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
 	if (currPFN == PFN_INVALID)
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
 	
-	KeUnlock(&MmPfnLock);
+	KeReleaseSpinLock(&MmPfnLock);
 	
 #ifdef DEBUG2
 	SLogMsg("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
@@ -363,10 +363,10 @@ void MmFreePhysicalPage(int pfn)
 	SLogMsg("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 	
-	KeLock(&MmPfnLock);
+	KeAcquireSpinLock(&MmPfnLock);
 	MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 	MmGetPageFrameFromPFN(pfn)->Type = PF_TYPE_FREE;
-	KeUnlock(&MmPfnLock);
+	KeReleaseSpinLock(&MmPfnLock);
 }
 
 // Zeroes out a free PFN, takes it off the free PFN list and adds it to
@@ -396,24 +396,24 @@ static void MmpZeroOutPFN(int pfn)
 
 void MmZeroOutPFN(int pfn)
 {
-	KeLock(&MmPfnLock);
+	KeAcquireSpinLock(&MmPfnLock);
 	MmpZeroOutPFN(pfn);
-	KeUnlock(&MmPfnLock);
+	KeReleaseSpinLock(&MmPfnLock);
 }
 
 void MmZeroOutFirstPFN()
 {
-	KeLock(&MmPfnLock);
+	KeAcquireSpinLock(&MmPfnLock);
 	
 	if (MiFirstFreePFN == PFN_INVALID)
 	{
-		KeUnlock(&MmPfnLock);
+		KeReleaseSpinLock(&MmPfnLock);
 		return;
 	}
 	
 	MmpZeroOutPFN(MiFirstFreePFN);
 	
-	KeUnlock(&MmPfnLock);
+	KeReleaseSpinLock(&MmPfnLock);
 }
 
 void* MmAllocatePhysicalPageHHDM()

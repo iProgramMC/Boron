@@ -77,7 +77,7 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 
 void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 {
-	KeLock(&Container->Lock);
+	KeAcquireSpinLock(&Container->Lock);
 	
 	// Look for any pre-existing free elements.
 	PMISLAB_ITEM Item = Container->First;
@@ -87,7 +87,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 		void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 		if (Mem)
 		{
-			KeUnlock(&Container->Lock);
+			KeReleaseSpinLock(&Container->Lock);
 			return Mem;
 		}
 		
@@ -100,7 +100,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	{
 		SLogMsg("MmpSlabContainerAllocate: Run out of memory! What will we do?!");
 		// TODO: invoke the out of memory handler here, then try again
-		KeUnlock(&Container->Lock);
+		KeReleaseSpinLock(&Container->Lock);
 		return NULL;
 	}
 	
@@ -124,13 +124,13 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 		Container->Last = Item;
 	
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
-	KeUnlock(&Container->Lock);
+	KeReleaseSpinLock(&Container->Lock);
 	return Mem;
 }
 
 void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 {
-	KeLock(&Container->Lock);
+	KeAcquireSpinLock(&Container->Lock);
 	
 	uint8_t* PtrBytes = Ptr;
 	
@@ -139,7 +139,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	if (Item->Check != MI_SLAB_ITEM_CHECK || Item->Parent != Container)
 	{
 		SLogMsg("Error in MmpSlabContainerFree: Pointer %p isn't actually part of this container!", Ptr);
-		KeUnlock(&Container->Lock);
+		KeReleaseSpinLock(&Container->Lock);
 		return;
 	}
 	
@@ -148,7 +148,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	if (Diff % Container->ItemSize != 0)
 	{
 		SLogMsg("Error in MmpSlabContainerFree: Pointer %p was made up", Ptr);
-		KeUnlock(&Container->Lock);
+		KeReleaseSpinLock(&Container->Lock);
 		return;
 	}
 	
@@ -174,7 +174,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 		MmFreePhysicalPage(Pfn);
 	}
 	
-	KeUnlock(&Container->Lock);
+	KeReleaseSpinLock(&Container->Lock);
 }
 
 #ifdef MI_SLAB_DEBUG

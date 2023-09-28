@@ -95,8 +95,8 @@ static NO_RETURN void KiCrashedEntry()
 	KeStopCurrentCPU();
 }
 
-extern SpinLock g_PrintLock;
-extern SpinLock g_DebugPrintLock;
+extern KSPIN_LOCK g_PrintLock;
+extern KSPIN_LOCK g_DebugPrintLock;
 
 static bool KiSmpInitted = false;
 
@@ -117,15 +117,15 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
-	KeLock(&g_PrintLock);
+	KeAcquireSpinLock(&g_PrintLock);
 	HalPrintString("\x1B[35m*** Init error: \x1B[0m");
 	HalPrintString(buffer);
-	KeUnlock(&g_PrintLock);
+	KeReleaseSpinLock(&g_PrintLock);
 	
-	KeLock(&g_DebugPrintLock);
+	KeAcquireSpinLock(&g_DebugPrintLock);
 	HalPrintStringDebug("\x1B[35m*** Init error: \x1B[0m");
 	HalPrintStringDebug(buffer);
-	KeUnlock(&g_DebugPrintLock);
+	KeReleaseSpinLock(&g_DebugPrintLock);
 	
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
 	{
