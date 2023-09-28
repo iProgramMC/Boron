@@ -3,7 +3,7 @@
 #include <except.h>
 #include <ke.h>
 #include <hal.h>
-#include "../../ha/apic.h"
+#include "../../hal/iapc/apic.h"
 
 #define ENTER_INTERRUPT(ipl)              \
 	KIPL __current_ipl = KeRaiseIPL(ipl); \

@@ -18,7 +18,7 @@ Author:
 #include <hal.h>
 
 #ifdef TARGET_AMD64
-#include "../arch/amd64/pio.h"
+#include "../../arch/amd64/pio.h"
 #endif
 
 #include "font.h"

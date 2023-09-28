@@ -15,7 +15,7 @@ Author:
 #include <hal.h>
 #include <ke.h>
 #include "acpi.h"
-#include "../mm/mi.h"
+#include "../../mm/mi.h"
 
 void KiSetupIdt();
 
