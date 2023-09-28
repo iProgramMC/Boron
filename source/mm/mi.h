@@ -127,6 +127,9 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE);
 // Initializes the pool manager.  This must be done on the bootstrap processor.
 void MiInitPool();
 
+// Get the memory address from a handle.
+void** MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+
 // Dump info about the pool. Debug only.
 void MiDumpPoolInfo();
 

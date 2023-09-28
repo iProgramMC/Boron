@@ -50,7 +50,7 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 //       It contains a valid PMM address which should be freed.
 
 #define MM_DPTE_DEMANDPAGED  (1ULL << 8)
-#define MM_DPTE_BACKEDBYFILE (1ULL << 8)
+#define MM_DPTE_BACKEDBYFILE (1ULL << 9)
 #define MM_DPTE_WASPRESENT   (1ULL << 62)
 
 // Page fault reasons
@@ -69,10 +69,10 @@ typedef uint64_t MMPTE, *PMMPTE;
 // bits 30..38 - Index within the PML3
 // bits 39..47 - Index within the PML4
 // bits 48..63 - Sign extension of the 47th bit
-#define PML1_IDX(addr)  (((idx) >> 12) & 0x1FF)
-#define PML2_IDX(addr)  (((idx) >> 21) & 0x1FF)
-#define PML3_IDX(addr)  (((idx) >> 30) & 0x1FF)
-#define PML4_IDX(addr)  (((idx) >> 39) & 0x1FF)
+#define PML1_IDX(addr)  (((addr) >> 12) & 0x1FF)
+#define PML2_IDX(addr)  (((addr) >> 21) & 0x1FF)
+#define PML3_IDX(addr)  (((addr) >> 30) & 0x1FF)
+#define PML4_IDX(addr)  (((addr) >> 39) & 0x1FF)
 
 // ======== model specific registers ========
 #define MSR_FS_BASE        (0xC0000100)

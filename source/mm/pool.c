@@ -206,3 +206,8 @@ void MiDumpPoolInfo()
 	KeUnlockTicket(&MmpPoolLock);
 #endif
 }
+
+void** MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
+{
+	return (void*) ((PMIPOOL_ENTRY)Handle)->Address;
+}

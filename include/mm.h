@@ -118,8 +118,11 @@ void MmFreePageMapping(HPAGEMAP OldPageMapping);
 // designed for that..
 PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
-// Attempts to map a physical page into the specified address space. Placeholder Function
-bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions);
+// Attempts to map a physical page into the specified address space.
+bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
+
+// Attempts to map several anonymous pages into the specified address space.
+bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
 
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
 void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 

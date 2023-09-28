@@ -92,3 +92,42 @@ Sometimes one doesn't need to expose a function to the rest of the system. In th
 
 * `p` is added after the prefix if the function is private/static (ex. `MmpPlugLeaks`)
 * `i` replaces the last letter or is added after the prefix if the function is internal but may be needed by other parts of the kernel (ex. `MiAllocateSlab`)
+
+### Comments
+
+All\* source code files will have the following comment header attached:
+```
+/***
+	The Boron Operating System
+	Copyright (C) <Year(s) of Maintenance> <Author or The Boron Operating System Contributors>
+
+Module name:
+	<Your File Name>
+	
+Abstract:
+	<Your Module's Abstract>
+	
+Author:
+	<Author Name Here> - <Creation Date - ex. 27 September 2023>
+***/
+```
+
+Functions may (soon, must) have a standardized description that looks something like this:
+```
+/***
+	Function description:
+		Your Function's Description
+	
+	Arguments:
+		ExampleArgument - Supplies an example argument
+	
+	Return Value:
+		Your Return Value.
+	
+	[Optional] IPL:
+		[Example] IPL <= IPL_DPC.
+	
+	[Optional] Resources held:
+		[Example] KepExampleLock held for entire duration.
+***/
+```

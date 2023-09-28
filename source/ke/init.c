@@ -18,6 +18,7 @@ Author:
 #include <mm.h>
 #include <ke.h>
 
+#include <cpuid.h>
 
 // The entry point to our kernel.
 void KiSystemStartup(void)

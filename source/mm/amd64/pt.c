@@ -16,6 +16,7 @@ Author:
 #include <main.h>
 #include <string.h>
 #include <mm.h>
+#include <ke.h>
 #include <arch/amd64.h>
 
 // Creates a page mapping.
@@ -157,6 +158,17 @@ void MmpFreePageMappingLevel(uint64_t PageMappingLevel, int Index, int Level)
     }
 }
 
+/***
+	Function description:
+		Deallocates an entire page mapping. Frees all the pages it makes
+		reference to.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be deallocated.
+	
+	Return value:
+		None.
+***/
 void MmFreePageMapping(HPAGEMAP OldPageMapping)
 {
 	for (int i = 0; i < 512; i++)
@@ -168,6 +180,27 @@ void MmFreePageMapping(HPAGEMAP OldPageMapping)
 	MmFreePhysicalPage(MmPhysPageToPFN(OldPageMapping));
 }
 
+/***
+	Function description:
+		Gets the PTE (Page Table Entry) pointer for the specified address.
+		
+		If AllocateMissingPMLs is set, also creates the page mapping levels
+		along the way, otherwise, if the levels aren't already there, this
+		return NULL.
+		
+		This function also returns NULL if allocation of one of the PMLs fails.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+		
+		AllocateMissingPMLs - See function description.
+	
+	Return value:
+		The address of the PTE, or NULL. See function description on why
+		it would return NULL.
+***/
 PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs)
 {
 	const uintptr_t FiveElevenMask = 0x1FF;
@@ -245,6 +278,18 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 	return EntryPointer;
 }
 
+/***
+	Function description:
+		Frees the lowest PML at the specified address if it is vacant.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+	
+	Return value:
+		None.
+***/
 static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 {
 	// Lot of code was copied from MmGetPTEPointer.
@@ -301,6 +346,18 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 	}
 }
 
+/***
+	Function description:
+		Frees vacant PMLs (Page Mapping Levels) at a specified address.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+	
+	Return value:
+		None.
+***/
 static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 {
 	// Do this 4 times to ensure all levels are freed.  Could be done better
@@ -308,32 +365,88 @@ static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 		MmpFreeVacantPMLsSub(Mapping, Address);
 }
 
-bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions)
+/***
+	Function description:
+		Maps a single anonymous-backed page at a certain PTE pointer.
+		MmMapAnonPage and MmMapAnonPages use this function behind the scenes.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+		
+		SizePages - The size (in pages) of the mapped range
+		
+		Permissions - The permission bits of the mapped range
+		
+		NonPaged - Whether to allow page faults on the mapped range
+	
+	Return value:
+		Whether the mapping update was successful.
+***/
+static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool NonPaged)
 {
-	PMMPTE pPTE = MmGetPTEPointer(Mapping, Address, true);
-	
-#if MM_DBG_NO_DEMAND_PAGING
-	int pfn = MmAllocatePhysicalPage();
-	if (pfn == PFN_INVALID)
+    if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
-		//SLogMsg("MmMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
-		return false;
+		int pfn = MmAllocatePhysicalPage();
+		if (pfn == PFN_INVALID)
+		{
+			//SLogMsg("MmMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
+			return false;
+		}
+		
+		if (!Pte)
+		{
+			//SLogMsg("MmMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
+			return false;
+		}
+		
+		*Pte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | Permissions | MmPFNToPhysPage(pfn);
+		return true;
 	}
 	
-	if (!pPTE)
-	{
-		//SLogMsg("MmMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
-		return false;
-	}
-	
-	*pPTE = MM_PTE_PRESENT | Permissions | MmPFNToPhysPage(pfn);
-#else
-	*pPTE = MM_DPTE_DEMANDPAGED | Permissions;
-#endif
+	*Pte = MM_DPTE_DEMANDPAGED | Permissions;
 	
 	return true;
 }
 
+/***
+	Function description:
+		Maps a single anonymous-backed page at an address.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+		
+		SizePages - The size (in pages) of the mapped range
+		
+		Permissions - The permission bits of the mapped range
+		
+		NonPaged - Whether to allow page faults on the mapped range
+	
+	Return value:
+		Whether the mapping update was successful.
+***/
+bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged)
+{
+	PMMPTE pPTE = MmGetPTEPointer(Mapping, Address, true);
+	
+	return MmpMapSingleAnonPageAtPte(pPTE, Permissions, NonPaged);
+}
+
+/***
+	Function description:
+		Unmap a range of memory from the specified page mapping.
+		Issues TLB shootdowns as necessary (though right now it may be
+		a little bit overzealous with them)
+	
+	Parameters:
+		Mapping - The page map to be modified.
+	
+	Return value:
+		None.
+***/
 void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 {
 	// Step 1. Unset the PRESENT bit on all pages in the range.
@@ -369,7 +482,9 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		if (*pPTE & MM_DPTE_WASPRESENT)
+		uintptr_t Flags = MM_DPTE_WASPRESENT | MM_PTE_ISFROMPMM;
+		
+		if ((*pPTE & Flags) == Flags)
 		{
 			uintptr_t PhysPage = *pPTE & MM_PTE_ADDRESSMASK;
 			
@@ -391,6 +506,21 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 // start PML4 index will be 321. The PFN database's is 320
 #define MI_GLOBAL_AREA_START (321ULL)
 
+/***
+	Function description:
+		Prepares the pool manager. Since this is hardware specific,
+		this was split away from the pool manager.
+	
+	Parameters:
+		The page map to be modified.  Ideally, this function affects
+		ALL page maps.
+	
+	Return value:
+		None.
+	
+	Notes:
+		This function is run during uniprocessor system initialization.
+***/
 void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap)
 {
 	PMMPTE Ptes = MmGetHHDMOffsetAddr(PageMap);
@@ -411,10 +541,84 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap)
 		MmPFNToPhysPage(Pfn);
 }
 
+/***
+	Function description:
+		Gets the top of the pool managed area. This was split away
+		from the pool manager code because it's hardware specific
+		what range of memory the pool manager has access to.
+	
+	Parameters:
+		None.
+	
+	Return value:
+		The starting address of the memory range managed by the
+		pool manager.
+***/
 uintptr_t MiGetTopOfPoolManagedArea()
 {
 	// Sign extension | the start of the area managed by the PML4 index we specified.
 	// If we didn't have a sign extension, we'd have a non-canonical address, which we
 	// can never actually map to.
 	return 0xFFFF000000000000 | (MI_GLOBAL_AREA_START << 39);
+}
+
+/***
+	Function description:
+		Marks a series of addresses as backed with anonymous memory.
+		
+		If NonPaged is set, memory will be instantly reserved for this range, i.e.
+		one can access the memory from any IPL (since no page faults are taken).
+		
+		If NonPaged is clear, memory is not instantly reserved, and accessing each
+		corresponding page will incur one minor page fault.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		Address  - The starting address of the range to map
+		
+		SizePages - The size (in pages) of the mapped range
+		
+		Permissions - The permission bits of the mapped range.
+		
+		NonPaged - See the function description.
+	
+	Return value:
+		Whether the allocation was successful.
+***/
+bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged)
+{
+	// As an optimization, we'll wait until the PML1 index rolls over to zero before reloading the PTE pointer.
+	uint64_t CurrentPml1 = PML1_IDX(Address);
+	size_t DonePages = 0;
+	
+	PMMPTE PtePtr = MmGetPTEPointer(Mapping, Address, true);
+	
+	for (size_t i = 0; i < SizePages; i++)
+	{
+		// If one of these fails, then we should roll back.
+		if (!MmpMapSingleAnonPageAtPte(PtePtr, Permissions, NonPaged))
+			goto ROLLBACK;
+		
+		// Increase the address size, get the next PTE pointer, update the current PML1, and
+		// increment the number of mapped pages (since this one was successfully mapped).
+		Address += PAGE_SIZE;
+		PtePtr++;
+		CurrentPml1++;
+		DonePages++;
+		
+		if (CurrentPml1 == 0)
+		{
+			// We have rolled over.
+			PtePtr = MmGetPTEPointer(Mapping, Address, true);
+		}
+	}
+	
+	// All allocations have succeeded! Let the caller know and don't undo our work. :)
+	return true;
+	
+ROLLBACK:
+	// Unmap all the pages that we have mapped.
+	MmUnmapPages(Mapping, Address, DonePages);
+	return false;
 }

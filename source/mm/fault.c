@@ -61,7 +61,7 @@ bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Fau
 			// Create a new, valid, PTE that will replace the current one.
 			MMPTE NewPte = *Pte;
 			NewPte &= ~MM_DPTE_DEMANDPAGED;
-			NewPte |=  MM_PTE_PRESENT;
+			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
 			NewPte |=  MmPFNToPhysPage(Pfn);
 			NewPte &= ~MM_PTE_PKMASK;
 			*Pte = NewPte;
