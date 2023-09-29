@@ -86,18 +86,22 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 		}
 		else
 		{
-			uintptr_t addr = MiAllocatePageFromMemMap();
+			uintptr_t Addr = MiAllocatePageFromMemMap();
 			
-			if (!addr)
+			if (!Addr)
 			{
 				// TODO: Allow rollback
 				return false;
 			}
 			
-			if (i != 0)
-				pPML[i - 1] = (PageMapLevel*) MmGetHHDMOffsetAddr(addr);
+			uint64_t Flags = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 			
-			pPML[i]->entries[index] = addr | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL | MM_PTE_NOEXEC;
+			if (i != 0)
+				pPML[i - 1] = (PageMapLevel*) MmGetHHDMOffsetAddr(Addr);
+			else
+				Flags |= MM_PTE_GLOBAL;
+			
+			pPML[i]->entries[index] = Addr | Flags;
 		}
 	}
 	

@@ -127,10 +127,13 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	HalPrintStringDebug(buffer);
 	KeReleaseSpinLock(&g_DebugPrintLock);
 	
-	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+	if (pSMP)
 	{
-		struct limine_smp_info* pInfo = pSMP->cpus[i];
-		AtStore(pInfo->goto_address, &KiCrashedEntry);
+		for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+		{
+			struct limine_smp_info* pInfo = pSMP->cpus[i];
+			AtStore(pInfo->goto_address, &KiCrashedEntry);
+		}
 	}
 	
 	KiCrashedEntry();

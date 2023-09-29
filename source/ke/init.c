@@ -29,17 +29,13 @@ void KiSystemStartup(void)
 	HalTerminalInit();
 	LogMsg("Boron (TM), September 2023 - V0.003");
 	
-	LogMsg("initializing pmm");
 	MiInitPMM();
-	LogMsg("initializing allocators");
 	MmInitAllocators();
 	
 	// phase 1 of HAL initialization on the BSP:
-	LogMsg("initializing hal uniprocessor");
 	HalUPInit();
 	
 	// initialize SMP. This function doesn't return
-	LogMsg("initializing smp");
 	KeInitSMP();
 }
 
