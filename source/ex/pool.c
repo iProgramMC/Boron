@@ -56,3 +56,14 @@ void ExFreePool(EXMEMORY_HANDLE Handle)
 	// Then release its pool space handle
 	MiFreePoolSpace((MIPOOL_SPACE_HANDLE) Handle);
 }
+
+
+void* ExAllocateSmall(size_t Size)
+{
+	return MiSlabAllocate(Size);
+}
+
+void ExFreeSmall(void* Pointer, size_t Size)
+{
+	return MiSlabFree(Pointer, Size);
+}

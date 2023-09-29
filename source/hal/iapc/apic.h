@@ -19,5 +19,7 @@ void HalSendIpi(uint32_t Processor, int Vector);
 void HalBroadcastIpi(int Vector, bool IncludeSelf);
 void HalApicEoi();
 void HalEnableApic();
+void HalCalibrateApic();
+bool HalIsApicAvailable();
 
 #endif//NS64_HAL_APIC_H

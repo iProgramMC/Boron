@@ -18,8 +18,14 @@ Author:
 #include <hal.h>
 #include <string.h>
 
+extern bool KiSmpInitted;
+
 void KeCrash(const char* message, ...)
 {
+	if (!KiSmpInitted) {
+		KeCrashBeforeSMPInit("called KeCrash before SMP init?! (message: %s, RA: %p)", message, __builtin_return_address(0));
+	}
+	
 	// format the message
 	va_list va;
 	va_start(va, message);

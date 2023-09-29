@@ -7,6 +7,7 @@
 #include <arch.h>
 
 #include <hal/timer.h>
+#include <hal/data.h>
 
 // ==== Terminal ====
 // Warning: Only run these on the BSP

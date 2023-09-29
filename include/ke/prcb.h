@@ -19,6 +19,8 @@ Author:
 #include <_limine.h>
 #include "thread.h"
 
+#include <hal/data.h>
+
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
 typedef struct KPRCB_tag
@@ -56,6 +58,8 @@ typedef struct KPRCB_tag
 	
 	// Scheduler for the processor
 	KSCHEDULER Scheduler;
+	
+	HALCB_PTR HalData;
 }
 KPRCB;
 

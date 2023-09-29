@@ -14,13 +14,17 @@ Author:
 
 #include <hal.h>
 #include <mm.h>
+#include <ke.h>
+#include "apic.h"
+#include "acpi.h"
+#include "hpet.h"
+#include "pit.h"
+#include "tsc.h"
 
-#define C_SPURIOUS_INTERRUPT_VECTOR (0xFF)
-#define C_APIC_TIMER_DIVIDE_BY_128  (0b1010) // Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Bit 2 is reserved.
-#define C_APIC_TIMER_DIVIDE_BY_16   (0b0011) // Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Bit 2 is reserved.
-#define C_APIC_TIMER_MODE_ONESHOT   (0b00 << 17)
-#define C_APIC_TIMER_MODE_PERIODIC  (0b01 << 17) // not used right now, but may be needed.
-#define C_APIC_TIMER_MODE_TSCDEADLN (0b10 << 17)
+#define SPURIOUS_INTERRUPT_VECTOR (0xFF)
+#define APIC_TIMER_MODE_ONESHOT   (0b00 << 17)
+#define APIC_TIMER_MODE_PERIODIC  (0b01 << 17) // not used right now, but may be needed.
+#define APIC_TIMER_MODE_TSCDEADLN (0b10 << 17)
 
 #define APIC_LVT_INT_MASKED (0x10000)
 
@@ -98,7 +102,7 @@ static void ApicEndOfInterrupt()
 	ApicWriteRegister(APIC_REG_EOI, 0);
 }
 
-static bool ApicCheckExists()
+bool HalIsApicAvailable()
 {
 	// Use the CPUID instruction to check if the APIC is present on the current CPU
 	uint32_t eax, edx;
@@ -149,4 +153,119 @@ void HalEnableApic()
 {
 	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
 	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | INTV_SPURIOUS);
+}
+
+// Frequency of the PIT and PMT timers in hertz.
+#define FREQUENCY_PIT  (1193182)
+#define FREQUENCY_PMT  (3579545)
+
+#define NANOSECONDS_PER_SECOND (1000000000ULL)
+
+//
+// Calibrating timers!
+//
+// The principle is the same basically everywhere except the HPET.
+// 1. Write 0xFFFFFFFF to the APIC, and the highest value to the anchor timer.
+// 2. Wait a little bit, a for (1....100000 will do)
+// 3. Read in the values, and do math on them to determine the frequency
+//    of the APIC timer. (And the TSC too)
+//
+
+void HalCalibrateApicUsingHpet()
+{
+	// @TODO
+	KeCrash("TODO: Calibrate using the HPET");
+}
+
+void HalCalibrateApicUsingPmt()
+{
+	// @TODO
+	KeCrash("TODO: Calibrate using the PMT");
+}
+
+void HalCalibrateApicUsingPit()
+{
+	// Runs, and count of pauses per run.
+	const int Runs = 16, Count = 1000;
+	
+	uint64_t AverageApic = 0, AverageTsc = 0;
+	
+	for (int Run = 0; Run < Runs; Run++)
+	{
+		uint64_t TscStart = HalReadTsc();
+		
+		// Prepare the PIT for countdown.
+		HalWritePit(0xFFFF);
+		
+		// Set the initial APIC init counter to -1.
+		ApicWriteRegister(APIC_REG_TMR_INIT_CNT, 0xFFFFFFFF);
+		
+		// Sleep for some iterations.
+		int Counter = Count;
+		while (Counter--)
+			KeSpinningHint();
+		
+		ApicWriteRegister(APIC_REG_LVT_TIMER, APIC_LVT_INT_MASKED);
+		
+		// Stop the clock!
+		uint16_t PitEnd  = HalReadPit();
+		uint32_t ApicEnd = ApicReadRegister(APIC_REG_TMR_CURR_CNT);
+		uint64_t TscEnd  = HalReadTsc();
+		
+		int PitTicks = 0xFFFF - PitEnd;  // Ticks
+		// Mitigate Overflow
+		while (PitTicks < 0)
+			PitTicks += 0x10000;
+		
+		uint64_t ApicTicks = 0xFFFFFFFF - ApicEnd;   // Ticks
+		uint64_t TscTicks  = TscEnd - TscStart;      // Ticks
+		
+		// Calculate the number of nanoseconds that our PIT waited.
+		// Ticks * Nanoseconds/Ticks = Nanoseconds
+		uint64_t PitNano = (uint64_t) PitTicks * (NANOSECONDS_PER_SECOND / FREQUENCY_PIT);
+		
+		// Scale the APIC and TSC ticks to be the number of ticks in a second.
+		ApicTicks = ApicTicks * NANOSECONDS_PER_SECOND / PitNano;
+		TscTicks  =  TscTicks * NANOSECONDS_PER_SECOND / PitNano;
+		
+		//SLogMsg("Apic ticks: %lld", ApicTicks);
+		
+		AverageApic += ApicTicks;
+		AverageTsc  += TscTicks;
+	}
+	
+	AverageApic /= Runs;
+	AverageTsc  /= Runs;
+	
+	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+}
+
+static KSPIN_LOCK HalpApicCalibLock;
+
+// Calibrating the APIC
+void HalCalibrateApic()
+{
+	KeAcquireSpinLock(&HalpApicCalibLock);
+	
+	// Tell the APIC timer to use a divider of 2.
+	// See the Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Note that bit 2 is reserved.
+	ApicWriteRegister(APIC_REG_TMR_DIV_CFG, 0);
+	
+	if (false && HpetIsAvailable())
+	{
+		HalCalibrateApicUsingHpet();
+		KeReleaseSpinLock(&HalpApicCalibLock);
+		return;
+	}
+	
+	if (false && HalAcpiIsPmtAvailable())
+	{
+		HalCalibrateApicUsingPmt();
+		KeReleaseSpinLock(&HalpApicCalibLock);
+		return;
+	}
+	
+	
+	HalCalibrateApicUsingPit();
+	KeReleaseSpinLock(&HalpApicCalibLock);
 }

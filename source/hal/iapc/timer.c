@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 27 September 2023
 ***/
 #include <hal.h>
+#include <ke.h>
 #include "apic.h"
 
 /***

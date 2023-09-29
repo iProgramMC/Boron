@@ -14,8 +14,10 @@ Author:
 ***/
 #include <hal.h>
 #include <ke.h>
+#include <ex.h>
 #include "acpi.h"
-#include "../../mm/mi.h"
+#include "apic.h"
+#include "hpet.h"
 
 void KiSetupIdt();
 
@@ -26,11 +28,15 @@ void HalUPInit()
 	KiSetupIdt();
 	HalInitAcpi();
 	HalInitIoApic();
+	HpetInitialize();
 }
 
 // Initialize the HAL separately for each processor.
 // This function is run on ALL processors.
 void HalMPInit()
 {
+	KeGetCurrentPRCB()->HalData = ExAllocateSmall(sizeof(KHALCB));
+	
 	HalEnableApic();
+	HalCalibrateApic();
 }

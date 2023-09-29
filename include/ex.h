@@ -17,6 +17,7 @@ Author:
 
 #include <main.h>
 
+// ====== Big allocations ======
 // If the allocation is instant, i.e. you don't want to take page faults on the memory.
 // This is important for some uses.
 #define POOL_FLAG_NON_PAGED (1 << 0)
@@ -33,5 +34,10 @@ EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputA
 
 // Free space in the kernel pool.
 void ExFreePool(EXMEMORY_HANDLE);
+
+// ====== Small allocations ======
+void* ExAllocateSmall(size_t Size);
+
+void ExFreeSmall(void* Pointer, size_t Size);
 
 #endif//BORON_EX_H

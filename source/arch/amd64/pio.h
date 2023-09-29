@@ -17,5 +17,9 @@ Author:
 
 uint8_t KePortReadByte(uint16_t portNo);
 void KePortWriteByte(uint16_t portNo, uint8_t data);
+uint16_t KePortReadWord(uint16_t portNo);
+void KePortWriteWord(uint16_t portNo, uint16_t data);
+uint32_t KePortReadDword(uint16_t portNo);
+void KePortWriteDword(uint16_t portNo, uint32_t data);
 
 #endif//NS64_PIO_H

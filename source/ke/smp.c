@@ -73,9 +73,9 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeSetInterruptsEnabled(true);
 	
 	KeInitCPU();
-	HalMPInit();
-	
 	KeLowerIPL(IPL_NORMAL);
+	
+	HalMPInit();
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
@@ -98,7 +98,7 @@ static NO_RETURN void KiCrashedEntry()
 extern KSPIN_LOCK g_PrintLock;
 extern KSPIN_LOCK g_DebugPrintLock;
 
-static bool KiSmpInitted = false;
+bool KiSmpInitted = false;
 
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 {

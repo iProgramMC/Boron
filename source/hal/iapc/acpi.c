@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 24 September 2023
 ***/
 #include "acpi.h"
+#include "../../arch/amd64/pio.h"
 
 static PRSDP_DESCRIPTION HalpRsdp;
 static PRSDT_TABLE       HalpRsdt;
@@ -44,6 +45,76 @@ int AcpiRsdtGetEntryCount(PRSDT_TABLE Table)
 		Shift = 3;
 	
 	return (int) ((Table->Header.Length - sizeof(Table->Header)) >> Shift);
+}
+
+static bool AcpipIsPmtAvailable;
+static bool AcpipPmtUsePort;
+static int  AcpipPmtPortNum;
+static int* AcpipPmtAddress;
+
+// Setup the ACPI PMT (Power Management Timer)
+void AcpiInitPmt()
+{
+	AcpipIsPmtAvailable = false;
+	
+	PFADT_HEADER Header = (PFADT_HEADER) HalSdtFacp;
+	
+	if (Header->PMTimerLength < 4)
+	{
+	NOT_AVAILABLE:
+		SLogMsg("ACPI PMT is not available.");
+		return;
+	}
+	
+	if (Header->Header.Revision < 2)
+		goto NOT_AVAILABLE;
+	
+	if (Header->X_PMTimerBlock.Address != 0)
+		goto NOT_AVAILABLE;
+	
+	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
+	{
+		AcpipPmtUsePort = true;
+		AcpipPmtPortNum = Header->PMTimerBlock;
+		AcpipIsPmtAvailable = true;
+		return;
+	}
+	
+	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
+	{
+		AcpipPmtUsePort = false;
+		AcpipPmtAddress = (int*) Header->X_PMTimerBlock.Address;
+		AcpipIsPmtAvailable = true;
+		return;
+	}
+	
+	goto NOT_AVAILABLE;
+}
+
+// Note: Pessimistically assume the counter is 24-bit, for simplicity.
+int AcpiReadPmtCounter()
+{
+	if (AcpipPmtUsePort)
+	{
+		uint32_t Counter = KePortReadDword(AcpipPmtPortNum);
+		return Counter & 0xFFFFFF;
+	}
+	else
+	{
+		return *AcpipPmtAddress & 0xFFFFFF;
+	}
+}
+
+void AcpiWritePmtCounter(int Value)
+{
+	if (AcpipPmtUsePort)
+	{
+		KePortWriteDword(AcpipPmtPortNum, Value & 0xFFFFFF);
+	}
+	else
+	{
+		*AcpipPmtAddress = Value & 0xFFFFFF;
+	}
 }
 
 void HalAcpiLocateImportantSdts()
@@ -102,4 +173,21 @@ void HalInitAcpi()
 #endif
 	
 	HalAcpiLocateImportantSdts();
+	
+	AcpiInitPmt();
+}
+
+bool HalAcpiIsPmtAvailable()
+{
+	return AcpipIsPmtAvailable;
+}
+
+int HalGetPmtCounter()
+{
+	return AcpiReadPmtCounter();
+}
+
+void HalSetPmtCounter(int Value)
+{
+	AcpiWritePmtCounter(Value);
 }

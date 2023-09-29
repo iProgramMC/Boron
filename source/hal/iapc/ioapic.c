@@ -11,11 +11,18 @@ Abstract:
 Author:
 	iProgramInCpp - 24 September 2023
 ***/
+#include <ke.h>
 #include "acpi.h"
+#include "apic.h"
 
 extern PSDT_HEADER HalpSdtApic;
 
 void HalInitIoApic()
 {
-	// Scan the APIC SDT for the 
+	if (!HalIsApicAvailable())
+	{
+		KeCrashBeforeSMPInit("The APIC is not available. How?!");
+	}
+	
+	// @TODO
 }
