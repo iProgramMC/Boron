@@ -206,7 +206,12 @@ void MiDumpPoolInfo()
 #endif
 }
 
-void** MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
+void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
 	return (void*) ((PMIPOOL_ENTRY)Handle)->Address;
+}
+
+size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
+{
+	return (size_t) ((PMIPOOL_ENTRY)Handle)->Size;
 }

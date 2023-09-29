@@ -77,3 +77,68 @@ void HalInitSystemTimer()
 {
 	
 }
+
+/***
+	Function description:
+		See return value.
+	
+	Parameters:
+		None.
+	
+	Return value:
+		Returns whether the generic system timer is in oneshot (true)
+		or periodic (zero).  If yes, the caller can call the function
+		HalRequestInterruptInTicks().
+***/
+bool HalUseOneShotTimer()
+{
+	// @TODO
+	return false;
+}
+
+/***
+	Function description:
+		Requests an interrupt from the generic system timer, in the
+		specified number of ticks. Only call if HalUseOneShotTimer
+		returns true. Otherwise, behavior is undefined.
+	
+	Parameters:
+		None.
+	
+	Return value:
+		None.
+***/
+void HalRequestInterruptInTicks(uint64_t ticks)
+{
+#ifdef DEBUG
+	if (!HalUseOneShotTimer())
+		KeCrash("Hey, you can't use HalRequestInterruptInTicks");
+#endif
+	
+	// @TODO
+	
+	return;
+}
+
+/***
+	Function description:
+		Returns the delta time between interrupts in ticks.
+		Do not use if HalUseOneShotTimer() returns true.
+	
+	Parameters:
+		None.
+	
+	Return value:
+		The delta time between interrupts in ticks.
+***/
+uint64_t HalGetInterruptDeltaTime()
+{
+#ifdef DEBUG
+	if (HalUseOneShotTimer())
+		KeCrash("Hey, you can't use HalGetInterruptDeltaTime");
+#endif
+	
+	// @TODO
+	
+	return 0;
+}

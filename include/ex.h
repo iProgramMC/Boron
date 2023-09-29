@@ -19,7 +19,7 @@ Author:
 
 // If the allocation is instant, i.e. you don't want to take page faults on the memory.
 // This is important for some uses.
-#define POOL_FLAG_INSTANT (1 << 0)
+#define POOL_FLAG_NON_PAGED (1 << 0)
 
 // Handle to a memory location. This does not represent the actual address.
 typedef uintptr_t EXMEMORY_HANDLE;
@@ -27,7 +27,8 @@ typedef uintptr_t EXMEMORY_HANDLE;
 // Obtain the address from a memory handle.
 void* ExGetAddressFromHandle(EXMEMORY_HANDLE);
 
-// Reserve space in the kernel pool.
+// Reserve space in the kernel pool. Returns NULL if allocation failed.
+// Don't depend on OutputAddress not changing if allocation fails.
 EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputAddress, int Tag);
 
 // Free space in the kernel pool.

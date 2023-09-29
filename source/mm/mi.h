@@ -128,7 +128,10 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE);
 void MiInitPool();
 
 // Get the memory address from a handle.
-void** MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+
+// Get the size of the address range owned by a handle.
+size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 
 // Dump info about the pool. Debug only.
 void MiDumpPoolInfo();

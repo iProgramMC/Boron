@@ -17,6 +17,7 @@ Author:
 
 #include <arch.h>
 #include <_limine.h>
+#include "thread.h"
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
@@ -52,6 +53,9 @@ typedef struct KPRCB_tag
 	
 	// architecture specific details
 	KARCH_DATA ArchData;
+	
+	// Scheduler for the processor
+	KSCHEDULER Scheduler;
 }
 KPRCB;
 

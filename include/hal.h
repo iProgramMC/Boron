@@ -6,6 +6,8 @@
 #include <main.h>
 #include <arch.h>
 
+#include <hal/timer.h>
+
 // ==== Terminal ====
 // Warning: Only run these on the BSP
 void HalTerminalInit(void);

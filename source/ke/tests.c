@@ -13,6 +13,7 @@ Author:
 ***/
 
 #include "../mm/mi.h" // horrible for now
+#include <ex.h>
 
 static void KepTestAllMemory(void* Memory, size_t Size)
 {
@@ -114,25 +115,48 @@ void KiPerformPageMapTest()
 void KiPerformPoolAllocTest()
 {
 	uintptr_t Id = (uintptr_t) KeGetCurrentPRCB()->LapicId << 32;
-	MiDumpPoolInfo(Id);
+	//MiDumpPoolInfo(Id);
 	
 	MIPOOL_SPACE_HANDLE Handle;
 	void* Address = NULL;
 	
-	// Reserve a fuck ton of pages
+	// Reserve a ton of pages. While we may not have 4 gigs of RAM, our
+	// pool space is in the hundreds of gigabytes, so it's OK.
+	// The memory pool only handles dishing out address _ranges_, not actual
+	// usable memory.
 	Handle = MiReservePoolSpaceTagged(1048576, &Address, MI_TAG("TEST"));
 	
-	MiDumpPoolInfo(Id);
+	//MiDumpPoolInfo(Id);
+	LogMsg("[CPU %d] MiReservePoolSpaceTagged returned: %p", KeGetCurrentPRCB()->LapicId, Handle);
 	
 	MiFreePoolSpace(Handle);
 	
-	MiDumpPoolInfo(Id);
+	//MiDumpPoolInfo(Id);
+}
+
+void KiPerformExPoolTest()
+{
+	void* Address = NULL;
+	EXMEMORY_HANDLE Handle = ExAllocatePool(0, 42, &Address, MI_TAG("Tst!"));
+	
+	if (!Handle)
+	{
+		LogMsg("Error, ExAllocatePool didn't return a handle");
+		return;
+	}
+	
+	KepTestAllMemory(Address, 42 * PAGE_SIZE);
+	
+	LogMsg("[CPU %d] ExPoolTest SUCCESS", KeGetCurrentPRCB()->LapicId);
+	
+	ExFreePool(Handle);
 }
 
 void KiPerformTests()
 {
 	KiPerformSlabAllocTest();
 	KiPerformPoolAllocTest();
+	KiPerformExPoolTest();
 	//KiPerformPageMapTest();
 	LogMsg("CPU %d finished all tests", KeGetCurrentPRCB()->LapicId);
 }
