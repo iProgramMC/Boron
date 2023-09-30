@@ -82,17 +82,14 @@ int   MmGetSmallestPO2ThatFitsSize(size_t Size);
 
 #endif
 
-// TODO: The 'address' is kind of redundant and can be computed
-// at allocation time. This will reduce the slab allocator's actual
-// request from 32 bytes to 16.
-
 typedef struct MIPOOL_ENTRY_tag
 {
 	struct MIPOOL_ENTRY_tag *Flink, *Blink; // Qword 0, 1
 	int       Flags;                        // Qword 2
 	int       Tag;
-	uintptr_t Address;                      // Qword 3
-	size_t    Size;                         // Qword 4, size is in pages.
+	uintptr_t UserData;                     // Qword 3
+	uintptr_t Address;                      // Qword 4
+	size_t    Size;                         // Qword 5, size is in pages.
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
 
@@ -115,7 +112,7 @@ typedef uintptr_t MIPOOL_SPACE_HANDLE;
 // [!!!] The output address is NOT mapped in, in fact, it is guaranteed that no PTE
 //       is valid at that address. The allocator will have to map their own memory there
 //       and free it when they are done.
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag);
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData);
 
 // Free an address space in the kernel pool.
 
@@ -132,6 +129,9 @@ void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 
 // Get the size of the address range owned by a handle.
 size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+
+// Get the user data from the address range owned by a handle as passed to MiReservePoolSpaceTagged.
+uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 
 // Dump info about the pool. Debug only.
 void MiDumpPoolInfo();

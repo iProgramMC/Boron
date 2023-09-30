@@ -27,20 +27,23 @@ size_t ExGetSizeFromHandle(EXMEMORY_HANDLE Handle)
 
 EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputAddress, int Tag)
 {
-	EXMEMORY_HANDLE OutHandle = (EXMEMORY_HANDLE) MiReservePoolSpaceTagged (SizeInPages, OutputAddress, Tag);
+	EXMEMORY_HANDLE OutHandle = (EXMEMORY_HANDLE) MiReservePoolSpaceTagged (SizeInPages, OutputAddress, Tag, PoolFlags);
 	
 	if (!OutHandle)
 		return OutHandle;
 	
-	bool NonPaged = false;
-	if (PoolFlags & POOL_FLAG_NON_PAGED)
-		NonPaged = true;
-	
-	// Map the memory in!  Ideally this will affect ALL page maps
-	if (!MmMapAnonPages(MmGetCurrentPageMap(), (uintptr_t) *OutputAddress, SizeInPages, MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL, NonPaged))
+	if (~PoolFlags & POOL_FLAG_USER_CONTROLLED)
 	{
-		MiFreePoolSpace((MIPOOL_SPACE_HANDLE) OutHandle);
-		return (EXMEMORY_HANDLE) 0;
+		bool NonPaged = false;
+		if (PoolFlags & POOL_FLAG_NON_PAGED)
+			NonPaged = true;
+		
+		// Map the memory in!  Ideally this will affect ALL page maps
+		if (!MmMapAnonPages(MmGetCurrentPageMap(), (uintptr_t) *OutputAddress, SizeInPages, MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL, NonPaged))
+		{
+			MiFreePoolSpace((MIPOOL_SPACE_HANDLE) OutHandle);
+			return (EXMEMORY_HANDLE) 0;
+		}
 	}
 	
 	return OutHandle;
@@ -48,10 +51,15 @@ EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputA
 
 void ExFreePool(EXMEMORY_HANDLE Handle)
 {
-	// De-allocate the memory first.  Ideally this will affect ALL page maps
-	MmUnmapPages(MmGetCurrentPageMap(),
-	             (uintptr_t)ExGetAddressFromHandle(Handle),
-				 ExGetSizeFromHandle(Handle));
+	int PoolFlags = (int) MiGetUserDataFromPoolSpaceHandle((MIPOOL_SPACE_HANDLE) Handle);
+	
+	if (~PoolFlags & POOL_FLAG_USER_CONTROLLED)
+	{
+		// De-allocate the memory first.  Ideally this will affect ALL page maps
+		MmUnmapPages(MmGetCurrentPageMap(),
+					 (uintptr_t)ExGetAddressFromHandle(Handle),
+					 ExGetSizeFromHandle(Handle));
+	}
 	
 	// Then release its pool space handle
 	MiFreePoolSpace((MIPOOL_SPACE_HANDLE) Handle);

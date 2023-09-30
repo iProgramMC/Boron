@@ -22,6 +22,8 @@ Author:
 // This is important for some uses.
 #define POOL_FLAG_NON_PAGED (1 << 0)
 
+#define POOL_FLAG_USER_CONTROLLED (1 << 1)
+
 // Handle to a memory location. This does not represent the actual address.
 typedef uintptr_t EXMEMORY_HANDLE;
 

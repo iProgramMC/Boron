@@ -39,16 +39,15 @@ void MiInitPool()
 	Entry->Address = MiGetTopOfPoolManagedArea();
 }
 
-MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag)
+MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
 	// Basic case: If PoolEntry's size matches SizeInPages
 	if (PoolEntry->Size == SizeInPages)
 	{
 		// Convert the entire entry into an allocated one, and return it.
-		PoolEntry->Flags |= MI_POOL_ENTRY_ALLOCATED;
-		PoolEntry->Tag    = Tag;
-		
-		SLogMsg("Pool Entry: %p", PoolEntry);
+		PoolEntry->Flags   |= MI_POOL_ENTRY_ALLOCATED;
+		PoolEntry->Tag      = Tag;
+		PoolEntry->UserData = UserData;
 		
 		*OutputAddress = (void*) PoolEntry->Address;
 		
@@ -77,11 +76,10 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	NewEntry->Address = PoolEntry->Address + SizeInPages * PAGE_SIZE;
 	
 	// Update the properties of the pool entry
-	PoolEntry->Size   = SizeInPages;
-	PoolEntry->Tag    = Tag;
-	PoolEntry->Flags |= MI_POOL_ENTRY_ALLOCATED;
-	
-	SLogMsg("PoolEntry: %p  NewEntry: %p", PoolEntry, NewEntry);
+	PoolEntry->Size     = SizeInPages;
+	PoolEntry->Tag      = Tag;
+	PoolEntry->Flags   |= MI_POOL_ENTRY_ALLOCATED;
+	PoolEntry->UserData = UserData;
 	
 	// Update the output address
 	*OutputAddress = (void*) PoolEntry->Address;
@@ -89,7 +87,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	return (MIPOOL_SPACE_HANDLE) PoolEntry;
 }
 
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag)
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
 	KeAcquireTicketLock(&MmpPoolLock);
 	PMIPOOL_ENTRY Current = MmpPoolFirst;
@@ -109,7 +107,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 		
 		if (Current->Size >= SizeInPages)
 		{
-			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag);
+			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag, UserData);
 			KeReleaseTicketLock(&MmpPoolLock);
 			return Handle;
 		}
@@ -214,4 +212,9 @@ void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
 	return (size_t) ((PMIPOOL_ENTRY)Handle)->Size;
+}
+
+uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
+{
+	return ((PMIPOOL_ENTRY)Handle)->UserData;
 }

@@ -114,7 +114,7 @@ void KiPerformPageMapTest()
 
 void KiPerformPoolAllocTest()
 {
-	uintptr_t Id = (uintptr_t) KeGetCurrentPRCB()->LapicId << 32;
+	//uintptr_t Id = (uintptr_t) KeGetCurrentPRCB()->LapicId << 32;
 	//MiDumpPoolInfo(Id);
 	
 	MIPOOL_SPACE_HANDLE Handle;
@@ -124,7 +124,7 @@ void KiPerformPoolAllocTest()
 	// pool space is in the hundreds of gigabytes, so it's OK.
 	// The memory pool only handles dishing out address _ranges_, not actual
 	// usable memory.
-	Handle = MiReservePoolSpaceTagged(1048576, &Address, MI_TAG("TEST"));
+	Handle = MiReservePoolSpaceTagged(1048576, &Address, MI_TAG("TEST"), 0);
 	
 	//MiDumpPoolInfo(Id);
 	LogMsg("[CPU %d] MiReservePoolSpaceTagged returned: %p", KeGetCurrentPRCB()->LapicId, Handle);
