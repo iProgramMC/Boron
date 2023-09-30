@@ -13,6 +13,7 @@
 // Warning: Only run these on the BSP
 void HalTerminalInit(void);
 void HalDebugTerminalInit(void);
+bool HalIsTerminalInitted();
 
 // Warning: You need to lock g_PrintLock to use this:
 void HalPrintString(const char* str);

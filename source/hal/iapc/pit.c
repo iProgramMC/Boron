@@ -22,7 +22,7 @@ Author:
 #define PIT_MODE_RATE_GENERATOR (0x04)
 #define PIT_MODE_ACCESS_LOHI (0x30)
 
-uint16_t HalReadPit()
+uint32_t HalReadPit()
 {
 	uint16_t Data;
 	
@@ -37,7 +37,7 @@ uint16_t HalReadPit()
 	return Data;
 }
 
-void HalWritePit(uint16_t Data)
+void HalWritePit(uint32_t Data)
 {
 	// Access the PIT the following way:
 	// * Bits 6 and 7 - Channel (0)

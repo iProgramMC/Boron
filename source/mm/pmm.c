@@ -67,6 +67,39 @@ static uintptr_t MiAllocatePageFromMemMap()
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
+// Allocate a contiguous area of memory from the memory map.
+// Used only by the terminal.
+uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
+{
+	size_t Size = SizeInPages * PAGE_SIZE;
+	
+	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
+	
+	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	{
+		// if the entry isn't usable, skip it
+		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		
+		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+			continue;
+		
+		// Note! Usable entries in limine are guaranteed to be aligned to
+		// page size, and not overlap any other entries. So we are good
+		
+		// if it's got no pages, also skip it..
+		if (pEntry->length < Size)
+			continue;
+		
+		uintptr_t curr_addr = pEntry->base;
+		pEntry->base   += Size;
+		pEntry->length -= Size;
+		
+		return curr_addr;
+	}
+	
+	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
+}
+
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
 #ifdef TARGET_AMD64

@@ -16,30 +16,32 @@ Author:
 #include <main.h>
 #include <string.h>
 #include <hal.h>
-
-#ifdef TARGET_AMD64
+#include <mm.h>
+#include <ke.h>
 #include "../../arch/amd64/pio.h"
-#endif
-
 #include "font.h"
-
 #include <_limine.h>
 #include "flanterm/flanterm.h"
 #include "flanterm/backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
-uint8_t HalpTerminalMemory[512*1024];
-int     HalpTerminalMemoryHead;
-#define HAL_TERM_MEM_SIZE (sizeof HalpTerminalMemory)
+uint8_t* HalpTerminalMemory;
+size_t   HalpTerminalMemoryHead;
+size_t   HalpTerminalMemorySize;
 
 // This is defined in init.c
 extern volatile struct limine_framebuffer_request KeLimineFramebufferRequest;
 
 static struct flanterm_context* HalpTerminalContext;
 
+bool HalIsTerminalInitted()
+{
+	return HalpTerminalContext != NULL;
+}
+
 static void* HalpTerminalMemAlloc(size_t sz)
 {
-	if (HalpTerminalMemoryHead + sz > HAL_TERM_MEM_SIZE)
+	if (HalpTerminalMemoryHead + sz > HalpTerminalMemorySize)
 	{
 		SLogMsg("Error, running out of memory in the terminal heap");
 		return NULL;
@@ -54,13 +56,13 @@ static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 {
 }
 
+uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages);
+
 void HalTerminalInit()
 {
 	struct limine_framebuffer* pFramebuffer = KeLimineFramebufferRequest.response->framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
 	uint32_t defaultFG = 0x00ffffff;
-	
-	LogMsg("Screen resolution: %d by %d", pFramebuffer->width, pFramebuffer->height);
 	
 	// on a 1280x800 screen, the term will have a rez of 160x50 (8000 chars).
 	// 52 bytes per character.
@@ -68,23 +70,22 @@ void HalTerminalInit()
 	const int charWidth = 8, charHeight = 16;
 	int charScale = 1;
 	
-	while (true)
-	{
-		int termBufWidth  = pFramebuffer->width  / charWidth  / charScale;
-		int termBufHeight = pFramebuffer->height / charHeight / charScale;
-		
-		const int usagePerChar     = 52; // I calculated it
-		const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
-		const int fontDataMemUsage = charWidth * charHeight * 256 / 8;
-		const int contextSize      = sizeof(struct flanterm_fb_context);
-		
-		int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
-		if (totalMemUsage < (int)HAL_TERM_MEM_SIZE)
-			break;
-		
-		LogMsg("Have to increase due to a lack of reserved terminal memory. TotalMemUsage = %d for charScale %d", totalMemUsage, charScale);
-		charScale++;
-	}
+	int termBufWidth  = pFramebuffer->width  / charWidth  / charScale;
+	int termBufHeight = pFramebuffer->height / charHeight / charScale;
+	
+	const int usagePerChar     = 52; // I calculated it
+	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
+	const int fontDataMemUsage = charWidth * charHeight * 256 / 8;
+	const int contextSize      = sizeof(struct flanterm_fb_context);
+	
+	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
+	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	LogMsg("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
+	
+	HalpTerminalMemory     = MmGetHHDMOffsetAddr(MiAllocateMemoryFromMemMap(sizePages));
+	HalpTerminalMemoryHead = 0;
+	HalpTerminalMemorySize = sizePages * PAGE_SIZE;
 	
 	HalpTerminalContext = flanterm_fb_init(
 		&HalpTerminalMemAlloc,
@@ -103,15 +104,15 @@ void HalTerminalInit()
 		HalpBuiltInFont, // font pointer
 		charWidth,     // font width
 		charHeight,    // font height
-		0,             // character spacing
+		0,             // character spacing X
 		charScale,     // character scale width
 		charScale,     // character scale height
-		0
+		0              // character spacing Y
 	);
 	
 	if (!HalpTerminalContext)
 	{
-		SLogMsg("Error, no terminal context");
+		KeCrashBeforeSMPInit("Error, no terminal context");
 	}
 }
 
@@ -135,12 +136,7 @@ void HalPrintStringDebug(const char* str)
 {
 	while (*str)
 	{
-	#ifdef TARGET_AMD64
 		KePortWriteByte(0xE9, *str);
-	#else
-		#error "May want to implement this for your platform ..."
-	#endif
-		
 		str++;
 	}
 }

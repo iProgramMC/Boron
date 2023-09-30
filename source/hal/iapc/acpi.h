@@ -185,9 +185,13 @@ PACKED
 FADT_HEADER, *PFADT_HEADER;
 
 void HalInitAcpi();
+
 void HalInitIoApic();
+
 bool HalAcpiIsPmtAvailable();
-int  HalGetPmtCounter();
-void HalSetPmtCounter(int Value);
+
+uint32_t HalGetPmtCounter();
+
+void HalSetPmtCounter(uint32_t Value);
 
 #endif//BORON_HA_ACPI_H

@@ -69,7 +69,7 @@ void AcpiInitPmt()
 	if (Header->Header.Revision < 2)
 		goto NOT_AVAILABLE;
 	
-	if (Header->X_PMTimerBlock.Address != 0)
+	if (Header->X_PMTimerBlock.Address == 0)
 		goto NOT_AVAILABLE;
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
@@ -80,7 +80,7 @@ void AcpiInitPmt()
 		return;
 	}
 	
-	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
+	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_MEMORY)
 	{
 		AcpipPmtUsePort = false;
 		AcpipPmtAddress = (int*) Header->X_PMTimerBlock.Address;
@@ -92,7 +92,7 @@ void AcpiInitPmt()
 }
 
 // Note: Pessimistically assume the counter is 24-bit, for simplicity.
-int AcpiReadPmtCounter()
+uint32_t AcpiReadPmtCounter()
 {
 	if (AcpipPmtUsePort)
 	{
@@ -105,7 +105,7 @@ int AcpiReadPmtCounter()
 	}
 }
 
-void AcpiWritePmtCounter(int Value)
+void AcpiWritePmtCounter(uint32_t Value)
 {
 	if (AcpipPmtUsePort)
 	{
@@ -182,12 +182,12 @@ bool HalAcpiIsPmtAvailable()
 	return AcpipIsPmtAvailable;
 }
 
-int HalGetPmtCounter()
+uint32_t HalGetPmtCounter()
 {
 	return AcpiReadPmtCounter();
 }
 
-void HalSetPmtCounter(int Value)
+void HalSetPmtCounter(uint32_t Value)
 {
 	AcpiWritePmtCounter(Value);
 }

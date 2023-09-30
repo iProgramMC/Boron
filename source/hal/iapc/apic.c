@@ -177,10 +177,75 @@ void HalCalibrateApicUsingHpet()
 	KeCrash("TODO: Calibrate using the HPET");
 }
 
+static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerFrequencyHz)
+{
+	uint64_t TimerNano = (uint64_t) TimerTicks * (NANOSECONDS_PER_SECOND / TimerFrequencyHz);
+	
+	// Scale the APIC and TSC ticks to be the number of ticks in a second.
+	*ApicTicksOut = ApicTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
+	* TscTicksOut =  TscTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
+}
+
+static void HalpResetApicCounter()
+{
+	// Set the initial APIC init counter to -1.
+	ApicWriteRegister(APIC_REG_TMR_INIT_CNT, 0xFFFFFFFF);
+}
+
+static uint64_t HalpGetElapsedApicTicks()
+{
+	ApicWriteRegister(APIC_REG_LVT_TIMER, APIC_LVT_INT_MASKED);
+	uint64_t ApicEnd = ApicReadRegister(APIC_REG_TMR_CURR_CNT);
+	uint64_t ApicTicks = 0xFFFFFFFF - ApicEnd;
+	return ApicTicks;
+}
+
+// @TODO: A lot of the math is the same. Deduplicate?
 void HalCalibrateApicUsingPmt()
 {
-	// @TODO
-	KeCrash("TODO: Calibrate using the PMT");
+	// Runs, and count of pauses per run.
+	const int Runs = 16, Count = 1000;
+	
+	uint64_t AverageApic = 0, AverageTsc = 0;
+	
+	for (int Run = 0; Run < Runs; Run++)
+	{
+		uint64_t TscStart = HalReadTsc();
+		uint64_t PmtStart = HalGetPmtCounter();
+		
+		HalpResetApicCounter();
+		
+		// Sleep for an arbitrary number of iterations.
+		int Counter = Count;
+		while (Counter--)
+			KeSpinningHint();
+		
+		// Stop the clock!
+		uint64_t PmtEnd    = HalGetPmtCounter();
+		uint64_t ApicTicks = HalpGetElapsedApicTicks();
+		uint64_t TscTicks  = HalReadTsc() - TscStart;
+		
+		int64_t PmtTicks = PmtEnd - PmtStart + 3; // 3 - balancing
+		
+		// Mitigate Overflow
+		while (PmtTicks < 0)
+			PmtTicks += 0x100000000ULL;
+		
+		HalpCalculateTicks(&ApicTicks,
+		                   &TscTicks,
+						   PmtTicks,
+						   ApicTicks,
+						   TscTicks,
+						   FREQUENCY_PMT);
+		
+		AverageApic += ApicTicks;
+		AverageTsc  += TscTicks;
+	}
+	
+	AverageApic /= Runs;
+	AverageTsc  /= Runs;
+	
+	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
 }
 
 void HalCalibrateApicUsingPit()
@@ -194,13 +259,12 @@ void HalCalibrateApicUsingPit()
 	{
 		uint64_t TscStart = HalReadTsc();
 		
-		// Prepare the PIT for countdown.
+		// Prepare the PIT for the countdown
 		HalWritePit(0xFFFF);
 		
-		// Set the initial APIC init counter to -1.
-		ApicWriteRegister(APIC_REG_TMR_INIT_CNT, 0xFFFFFFFF);
+		HalpResetApicCounter();
 		
-		// Sleep for some iterations.
+		// Sleep for an arbitrary number of iterations.
 		int Counter = Count;
 		while (Counter--)
 			KeSpinningHint();
@@ -208,27 +272,22 @@ void HalCalibrateApicUsingPit()
 		ApicWriteRegister(APIC_REG_LVT_TIMER, APIC_LVT_INT_MASKED);
 		
 		// Stop the clock!
-		uint16_t PitEnd  = HalReadPit();
-		uint32_t ApicEnd = ApicReadRegister(APIC_REG_TMR_CURR_CNT);
-		uint64_t TscEnd  = HalReadTsc();
+		uint16_t PitEnd    = HalReadPit();
+		uint64_t ApicTicks = HalpGetElapsedApicTicks();
+		uint64_t TscTicks  = HalReadTsc() - TscStart;
 		
-		int PitTicks = 0xFFFF - PitEnd;  // Ticks
+		int PitTicks = 0xFFFF - PitEnd;
+		
 		// Mitigate Overflow
 		while (PitTicks < 0)
 			PitTicks += 0x10000;
 		
-		uint64_t ApicTicks = 0xFFFFFFFF - ApicEnd;   // Ticks
-		uint64_t TscTicks  = TscEnd - TscStart;      // Ticks
-		
-		// Calculate the number of nanoseconds that our PIT waited.
-		// Ticks * Nanoseconds/Ticks = Nanoseconds
-		uint64_t PitNano = (uint64_t) PitTicks * (NANOSECONDS_PER_SECOND / FREQUENCY_PIT);
-		
-		// Scale the APIC and TSC ticks to be the number of ticks in a second.
-		ApicTicks = ApicTicks * NANOSECONDS_PER_SECOND / PitNano;
-		TscTicks  =  TscTicks * NANOSECONDS_PER_SECOND / PitNano;
-		
-		//SLogMsg("Apic ticks: %lld", ApicTicks);
+		HalpCalculateTicks(&ApicTicks,
+		                   &TscTicks,
+						   PitTicks,
+						   ApicTicks,
+						   TscTicks,
+						   FREQUENCY_PIT);
 		
 		AverageApic += ApicTicks;
 		AverageTsc  += TscTicks;
@@ -258,7 +317,7 @@ void HalCalibrateApic()
 		return;
 	}
 	
-	if (false && HalAcpiIsPmtAvailable())
+	if (HalAcpiIsPmtAvailable())
 	{
 		HalCalibrateApicUsingPmt();
 		KeReleaseSpinLock(&HalpApicCalibLock);

@@ -15,7 +15,7 @@ Author:
 #ifndef BORON_HAL_IAPC_PIT_H
 #define BORON_HAL_IAPC_PIT_H
 
-uint16_t HalReadPit();
-void HalWritePit(uint16_t Data);
+uint32_t HalReadPit();
+void HalWritePit(uint32_t Data);
 
 #endif//BORON_HAL_IAPC_PIT_H
