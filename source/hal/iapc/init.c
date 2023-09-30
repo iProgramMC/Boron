@@ -21,6 +21,11 @@ Author:
 
 void KiSetupIdt();
 
+PKHALCB KeGetCurrentHalCB()
+{
+	return KeGetCurrentPRCB()->HalData;
+}
+
 // Initialize the HAL on the BSP, for all processors.
 void HalUPInit()
 {

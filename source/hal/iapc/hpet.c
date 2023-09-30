@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 29 September 2023
 ***/
 #include <hal.h>
+#include <mm.h>
 #include "acpi.h"
 #include "hpet.h"
 
@@ -32,5 +33,5 @@ void HpetInitialize()
 		SLogMsg("HpetInitialize: There is no HPET installed.");
 	}
 	
-	// TODO
+	
 }

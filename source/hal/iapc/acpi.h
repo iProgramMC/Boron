@@ -184,6 +184,22 @@ typedef struct FADT_HEADER_tag
 PACKED
 FADT_HEADER, *PFADT_HEADER;
 
+typedef struct HPET_HEADER_tag
+{
+	SDT_HEADER Header;
+	uint8_t    HardwareRevId;
+	uint8_t    ComparatorCount   : 5;
+	uint8_t    CounterSize       : 1;
+	uint8_t    Reserved          : 1;
+	uint8_t    LegacyReplacement : 1;
+	uint16_t   PciVendorId;
+	ACPI_GAS   Address;
+	uint8_t    HpetNumber;
+	uint16_t   MinimumTick;
+	uint8_t    PageProtection;
+}
+HPET_HEADER, *PHPET_HEADER;
+
 void HalInitAcpi();
 
 void HalInitIoApic();

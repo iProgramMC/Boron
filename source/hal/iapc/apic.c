@@ -203,6 +203,8 @@ static uint64_t HalpGetElapsedApicTicks()
 // @TODO: A lot of the math is the same. Deduplicate?
 void HalCalibrateApicUsingPmt()
 {
+	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
+	
 	// Runs, and count of pauses per run.
 	const int Runs = 16, Count = 1000;
 	
@@ -245,11 +247,18 @@ void HalCalibrateApicUsingPmt()
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	SLogMsg("ACPI Timer Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	
+	KeGetCurrentHalCB()->LapicFrequency = AverageApic;
+	KeGetCurrentHalCB()->TscFrequency   = AverageTsc;
+	
+	KeLowerIPL(OldIpl);
 }
 
 void HalCalibrateApicUsingPit()
 {
+	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
+	
 	// Runs, and count of pauses per run.
 	const int Runs = 16, Count = 1000;
 	
@@ -296,7 +305,12 @@ void HalCalibrateApicUsingPit()
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	SLogMsg("PIT Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	
+	KeGetCurrentHalCB()->LapicFrequency = AverageApic;
+	KeGetCurrentHalCB()->TscFrequency   = AverageTsc;
+	
+	KeLowerIPL(OldIpl);
 }
 
 static KSPIN_LOCK HalpApicCalibLock;
@@ -323,7 +337,6 @@ void HalCalibrateApic()
 		KeReleaseSpinLock(&HalpApicCalibLock);
 		return;
 	}
-	
 	
 	HalCalibrateApicUsingPit();
 	KeReleaseSpinLock(&HalpApicCalibLock);
