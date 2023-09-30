@@ -386,6 +386,9 @@ static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 ***/
 static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool NonPaged)
 {
+	if (!Pte)
+		return false;
+	
     if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
 		int pfn = MmAllocatePhysicalPage();
@@ -430,9 +433,41 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 ***/
 bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged)
 {
-	PMMPTE pPTE = MmGetPTEPointer(Mapping, Address, true);
+	PMMPTE Pte = MmGetPTEPointer(Mapping, Address, true);
 	
-	return MmpMapSingleAnonPageAtPte(pPTE, Permissions, NonPaged);
+	return MmpMapSingleAnonPageAtPte(Pte, Permissions, NonPaged);
+}
+
+/***
+	Function description:
+		Maps a single page of physical memory at a known physical
+		address, to a virtual address, using the specified page
+		mapping.
+	
+	Parameters:
+		Mapping  - The handle to the page table to be modified
+		
+		PhysicalPage - The physical address of the page to map
+		
+		Address  - The starting address of the range to map
+		
+		Permissions - The permission bits of the mapped range
+		
+		NonPaged - Whether to allow page faults on the mapped range
+	
+	Return value:
+		Whether the mapping update was successful.
+***/
+bool MmMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions)
+{
+	PMMPTE Pte = MmGetPTEPointer(Mapping, Address, true);
+	
+	if (!Pte)
+		return false;
+	
+	*Pte = (PhysicalPage & MM_PTE_ADDRESSMASK) | Permissions | MM_PTE_PRESENT;
+	
+	return true;
 }
 
 /***

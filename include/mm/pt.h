@@ -42,6 +42,9 @@ bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, b
 // Attempts to map several anonymous pages into the specified address space.
 bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
 
+// Attempts to map a known physical page into the specified address space.
+bool MmMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
+
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
 void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
 

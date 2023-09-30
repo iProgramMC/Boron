@@ -200,6 +200,24 @@ static uint64_t HalpGetElapsedApicTicks()
 	return ApicTicks;
 }
 
+// Rounds a frequency value to the nearest multiple of 10^7.
+static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
+{
+	const uint64_t Multiple = 10000000;
+	uint64_t T1 = Frequency / Multiple;
+	
+	// If T1 is zero, return the unmodified frequency since it's probably <10^7.
+	if (!T1)
+		return Frequency;
+	
+	T1 *= Multiple;
+	
+	if (T1 + Multiple / 2 < Frequency)
+		T1 += Multiple;
+	
+	return T1;
+}
+
 // @TODO: A lot of the math is the same. Deduplicate?
 void HalCalibrateApicUsingPmt()
 {
@@ -247,10 +265,12 @@ void HalCalibrateApicUsingPmt()
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	SLogMsg("ACPI Timer Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	LogMsg("ACPI Timer Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
 	
-	KeGetCurrentHalCB()->LapicFrequency = AverageApic;
-	KeGetCurrentHalCB()->TscFrequency   = AverageTsc;
+	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
+	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
+	
+	LogMsg("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
 	
 	KeLowerIPL(OldIpl);
 }
@@ -305,10 +325,12 @@ void HalCalibrateApicUsingPit()
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	SLogMsg("PIT Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	LogMsg("PIT Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
 	
-	KeGetCurrentHalCB()->LapicFrequency = AverageApic;
-	KeGetCurrentHalCB()->TscFrequency   = AverageTsc;
+	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
+	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
+	
+	LogMsg("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
 	
 	KeLowerIPL(OldIpl);
 }

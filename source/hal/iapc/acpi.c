@@ -12,6 +12,8 @@ Abstract:
 Author:
 	iProgramInCpp - 24 September 2023
 ***/
+#include <ex.h>
+#include <ke.h>
 #include "acpi.h"
 #include "../../arch/amd64/pio.h"
 
@@ -74,6 +76,7 @@ void AcpiInitPmt()
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
 	{
+		LogMsg("ACPI timer available using port I/O");
 		AcpipPmtUsePort = true;
 		AcpipPmtPortNum = Header->PMTimerBlock;
 		AcpipIsPmtAvailable = true;
@@ -82,8 +85,31 @@ void AcpiInitPmt()
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_MEMORY)
 	{
+		void* PageAddress = NULL;
+		uintptr_t Addr = Header->X_PMTimerBlock.Address;
+		uintptr_t OffsetWithinPage = Addr & 0xFFF;
+		
+		EXMEMORY_HANDLE Handle = ExAllocatePool(POOL_FLAG_USER_CONTROLLED, 1, &PageAddress, EX_TAG("APMT"));
+		if (!Handle)
+		{
+		CRASH_BECAUSE_FAILURE_TO_MAP:
+			KeCrashBeforeSMPInit("Could not map ACPI PMT timer as uncacheable");
+		}
+		
+		if (!MmMapPhysicalPage(MmGetCurrentPageMap(),
+		                       Addr,
+		                       (uintptr_t) PageAddress,
+		                       MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))
+		{
+		   goto CRASH_BECAUSE_FAILURE_TO_MAP;
+		}
+		
+		uintptr_t PageAddress2 = (uintptr_t) PageAddress;
+		PageAddress2 += OffsetWithinPage;
+		
+		LogMsg("ACPI timer available using memory mapped I/O");
 		AcpipPmtUsePort = false;
-		AcpipPmtAddress = (int*) Header->X_PMTimerBlock.Address;
+		AcpipPmtAddress = (int*) PageAddress2;
 		AcpipIsPmtAvailable = true;
 		return;
 	}

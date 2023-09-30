@@ -33,5 +33,5 @@ void HpetInitialize()
 		SLogMsg("HpetInitialize: There is no HPET installed.");
 	}
 	
-	
+	// Map the HPET as uncacheable. 
 }
