@@ -18,6 +18,7 @@ Author:
 // HAL Control Block
 typedef struct KHALCB_tag
 {
+	// LAPIC and TSC frequencies, in ticks/ms.
 	uint64_t LapicFrequency;
 	uint64_t TscFrequency;
 }

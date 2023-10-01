@@ -171,12 +171,6 @@ void HalEnableApic()
 //    of the APIC timer. (And the TSC too)
 //
 
-void HalCalibrateApicUsingHpet()
-{
-	// @TODO
-	KeCrash("TODO: Calibrate using the HPET");
-}
-
 static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerFrequencyHz)
 {
 	uint64_t TimerNano = (uint64_t) TimerTicks * (NANOSECONDS_PER_SECOND / TimerFrequencyHz);
@@ -216,52 +210,6 @@ static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 		T1 += Multiple;
 	
 	return T1;
-}
-
-void HalPitPrepare()
-{
-	HalWritePit(0xFFFF);
-}
-
-void HalPmtPrepare()
-{
-}
-
-bool HalPitContinueSpinning(UNUSED uint32_t TimerStart, uint32_t TickCount)
-{
-	return HalReadPit() > 0xFFFF - TickCount;
-}
-
-bool HalPmtContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
-{
-	int64_t Time = HalGetPmtCounter() - TimerStart;
-	if (Time < 0)
-		Time += 0x1000000ULL;
-	
-	return Time < TickCount;
-}
-
-int64_t HalPmtFinish(uint64_t TimerStart, uint64_t TimerEnd)
-{
-	int64_t Ticks = TimerEnd - TimerStart;
-	
-	// Mitigate overflow
-	
-	while (Ticks < 0)
-		Ticks += 0x1000000ULL; // 1^24 since we pessimistically assume that the ACPI timer is 24 bit
-	
-	return Ticks;
-}
-
-int64_t HalPitFinish(uint64_t TimerStart, uint64_t TimerEnd)
-{
-	int64_t Ticks = TimerStart - TimerEnd;
-	
-	// Mitigate overflow
-	while (Ticks < 0)
-		Ticks += 0x10000ULL;
-	
-	return Ticks;
 }
 
 // Prepare the timer for counting
@@ -335,7 +283,46 @@ static void HalpCalibrateApicGeneric(
 	KeLowerIPL(OldIpl);
 }
 
-// @TODO: A lot of the math is the same. Deduplicate?
+// ===== HPET =====
+
+void HalCalibrateApicUsingHpet()
+{
+	//HalpCalibrateApicGeneric(HalHpetPrepare,
+	//                         HalHpetRead,
+	//                         HalHpetContinueSpinning,
+	//                         HalHpetFinish,
+	//                         16,
+	//                         30000,
+	//                         FREQUENCY_PMT);
+}
+
+// ===== ACPI Power Management Timer =====
+
+void HalPmtPrepare()
+{
+}
+
+bool HalPmtContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
+{
+	int64_t Time = HalGetPmtCounter() - TimerStart;
+	if (Time < 0)
+		Time += 0x1000000ULL;
+	
+	return Time < TickCount;
+}
+
+int64_t HalPmtFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerEnd - TimerStart;
+	
+	// Mitigate overflow
+	
+	while (Ticks < 0)
+		Ticks += 0x1000000ULL; // 1^24 since we pessimistically assume that the ACPI timer is 24 bit
+	
+	return Ticks;
+}
+
 void HalCalibrateApicUsingPmt()
 {
 	HalpCalibrateApicGeneric(HalPmtPrepare,
@@ -345,6 +332,29 @@ void HalCalibrateApicUsingPmt()
 	                         16,
 	                         30000,
 	                         FREQUENCY_PMT);
+}
+
+// ===== PIT =====
+
+void HalPitPrepare()
+{
+	HalWritePit(0xFFFF);
+}
+
+bool HalPitContinueSpinning(UNUSED uint32_t TimerStart, uint32_t TickCount)
+{
+	return HalReadPit() > 0xFFFF - TickCount;
+}
+
+int64_t HalPitFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerStart - TimerEnd;
+	
+	// Mitigate overflow
+	while (Ticks < 0)
+		Ticks += 0x10000ULL;
+	
+	return Ticks;
 }
 
 void HalCalibrateApicUsingPit()

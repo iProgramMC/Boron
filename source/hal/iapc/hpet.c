@@ -26,6 +26,8 @@ extern PRSDT_TABLE HalSdtHpet;
 static PHPET_REGISTERS   HpetpRegisters;
 static HPET_GENERAL_CAPS HpetGeneralCaps;
 
+#define HPET_GEN_CFG_ENABLE_CNF (1 << 0)
+
 bool HpetIsAvailable()
 {
 	return HpetpIsAvailable;
@@ -76,4 +78,11 @@ void HpetInitialize()
 	LogMsg("Counter Clock Period: %d Femtoseconds per Tick (%d Nanoseconds)",
 	       HpetGeneralCaps.CounterClockPeriod,
 	       HpetGeneralCaps.CounterClockPeriod / 1000);
+	
+	// Enable and reset the main counter
+	HpetpRegisters->GeneralConfig = 0;
+	HpetpRegisters->CounterValue  = 0;
+	HpetpRegisters->GeneralConfig = HPET_GEN_CFG_ENABLE_CNF;
+	
+	// Not sure why, but NanoShell64 tests for consistency.  We won't do that here.
 }
