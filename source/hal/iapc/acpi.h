@@ -198,6 +198,7 @@ typedef struct HPET_HEADER_tag
 	uint16_t   MinimumTick;
 	uint8_t    PageProtection;
 }
+PACKED
 HPET_HEADER, *PHPET_HEADER;
 
 void HalInitAcpi();

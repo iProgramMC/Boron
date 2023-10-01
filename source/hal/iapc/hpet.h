@@ -44,7 +44,7 @@ HPET_TIMER_INFO, *PHPET_TIMER_INFO;
 
 typedef struct HPET_REGISTERS_tag
 {
-	uint64_t GeneralCapsRegister;
+	uint64_t GeneralCaps;
 	uint64_t Reserved8;
 	uint64_t GeneralConfig;
 	uint64_t Reserved18;

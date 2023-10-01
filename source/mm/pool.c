@@ -133,6 +133,7 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 	PMIPOOL_ENTRY Flink = Entry->Flink;
 	if (Flink &&
 		~Flink->Flags & MI_POOL_ENTRY_ALLOCATED &&
+		~Entry->Flags & MI_POOL_ENTRY_ALLOCATED &&
 		Flink->Address == Entry->Address + Entry->Size * PAGE_SIZE)
 	{
 		Entry->Size += Flink->Size;
