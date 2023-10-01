@@ -159,7 +159,10 @@ void HalEnableApic()
 #define FREQUENCY_PIT  (1193182)
 #define FREQUENCY_PMT  (3579545)
 
-#define NANOSECONDS_PER_SECOND (1000000000ULL)
+#define NANOSECONDS_PER_SECOND      (1000000000ULL)
+#define NANOSECONDS_PER_MILLISECOND (1000000ULL)
+#define PICOSECONDS_PER_SECOND      (1000000000000ULL)
+#define PICOSECONDS_PER_MILLISECOND (1000000000ULL)
 
 //
 // Calibrating timers!
@@ -173,11 +176,11 @@ void HalEnableApic()
 
 static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerPeriod)
 {
-	uint64_t TimerNano = (uint64_t) TimerTicks * TimerPeriod;
+	uint64_t TimerPico = (uint64_t) TimerTicks * TimerPeriod;
 	
 	// Scale the APIC and TSC ticks to be the number of ticks in a second.
-	*ApicTicksOut = ApicTicksIn * (NANOSECONDS_PER_SECOND / 1000) / TimerNano;
-	* TscTicksOut =  TscTicksIn * (NANOSECONDS_PER_SECOND / 1000) / TimerNano;
+	*ApicTicksOut = ApicTicksIn * PICOSECONDS_PER_MILLISECOND / TimerPico;
+	* TscTicksOut =  TscTicksIn * PICOSECONDS_PER_MILLISECOND / TimerPico;
 }
 
 static void HalpResetApicCounter()
@@ -194,15 +197,21 @@ static uint64_t HalpGetElapsedApicTicks()
 	return ApicTicks;
 }
 
-// Rounds a frequency value to the nearest multiple of 10^7.
+// Rounds a frequency value to the nearest multiple of 10^5, and then 10^3.
 static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 {
-	const uint64_t Multiple = 10000;
+	const uint64_t Multiple2 = 1000;
+	uint64_t Multiple  = 100000;
 	uint64_t T1 = Frequency / Multiple;
 	
-	// If T1 is zero, return the unmodified frequency since it's probably <10^7.
+	// If T1 is zero, try with 10^3.
 	if (!T1)
-		return Frequency;
+	{
+		Multiple = Multiple2;
+		T1 = Frequency / Multiple2;
+		if (!T1)
+			return Frequency;
+	}
 	
 	T1 *= Multiple;
 	
@@ -248,7 +257,7 @@ static void HalpCalibrateApicGeneric(
 			KeSpinningHint();
 		
 		// Set!!
-		if (TimerRead == HalReadPit)
+		if (TimerRead == HalReadPit || TimerRead == HalHpetRead)
 			TimerEnd   = TimerRead();
 		
 		uint64_t ApicTicks = HalpGetElapsedApicTicks();
@@ -285,15 +294,47 @@ static void HalpCalibrateApicGeneric(
 
 // ===== HPET =====
 
-void HalCalibrateApicUsingHpet()
+void HalHpetPrepare()
 {
-	//HalpCalibrateApicGeneric(HalHpetPrepare,
-	//                         HalHpetRead,
-	//                         HalHpetContinueSpinning,
-	//                         HalHpetFinish,
-	//                         16,
-	//                         30000,
-	//                         FREQUENCY_PMT);
+	// could reset the counter to zero, but we can very well handle overflow! So no we won't
+}
+
+bool HalHpetContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
+{
+	int64_t Time = HalHpetRead() - TimerStart;
+	if (Time < 0)
+		Time += 0x100000000ULL;
+	
+	return Time < TickCount;
+}
+
+int64_t HalHpetFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerEnd - TimerStart;
+	
+	// Mitigate overflow
+	
+	while (Ticks < 0)
+		Ticks += 0x100000000ULL; // 1^32 since we pessimistically assume that the HPET is 32 bit
+	
+	return Ticks;
+}
+
+bool HalCalibrateApicUsingHpet()
+{
+	uint32_t HpetPeriod = HalHpetGetPeriod();
+	if (HpetPeriod == 0)
+		return false;
+	
+	HalpCalibrateApicGeneric(HalHpetPrepare,
+	                         HalHpetRead,
+	                         HalHpetContinueSpinning,
+	                         HalHpetFinish,
+	                         16,
+	                         300000,
+	                         HpetPeriod);
+	
+	return true;
 }
 
 // ===== ACPI Power Management Timer =====
@@ -331,7 +372,7 @@ void HalCalibrateApicUsingPmt()
 							 HalPmtFinish,
 	                         16,
 	                         30000,
-	                         NANOSECONDS_PER_SECOND / FREQUENCY_PMT);
+	                         PICOSECONDS_PER_SECOND / FREQUENCY_PMT);
 }
 
 // ===== PIT =====
@@ -365,7 +406,7 @@ void HalCalibrateApicUsingPit()
 							 HalPitFinish,
 	                         16,
 	                         10000,
-	                         NANOSECONDS_PER_SECOND / FREQUENCY_PIT);
+	                         PICOSECONDS_PER_SECOND / FREQUENCY_PIT);
 }
 
 static KSPIN_LOCK HalpApicCalibLock;
@@ -379,14 +420,13 @@ void HalCalibrateApic()
 	// See the Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Note that bit 2 is reserved.
 	ApicWriteRegister(APIC_REG_TMR_DIV_CFG, 0);
 	
-	if (false && HpetIsAvailable())
+	if (HalCalibrateApicUsingHpet())
 	{
-		HalCalibrateApicUsingHpet();
 		KeReleaseSpinLock(&HalpApicCalibLock);
 		return;
 	}
 	
-	if (false && HalAcpiIsPmtAvailable())
+	if (HalAcpiIsPmtAvailable())
 	{
 		HalCalibrateApicUsingPmt();
 		KeReleaseSpinLock(&HalpApicCalibLock);

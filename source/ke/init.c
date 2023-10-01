@@ -27,7 +27,7 @@ void KiSystemStartup(void)
 	SLogMsg("Boron is starting up");
 	
 	HalTerminalInit();
-	LogMsg("Boron (TM), September 2023 - V0.003");
+	LogMsg("Boron (TM), October 2023 - V0.004");
 	
 	MiInitPMM();
 	MmInitAllocators();

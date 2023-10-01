@@ -63,4 +63,8 @@ bool HpetIsAvailable();
 
 uint64_t HpetGetFrequency();
 
+uint32_t HalHpetGetPeriod();
+
+uint32_t HalHpetRead();
+
 #endif//BORON_HAL_HPET_H
