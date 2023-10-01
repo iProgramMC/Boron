@@ -171,13 +171,13 @@ void HalEnableApic()
 //    of the APIC timer. (And the TSC too)
 //
 
-static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerFrequencyHz)
+static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerPeriod)
 {
-	uint64_t TimerNano = (uint64_t) TimerTicks * (NANOSECONDS_PER_SECOND / TimerFrequencyHz);
+	uint64_t TimerNano = (uint64_t) TimerTicks * TimerPeriod;
 	
 	// Scale the APIC and TSC ticks to be the number of ticks in a second.
-	*ApicTicksOut = ApicTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
-	* TscTicksOut =  TscTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
+	*ApicTicksOut = ApicTicksIn * (NANOSECONDS_PER_SECOND / 1000) / TimerNano;
+	* TscTicksOut =  TscTicksIn * (NANOSECONDS_PER_SECOND / 1000) / TimerNano;
 }
 
 static void HalpResetApicCounter()
@@ -197,7 +197,7 @@ static uint64_t HalpGetElapsedApicTicks()
 // Rounds a frequency value to the nearest multiple of 10^7.
 static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 {
-	const uint64_t Multiple = 10000000;
+	const uint64_t Multiple = 10000;
 	uint64_t T1 = Frequency / Multiple;
 	
 	// If T1 is zero, return the unmodified frequency since it's probably <10^7.
@@ -228,7 +228,7 @@ static void HalpCalibrateApicGeneric(
 	TIMER_FINISH_FUNC TimerFinish,
 	uint32_t Runs,
 	uint32_t TickCount,
-	uint32_t Frequency
+	uint32_t Period
 )
 {
 	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
@@ -264,7 +264,7 @@ static void HalpCalibrateApicGeneric(
 						   TimerTicks,
 						   ApicTicks,
 						   TscTicks,
-						   Frequency);
+						   Period);
 		
 		AverageApic += ApicTicks;
 		AverageTsc  += TscTicks;
@@ -273,12 +273,12 @@ static void HalpCalibrateApicGeneric(
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/ms",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
 	
 	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
 	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
 	
-	LogMsg("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
+	LogMsg("Rounded, we get %llu, respectively %llu Ticks/ms", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
 	
 	KeLowerIPL(OldIpl);
 }
@@ -331,7 +331,7 @@ void HalCalibrateApicUsingPmt()
 							 HalPmtFinish,
 	                         16,
 	                         30000,
-	                         FREQUENCY_PMT);
+	                         NANOSECONDS_PER_SECOND / FREQUENCY_PMT);
 }
 
 // ===== PIT =====
@@ -365,7 +365,7 @@ void HalCalibrateApicUsingPit()
 							 HalPitFinish,
 	                         16,
 	                         10000,
-	                         FREQUENCY_PIT);
+	                         NANOSECONDS_PER_SECOND / FREQUENCY_PIT);
 }
 
 static KSPIN_LOCK HalpApicCalibLock;
