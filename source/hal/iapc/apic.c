@@ -218,45 +218,105 @@ static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 	return T1;
 }
 
-// @TODO: A lot of the math is the same. Deduplicate?
-void HalCalibrateApicUsingPmt()
+void HalPitPrepare()
+{
+	HalWritePit(0xFFFF);
+}
+
+void HalPmtPrepare()
+{
+}
+
+bool HalPitContinueSpinning(UNUSED uint32_t TimerStart, uint32_t TickCount)
+{
+	return HalReadPit() > 0xFFFF - TickCount;
+}
+
+bool HalPmtContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
+{
+	int64_t Time = HalGetPmtCounter() - TimerStart;
+	if (Time < 0)
+		Time += 0x1000000ULL;
+	
+	return Time < TickCount;
+}
+
+int64_t HalPmtFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerEnd - TimerStart;
+	
+	// Mitigate overflow
+	
+	while (Ticks < 0)
+		Ticks += 0x1000000ULL; // 1^24 since we pessimistically assume that the ACPI timer is 24 bit
+	
+	return Ticks;
+}
+
+int64_t HalPitFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerStart - TimerEnd;
+	
+	// Mitigate overflow
+	while (Ticks < 0)
+		Ticks += 0x10000ULL;
+	
+	return Ticks;
+}
+
+// Prepare the timer for counting
+typedef void(*TIMER_PREPARE_FUNC)();
+// Read the value in the timer
+typedef uint32_t(*TIMER_READ_FUNC)();
+// Whether to continue spinning (i.e. if TickCount ticks have expired since TimerStart)
+typedef bool(*TIMER_CONTINUE_SPINNING_FUNC)(uint32_t TimerStart, uint32_t TickCount);
+// Get the number of ticks that have passed.
+typedef int64_t(*TIMER_FINISH_FUNC)(uint64_t TimerStart, uint64_t TimerEnd);
+
+static void HalpCalibrateApicGeneric(
+	TIMER_PREPARE_FUNC TimerPrepare,
+	TIMER_READ_FUNC TimerRead,
+	TIMER_CONTINUE_SPINNING_FUNC TimerContinueSpinning,
+	TIMER_FINISH_FUNC TimerFinish,
+	uint32_t Runs,
+	uint32_t TickCount,
+	uint32_t Frequency
+)
 {
 	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
 	
-	// Runs, and count of pauses per run.
-	const int Runs = 16, Count = 1000;
-	
 	uint64_t AverageApic = 0, AverageTsc = 0;
 	
-	for (int Run = 0; Run < Runs; Run++)
+	for (uint32_t Run = 0; Run < Runs; Run++)
 	{
-		uint64_t TscStart = HalReadTsc();
-		uint64_t PmtStart = HalGetPmtCounter();
+		TimerPrepare();
+		uint64_t TscStart   = HalReadTsc();
+		uint64_t TimerStart = TimerRead();
+		uint64_t TimerEnd;
 		
 		HalpResetApicCounter();
 		
-		// Sleep for an arbitrary number of iterations.
-		int Counter = Count;
-		while (Counter--)
+		while (TimerContinueSpinning(TimerStart, TickCount))
 			KeSpinningHint();
 		
-		// Stop the clock!
-		uint64_t PmtEnd    = HalGetPmtCounter();
+		// Set!!
+		if (TimerRead == HalReadPit)
+			TimerEnd   = TimerRead();
+		
 		uint64_t ApicTicks = HalpGetElapsedApicTicks();
 		uint64_t TscTicks  = HalReadTsc() - TscStart;
 		
-		int64_t PmtTicks = PmtEnd - PmtStart + 3; // 3 - balancing
+		if (TimerRead != HalReadPit)
+			TimerEnd   = TimerRead();
 		
-		// Mitigate Overflow
-		while (PmtTicks < 0)
-			PmtTicks += 0x100000000ULL;
+		int64_t TimerTicks = TimerFinish(TimerStart, TimerEnd);
 		
 		HalpCalculateTicks(&ApicTicks,
 		                   &TscTicks,
-						   PmtTicks,
+						   TimerTicks,
 						   ApicTicks,
 						   TscTicks,
-						   FREQUENCY_PMT);
+						   Frequency);
 		
 		AverageApic += ApicTicks;
 		AverageTsc  += TscTicks;
@@ -265,7 +325,7 @@ void HalCalibrateApicUsingPmt()
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
 	
-	LogMsg("ACPI Timer Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
+	LogMsg("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
 	
 	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
 	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
@@ -275,64 +335,27 @@ void HalCalibrateApicUsingPmt()
 	KeLowerIPL(OldIpl);
 }
 
+// @TODO: A lot of the math is the same. Deduplicate?
+void HalCalibrateApicUsingPmt()
+{
+	HalpCalibrateApicGeneric(HalPmtPrepare,
+	                         HalGetPmtCounter,
+	                         HalPmtContinueSpinning,
+							 HalPmtFinish,
+	                         16,
+	                         30000,
+	                         FREQUENCY_PMT);
+}
+
 void HalCalibrateApicUsingPit()
 {
-	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
-	
-	// Runs, and count of pauses per run.
-	const int Runs = 16, Count = 1000;
-	
-	uint64_t AverageApic = 0, AverageTsc = 0;
-	
-	for (int Run = 0; Run < Runs; Run++)
-	{
-		uint64_t TscStart = HalReadTsc();
-		
-		// Prepare the PIT for the countdown
-		HalWritePit(0xFFFF);
-		
-		HalpResetApicCounter();
-		
-		// Sleep for an arbitrary number of iterations.
-		int Counter = Count;
-		while (Counter--)
-			KeSpinningHint();
-		
-		ApicWriteRegister(APIC_REG_LVT_TIMER, APIC_LVT_INT_MASKED);
-		
-		// Stop the clock!
-		uint16_t PitEnd    = HalReadPit();
-		uint64_t ApicTicks = HalpGetElapsedApicTicks();
-		uint64_t TscTicks  = HalReadTsc() - TscStart;
-		
-		int PitTicks = 0xFFFF - PitEnd;
-		
-		// Mitigate Overflow
-		while (PitTicks < 0)
-			PitTicks += 0x10000;
-		
-		HalpCalculateTicks(&ApicTicks,
-		                   &TscTicks,
-						   PitTicks,
-						   ApicTicks,
-						   TscTicks,
-						   FREQUENCY_PIT);
-		
-		AverageApic += ApicTicks;
-		AverageTsc  += TscTicks;
-	}
-	
-	AverageApic /= Runs;
-	AverageTsc  /= Runs;
-	
-	LogMsg("PIT Based Calibration: CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
-	
-	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
-	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
-	
-	LogMsg("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
-	
-	KeLowerIPL(OldIpl);
+	HalpCalibrateApicGeneric(HalPitPrepare,
+	                         HalReadPit,
+	                         HalPitContinueSpinning,
+							 HalPitFinish,
+	                         16,
+	                         10000,
+	                         FREQUENCY_PIT);
 }
 
 static KSPIN_LOCK HalpApicCalibLock;
@@ -353,7 +376,7 @@ void HalCalibrateApic()
 		return;
 	}
 	
-	if (HalAcpiIsPmtAvailable())
+	if (false && HalAcpiIsPmtAvailable())
 	{
 		HalCalibrateApicUsingPmt();
 		KeReleaseSpinLock(&HalpApicCalibLock);
@@ -362,4 +385,10 @@ void HalCalibrateApic()
 	
 	HalCalibrateApicUsingPit();
 	KeReleaseSpinLock(&HalpApicCalibLock);
+	
+	// if the TSC increases at more than 5 GHz
+	if (KeGetCurrentHalCB()->TscFrequency >= 5000000000)
+	{
+		KeCrash("TSC frequency over 5 GHz?! Ain't no way!");
+	}
 }
