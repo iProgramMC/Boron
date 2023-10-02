@@ -33,20 +33,6 @@ bool HpetIsAvailable()
 	return HpetpIsAvailable;
 }
 
-uint32_t HalHpetGetPeriod()
-{
-	if (!HpetpIsAvailable)
-		return 0;
-	
-	// Return the period in picoseconds.
-	return HpetGeneralCaps.CounterClockPeriod / 1000;
-}
-
-uint32_t HalHpetRead()
-{
-	return HpetpRegisters->CounterValue;
-}
-
 void HpetInitialize()
 {
 	if (!HalSdtHpet)
