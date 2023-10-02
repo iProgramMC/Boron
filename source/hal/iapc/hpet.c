@@ -71,13 +71,15 @@ void HpetInitialize()
 	
 	HpetGeneralCaps.Contents = HpetpRegisters->GeneralCaps;
 	
-	LogMsg("HPET Capabilities: %p, Vendor ID: %04x",
-	       HpetGeneralCaps.Contents,
-	       HpetGeneralCaps.VendorID);
+#ifdef DEBUG
+	SLogMsg("HPET Capabilities: %p, Vendor ID: %04x",
+	        HpetGeneralCaps.Contents,
+	        HpetGeneralCaps.VendorID);
 	
-	LogMsg("Counter Clock Period: %d Femtoseconds per Tick (%d Nanoseconds)",
-	       HpetGeneralCaps.CounterClockPeriod,
-	       HpetGeneralCaps.CounterClockPeriod / 1000);
+	SLogMsg("Counter Clock Period: %d Femtoseconds per Tick (%d Nanoseconds)",
+	        HpetGeneralCaps.CounterClockPeriod,
+	        HpetGeneralCaps.CounterClockPeriod / 1000);
+#endif
 	
 	// Enable and reset the main counter
 	HpetpRegisters->GeneralConfig = 0;

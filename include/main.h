@@ -20,6 +20,8 @@ Author:
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include <rtl/list.h>
+
 #define PACKED        __attribute__((packed))
 #define NO_RETURN     __attribute__((noreturn))
 #define RETURNS_TWICE __attribute__((returns_twice))
@@ -35,5 +37,9 @@ Author:
 
 void LogMsg(const char* msg, ...);
 void SLogMsg(const char* msg, ...);
+
+#define CallerAddress() ((uintptr_t) __builtin_return_address(0))
+
+#define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)Pointer - (uintptr_t)offsetof(Type, Field)))
 
 #endif//NS64_MAIN_H

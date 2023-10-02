@@ -15,9 +15,13 @@ Author:
 #ifndef BORON_KE_THREAD_H
 #define BORON_KE_THREAD_H
 
-typedef struct
+#include <arch.h>
+#include <ex.h>
+
+typedef struct KTHREAD_tag
 {
-	int Placeholder;
+	KREGISTERS State;
+	
 }
 KTHREAD, *PKTHREAD;
 
@@ -26,5 +30,7 @@ typedef struct
 	int Placeholder;
 }
 KSCHEDULER, *PKSCHEDULER;
+
+PKTHREAD KeCreateThread();
 
 #endif//BORON_KE_THREAD_H
