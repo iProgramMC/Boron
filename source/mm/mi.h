@@ -33,7 +33,7 @@ typedef struct MISLAB_ITEM_tag
 	
 	uint64_t Bitmap[4]; // Supports down to 16 byte sized items
 	
-	struct MISLAB_ITEM_tag *Flink, *Blink;
+	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
 	
 	uint64_t Check;
@@ -44,7 +44,7 @@ typedef struct MISLAB_CONTAINER_tag
 {
 	int          ItemSize;
 	KSPIN_LOCK   Lock;
-	PMISLAB_ITEM First, Last;
+	LIST_ENTRY   ListHead;
 }
 MISLAB_CONTAINER, *PMISLAB_CONTAINER;
 
@@ -84,12 +84,12 @@ int   MmGetSmallestPO2ThatFitsSize(size_t Size);
 
 typedef struct MIPOOL_ENTRY_tag
 {
-	struct MIPOOL_ENTRY_tag *Flink, *Blink; // Qword 0, 1
-	int       Flags;                        // Qword 2
-	int       Tag;
-	uintptr_t UserData;                     // Qword 3
-	uintptr_t Address;                      // Qword 4
-	size_t    Size;                         // Qword 5, size is in pages.
+	LIST_ENTRY ListEntry;                   // Qword 0, 1
+	int        Flags;                       // Qword 2
+	int        Tag;
+	uintptr_t  UserData;                    // Qword 3
+	uintptr_t  Address;                     // Qword 4
+	size_t     Size;                        // Qword 5, size is in pages.
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
 

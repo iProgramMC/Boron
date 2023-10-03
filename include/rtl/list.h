@@ -38,6 +38,10 @@ void InsertTailList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry);
 
 PLIST_ENTRY RemoveHeadList(PLIST_ENTRY ListHead);
 
+PLIST_ENTRY RemoveTailList(PLIST_ENTRY ListHead);
+
+bool RemoveEntryList(PLIST_ENTRY Entry);
+
 bool IsListEmpty(PLIST_ENTRY ListHead);
 
 #endif//BORON_RTL_LIST_H

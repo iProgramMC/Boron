@@ -23,7 +23,7 @@ static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size)
 {
 	Container->ItemSize = Size;
 	Container->Lock.Locked = false;
-	Container->First = Container->Last = NULL;
+	InitializeListHead(&Container->ListHead);
 }
 
 void MiInitSlabs()
@@ -80,10 +80,12 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	KeAcquireSpinLock(&Container->Lock);
 	
 	// Look for any pre-existing free elements.
-	PMISLAB_ITEM Item = Container->First;
+	PLIST_ENTRY ItemEntry = Container->ListHead.Flink;
 	
-	while (Item)
+	while (ItemEntry != &Container->ListHead)
 	{
+		PMISLAB_ITEM Item = CONTAINING_RECORD(ItemEntry, MISLAB_ITEM, ListEntry);
+		
 		void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 		if (Mem)
 		{
@@ -91,7 +93,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 			return Mem;
 		}
 		
-		Item = Item->Flink;
+		ItemEntry = ItemEntry->Flink;
 	}
 	
 	// Allocate a new slab item.
@@ -104,24 +106,14 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 		return NULL;
 	}
 	
-	Item = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ItemPfn));
+	PMISLAB_ITEM Item = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ItemPfn));
 	memset(Item, 0, sizeof *Item);
 	
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
 	
 	// Link it to the list:
-	if (Container->First)
-	{
-		Container->First->Blink = Item;
-		Item->Flink = Container->First;
-		Item->Blink = NULL;
-	}
-	
-	Container->First = Item;
-	
-	if (!Container->Last)
-		Container->Last = Item;
+	InsertTailList(&Container->ListHead, &Item->ListEntry);
 	
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 	KeReleaseSpinLock(&Container->Lock);
@@ -160,15 +152,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	// Check if it's all zero:
 	if (!Item->Bitmap[0] && !Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])
 	{
-		// Free it:
-		if (Item->Flink)
-			Item->Flink->Blink = Item->Blink;
-		if (Item->Blink)
-			Item->Blink->Flink = Item->Flink;
-		if (Container->First == Item)
-			Container->First  = Item->Flink;
-		if (Container->Last  == Item)
-			Container->Last   = Item->Blink;
+		RemoveEntryList(&Item->ListEntry);
 		
 		int Pfn = MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(Item));
 		MmFreePhysicalPage(Pfn);

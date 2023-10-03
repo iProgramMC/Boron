@@ -40,6 +40,6 @@ void SLogMsg(const char* msg, ...);
 
 #define CallerAddress() ((uintptr_t) __builtin_return_address(0))
 
-#define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)Pointer - (uintptr_t)offsetof(Type, Field)))
+#define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)(Pointer) - (uintptr_t)offsetof(Type, Field)))
 
 #endif//NS64_MAIN_H

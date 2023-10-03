@@ -22,21 +22,26 @@ Author:
 // and the headers are separate from the actual memory (they're managed by slab.c).
 //
 
-static PMIPOOL_ENTRY MmpPoolFirst, MmpPoolLast;
-static KTICKET_LOCK  MmpPoolLock;
+static KTICKET_LOCK MmpPoolLock;
+static LIST_ENTRY   MmpPoolList;
+
+#define MIP_CURRENT(CE) CONTAINING_RECORD((CE), MIPOOL_ENTRY, ListEntry)
+#define MIP_FLINK(E) CONTAINING_RECORD((E)->Flink, MIPOOL_ENTRY, ListEntry)
+#define MIP_BLINK(E) CONTAINING_RECORD((E)->Blink, MIPOOL_ENTRY, ListEntry)
+#define MIP_START_ITER(Lst) ((Lst)->Flink)
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
 void MiInitPool()
 {
-	PMIPOOL_ENTRY Entry = MmpPoolFirst = MmpPoolLast = MiSlabAllocate(sizeof(MIPOOL_ENTRY));
+	InitializeListHead(&MmpPoolList);
 	
-	Entry->Flink = NULL;
-	Entry->Blink = NULL;
+	PMIPOOL_ENTRY Entry = MiSlabAllocate(sizeof(MIPOOL_ENTRY));
 	Entry->Flags = 0;
 	Entry->Tag   = MI_EMPTY_TAG;
 	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE - 12);
 	Entry->Address = MiGetTopOfPoolManagedArea();
+	InsertTailList(&MmpPoolList, &Entry->ListEntry);
 }
 
 MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
@@ -59,15 +64,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
-	NewEntry->Flink = PoolEntry->Flink;
-	NewEntry->Blink = PoolEntry;
-	if (NewEntry->Blink)
-		NewEntry->Blink->Flink = NewEntry;
-	if (NewEntry->Flink)
-		NewEntry->Flink->Blink = NewEntry;
-	
-	if (MmpPoolLast == PoolEntry)
-		MmpPoolLast  = NewEntry;
+	InsertHeadList(&PoolEntry->ListEntry, &NewEntry->ListEntry);
 	
 	// Assign the other properties
 	NewEntry->Flags = 0; // Area is free
@@ -90,18 +87,20 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
 	KeAcquireTicketLock(&MmpPoolLock);
-	PMIPOOL_ENTRY Current = MmpPoolFirst;
+	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	*OutputAddress = NULL;
 	
 	// This is a first-fit allocator.
 	
-	while (Current)
+	while (CurrentEntry != &MmpPoolList)
 	{
 		// Skip allocated entries.
+		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
+		
 		if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
 		{
-			Current = Current->Flink;
+			CurrentEntry = CurrentEntry->Flink;
 			continue;
 		}
 		
@@ -112,7 +111,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 			return Handle;
 		}
 		
-		Current = Current->Flink;
+		CurrentEntry = CurrentEntry->Flink;
 	}
 	
 #ifdef DEBUG
@@ -120,7 +119,6 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 #endif
 	
 	*OutputAddress = NULL;
-	Current = Current->Flink;
 	KeReleaseTicketLock(&MmpPoolLock);
 	return (MIPOOL_SPACE_HANDLE) NULL;
 }
@@ -130,20 +128,16 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 	if (!Entry)
 		return;
 	
-	PMIPOOL_ENTRY Flink = Entry->Flink;
+	PMIPOOL_ENTRY Flink = MIP_FLINK(&Entry->ListEntry);
 	if (Flink &&
 		~Flink->Flags & MI_POOL_ENTRY_ALLOCATED &&
 		~Entry->Flags & MI_POOL_ENTRY_ALLOCATED &&
 		Flink->Address == Entry->Address + Entry->Size * PAGE_SIZE)
 	{
 		Entry->Size += Flink->Size;
-		Entry->Flink = Flink->Flink;
 		
-		if (Entry->Flink)
-			Entry->Flink->Blink = Entry;
-		
-		if (MmpPoolLast == Flink)
-			MmpPoolLast  = Entry;
+		// remove the 'flink' entry
+		RemoveHeadList(&Entry->ListEntry);
 		
 		MiSlabFree(Flink, sizeof(MIPOOL_ENTRY));
 	}
@@ -165,7 +159,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	Entry->Tag    = MI_EMPTY_TAG;
 	
 	MmpTryConnectEntryWithItsFlink(Entry);
-	MmpTryConnectEntryWithItsFlink(Entry->Blink);
+	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
 	KeReleaseTicketLock(&MmpPoolLock);
 }
@@ -174,13 +168,15 @@ void MiDumpPoolInfo()
 {
 #ifdef DEBUG
 	KeAcquireTicketLock(&MmpPoolLock);
-	PMIPOOL_ENTRY Current = MmpPoolFirst;
+	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	SLogMsg("MiDumpPoolInfo:");
 	SLogMsg("  EntryAddr         State   Tag     BaseAddr         Limit              SizePages");
 	
-	while (Current)
+	while (CurrentEntry != &MmpPoolList)
 	{
+		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
+		
 		char Tag[8];
 		Tag[4] = 0;
 		*((int*)Tag) = Current->Tag;
@@ -197,7 +193,7 @@ void MiDumpPoolInfo()
 			Current->Address + Current->Size * PAGE_SIZE,
 			Current->Size);
 			
-		Current = Current->Flink;
+		CurrentEntry = CurrentEntry->Flink;
 	}
 	
 	SLogMsg("MiDumpPoolInfo done");
