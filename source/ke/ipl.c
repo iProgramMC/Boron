@@ -41,13 +41,13 @@ KIPL KeRaiseIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
 	KIPL oldIPL = me->Ipl;
-	//SLogMsg2("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
+	//SLogMsg("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
 	
 	if (oldIPL > newIPL)
-		KeCrash("Error, can't raise the IPL to a lower level than we are (old %d, new %d)", oldIPL, newIPL);
+		KeCrash("Error, can't raise the IPL to a lower level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
 	
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
@@ -61,13 +61,13 @@ KIPL KeLowerIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
 	KIPL oldIPL = me->Ipl;
-	//SLogMsg2("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
+	//SLogMsg("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
 	
 	if (oldIPL < newIPL)
-		KeCrash("Error, can't lower the IPL to a higher level than we are (old %d, new %d)", oldIPL, newIPL);
+		KeCrash("Error, can't lower the IPL to a higher level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
 	
 	// Set the current IPL
 	me->Ipl = newIPL;

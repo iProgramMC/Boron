@@ -402,3 +402,28 @@ void HalCalibrateApic()
 		KeCrash("TSC frequency over 5 GHz?! Ain't no way!");
 	}
 }
+
+void HalSendSelfIpi()
+{
+	HalSendIpi(KeGetCurrentPRCB()->LapicId, INTV_DPC_IPI);
+}
+
+void HalApicSetIrqIn(uint64_t Ticks)
+{
+	ApicWriteRegister(APIC_REG_TMR_INIT_CNT, Ticks);
+	ApicWriteRegister(APIC_REG_LVT_TIMER,    INTV_APIC_TIMER);
+}
+
+static
+void Ke2PortWriteByte(uint16_t portNo, uint8_t data)
+{
+	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
+}
+
+void HalApicHandleInterrupt()
+{
+	// Send a scheduler IPI. TODO
+	Ke2PortWriteByte(0xe9, 'h');
+	Ke2PortWriteByte(0xe9, 'i');
+	Ke2PortWriteByte(0xe9, '\n');
+}

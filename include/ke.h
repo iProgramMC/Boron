@@ -21,21 +21,6 @@
 // === SMP ===
 NO_RETURN void KeInitSMP(void);
 
-struct KDPC_tag;
-
-// === Deferred procedure calls ===
-// TODO
-typedef void(*KDeferredProcedure)(struct KDPC_tag*, void* pContext, void* pSysArg1, void* pSysArg2);
-
-typedef struct KDPC_tag
-{
-	KDeferredProcedure m_deferredProcedure;
-	void*              m_pDeferredContext;
-	void*              m_pSystemArgument1;
-	void*              m_pSystemArgument2;
-}
-KDeferredProcCall;
-
 // === Crashing ===
 NO_RETURN void KeCrash(const char* message, ...);
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);

@@ -194,6 +194,7 @@ NO_RETURN void KeInitSMP()
 		prcb->IsBootstrap = bIsBSP;
 		prcb->SmpInfo     = pInfo;
 		prcb->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
+		InitializeListHead(&prcb->DpcQueue.List);
 		
 		pInfo->extra_argument = (uint64_t)prcb;
 		

@@ -88,6 +88,29 @@ KREGISTERS* KiTrap0EHandler(KREGISTERS* Regs)
 	return Regs;
 }
 
+// DPC interrupt handler.
+KREGISTERS* KeHandleDpcIpi(KREGISTERS*);
+KREGISTERS* KiTrap40Handler(KREGISTERS* Regs)
+{
+	ENTER_INTERRUPT(IPL_DPC);
+	
+	KeHandleDpcIpi(Regs);
+	HalApicEoi();
+	
+	LEAVE_INTERRUPT;
+	return Regs;
+}
+
+// APIC timer interrupt.
+void HalApicHandleInterrupt();
+
+KREGISTERS* KiTrapF0Handler(KREGISTERS* Regs)
+{
+	HalApicHandleInterrupt();
+	HalApicEoi();
+	return Regs;
+}
+
 // TLB shootdown interrupt.
 KREGISTERS* KiTrapFDHandler(KREGISTERS* Regs)
 {

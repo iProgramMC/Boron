@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ha/crash.c
+	ke/prcb.h
 	
 Abstract:
 	This module contains the structure definitions for
@@ -20,6 +20,8 @@ Author:
 #include "thread.h"
 
 #include <hal/data.h>
+
+#include <ke/dpc.h>
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
@@ -55,6 +57,9 @@ typedef struct KPRCB_tag
 	
 	// architecture specific details
 	KARCH_DATA ArchData;
+	
+	// DPC queue
+	KDPC_QUEUE DpcQueue;
 	
 	// Scheduler for the processor
 	KSCHEDULER Scheduler;

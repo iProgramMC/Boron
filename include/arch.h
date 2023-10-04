@@ -14,12 +14,12 @@ typedef struct KREGISTERS_tag KREGISTERS; // List of registers.
 // but exist everywhere
 void KeWaitForNextInterrupt(void);
 void KeInvalidatePage(void* page);
-void KeSetInterruptsEnabled(bool b);      // no tracking of previous state currently. This does the relevant instruction
 void KeSpinningHint(void);
 void KeSetCPUPointer(void* pGS);
 void*KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);
 void KeSetCurrentPageTable(uintptr_t pt);
+void KeSetInterruptsEnabled(bool b);
 
 // CPU initialization function
 void KeInitCPU(); // initializes the current CPU

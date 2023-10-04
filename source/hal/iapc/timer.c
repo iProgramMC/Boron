@@ -33,13 +33,12 @@ Author:
 ***/
 uint64_t HalGetTicksPerSecond()
 {
-	// @TODO
-	return 0;
+	return KeGetCurrentHalCB()->LapicFrequency;
 }
 
 /***
 	Function description:
-		Returns the number of system timer ticks that have
+		Returns the number of milliseconds that have
 		passed since system initialization.
 	
 	Return value:
@@ -93,8 +92,8 @@ void HalInitSystemTimer()
 ***/
 bool HalUseOneShotTimer()
 {
-	// @TODO
-	return false;
+	// The APIC timer is supposed to be available on the IA-PC 64 platform.
+	return true;
 }
 
 /***
@@ -116,7 +115,7 @@ void HalRequestInterruptInTicks(uint64_t ticks)
 		KeCrash("Hey, you can't use HalRequestInterruptInTicks");
 #endif
 	
-	// @TODO
+	HalApicSetIrqIn(ticks);
 	
 	return;
 }

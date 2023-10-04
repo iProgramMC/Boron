@@ -27,6 +27,14 @@ void KeSetInterruptsEnabled(bool b)
 		ASM("cli":::"memory");
 }
 
+static UNUSED uint64_t KepGetRflags()
+{
+	uint64_t rflags = 0;
+	ASM("pushfq\n"
+	    "popq %0":"=r"(rflags));
+	return rflags;
+}
+
 void KeSpinningHint()
 {
 	ASM("pause":::"memory");
@@ -137,7 +145,7 @@ void KeInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	LogMsg("Map for CPU %u is %x", KeGetCurrentPRCB()->LapicId, Map);
+	LogMsg("Map for CPU %u is %x.   RFLAGS = %x", KeGetCurrentPRCB()->LapicId, Map, KepGetRflags());
 	
 	KeSetCurrentPageTable(Map);
 	

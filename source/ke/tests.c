@@ -152,11 +152,35 @@ void KiPerformExPoolTest()
 	ExFreePool(Handle);
 }
 
+static void KepDpcTest(UNUSED PKDPC Dpc, void* Context, void* SystemArgument1, void* SystemArgument2)
+{
+	LogMsg("KepDpcTest!  Context = %p, SysArg1 = %p, SysArg2 = %p", Context, SystemArgument1, SystemArgument2);
+}
+
+void KiPerformDpcTest()
+{
+	static KDPC Dpc;
+	
+	// Test will only run on the bootstrap processor.
+	if (!KeGetCurrentPRCB()->IsBootstrap)
+		return;
+	
+	// Initialize the DPC with some testing values.
+	KeInitializeDpc(&Dpc, KepDpcTest, (void*) 0x0123456789ABCDEF);
+	
+	// Set it as important because we don't have automatic dispatch yet.
+	KeSetImportantDpc(&Dpc, true);
+	
+	// Enqueue!
+	KeEnqueueDpc(&Dpc, (void*) 0xAEAEAEAEEAEAEAEA, (void*) 0x9879876546543210);
+}
+
 void KiPerformTests()
 {
 	KiPerformSlabAllocTest();
 	KiPerformPoolAllocTest();
 	KiPerformExPoolTest();
 	//KiPerformPageMapTest();
+	KiPerformDpcTest();
 	LogMsg("CPU %d finished all tests", KeGetCurrentPRCB()->LapicId);
 }

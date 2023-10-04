@@ -21,7 +21,7 @@ void InitializeListHead(PLIST_ENTRY ListHead)
 
 void InsertHeadList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
 {
-	Entry->Flink =  ListHead->Flink;
+	Entry->Flink = ListHead->Flink;
 	Entry->Blink = ListHead;
 	ListHead->Flink->Blink = Entry;
 	ListHead->Flink = Entry;
@@ -29,7 +29,7 @@ void InsertHeadList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
 
 void InsertTailList(PLIST_ENTRY ListHead, PLIST_ENTRY Entry)
 {
-	Entry->Blink =  ListHead->Blink;
+	Entry->Blink = ListHead->Blink;
 	Entry->Flink = ListHead;
 	ListHead->Blink->Flink = Entry;
 	ListHead->Blink = Entry;
