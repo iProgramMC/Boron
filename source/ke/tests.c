@@ -175,6 +175,20 @@ void KiPerformDpcTest()
 	KeEnqueueDpc(&Dpc, (void*) 0xAEAEAEAEEAEAEAEA, (void*) 0x9879876546543210);
 }
 
+void KiPerformDelayedIntTest()
+{
+	// Delay it by one second.
+	uint64_t Ticks = 1 * HalGetItTicksPerSecond();
+	
+	if (!HalUseOneShotTimer())
+	{
+		LogMsg("Sorry, one shot timer isn't actually supported");
+		return;
+	}
+	
+	HalRequestInterruptInTicks(Ticks);
+}
+
 void KiPerformTests()
 {
 	KiPerformSlabAllocTest();
@@ -182,5 +196,6 @@ void KiPerformTests()
 	KiPerformExPoolTest();
 	//KiPerformPageMapTest();
 	KiPerformDpcTest();
+	KiPerformDelayedIntTest();
 	LogMsg("CPU %d finished all tests", KeGetCurrentPRCB()->LapicId);
 }

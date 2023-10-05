@@ -15,6 +15,7 @@ Author:
 #include <hal.h>
 #include <ke.h>
 #include "apic.h"
+#include "tsc.h"
 
 /***
 	Function description:
@@ -33,7 +34,7 @@ Author:
 ***/
 uint64_t HalGetTicksPerSecond()
 {
-	return KeGetCurrentHalCB()->LapicFrequency;
+	return KeGetCurrentHalCB()->TscFrequency;
 }
 
 /***
@@ -54,28 +55,7 @@ uint64_t HalGetTicksPerSecond()
 ***/
 uint64_t HalGetTickCount()
 {
-	// @TODO
-	return 0;
-}
-
-/***
-	Function description:
-		Initializes the generic system timer.
-		On AMD64, this is implemented using the APIC, and calibrated
-		using the following:
-		* The CPUID base frequency leaf (most accurate)
-		* The HPET (great accuracy)
-		* The PIT  (worst accuracy)
-	
-	Parameters:
-		None.
-	
-	Return value:
-		None.
-***/
-void HalInitSystemTimer()
-{
-	
+	return HalReadTsc();
 }
 
 /***
@@ -98,8 +78,26 @@ bool HalUseOneShotTimer()
 
 /***
 	Function description:
+		Obtains the frequency of the system interrupt timer.
+	
+	Parameters:
+		None.
+	
+	Return value:
+		The frequency of the generic system interrupt timer.
+		
+	Notes:
+		This can vary from CPU to CPU.
+***/
+uint64_t HalGetItTicksPerSecond()
+{
+	return KeGetCurrentHalCB()->LapicFrequency;
+}
+
+/***
+	Function description:
 		Requests an interrupt from the generic system timer, in the
-		specified number of ticks. Only call if HalUseOneShotTimer
+		specified number of IT ticks. Only call if HalUseOneShotTimer
 		returns true. Otherwise, behavior is undefined.
 	
 	Parameters:
@@ -122,7 +120,7 @@ void HalRequestInterruptInTicks(uint64_t ticks)
 
 /***
 	Function description:
-		Returns the delta time between interrupts in ticks.
+		Returns the delta time between interrupts in IT ticks.
 		Do not use if HalUseOneShotTimer() returns true.
 	
 	Parameters:

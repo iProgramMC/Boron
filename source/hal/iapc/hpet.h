@@ -61,6 +61,8 @@ void HpetInitialize();
 
 bool HpetIsAvailable();
 
+uint64_t HpetReadValue();
+
 uint64_t HpetGetFrequency();
 
 #endif//BORON_HAL_HPET_H

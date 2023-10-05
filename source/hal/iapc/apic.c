@@ -423,7 +423,13 @@ void Ke2PortWriteByte(uint16_t portNo, uint8_t data)
 void HalApicHandleInterrupt()
 {
 	// Send a scheduler IPI. TODO
-	Ke2PortWriteByte(0xe9, 'h');
-	Ke2PortWriteByte(0xe9, 'i');
-	Ke2PortWriteByte(0xe9, '\n');
+	uint64_t TickCountAccordingToTsc  = HalGetTickCount() / (HalGetTicksPerSecond() / 1000);
+	uint64_t TickCountAccordingToHpet = HpetReadValue()   / (HpetGetFrequency() / 1000);
+	
+	SLogMsg("MS Elapsed according to TSC/HPET:  %16lld  %16lld",
+	        TickCountAccordingToTsc,
+	        TickCountAccordingToHpet);
+	
+	// Request one again!
+	HalRequestInterruptInTicks(HalGetItTicksPerSecond());
 }

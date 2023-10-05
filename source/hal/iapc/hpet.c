@@ -88,3 +88,17 @@ void HpetInitialize()
 	
 	// Not sure why, but NanoShell64 tests for consistency.  We won't do that here.
 }
+
+uint64_t HpetReadValue()
+{
+	return HpetpRegisters->CounterValue;
+}
+
+uint64_t HpetGetFrequency()
+{
+	uint64_t Period = HpetGeneralCaps.CounterClockPeriod; // In femtoseconds
+	
+	uint64_t Frequency = 1000000000000000ULL / Period;
+	
+	return Frequency;
+}
