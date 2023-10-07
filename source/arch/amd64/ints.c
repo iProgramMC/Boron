@@ -106,7 +106,7 @@ void KiSetupIdt()
 	KiLoadInterruptVector(&KiIdt, 0x0E, KiTrap0E); // page faults
 	KiLoadInterruptVector(&KiIdt, 0x40, KiTrap40); // DPC IPI 
 	KiLoadInterruptVector(&KiIdt, 0xF0, KiTrapF0); // APIC timer interrupt
-	KiLoadInterruptVector(&KiIdt, 0xFE, KiTrapFE); // crash IPI
+	KiLoadInterruptVector(&KiIdt, 0xFD, KiTrapFD); // crash IPI
 	KiLoadInterruptVector(&KiIdt, 0xFE, KiTrapFE); // crash IPI
 	KiLoadInterruptVector(&KiIdt, 0xFF, KiTrapFF); // spurious interrupts
 }

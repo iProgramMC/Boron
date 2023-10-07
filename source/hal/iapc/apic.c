@@ -194,13 +194,15 @@ static uint64_t HalpGetElapsedApicTicks()
 	return ApicTicks;
 }
 
-// Rounds a frequency value to the nearest multiple of 10^7.
+// Rounds a frequency value to the nearest multiple of 10^6.
 static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 {
-	const uint64_t Multiple = 10000000;
+	return Frequency;
+	
+	const uint64_t Multiple = 1000000;
 	uint64_t T1 = Frequency / Multiple;
 	
-	// If T1 is zero, return the unmodified frequency since it's probably <10^7.
+	// If T1 is zero, return the unmodified frequency since it's probably <10^6.
 	if (!T1)
 		return Frequency;
 	
@@ -386,7 +388,7 @@ void HalCalibrateApic()
 		return;
 	}
 	
-	if (false && HalAcpiIsPmtAvailable())
+	if (HalAcpiIsPmtAvailable())
 	{
 		HalCalibrateApicUsingPmt();
 		KeReleaseSpinLock(&HalpApicCalibLock);
@@ -414,21 +416,29 @@ void HalApicSetIrqIn(uint64_t Ticks)
 	ApicWriteRegister(APIC_REG_LVT_TIMER,    INTV_APIC_TIMER);
 }
 
-static
-void Ke2PortWriteByte(uint16_t portNo, uint8_t data)
-{
-	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
-}
-
 void HalApicHandleInterrupt()
 {
-	// Send a scheduler IPI. TODO
-	uint64_t TickCountAccordingToTsc  = HalGetTickCount() / (HalGetTicksPerSecond() / 1000);
-	uint64_t TickCountAccordingToHpet = HpetReadValue()   / (HpetGetFrequency() / 1000);
+	if (!KeGetCurrentPRCB()->IsBootstrap)
+		return;
 	
-	SLogMsg("MS Elapsed according to TSC/HPET:  %16lld  %16lld",
-	        TickCountAccordingToTsc,
-	        TickCountAccordingToHpet);
+	static uint64_t LastTickTsc, LastTickHpet;
+	
+	// Send a scheduler IPI. TODO
+	uint64_t TickCountTsc  = HalGetTickCount() / (HalGetTicksPerSecond() / 1000);
+	uint64_t TickCountHpet = HpetReadValue()   / (HpetGetFrequency() / 1000);
+	
+	uint64_t DiffTsc  = TickCountTsc  - LastTickTsc;
+	uint64_t DiffHpet = TickCountHpet - LastTickHpet;
+	
+	LastTickTsc  = TickCountTsc;
+	LastTickHpet = TickCountHpet;
+	
+	LogMsg("MS Elapsed:  %16lld  %16lld.  Diff: %5lld %5lld  DiffDiff: %5lld",
+	        TickCountTsc,
+	        TickCountHpet,
+			DiffTsc,
+			DiffHpet,
+			DiffTsc - DiffHpet);
 	
 	// Request one again!
 	HalRequestInterruptInTicks(HalGetItTicksPerSecond());

@@ -20,13 +20,13 @@ Author:
 #include <stdarg.h>
 #include <stdbool.h>
 
-#include <rtl/list.h>
-
 #define PACKED        __attribute__((packed))
 #define NO_RETURN     __attribute__((noreturn))
 #define RETURNS_TWICE __attribute__((returns_twice))
 #define UNUSED        __attribute__((unused))
 #define ALWAYS_INLINE __attribute__((always_inline))
+
+#include <rtl/list.h>
 
 #define BIT(x) (1ULL << (x))
 

@@ -17,11 +17,11 @@ Author:
 
 #include <arch.h>
 #include <_limine.h>
-#include "thread.h"
 
 #include <hal/data.h>
 
 #include <ke/dpc.h>
+#include <ke/sched.h>
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 

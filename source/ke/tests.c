@@ -177,6 +177,8 @@ void KiPerformDpcTest()
 
 void KiPerformDelayedIntTest()
 {
+	LogMsg("KiPerformDelayedIntTest:  Sending off an interrupt in one second.  The printed times are for the TSC and HPET respectively.");
+	
 	// Delay it by one second.
 	uint64_t Ticks = 1 * HalGetItTicksPerSecond();
 	
