@@ -81,6 +81,9 @@ typedef uint64_t MMPTE, *PMMPTE;
 
 struct KREGISTERS_tag
 {
+	// Old IPL
+	uint64_t OldIpl;
+	
 	// Registers pushed by our entry code. Pushed in reverse order from how they're laid out.
 	uint16_t ds, es, fs, gs;
 	uint64_t cr2;

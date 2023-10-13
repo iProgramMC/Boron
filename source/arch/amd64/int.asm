@@ -3,6 +3,11 @@ bits 64
 
 %include "arch/amd64.inc"
 
+; int KiEnterHardwareInterrupt(int IntNo);
+extern KiEnterHardwareInterrupt
+; void KiExitHardwareInterrupt(int OldIpl);
+extern KiExitHardwareInterrupt
+
 ; To define the handler for an interrupt, you define a function with the prototype:
 ; CPUState*  KiTrap??Handler(CPUState*);
 ; This can return the CPU state provided verbatim, or it can return a completely different CPU state.
@@ -72,35 +77,40 @@ bits 64
 	pop  rax
 %endmacro
 
-%macro BASEINT 3
+%macro BASEINT 4
 extern Ki%3Handler
 global Ki%1
 Ki%1:
-	%ifidn %2, PUSH
+	%ifidn %2, PUSH     ; Push the current state of the processor
 	push qword 0
 	%endif
 	PUSHSTATE
+	mov  rdi, %4
+	call KiEnterHardwareInterrupt
+	push rax
 	mov  rdi, rsp
 	call Ki%3Handler
 	mov  rsp, rax
+	pop  rdi
+	call KiExitHardwareInterrupt
 	POPSTATE
-	add  rsp, 8   ; get rid of the error code
+	add  rsp, 8         ; get rid of the error code
 	iretq
 %endmacro
 
-%macro TRAP_ENTRY 2
-BASEINT Trap%1, %2, Trap%1
+%macro TRAP_ENTRY 3
+BASEINT Trap%1, %2, Trap%1, %3
 %endmacro
 
-BASEINT TrapUnknown, PUSH, TrapUnknown
-TRAP_ENTRY 08, DONTPUSH  ; double fault
-TRAP_ENTRY 0D, DONTPUSH  ; general protection fault
-TRAP_ENTRY 0E, DONTPUSH  ; page fault
-TRAP_ENTRY 40, PUSH      ; DPC IPI
-TRAP_ENTRY F0, PUSH      ; APIC timer interrupt
-TRAP_ENTRY FD, PUSH      ; TLB shootdown IPI
-TRAP_ENTRY FE, PUSH      ; crash IPI
-TRAP_ENTRY FF, PUSH      ; spurious interrupt
+BASEINT TrapUnknown, PUSH, TrapUnknown, 0xF
+TRAP_ENTRY 08, DONTPUSH, -1   ; double fault
+TRAP_ENTRY 0D, DONTPUSH, -1   ; general protection fault
+TRAP_ENTRY 0E, DONTPUSH, -1   ; page fault
+TRAP_ENTRY 40, PUSH    , 0x4  ; DPC IPI
+TRAP_ENTRY F0, PUSH    , 0xF  ; APIC timer interrupt
+TRAP_ENTRY FD, PUSH    , 0xF  ; TLB shootdown IPI
+TRAP_ENTRY FE, PUSH    , 0xF  ; crash IPI
+TRAP_ENTRY FF, PUSH    , 0xF  ; spurious interrupt
 
 ; Arguments:
 ; rdi - Register state as in KREGISTERS

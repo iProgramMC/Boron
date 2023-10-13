@@ -13,13 +13,24 @@ Author:
 	iProgramInCpp - 23 September 2023
 ***/
 #include <mm.h>
+#include <ke.h>
 
 // Returns: Whether the page fault was fixed or not
-bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
+int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
 #ifdef DEBUG2
 	SLogMsg("Handling page fault at PC=%p ADDR=%p MODE=%p", FaultPC, FaultAddress, FaultMode);
 #endif
+	
+	if (KeGetIPL() >= IPL_DPC)
+	{
+		// Page faults may only be taken at IPL_APC and lower, to prevent deadlocks
+		// and data corruption.
+		
+		// So we don't handle the page fault, just return immediately.
+		
+		return FAULT_HIGHIPL;
+	}
 	
 	// Check the fault reason.
 	if (FaultMode & MM_FAULT_PROTECTION)
@@ -32,7 +43,7 @@ bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Fau
 		
 		// TODO
 		
-		return false;
+		return FAULT_UNSUPPORTED;
 	}
 	else
 	{
@@ -42,7 +53,7 @@ bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Fau
 		// If we don't have a PTE here, that means that we didn't mess with anything around there,
 		// thus we should return..
 		if (!Pte)
-			return false;
+			return FAULT_UNMAPPED;
 		
 		// Is the PTE demand paged?
 		if (*Pte & MM_DPTE_DEMANDPAGED)
@@ -55,7 +66,7 @@ bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Fau
 				// Error: Out of memory! This is bad, but we can check if we can do anything to fix it.
 				// TODO
 				SLogMsg("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
-				return false;
+				return FAULT_OUTOFMEMORY;
 			}
 			
 			// Create a new, valid, PTE that will replace the current one.
@@ -67,10 +78,10 @@ bool MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Fau
 			*Pte = NewPte;
 			
 			// Fault was handled successfully.
-			return true;
+			return FAULT_HANDLED;
 		}
 		
 		// TODO
-		return false;
+		return FAULT_UNSUPPORTED;
 	}
 }

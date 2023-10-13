@@ -1,6 +1,7 @@
 // Boron64 - Interrupt management
 #include <arch.h>
 #include <string.h>
+#include <ke.h>
 
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
@@ -91,6 +92,37 @@ extern void KiTrapF0();
 extern void KiTrapFD();
 extern void KiTrapFE();
 extern void KiTrapFF();
+
+int KiEnterHardwareInterrupt(int NewIpl)
+{
+	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
+	
+	// grab old IPL
+	int OldIpl = (int) *IplPtr;
+	
+	// set new IPL, if not marked as "don't override"
+	if (NewIpl != -1)
+	{
+		*IplPtr = NewIpl; // specific to Amd64
+		
+		if (OldIpl > NewIpl)
+			// uh oh!
+			KeCrash("KiEnterHardwareInterrupt: Old IPL was higher than current IPL.");
+	}
+	
+	// now that we've setup the hardware interrupt stuff, enable interrupts.
+	// we couldn't have done that before because the CPU would think that we're
+	// in a low IPL thing meanwhile we're not..
+	KeSetInterruptsEnabled(true);
+	
+	return OldIpl;
+}
+
+void KiExitHardwareInterrupt(int OldIpl)
+{
+	KeSetInterruptsEnabled(false);
+	KeGetCurrentPRCB()->Ipl = OldIpl;
+}
 
 // Run on the BSP only.
 void KiSetupIdt()

@@ -5,14 +5,6 @@
 #include <hal.h>
 #include "../../hal/iapc/apic.h"
 
-#define ENTER_INTERRUPT(ipl)              \
-	KIPL __current_ipl = KeRaiseIPL(ipl); \
-	KeSetInterruptsEnabled(true);
-
-#define LEAVE_INTERRUPT                   \
-	KeSetInterruptsEnabled(false);        \
-	KeLowerIPL(__current_ipl);
-
 static UNUSED void KiDumpCPURegs(KREGISTERS* Regs)
 {
     LogMsg("cr2:    %llx", Regs->cr2);
@@ -47,44 +39,28 @@ static UNUSED void KiDumpCPURegs(KREGISTERS* Regs)
 // Used in case an interrupt is not implemented
 KREGISTERS* KiTrapUnknownHandler(KREGISTERS* Regs)
 {
-	ENTER_INTERRUPT(IPL_NOINTS);
-	
 	KeOnUnknownInterrupt(Regs->rip);
-	
-	LEAVE_INTERRUPT;
 	return Regs;
 }
 
 // Double fault handler.
 KREGISTERS* KiTrap08Handler(KREGISTERS* Regs)
 {
-	ENTER_INTERRUPT(IPL_NOINTS);
-	
 	KeOnDoubleFault(Regs->rip);
-	
-	LEAVE_INTERRUPT;
 	return Regs;
 }
 
 // General protection fault handler.
 KREGISTERS* KiTrap0DHandler(KREGISTERS* Regs)
 {
-	ENTER_INTERRUPT(IPL_NOINTS);
-	
 	KeOnProtectionFault(Regs->rip);
-	
-	LEAVE_INTERRUPT;
 	return Regs;
 }
 
 // Page fault handler.
 KREGISTERS* KiTrap0EHandler(KREGISTERS* Regs)
 {
-	ENTER_INTERRUPT(IPL_DPC);
-	
 	KeOnPageFault(Regs->rip, Regs->cr2, Regs->error_code);
-	
-	LEAVE_INTERRUPT;
 	return Regs;
 }
 
@@ -92,12 +68,8 @@ KREGISTERS* KiTrap0EHandler(KREGISTERS* Regs)
 KREGISTERS* KeHandleDpcIpi(KREGISTERS*);
 KREGISTERS* KiTrap40Handler(KREGISTERS* Regs)
 {
-	ENTER_INTERRUPT(IPL_DPC);
-	
 	KeHandleDpcIpi(Regs);
 	HalApicEoi();
-	
-	LEAVE_INTERRUPT;
 	return Regs;
 }
 
@@ -135,10 +107,10 @@ KREGISTERS* KiTrapFDHandler(KREGISTERS* Regs)
 void HalpOnCrashedCPU();
 KREGISTERS* KiTrapFEHandler(KREGISTERS* Regs)
 {
-	// We have received an interrupt from the processor that has crashed. We should crash too!
+	KeSetInterruptsEnabled(false);
 	
-	// we have no plans to return from the interrupt, so ignore the return value of KeRaiseIPL.
-	KeRaiseIPL(IPL_NOINTS);
+	// We have received an interrupt from the processor that has crashed. We should crash too!
+	// Interrupts are disabled at this point
 	
 	// notify the crash handler that we've stopped
 	HalpOnCrashedCPU();

@@ -88,6 +88,9 @@ void KiPerformSlabAllocTest()
 
 void KiPerformPageMapTest()
 {
+	// Uncomment if you want it to fail, because page faults can't be taken at IPL_DPC.
+	//KIPL OldIpl = KeRaiseIPL(IPL_DPC);
+	
 	HPAGEMAP pm = KeGetCurrentPageTable();
 	
 	if (MmMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR, true))
@@ -102,14 +105,15 @@ void KiPerformPageMapTest()
 		MmUnmapPages (pm, 0x5ADFDEADD000, 1);
 		
 		// Try again!  We should get a page fault if we did everything correctly.
-		*((uintptr_t*)0x5adfdeadbeef) = 420;
-		
-		LogMsg("[CPU %u] Read back from there: %p", KeGetCurrentPRCB()->LapicId, *((uintptr_t*)0x5adfdeadbeef));
+		//*((uintptr_t*)0x5adfdeadbeef) = 420;
+		//LogMsg("[CPU %u] Read back from there: %p", KeGetCurrentPRCB()->LapicId, *((uintptr_t*)0x5adfdeadbeef));
 	}
 	else
 	{
 		LogMsg("Error, failed to map to %p", 0x5ADFDEADB000);
 	}
+	
+	//KeLowerIPL(OldIpl);
 }
 
 void KiPerformPoolAllocTest()
@@ -196,8 +200,8 @@ void KiPerformTests()
 	KiPerformSlabAllocTest();
 	KiPerformPoolAllocTest();
 	KiPerformExPoolTest();
-	//KiPerformPageMapTest();
 	KiPerformDpcTest();
 	KiPerformDelayedIntTest();
+	KiPerformPageMapTest();
 	LogMsg("CPU %d finished all tests", KeGetCurrentPRCB()->LapicId);
 }

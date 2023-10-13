@@ -24,43 +24,6 @@ KPRCB**  KeProcessorList;
 int      KeProcessorCount = 0;
 uint32_t KeBootstrapLapicId = 0;
 
-// TODO: Allow grabbing the interrupt code. For simplicity that isn't done
-void KeOnUnknownInterrupt(uintptr_t FaultPC)
-{
-	LogMsg("Unknown interrupt at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
-	
-	// TODO: crash properly
-	KeStopCurrentCPU();
-}
-
-void KeOnDoubleFault(uintptr_t FaultPC)
-{
-	LogMsg("Double fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
-	
-	// TODO: crash properly
-	KeStopCurrentCPU();
-}
-
-void KeOnProtectionFault(uintptr_t FaultPC)
-{
-	LogMsg("General Protection Fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
-	
-	// TODO: crash properly
-	KeStopCurrentCPU();
-}
-
-void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
-{
-#ifdef DEBUG2
-	SLogMsg("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
-#endif
-	
-	if (MmPageFault(FaultPC, FaultAddress, FaultMode))
-		return;
-	
-	KeCrash("unhandled fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
-}
-
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI

@@ -197,9 +197,7 @@ static uint64_t HalpGetElapsedApicTicks()
 // Rounds a frequency value to the nearest multiple of 10^6.
 static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 {
-	return Frequency;
-	
-	const uint64_t Multiple = 1000000;
+	const uint64_t Multiple = 10000000;
 	uint64_t T1 = Frequency / Multiple;
 	
 	// If T1 is zero, return the unmodified frequency since it's probably <10^6.
