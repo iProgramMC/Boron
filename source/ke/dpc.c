@@ -15,10 +15,22 @@ Author:
 #include <ke.h>
 #include <arch.h>
 #include <hal.h>
+#include "ki.h"
 
-KREGISTERS* KeHandleDpcIpi(KREGISTERS* Regs)
+KREGISTERS* KiHandleSoftIpi(KREGISTERS* Regs)
 {
-	KiDispatchDpcs();
+	int Flags = KeGetPendingEvents();
+	KeClearPendingEvents();
+	
+	if (Flags & PENDING_DPCS)
+		KiDispatchDpcs();
+	
+	if (Flags & PENDING_QUANTUM_END)
+		KiEndThreadQuantum();
+	
+	if (KiNeedToSwitchThread())
+		KiSwitchToNextThread();
+	
 	return Regs;
 }
 
@@ -35,6 +47,21 @@ void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)
 	Dpc->DeferredContext = Context;
 	
 	Dpc->Initialized = true;
+}
+
+int KeGetPendingEvents()
+{
+	return KeGetCurrentPRCB()->PendingEvents;
+}
+
+void KeClearPendingEvents()
+{
+	KeGetCurrentPRCB()->PendingEvents = 0;
+}
+
+void KeSetPendingEvent(int PendingEvent)
+{
+	KeGetCurrentPRCB()->PendingEvents |= PendingEvent;
 }
 
 // IPL: Any.
@@ -55,13 +82,13 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	
 	PKDPC_QUEUE Queue = &KeGetCurrentPRCB()->DpcQueue;
 	
-	bool IsImportant = false;
+	//bool IsImportant = false;
 	
 	// Raise IRQL to prevent interrupts from using the incompletely
 	// manipulated DPC queue.
 	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
 	
-	IsImportant = Dpc->Important;
+	//IsImportant = Dpc->Important;
 	
 	// Append the element into the queue.
 	if (Dpc->Important)
@@ -69,16 +96,10 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	else
 		InsertTailList(&Queue->List, &Dpc->List);
 	
+	KeSetPendingEvent(PENDING_DPCS);
+	
 	// Restore interrupts.
 	KeLowerIPL(OldIpl);
-	
-	// If the DPC is important, send a self interrupt to dispatch
-	// the DPCs right away! Otherwise, they can wait until the next
-	// interrupt.
-	if (IsImportant)
-	{
-		HalSendSelfIpi();
-	}
 }
 
 // Dispatches all of the DPCs in a loop.
@@ -86,11 +107,12 @@ void KiDispatchDpcs()
 {
 	// Test if we're at DPC level. We'd better be, otherwise,
 	// it's a violation of IPL stacking principles.
-	KIPL OldIpl = KeRaiseIPL(IPL_DPC);
+	KIPL CurrentIpl = KeGetIPL();
+	if (CurrentIpl != IPL_DPC)
+		KeCrash("KiDispatchDpcs: Current IPL is not IPL_DPC");
 	
-	// Raise the IPL to NOINTS level. We'll lower it down to DPC
-	// level during the DPC handlers.
-	KeRaiseIPL(IPL_NOINTS);
+	// Disable interrupts while we are working with the queue.
+	KeSetInterruptsEnabled(false);
 	
 	PKDPC_QUEUE Queue = &KeGetCurrentPRCB()->DpcQueue;
 	while (!IsListEmpty(&Queue->List))
@@ -103,7 +125,7 @@ void KiDispatchDpcs()
 		PKDPC Dpc = CONTAINING_RECORD(Entry, KDPC, List);
 		Dpc->Enqueued = false;
 		
-		KeLowerIPL(IPL_DPC);
+		KeSetInterruptsEnabled(true);
 		
 		Dpc->Routine(Dpc,
 		             Dpc->DeferredContext,
@@ -114,10 +136,7 @@ void KiDispatchDpcs()
 		// I know this is redundant, but better safe than sorry.
 		Dpc = NULL;
 		
-		// Raise the IPL back to noints level to process the list again.
-		KeRaiseIPL(IPL_NOINTS);
+		// Disable interrupts again to process the list.
+		KeSetInterruptsEnabled(false);
 	}
-	
-	// Lower the IPL back to whatever it was before we raised the IPL to DPC level.
-	KeLowerIPL(OldIpl);
 }

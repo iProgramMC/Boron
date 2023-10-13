@@ -25,4 +25,12 @@ EXMEMORY_HANDLE KiAllocateDefaultStack();
 
 void KiSetupRegistersThread(PKTHREAD Thread); // Defined in arch
 
+void KiEndThreadQuantum();
+
+bool KiNeedToSwitchThread();
+
+void KiSwitchToNextThread();
+
+PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
+
 #endif//BORON_KE_KI_H

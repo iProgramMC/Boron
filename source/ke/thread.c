@@ -14,3 +14,18 @@ Author:
 ***/
 #include "ki.h"
 
+void KiEndThreadQuantum()
+{
+	// TODO
+}
+
+bool KiNeedToSwitchThread()
+{
+	// TODO
+	return false;
+}
+
+void KiSwitchToNextThread()
+{
+	// TODO
+}

@@ -26,6 +26,13 @@ Author:
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
+enum
+{
+	PENDING_QUANTUM_END = (1 << 0),
+	PENDING_APCS = (1 << 1),
+	PENDING_DPCS = (1 << 2),
+};
+
 typedef struct KPRCB_tag
 {
 	// the index of the processor within the KeProcessorList
@@ -62,6 +69,9 @@ typedef struct KPRCB_tag
 	// DPC queue
 	KDPC_QUEUE DpcQueue;
 	
+	// Pending event flags
+	int PendingEvents;
+	
 	// Dispatcher for the current processor.
 	//KDISPATCHER Dispatcher;
 	
@@ -70,6 +80,12 @@ typedef struct KPRCB_tag
 KPRCB;
 
 KPRCB* KeGetCurrentPRCB();
+
+int KeGetPendingEvents();
+
+void KeClearPendingEvents();
+
+void KeSetPendingEvent(int PendingEvent);
 
 static_assert(sizeof(KPRCB) <= 4096, "struct KPRCB should be smaller or equal to the page size, for objective reasons");
 

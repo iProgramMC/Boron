@@ -1,11 +1,11 @@
 // Boron64 - Interrupt handlers
+#include "../../ke/ki.h"
 #include <arch.h>
 #include <except.h>
-#include <ke.h>
 #include <hal.h>
 #include "../../hal/iapc/apic.h"
 
-static UNUSED void KiDumpCPURegs(KREGISTERS* Regs)
+static UNUSED void KiDumpCPURegs(PKREGISTERS Regs)
 {
     LogMsg("cr2:    %llx", Regs->cr2);
     LogMsg("rip:    %llx", Regs->rip);
@@ -37,38 +37,37 @@ static UNUSED void KiDumpCPURegs(KREGISTERS* Regs)
 
 // Generic interrupt handler.
 // Used in case an interrupt is not implemented
-KREGISTERS* KiTrapUnknownHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
 {
 	KeOnUnknownInterrupt(Regs->rip);
 	return Regs;
 }
 
 // Double fault handler.
-KREGISTERS* KiTrap08Handler(KREGISTERS* Regs)
+PKREGISTERS KiTrap08Handler(PKREGISTERS Regs)
 {
 	KeOnDoubleFault(Regs->rip);
 	return Regs;
 }
 
 // General protection fault handler.
-KREGISTERS* KiTrap0DHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrap0DHandler(PKREGISTERS Regs)
 {
 	KeOnProtectionFault(Regs->rip);
 	return Regs;
 }
 
 // Page fault handler.
-KREGISTERS* KiTrap0EHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrap0EHandler(PKREGISTERS Regs)
 {
 	KeOnPageFault(Regs->rip, Regs->cr2, Regs->error_code);
 	return Regs;
 }
 
 // DPC interrupt handler.
-KREGISTERS* KeHandleDpcIpi(KREGISTERS*);
-KREGISTERS* KiTrap40Handler(KREGISTERS* Regs)
+PKREGISTERS KiTrap40Handler(PKREGISTERS Regs)
 {
-	KeHandleDpcIpi(Regs);
+	KiHandleSoftIpi(Regs);
 	HalApicEoi();
 	return Regs;
 }
@@ -76,7 +75,7 @@ KREGISTERS* KiTrap40Handler(KREGISTERS* Regs)
 // APIC timer interrupt.
 void HalApicHandleInterrupt();
 
-KREGISTERS* KiTrapF0Handler(KREGISTERS* Regs)
+PKREGISTERS KiTrapF0Handler(PKREGISTERS Regs)
 {
 	HalApicHandleInterrupt();
 	HalApicEoi();
@@ -84,7 +83,7 @@ KREGISTERS* KiTrapF0Handler(KREGISTERS* Regs)
 }
 
 // TLB shootdown interrupt.
-KREGISTERS* KiTrapFDHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrapFDHandler(PKREGISTERS Regs)
 {
 	KPRCB* myCPU = KeGetCurrentPRCB();
 	
@@ -105,7 +104,7 @@ KREGISTERS* KiTrapFDHandler(KREGISTERS* Regs)
 
 // Crash IPI (inter processor interrupt).
 void HalpOnCrashedCPU();
-KREGISTERS* KiTrapFEHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrapFEHandler(PKREGISTERS Regs)
 {
 	KeSetInterruptsEnabled(false);
 	
@@ -122,7 +121,7 @@ KREGISTERS* KiTrapFEHandler(KREGISTERS* Regs)
 }
 
 // Spurious interrupt.
-KREGISTERS* KiTrapFFHandler(KREGISTERS* Regs)
+PKREGISTERS KiTrapFFHandler(PKREGISTERS Regs)
 {
 	HalApicEoi();
 	return Regs;

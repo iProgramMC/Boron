@@ -37,6 +37,10 @@ KIPL KeGetIPL()
 	return me->Ipl;
 }
 
+// Note! KeRaiseIPL and KeLowerIPL must only be called to manage IPLs on the software side.
+// The hardware interrupts modify the IPL by using KeEnterHardwareInterrupt and
+// KeExitHardwareInterrupt.
+
 KIPL KeRaiseIPLIfNeeded(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
@@ -61,11 +65,7 @@ KIPL KeRaiseIPLIfNeeded(KIPL newIPL)
 KIPL KeRaiseIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
-	
-	// @TODO: Get rid of these checks and ensure that IPL modification functions
-	// are not called before SMP init.
-	if (!me)
-		return 0;
+	if (!me) return 0;
 		
 	KIPL oldIPL = me->Ipl;
 	//SLogMsg("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
@@ -80,6 +80,7 @@ KIPL KeRaiseIPL(KIPL newIPL)
 	
 	// Set the current IPL
 	me->Ipl = newIPL;
+	
 	return oldIPL;
 }
 
@@ -87,11 +88,7 @@ KIPL KeRaiseIPL(KIPL newIPL)
 KIPL KeLowerIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
-	
-	// @TODO: Get rid of these checks and ensure that IPL modification functions
-	// are not called before SMP init.
-	if (!me)
-		return 0;
+	if (!me) return 0;
 	
 	KIPL oldIPL = me->Ipl;
 	//SLogMsg("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
@@ -107,8 +104,11 @@ KIPL KeLowerIPL(KIPL newIPL)
 	
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
-	// TODO (updated): Issue a self-IPI to call DPCs.
-	// TODO: call DPCs
+	// If we fell below DPC level, check if we have any pending events and issue a self IPI.
+	if (newIPL < IPL_DPC)
+	{
+		HalSendSelfIpi();
+	}
 	
 	return oldIPL;
 }
