@@ -25,7 +25,9 @@ KSPIN_LOCK HalTLBSLock;
 
 void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 {
-	KeAcquireSpinLock(&HalTLBSLock);
+	KIPL OldIpl, UnusedIpl;
+	KIPL CurrentIpl = KeGetIPL();
+	KeAcquireSpinLock(&HalTLBSLock, &OldIpl);
 	
 	// Invalidate the pages on the local CPU
 	for (size_t i = 0; i < Length; i++)
@@ -36,7 +38,7 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 	// If we are the only processor, return
 	if (KeProcessorCount == 1)
 	{
-		KeReleaseSpinLock(&HalTLBSLock);
+		KeReleaseSpinLock(&HalTLBSLock, OldIpl);
 		return;
 	}
 	
@@ -45,7 +47,7 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 	for (int i = 0; i < KeProcessorCount; i++)
 	{
 		// lock the TLB shootdown lock for the first time
-		KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock);
+		KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock, &UnusedIpl);
 		
 		// write the address and length
 		KeProcessorList[i]->TlbsAddress = Address;
@@ -60,10 +62,10 @@ void HalIssueTLBShootDown(uintptr_t Address, size_t Length)
 	{
 		// lock the TLB shootdown lock for the first time
 		if (i != OwnId)
-			KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock);
+			KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock, &UnusedIpl);
 		
-		KeReleaseSpinLock(&KeProcessorList[i]->TlbsLock);
+		KeReleaseSpinLock(&KeProcessorList[i]->TlbsLock, CurrentIpl);
 	}
 	
-	KeReleaseSpinLock(&HalTLBSLock);
+	KeReleaseSpinLock(&HalTLBSLock, OldIpl);
 }

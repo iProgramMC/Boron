@@ -37,9 +37,36 @@ KIPL KeGetIPL()
 	return me->Ipl;
 }
 
+KIPL KeRaiseIPLIfNeeded(KIPL newIPL)
+{
+	KPRCB* me = KeGetCurrentPRCB();
+	
+	// @TODO: Get rid of these checks and ensure that IPL modification functions
+	// are not called before SMP init.
+	if (!me)
+		return 0;
+	
+	KIPL oldIPL = me->Ipl;
+	
+	if (newIPL > oldIPL)
+	{
+		KeOnUpdateIPL(newIPL, oldIPL);
+		
+		me->Ipl = newIPL;
+	}
+	
+	return oldIPL;
+}
+
 KIPL KeRaiseIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
+	
+	// @TODO: Get rid of these checks and ensure that IPL modification functions
+	// are not called before SMP init.
+	if (!me)
+		return 0;
+		
 	KIPL oldIPL = me->Ipl;
 	//SLogMsg("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
@@ -60,6 +87,12 @@ KIPL KeRaiseIPL(KIPL newIPL)
 KIPL KeLowerIPL(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
+	
+	// @TODO: Get rid of these checks and ensure that IPL modification functions
+	// are not called before SMP init.
+	if (!me)
+		return 0;
+	
 	KIPL oldIPL = me->Ipl;
 	//SLogMsg("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	

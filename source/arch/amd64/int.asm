@@ -101,3 +101,12 @@ TRAP_ENTRY F0, PUSH      ; APIC timer interrupt
 TRAP_ENTRY FD, PUSH      ; TLB shootdown IPI
 TRAP_ENTRY FE, PUSH      ; crash IPI
 TRAP_ENTRY FF, PUSH      ; spurious interrupt
+
+; Arguments:
+; rdi - Register state as in KREGISTERS
+global KeJumpContext
+KeJumpContext:
+	mov  rsp, rdi
+	POPSTATE
+	add  rsp, 8    ; the KREGISTERS struct contains a dummy error code which we don't use..
+	iretq

@@ -32,8 +32,9 @@ void HalpOnCrashedCPU()
 
 void HalCrashSystem(const char* message)
 {
+	KIPL Unused;
 	// lock the crash in so that no one else can crash but us
-	KeAcquireSpinLock(&HalpCrashLock);
+	KeAcquireSpinLock(&HalpCrashLock, &Unused);
 	AtClear(HalpCrashedProcessors);
 	AtAddFetch(HalpCrashedProcessors, 1);
 	

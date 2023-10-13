@@ -33,6 +33,9 @@ typedef uintptr_t EXMEMORY_HANDLE;
 // Obtain the address from a memory handle.
 void* ExGetAddressFromHandle(EXMEMORY_HANDLE);
 
+// Obtain the allocated size (in pages) from a memory handle.
+size_t ExGetSizeFromHandle(EXMEMORY_HANDLE Handle);
+
 // Reserve space in the kernel pool. Returns NULL if allocation failed.
 // Don't depend on OutputAddress not changing if allocation fails.
 EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputAddress, int Tag);

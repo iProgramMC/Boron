@@ -233,8 +233,6 @@ static void HalpCalibrateApicGeneric(
 	uint32_t Frequency
 )
 {
-	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
-	
 	uint64_t AverageApic = 0, AverageTsc = 0;
 	
 	for (uint32_t Run = 0; Run < Runs; Run++)
@@ -281,8 +279,6 @@ static void HalpCalibrateApicGeneric(
 	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
 	
 	LogMsg("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
-	
-	KeLowerIPL(OldIpl);
 }
 
 // ===== HPET =====
@@ -375,7 +371,8 @@ static KSPIN_LOCK HalpApicCalibLock;
 // Calibrating the APIC
 void HalCalibrateApic()
 {
-	KeAcquireSpinLock(&HalpApicCalibLock);
+	KIPL OldIpl;
+	KeAcquireSpinLock(&HalpApicCalibLock, &OldIpl);
 	
 	// Tell the APIC timer to use a divider of 2.
 	// See the Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Note that bit 2 is reserved.
@@ -384,19 +381,19 @@ void HalCalibrateApic()
 	if (false && HpetIsAvailable())
 	{
 		HalCalibrateApicUsingHpet();
-		KeReleaseSpinLock(&HalpApicCalibLock);
+		KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
 		return;
 	}
 	
 	if (HalAcpiIsPmtAvailable())
 	{
 		HalCalibrateApicUsingPmt();
-		KeReleaseSpinLock(&HalpApicCalibLock);
+		KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
 		return;
 	}
 	
 	HalCalibrateApicUsingPit();
-	KeReleaseSpinLock(&HalpApicCalibLock);
+	KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
 	
 	// if the TSC increases at more than 5 GHz
 	if (KeGetCurrentHalCB()->TscFrequency >= 5000000000)

@@ -8,7 +8,7 @@
 #include <arch/amd64.h>
 #endif
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
-typedef struct KREGISTERS_tag KREGISTERS; // List of registers.
+typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 
 // Functions that do different things based on architecture,
 // but exist everywhere
@@ -29,5 +29,8 @@ void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
 // Architecture specific data
 KARCH_DATA* KeGetData();
+
+// ==== Execution Control ====
+NO_RETURN void KeJumpContext(PKREGISTERS Registers);
 
 #endif//NS64_ARCH_H

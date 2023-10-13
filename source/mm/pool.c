@@ -86,7 +86,8 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 
 MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
-	KeAcquireTicketLock(&MmpPoolLock);
+	KIPL OldIpl;
+	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	*OutputAddress = NULL;
@@ -107,7 +108,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 		if (Current->Size >= SizeInPages)
 		{
 			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag, UserData);
-			KeReleaseTicketLock(&MmpPoolLock);
+			KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 			return Handle;
 		}
 		
@@ -119,7 +120,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 #endif
 	
 	*OutputAddress = NULL;
-	KeReleaseTicketLock(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 	return (MIPOOL_SPACE_HANDLE) NULL;
 }
 
@@ -145,7 +146,8 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 
 void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 {
-	KeAcquireTicketLock(&MmpPoolLock);
+	KIPL OldIpl;
+	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
 	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
@@ -161,13 +163,14 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	MmpTryConnectEntryWithItsFlink(Entry);
 	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
-	KeReleaseTicketLock(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 }
 
 void MiDumpPoolInfo()
 {
 #ifdef DEBUG
-	KeAcquireTicketLock(&MmpPoolLock);
+	KIPL OldIpl;
+	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	SLogMsg("MiDumpPoolInfo:");
@@ -197,7 +200,7 @@ void MiDumpPoolInfo()
 	}
 	
 	SLogMsg("MiDumpPoolInfo done");
-	KeReleaseTicketLock(&MmpPoolLock);
+	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 #endif
 }
 

@@ -33,9 +33,10 @@ void LogMsg(const char* msg, ...)
 	va_end(va);
 	
 	// this one goes to the screen
-	KeAcquireSpinLock(&g_PrintLock);
+	KIPL OldIpl;
+	KeAcquireSpinLock(&g_PrintLock, &OldIpl);
 	HalPrintString(buffer);
-	KeReleaseSpinLock(&g_PrintLock);
+	KeReleaseSpinLock(&g_PrintLock, OldIpl);
 }
 
 void SLogMsg(const char* msg, ...)
@@ -50,10 +51,11 @@ void SLogMsg(const char* msg, ...)
 	
 	// This one goes to the debug log.
 #ifndef DEBUG2
-	KeAcquireSpinLock(&g_DebugPrintLock);
+	KIPL OldIpl;
+	KeAcquireSpinLock(&g_DebugPrintLock, &OldIpl);
 #endif
 	HalPrintStringDebug(buffer);
 #ifndef DEBUG2
-	KeReleaseSpinLock(&g_DebugPrintLock);
+	KeReleaseSpinLock(&g_DebugPrintLock, OldIpl);
 #endif
 }

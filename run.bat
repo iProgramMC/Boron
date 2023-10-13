@@ -7,7 +7,7 @@ set NSPath=%CD%
 cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
-qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
+qemu-system-x86_64.exe -no-reboot -no-shutdown -d int -D %nspath%\keep\log.txt ^
 -M q35                                          ^
 -m 64M                                          ^
 -smp 1                                          ^

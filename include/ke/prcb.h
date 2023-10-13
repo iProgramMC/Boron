@@ -20,8 +20,9 @@ Author:
 
 #include <hal/data.h>
 
+#include <ke/ipl.h>
 #include <ke/dpc.h>
-#include <ke/sched.h>
+#include <ke/dispatch.h>
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
@@ -61,8 +62,8 @@ typedef struct KPRCB_tag
 	// DPC queue
 	KDPC_QUEUE DpcQueue;
 	
-	// Scheduler for the processor
-	KSCHEDULER Scheduler;
+	// Dispatcher for the current processor.
+	//KDISPATCHER Dispatcher;
 	
 	HALCB_PTR HalData;
 }

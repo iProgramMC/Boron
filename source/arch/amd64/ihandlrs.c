@@ -125,7 +125,7 @@ KREGISTERS* KiTrapFDHandler(KREGISTERS* Regs)
 		KeInvalidatePage((void*)(myCPU->TlbsAddress + i * PAGE_SIZE));
 	}
 	
-	KeReleaseSpinLock(&myCPU->TlbsLock);
+	KeReleaseSpinLock(&myCPU->TlbsLock, IPL_NOINTS);
 	
 	HalApicEoi();
 	return Regs;

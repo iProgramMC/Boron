@@ -14,7 +14,15 @@ Author:
 #ifndef BORON_KE_KI_H
 #define BORON_KE_KI_H
 
+#include <ke.h>
+#include <string.h>
+
 // ===== Tests =====
 void KiPerformTests();
+
+// ===== Threading =====
+EXMEMORY_HANDLE KiAllocateDefaultStack();
+
+void KiSetupRegistersThread(PKTHREAD Thread); // Defined in arch
 
 #endif//BORON_KE_KI_H

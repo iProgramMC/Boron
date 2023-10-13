@@ -122,15 +122,11 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	
 	if (HalIsTerminalInitted())
 	{
-		KeAcquireSpinLock(&g_PrintLock);
 		HalPrintString("\x1B[35m*** Init error: \x1B[0m");
 		HalPrintString(buffer);
-		KeReleaseSpinLock(&g_PrintLock);
 		
-		KeAcquireSpinLock(&g_DebugPrintLock);
 		HalPrintStringDebug("\x1B[35m*** Init error: \x1B[0m");
 		HalPrintStringDebug(buffer);
-		KeReleaseSpinLock(&g_DebugPrintLock);
 	}
 	
 	if (pSMP)

@@ -21,17 +21,30 @@ Author:
 
 #define MAXIMUM_WAIT_OBJECTS (64)
 
+#define KERNEL_STACK_SIZE (8192) // Note: Must be a multiple of PAGE_SIZE.
+
+typedef NO_RETURN void(*PKSTART_ROUTINE)(void* Context);
+
 enum
 {
-	KTHREAD_STATUS_SUSPENDED,  // Thread is suspended. This could be because it's initializing.
-	KTHREAD_STATUS_RUNNING,    // Thread is active running.  This value should only be used on the current thread (KeGetCurrentThread()).
-	KTHREAD_STATUS_WAITING,    // Thread is currently waiting for one or more objects. The WaitType member tells us how the wait is processed.
+	KTHREAD_STATUS_UNINITIALIZED, // Thread was not initialized.
+	KTHREAD_STATUS_INITIALIZED,   // Thread was initialized, however, it has never run.
+	KTHREAD_STATUS_READY,         // Thread is ready to be scheduled in but is currently not running.
+	KTHREAD_STATUS_RUNNING,       // Thread is actively running.  This value should only be used on the current thread (KeGetCurrentThread()).
+	KTHREAD_STATUS_WAITING,       // Thread is currently waiting for one or more objects. The WaitType member tells us how the wait is processed.
+	KTHREAD_STATUS_TERMINATED,    // Thread was terminated and is awaiting cleanup.
 };
 
 enum
 {
 	KTHREAD_WAIT_ANY, // If any one of the wait objects is signalled, the entire thread is waken up
 	KTHREAD_WAIT_ALL, // The thread is only waken up if ALL the wait objects 
+};
+
+enum
+{
+	KTHREAD_YIELD_QUANTUM, // Yielded because quantum expired.
+	KTHREAD_YIELD_WAITING, // Yielded because thread is waiting on a dispatcher object.
 };
 
 enum
@@ -50,16 +63,32 @@ typedef struct KWAIT_BLOCK_tag
 }
 KWAIT_BLOCK, PKWAIT_BLOCK;
 
+typedef struct KTHREAD_STACK_tag
+{
+	void*  Top;
+	size_t Size;
+	EXMEMORY_HANDLE Handle;
+}
+KTHREAD_STACK, *PKTHREAD_STACK;
 
 typedef struct KTHREAD_tag
 {
-	LIST_ENTRY Entry;
+	LIST_ENTRY EntryGlobal;    // Entry into global thread list
+	LIST_ENTRY EntryList;      // Entry into CPU local scheduler's thread list
+	LIST_ENTRY EntryQueue;     // Entry into the CPU local dispatcher ready queue
+	LIST_ENTRY EntryProc;      // Entry into the parent process' list of threads
 	
 	int ThreadId;
 	
-	// Process Pointer
+	int Priority;
+	
+	// TODO Parent Process Pointer
 	
 	int Status;
+	
+	int YieldReason;
+	
+	KTHREAD_STACK Stack;
 	
 	KREGISTERS Registers;
 	
@@ -67,9 +96,32 @@ typedef struct KTHREAD_tag
 	
 	KWAIT_BLOCK WaitBlock[MAXIMUM_WAIT_OBJECTS];
 	
+	PKSTART_ROUTINE StartRoutine;
+	
+	void* StartContext;
 }
 KTHREAD, *PKTHREAD;
 
-PKTHREAD KeCreateThread();
+// Creates an empty, uninitialized, thread object.
+// TODO Use the object manager for this purpose and expose the thread object there.
+PKTHREAD KeCreateEmptyThread();
+
+// Set the start function of the thread.
+void KeSetStartFunctionThread(PKTHREAD Thread, PKSTART_ROUTINE StartRoutine, void* StartContext);
+
+// Initialize the default stacks.
+void KeInitializeStackDefault(PKTHREAD Thread);
+
+// Assign an executive memory handle as a stack for a thread.
+void KeSetStackThread(PKTHREAD Thread, EXMEMORY_HANDLE Memory);
+
+// Allocate a stack for a thread using the default method of
+// calling KiAllocateDefaultStack().
+void KeUseDefaultStackThread(PKTHREAD Thread);
+
+// Initializes the thread object. Must have called the setup functions
+// KeSetStackThread (by itself or through KeUseDefaultStackThread), and
+// KeSetStartFunctionThread.
+void KeInitializeThread(PKTHREAD Thread);
 
 #endif//BORON_KE_THREAD_H

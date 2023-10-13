@@ -15,6 +15,8 @@ Author:
 #ifndef BORON_KE_LOCKS_H
 #define BORON_KE_LOCKS_H
 
+#include <ke/ipl.h>
+
 // simple spin locks, for when contention is rare
 typedef struct
 {
@@ -23,9 +25,9 @@ typedef struct
 KSPIN_LOCK, *PKSPIN_LOCK;
 
 void KeInitializeSpinLock(PKSPIN_LOCK);
-void KeAcquireSpinLock(PKSPIN_LOCK);
-void KeReleaseSpinLock(PKSPIN_LOCK);
-bool KeAttemptAcquireSpinLock(PKSPIN_LOCK);
+void KeAcquireSpinLock(PKSPIN_LOCK, PKIPL OldIpl);
+void KeReleaseSpinLock(PKSPIN_LOCK, KIPL OldIpl);
+bool KeAttemptAcquireSpinLock(PKSPIN_LOCK, PKIPL OldIpl);
 
 // ticket locks, for when contention is definitely possible
 typedef struct
@@ -36,7 +38,7 @@ typedef struct
 KTICKET_LOCK, *PKTICKET_LOCK;
 
 void KeInitializeTicketLock(PKTICKET_LOCK);
-void KeAcquireTicketLock(PKTICKET_LOCK);
-void KeReleaseTicketLock(PKTICKET_LOCK);
+void KeAcquireTicketLock(PKTICKET_LOCK, PKIPL OldIpl);
+void KeReleaseTicketLock(PKTICKET_LOCK, KIPL OldIpl);
 
 #endif//BORON_KE_LOCKS_H
