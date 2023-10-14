@@ -67,9 +67,9 @@ PKREGISTERS KiTrap0EHandler(PKREGISTERS Regs)
 // DPC interrupt handler.
 PKREGISTERS KiTrap40Handler(PKREGISTERS Regs)
 {
-	KiHandleSoftIpi(Regs);
+	PKREGISTERS New = KiHandleSoftIpi(Regs);
 	HalApicEoi();
-	return Regs;
+	return New;
 }
 
 // APIC timer interrupt.

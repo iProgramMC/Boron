@@ -16,9 +16,8 @@ Author:
 #include <main.h>
 #include <hal.h>
 #include <mm.h>
-#include <ke.h>
-
-#include <cpuid.h>
+#include "ki.h"
+//#include <cpuid.h>
 
 // The entry point to our kernel.
 void KiSystemStartup(void)
@@ -31,6 +30,7 @@ void KiSystemStartup(void)
 	
 	MiInitPMM();
 	MmInitAllocators();
+	KeSchedulerInitUP();
 	
 	// phase 1 of HAL initialization on the BSP:
 	HalUPInit();

@@ -29,7 +29,7 @@ void KiEndThreadQuantum();
 
 bool KiNeedToSwitchThread();
 
-void KiSwitchToNextThread();
+PKREGISTERS KiSwitchToNextThread();
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
 

@@ -39,13 +39,16 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeLowerIPL(IPL_NORMAL);
 	
 	HalMPInit();
+	KeSchedulerInit();
 	
 	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
 	
-	KiPerformTests();
+	//KiPerformTests();
 	
-	while (true)
-		KeWaitForNextInterrupt();
+	//while (true)
+	//	KeWaitForNextInterrupt();
+	
+	KeSchedulerCommit();
 }
 
 KPRCB* KeGetCurrentPRCB()

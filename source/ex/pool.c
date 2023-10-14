@@ -27,6 +27,10 @@ size_t ExGetSizeFromHandle(EXMEMORY_HANDLE Handle)
 
 EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputAddress, int Tag)
 {
+	void* OutputAddressStorage = NULL;
+	if (!OutputAddress)
+		OutputAddress = &OutputAddressStorage;
+	
 	EXMEMORY_HANDLE OutHandle = (EXMEMORY_HANDLE) MiReservePoolSpaceTagged (SizeInPages, OutputAddress, Tag, PoolFlags);
 	
 	if (!OutHandle)

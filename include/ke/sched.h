@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ke/scheds.h
+	ke/sched.h
 	
 Abstract:
 	This header file contains the scheduler object and
@@ -41,6 +41,11 @@ typedef struct
 	LIST_ENTRY ExecQueue[PRIORITY_COUNT];
 	
 	PKTHREAD CurrentThread;
+	PKTHREAD NextThread;
+	
+	PKTHREAD IdleThread;
+	
+	EXMEMORY_HANDLE IdleThreadStack;
 }
 KSCHEDULER, *PKSCHEDULER;
 
@@ -48,11 +53,11 @@ PKSCHEDULER KeGetCurrentScheduler();
 
 PKTHREAD KeGetCurrentThread();
 
-void KeStartThread(PKTHREAD Thread);
+void KeSetPriorityThread(PKTHREAD Thread, int Priority);
 
 void KeSchedulerInitUP();
 
-void KiSchedulerInit();
+void KeSchedulerInit();
 
 NO_RETURN void KeSchedulerCommit();
 

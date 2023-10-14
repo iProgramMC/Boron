@@ -22,16 +22,9 @@ Author:
 
 #include <ke/ipl.h>
 #include <ke/dpc.h>
-#include <ke/dispatch.h>
+#include <ke/sched.h>
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
-
-enum
-{
-	PENDING_QUANTUM_END = (1 << 0),
-	PENDING_APCS = (1 << 1),
-	PENDING_DPCS = (1 << 2),
-};
 
 typedef struct KPRCB_tag
 {
@@ -72,20 +65,30 @@ typedef struct KPRCB_tag
 	// Pending event flags
 	int PendingEvents;
 	
-	// Dispatcher for the current processor.
-	//KDISPATCHER Dispatcher;
+	// Scheduler for the current processor.
+	KSCHEDULER Scheduler;
 	
+	// HAL Control Block - HAL specific data.
 	HALCB_PTR HalData;
 }
 KPRCB;
 
 KPRCB* KeGetCurrentPRCB();
 
+enum
+{
+	PENDING_QUANTUM_END = (1 << 0),
+	PENDING_APCS = (1 << 1),
+	PENDING_DPCS = (1 << 2),
+};
+
 int KeGetPendingEvents();
 
 void KeClearPendingEvents();
 
 void KeSetPendingEvent(int PendingEvent);
+
+void KeIssueSoftwareInterrupt();
 
 static_assert(sizeof(KPRCB) <= 4096, "struct KPRCB should be smaller or equal to the page size, for objective reasons");
 

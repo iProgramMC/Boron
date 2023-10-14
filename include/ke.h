@@ -18,6 +18,9 @@
 // === Atomics ===
 #include <ke/atomics.h>
 
+// === Statistics ===
+#include <ke/stats.h>
+
 // === SMP ===
 NO_RETURN void KeInitSMP(void);
 

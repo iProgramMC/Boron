@@ -20,6 +20,8 @@ Author:
 // Four character tag.
 #define EX_TAG(TagStr) (*((int*)TagStr))
 
+#define EX_NO_MEMORY_HANDLE ((EXMEMORY_HANDLE) 0)
+
 // ====== Big allocations ======
 // If the allocation is instant, i.e. you don't want to take page faults on the memory.
 // This is important for some uses.

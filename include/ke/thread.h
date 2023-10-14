@@ -23,7 +23,7 @@ Author:
 
 #define KERNEL_STACK_SIZE (8192) // Note: Must be a multiple of PAGE_SIZE.
 
-typedef NO_RETURN void(*PKSTART_ROUTINE)(void* Context);
+typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
 
 enum
 {
@@ -94,9 +94,9 @@ typedef struct KTHREAD_tag
 	
 	int WaitType;
 	
-	KWAIT_BLOCK WaitBlock[MAXIMUM_WAIT_OBJECTS];
+	//KWAIT_BLOCK WaitBlock[MAXIMUM_WAIT_OBJECTS];
 	
-	PKSTART_ROUTINE StartRoutine;
+	PKTHREAD_START StartRoutine;
 	
 	void* StartContext;
 }
@@ -106,22 +106,10 @@ KTHREAD, *PKTHREAD;
 // TODO Use the object manager for this purpose and expose the thread object there.
 PKTHREAD KeCreateEmptyThread();
 
-// Set the start function of the thread.
-void KeSetStartFunctionThread(PKTHREAD Thread, PKSTART_ROUTINE StartRoutine, void* StartContext);
+// Initializes the thread object.
+void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext);
 
-// Initialize the default stacks.
-void KeInitializeStackDefault(PKTHREAD Thread);
-
-// Assign an executive memory handle as a stack for a thread.
-void KeSetStackThread(PKTHREAD Thread, EXMEMORY_HANDLE Memory);
-
-// Allocate a stack for a thread using the default method of
-// calling KiAllocateDefaultStack().
-void KeUseDefaultStackThread(PKTHREAD Thread);
-
-// Initializes the thread object. Must have called the setup functions
-// KeSetStackThread (by itself or through KeUseDefaultStackThread), and
-// KeSetStartFunctionThread.
-void KeInitializeThread(PKTHREAD Thread);
+// Readies the thread object for execution.
+void KeReadyThread(PKTHREAD Thread);
 
 #endif//BORON_KE_THREAD_H

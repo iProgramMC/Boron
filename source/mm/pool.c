@@ -54,7 +54,8 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 		PoolEntry->Tag      = Tag;
 		PoolEntry->UserData = UserData;
 		
-		*OutputAddress = (void*) PoolEntry->Address;
+		if (OutputAddress)
+			*OutputAddress = (void*) PoolEntry->Address;
 		
 		return (MIPOOL_SPACE_HANDLE) PoolEntry;
 	}
@@ -79,7 +80,8 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	PoolEntry->UserData = UserData;
 	
 	// Update the output address
-	*OutputAddress = (void*) PoolEntry->Address;
+	if (OutputAddress)
+		*OutputAddress = (void*) PoolEntry->Address;
 	
 	return (MIPOOL_SPACE_HANDLE) PoolEntry;
 }
@@ -90,7 +92,8 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
-	*OutputAddress = NULL;
+	if (OutputAddress)
+		*OutputAddress = NULL;
 	
 	// This is a first-fit allocator.
 	
@@ -119,7 +122,9 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	SLogMsg("ERROR: MiReservePoolSpaceTagged ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
 #endif
 	
-	*OutputAddress = NULL;
+	if (OutputAddress)
+		*OutputAddress = NULL;
+	
 	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 	return (MIPOOL_SPACE_HANDLE) NULL;
 }

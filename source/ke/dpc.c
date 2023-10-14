@@ -17,10 +17,17 @@ Author:
 #include <hal.h>
 #include "ki.h"
 
-KREGISTERS* KiHandleSoftIpi(KREGISTERS* Regs)
+void KeIssueSoftwareInterrupt()
+{
+	HalSendSelfIpi();
+}
+
+PKREGISTERS KiHandleSoftIpi(KREGISTERS* Regs)
 {
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
+	
+	SLogMsg("KiHandleSoftIpi. Flags = %d", Flags);
 	
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
@@ -29,7 +36,7 @@ KREGISTERS* KiHandleSoftIpi(KREGISTERS* Regs)
 		KiEndThreadQuantum();
 	
 	if (KiNeedToSwitchThread())
-		KiSwitchToNextThread();
+		Regs = KiSwitchToNextThread();
 	
 	return Regs;
 }
@@ -82,13 +89,13 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	
 	PKDPC_QUEUE Queue = &KeGetCurrentPRCB()->DpcQueue;
 	
-	//bool IsImportant = false;
+	bool IsImportant = false;
 	
 	// Raise IRQL to prevent interrupts from using the incompletely
 	// manipulated DPC queue.
 	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
 	
-	//IsImportant = Dpc->Important;
+	IsImportant = Dpc->Important;
 	
 	// Append the element into the queue.
 	if (Dpc->Important)
@@ -97,6 +104,9 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 		InsertTailList(&Queue->List, &Dpc->List);
 	
 	KeSetPendingEvent(PENDING_DPCS);
+	
+	if (IsImportant)
+		KeIssueSoftwareInterrupt();
 	
 	// Restore interrupts.
 	KeLowerIPL(OldIpl);
