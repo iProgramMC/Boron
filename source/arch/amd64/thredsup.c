@@ -10,7 +10,7 @@ Abstract:
 	KiSetupRegistersThread routine
 	
 Author:
-	iProgramInCpp - 26 September 2023
+	iProgramInCpp - 9 October 2023
 ***/
 #include <arch.h>
 #include <ke.h>

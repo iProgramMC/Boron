@@ -23,6 +23,8 @@ Author:
 
 #define KERNEL_STACK_SIZE (8192) // Note: Must be a multiple of PAGE_SIZE.
 
+#define MAX_QUANTUM_US (10000)
+
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
 
 enum
