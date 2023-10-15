@@ -12,6 +12,16 @@ Author:
 	iProgramInCpp - 3 October 2023
 ***/
 #include <ke.h>
+#include <hal.h>
+
+//#define SCHED_DEBUG
+#ifdef SCHED_DEBUG
+#define DbgPrint(...) SLogMsg(__VA_ARGS__)
+#define Dbg2Print(...) SLogMsg(__VA_ARGS__)
+#else
+#define DbgPrint(...)
+#define Dbg2Print(...) SLogMsg(__VA_ARGS__)
+#endif
 
 LIST_ENTRY KiGlobalThreadList;
 
@@ -56,6 +66,24 @@ static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 		KeWaitForNextInterrupt();
 }
 
+static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
+{
+	while (true)
+	{
+		LogMsg("Hello from the test1 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
+		KeWaitForNextInterrupt();
+	}
+}
+
+static NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
+{
+	while (true)
+	{
+		LogMsg("Hello from the test2 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
+		KeWaitForNextInterrupt();
+	}
+}
+
 void KeReadyThread(PKTHREAD Thread)
 {
 	Thread->Status = KTHREAD_STATUS_READY;
@@ -68,6 +96,14 @@ void KeReadyThread(PKTHREAD Thread)
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	
 	KeLowerIPL(OldIpl);
+}
+
+static void KepCreateTestThread(PKTHREAD_START Start)
+{
+	PKTHREAD Thread = KeCreateEmptyThread();
+	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, Start, NULL);
+	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
+	KeReadyThread(Thread);
 }
 
 void KeSchedulerInit()
@@ -85,10 +121,13 @@ void KeSchedulerInit()
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeCreateEmptyThread();
-	
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
-	
+	KeSetPriorityThread(Thread, PRIORITY_IDLE);
 	KeReadyThread(Thread);
+	
+	// Create two testing threads.
+	KepCreateTestThread(KiTestThread1Entry);
+	KepCreateTestThread(KiTestThread2Entry);
 	
 	KeLowerIPL(OldIpl);
 }
@@ -120,7 +159,22 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority)
 	return NULL;
 }
 
-void KiEndThreadQuantum()
+void KiAssignDefaultQuantum(PKTHREAD Thread)
+{
+	uint64_t QuantumTicks = HalGetTicksPerSecond() * MAX_QUANTUM_US / 1000000;
+	Thread->QuantumUntil = HalGetTickCount() + QuantumTicks;
+	
+	if (HalUseOneShotTimer())
+	{
+		HalRequestInterruptInTicks(HalGetItTicksPerSecond() * MAX_QUANTUM_US / 1000000);
+	}
+	else
+	{
+		// It's just going to show up
+	}
+}
+
+void KiEndThreadQuantum(PKREGISTERS Regs)
 {
 	// NOTE: This function is called only if the thread's quantum expired.
 	// Thus, there's always going to be something running at at least that thread's
@@ -138,9 +192,7 @@ void KiEndThreadQuantum()
 	{
 		// If we don't have any more threads that have at least the priority
 		// of the current one, return immediately. We are not going to switch.
-		
-		// TODO Replenish CurrentThread's quantum.
-		
+		KiAssignDefaultQuantum(CurrentThread);
 		return;
 	}
 	
@@ -148,7 +200,17 @@ void KiEndThreadQuantum()
 	
 	// Since the current thread's quantum has expired, it's of course ready to run again!
 	if (CurrentThread)
+	{
 		CurrentThread->Status = KTHREAD_STATUS_READY;
+		
+		DbgPrint("Emplacing Thread %p In Queue", CurrentThread);
+		
+		// Emplace it back on the ready queue.
+		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
+		
+		// Save the registers
+		CurrentThread->Registers = *Regs;
+	}
 	
 	// Unload the current thread.
 	Scheduler->CurrentThread = NULL;
@@ -172,6 +234,7 @@ PKREGISTERS KiSwitchToNextThread()
 	// There is no current thread loaded.
 	// If KiEndThreadQuantum has picked a next thread, it's also gotten rid
 	// of CurrentThread.
+	DbgPrint("Scheduling In Thread %p", Scheduler->NextThread);
 	
 	Scheduler->CurrentThread = Scheduler->NextThread;
 	Scheduler->NextThread    = NULL;
@@ -181,5 +244,71 @@ PKREGISTERS KiSwitchToNextThread()
 	// Mark the thread as running.
 	Thread->Status = KTHREAD_STATUS_RUNNING;
 	
+	// Assign a quantum to the thread.
+	KiAssignDefaultQuantum(Thread);
+	
 	return &Thread->Registers;
+}
+
+void KiRescheduleTimerNoChange()
+{
+	if (!HalUseOneShotTimer())
+		return; // it's going to trigger again anyways
+	
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	int64_t TicksTillQuantumExpiry = Thread->QuantumUntil - HalGetTickCount();
+	if (TicksTillQuantumExpiry < 500)
+	{
+		// Do it anyway
+		DbgPrint("Thread Quantum Has Almost Expired");
+		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
+		return;
+	}
+	
+	int64_t NanosecondsTillQuantumExpiry = TicksTillQuantumExpiry * 1000000000 / HalGetTicksPerSecond();
+	int64_t ItTicksTillQuantumExpiry = HalGetItTicksPerSecond() * NanosecondsTillQuantumExpiry / 1000000000;
+	
+	DbgPrint("Correction: IT: %lld NS: %lld TI: %lld",
+	         ItTicksTillQuantumExpiry,
+			 NanosecondsTillQuantumExpiry,
+			 TicksTillQuantumExpiry);
+	
+	if (ItTicksTillQuantumExpiry == 0)
+	{
+		// Do it anyway
+		DbgPrint("ItTicksTillQuantumExpiry Is Zero, Marking Quantum End Anyway");
+		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
+		return;
+	}
+	
+	HalRequestInterruptInTicks(ItTicksTillQuantumExpiry);
+}
+
+void KeTimerTick()
+{
+	// Check if the current thread's quantum has expired.
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	if (!Thread)
+	{
+		// TODO
+		return;
+	}
+	
+	DbgPrint("Thread->QuantumUntil: %lld  HalGetTickCount: %lld", Thread->QuantumUntil, HalGetTickCount());
+	
+	if (Thread->QuantumUntil <= HalGetTickCount())
+	{
+		// Thread's quantum has expired!!
+		DbgPrint("Thread Quantum Has Expired");
+		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
+	}
+	else
+	{
+		KiRescheduleTimerNoChange();
+	}
 }

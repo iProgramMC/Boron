@@ -61,4 +61,6 @@ void KeSchedulerInit();
 
 NO_RETURN void KeSchedulerCommit();
 
+void KeTimerTick();
+
 #endif//BORON_KE_SCHED_H

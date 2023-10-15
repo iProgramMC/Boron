@@ -413,6 +413,7 @@ void HalApicSetIrqIn(uint64_t Ticks)
 
 void HalApicHandleInterrupt()
 {
+	/*
 	if (!KeGetCurrentPRCB()->IsBootstrap)
 		return;
 	
@@ -437,4 +438,7 @@ void HalApicHandleInterrupt()
 	
 	// Request one again!
 	HalRequestInterruptInTicks(HalGetItTicksPerSecond());
+	*/
+	
+	KeTimerTick();
 }

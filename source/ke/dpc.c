@@ -22,18 +22,18 @@ void KeIssueSoftwareInterrupt()
 	HalSendSelfIpi();
 }
 
-PKREGISTERS KiHandleSoftIpi(KREGISTERS* Regs)
+PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 {
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
 	
-	SLogMsg("KiHandleSoftIpi. Flags = %d", Flags);
+	//SLogMsg("KIHandleSoftIpi: %d", Flags);
 	
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
 	
 	if (Flags & PENDING_QUANTUM_END)
-		KiEndThreadQuantum();
+		KiEndThreadQuantum(Regs);
 	
 	if (KiNeedToSwitchThread())
 		Regs = KiSwitchToNextThread();

@@ -56,6 +56,8 @@ static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 {
 }
 
+bool HalpIsSerialAvailable;
+
 uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages);
 
 void HalTerminalInit()
@@ -114,11 +116,11 @@ void HalTerminalInit()
 	{
 		KeCrashBeforeSMPInit("Error, no terminal context");
 	}
-}
-
-void HalDebugTerminalInit()
-{
-	// No init required for the 0xE9 hack
+	
+	if (!HalpIsSerialAvailable)
+	{
+		LogMsg("Hey!");
+	}
 }
 
 void HalPrintString(const char* str)
@@ -130,13 +132,4 @@ void HalPrintString(const char* str)
 	}
 	
 	flanterm_write(HalpTerminalContext, str, strlen(str));
-}
-
-void HalPrintStringDebug(const char* str)
-{
-	while (*str)
-	{
-		KePortWriteByte(0xE9, *str);
-		str++;
-	}
 }

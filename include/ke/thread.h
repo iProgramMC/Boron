@@ -101,6 +101,8 @@ typedef struct KTHREAD_tag
 	PKTHREAD_START StartRoutine;
 	
 	void* StartContext;
+	
+	uint64_t QuantumUntil;
 }
 KTHREAD, *PKTHREAD;
 

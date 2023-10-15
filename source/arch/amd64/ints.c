@@ -107,7 +107,9 @@ int KiEnterHardwareInterrupt(int NewIpl)
 		
 		if (OldIpl > NewIpl)
 			// uh oh!
-			KeCrash("KiEnterHardwareInterrupt: Old IPL was higher than current IPL.");
+			KeCrash("KiEnterHardwareInterrupt: Old IPL of %d was higher than current IPL of %d.", OldIpl, NewIpl);
+		
+		KeOnUpdateIPL(NewIpl, OldIpl);
 	}
 	
 	// now that we've setup the hardware interrupt stuff, enable interrupts.
@@ -121,7 +123,11 @@ int KiEnterHardwareInterrupt(int NewIpl)
 void KiExitHardwareInterrupt(int OldIpl)
 {
 	KeSetInterruptsEnabled(false);
-	KeGetCurrentPRCB()->Ipl = OldIpl;
+	
+	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
+	KIPL PrevIpl = *IplPtr;
+	*IplPtr = OldIpl;
+	KeOnUpdateIPL(OldIpl, PrevIpl);
 }
 
 // Run on the BSP only.

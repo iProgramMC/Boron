@@ -25,7 +25,7 @@ EXMEMORY_HANDLE KiAllocateDefaultStack();
 
 void KiSetupRegistersThread(PKTHREAD Thread); // Defined in arch
 
-void KiEndThreadQuantum();
+void KiEndThreadQuantum(PKREGISTERS);
 
 bool KiNeedToSwitchThread();
 

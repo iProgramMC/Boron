@@ -38,6 +38,8 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	Regs->gs =
 	Regs->ss = SEG_RING_0_DATA;
 	
+	Regs->OldIpl = IPL_NORMAL;
+	
 	// Enable interrupts when entering the thread.
 	Regs->rflags |= 0x200;
 }

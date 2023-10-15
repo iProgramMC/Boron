@@ -81,13 +81,13 @@ extern KiExitHardwareInterrupt
 extern Ki%3Handler
 global Ki%1
 Ki%1:
-	%ifidn %2, PUSH     ; Push the current state of the processor
+	%ifidn %2, PUSH
 	push qword 0
 	%endif
-	PUSHSTATE
-	mov  rdi, %4
+	PUSHSTATE           ; Push all members of the KREGISTERS except for the OldIpl
+	mov  rdi, %4        ; Update IPL
 	call KiEnterHardwareInterrupt
-	push rax
+	push rax            ; Push old IPL
 	mov  rdi, rsp
 	call Ki%3Handler
 	mov  rsp, rax
