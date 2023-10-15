@@ -4,6 +4,7 @@
 #include <except.h>
 #include <hal.h>
 #include "../../hal/iapc/apic.h"
+#include "../../hal/iapc/ps2.h"
 
 static UNUSED void KiDumpCPURegs(PKREGISTERS Regs)
 {
@@ -70,6 +71,14 @@ PKREGISTERS KiTrap40Handler(PKREGISTERS Regs)
 	PKREGISTERS New = KiHandleSoftIpi(Regs);
 	HalApicEoi();
 	return New;
+}
+
+// Keyboard interrupt handler.
+PKREGISTERS KiTrap50Handler(PKREGISTERS Regs)
+{
+	HalHandleKeyboardInterrupt();
+	HalApicEoi();
+	return Regs;
 }
 
 // APIC timer interrupt.

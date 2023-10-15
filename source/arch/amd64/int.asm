@@ -1,6 +1,8 @@
 ; Boron64 - Interrupts
 bits 64
 
+; TODO: This kind of sucks, it's not expandable at all.
+
 %include "arch/amd64.inc"
 
 ; int KiEnterHardwareInterrupt(int IntNo);
@@ -107,6 +109,7 @@ TRAP_ENTRY 08, DONTPUSH, -1   ; double fault
 TRAP_ENTRY 0D, DONTPUSH, -1   ; general protection fault
 TRAP_ENTRY 0E, DONTPUSH, -1   ; page fault
 TRAP_ENTRY 40, PUSH    , 0x4  ; DPC IPI
+TRAP_ENTRY 50, PUSH    , 0x5  ; Keyboard interrupt
 TRAP_ENTRY F0, PUSH    , 0xF  ; APIC timer interrupt
 TRAP_ENTRY FD, PUSH    , 0xF  ; TLB shootdown IPI
 TRAP_ENTRY FE, PUSH    , 0xF  ; crash IPI

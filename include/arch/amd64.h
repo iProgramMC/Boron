@@ -193,12 +193,12 @@ typedef struct
 }
 KARCH_DATA;
 
-#include <arch.h>
-
 // Manual interrupt disabling functions. Should rather use
 // KeDisableInterrupts and KeRestoreInterrupts, but these have
 // their uses too.
 #define DISABLE_INTERRUPTS() ASM("cli")
 #define ENABLE_INTERRUPTS()  ASM("sti")
+
+#include <arch.h>
 
 #endif//NS64_ARCH_AMD64_H

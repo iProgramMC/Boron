@@ -22,5 +22,6 @@ void HalEnableApic();
 void HalCalibrateApic();
 bool HalIsApicAvailable();
 void HalApicSetIrqIn(uint64_t Ticks);
+void HalInitIoApic();
 
 #endif//NS64_HAL_APIC_H

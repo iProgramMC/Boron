@@ -413,32 +413,5 @@ void HalApicSetIrqIn(uint64_t Ticks)
 
 void HalApicHandleInterrupt()
 {
-	/*
-	if (!KeGetCurrentPRCB()->IsBootstrap)
-		return;
-	
-	static uint64_t LastTickTsc, LastTickHpet;
-	
-	// Send a scheduler IPI. TODO
-	uint64_t TickCountTsc  = HalGetTickCount() / (HalGetTicksPerSecond() / 1000);
-	uint64_t TickCountHpet = HpetReadValue()   / (HpetGetFrequency() / 1000);
-	
-	uint64_t DiffTsc  = TickCountTsc  - LastTickTsc;
-	uint64_t DiffHpet = TickCountHpet - LastTickHpet;
-	
-	LastTickTsc  = TickCountTsc;
-	LastTickHpet = TickCountHpet;
-	
-	LogMsg("MS Elapsed:  %16lld  %16lld.  Diff: %5lld %5lld  DiffDiff: %5lld",
-	        TickCountTsc,
-	        TickCountHpet,
-			DiffTsc,
-			DiffHpet,
-			DiffTsc - DiffHpet);
-	
-	// Request one again!
-	HalRequestInterruptInTicks(HalGetItTicksPerSecond());
-	*/
-	
 	KeTimerTick();
 }

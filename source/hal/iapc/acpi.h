@@ -73,6 +73,7 @@ typedef struct MADT_HEADER_tag
 	SDT_HEADER Header;     // base SDT header
 	uint32_t LapicAddress; // address of the LAPIC. Also found in an MSR
 	uint32_t Flags;        // Bit 0 set - legacy 8259 PIC is installed.
+	char EntryData[0];
 }
 PACKED
 MADT_HEADER, *PMADT_HEADER;
@@ -83,7 +84,7 @@ typedef struct MADT_ENTRY_HEADER_tag
 	uint8_t RecordLength;
 }
 PACKED
-MADT_ENTRY_HEADER;
+MADT_ENTRY_HEADER, *PMADT_ENTRY_HEADER;
 
 typedef enum MADT_ENTRY_TYPE_tag
 {
@@ -93,9 +94,50 @@ typedef enum MADT_ENTRY_TYPE_tag
 	MADT_ENTRY_IOAPIC_NMI,
 	MADT_ENTRY_LAPIC_NMI,
 	MADT_ENTRY_LAPIC_AO,
-	
 }
 MADT_ENTRY_TYPE;
+
+typedef struct
+{
+	MADT_ENTRY_HEADER Header;
+	uint8_t  AcpiProcessorId;
+	uint8_t  Id;
+	uint32_t Flags;
+}
+PACKED
+MADT_LAPIC, *PMADT_LAPIC;
+
+typedef struct
+{
+	MADT_ENTRY_HEADER Header;
+	uint8_t Id;
+	uint8_t Reserved;
+	uint32_t Address;
+	uint32_t GsiBase;
+}
+PACKED
+MADT_IOAPIC, *PMADT_IOAPIC;
+
+typedef struct
+{
+	MADT_ENTRY_HEADER Header;
+	uint8_t  BusSource;
+	uint8_t  IrqSource;
+	uint32_t Gsi;
+	uint16_t Flags;
+}
+PACKED
+MADT_IOAPIC_ISO, *PMADT_IOAPIC_ISO;
+
+typedef struct
+{
+	MADT_ENTRY_HEADER Header;
+	uint8_t  ProcessorId;
+	uint16_t Flags;
+	uint8_t  LIntNum;
+}
+PACKED
+MADT_LAPIC_NMI, *PMADT_LAPIC_NMI;
 
 // ACPI generic address structure's address space
 typedef enum ACPI_GAS_ASP_tag

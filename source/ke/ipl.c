@@ -103,6 +103,7 @@ KIPL KeLowerIPL(KIPL newIPL)
 	{
 		bool Restore = KeDisableInterrupts();
 		
+		// TODO: Don't use an IPI to do this. Huge overhead
 		if (KeGetPendingEvents())
 			HalSendSelfIpi();
 		
