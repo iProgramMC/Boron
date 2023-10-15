@@ -106,7 +106,7 @@ PKREGISTERS KiTrapFDHandler(PKREGISTERS Regs)
 void HalpOnCrashedCPU();
 PKREGISTERS KiTrapFEHandler(PKREGISTERS Regs)
 {
-	KeSetInterruptsEnabled(false);
+	KeDisableInterrupts();
 	
 	// We have received an interrupt from the processor that has crashed. We should crash too!
 	// Interrupts are disabled at this point

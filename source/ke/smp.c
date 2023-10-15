@@ -33,7 +33,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
 	KeOnUpdateIPL(KeGetIPL(), 0);
-	KeSetInterruptsEnabled(true);
+	ENABLE_INTERRUPTS();
 	
 	KeInitCPU();
 	KeLowerIPL(IPL_NORMAL);

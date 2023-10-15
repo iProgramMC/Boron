@@ -13,13 +13,14 @@ typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 // Functions that do different things based on architecture,
 // but exist everywhere
 void KeWaitForNextInterrupt(void);
-void KeInvalidatePage(void* page);
+void KeInvalidatePage(void* Page);
 void KeSpinningHint(void);
-void KeSetCPUPointer(void* pGS);
+void KeSetCPUPointer(void* CpuPointer);
 void*KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);
-void KeSetCurrentPageTable(uintptr_t pt);
-bool KeSetInterruptsEnabled(bool b); // returns old state
+void KeSetCurrentPageTable(uintptr_t PageTable);
+bool KeDisableInterrupts(); // returns old state
+void KeRestoreInterrupts(bool OldState);
 
 // CPU initialization function
 void KeInitCPU(); // initializes the current CPU

@@ -38,8 +38,8 @@ void HalCrashSystem(const char* message)
 	AtClear(HalpCrashedProcessors);
 	AtAddFetch(HalpCrashedProcessors, 1);
 	
-	// raise the IPL so that no interrupts will bug us
-	KeSetInterruptsEnabled(false);
+	// disable interrupts
+	DISABLE_INTERRUPTS();
 	
 	// pre-lock the print and debug print lock so there are no threading issues later from
 	// stopping the CPUs.

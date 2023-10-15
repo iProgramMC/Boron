@@ -18,7 +18,7 @@ Author:
 // Stops the current CPU
 void KeStopCurrentCPU()
 {
-	KeSetInterruptsEnabled(false);
+	DISABLE_INTERRUPTS();
 	
 	while (true)
 		KeWaitForNextInterrupt();

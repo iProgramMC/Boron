@@ -115,14 +115,14 @@ int KiEnterHardwareInterrupt(int NewIpl)
 	// now that we've setup the hardware interrupt stuff, enable interrupts.
 	// we couldn't have done that before because the CPU would think that we're
 	// in a low IPL thing meanwhile we're not..
-	KeSetInterruptsEnabled(true);
+	ENABLE_INTERRUPTS();
 	
 	return OldIpl;
 }
 
 void KiExitHardwareInterrupt(int OldIpl)
 {
-	KeSetInterruptsEnabled(false);
+	DISABLE_INTERRUPTS();
 	
 	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
 	KIPL PrevIpl = *IplPtr;

@@ -101,12 +101,12 @@ KIPL KeLowerIPL(KIPL newIPL)
 	// If we fell below DPC level, check if we have any pending events and issue a self IPI.
 	if (newIPL < IPL_DPC)
 	{
-		bool Restore = KeSetInterruptsEnabled(false);
+		bool Restore = KeDisableInterrupts();
 		
 		if (KeGetPendingEvents())
 			HalSendSelfIpi();
 		
-		KeSetInterruptsEnabled(Restore);
+		KeRestoreInterrupts(Restore);
 	}
 	
 	// Set the current IPL

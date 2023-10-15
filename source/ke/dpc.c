@@ -91,7 +91,7 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	
 	// Disable interrupts to prevent them from using the incompletely
 	// manipulated DPC queue.
-	bool Restore = KeSetInterruptsEnabled(false);
+	bool Restore = KeDisableInterrupts();
 	
 	IsImportant = Dpc->Important;
 	
@@ -107,7 +107,7 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 		KeIssueSoftwareInterrupt();
 	
 	// Restore interrupts.
-	KeSetInterruptsEnabled(Restore);
+	KeRestoreInterrupts(Restore);
 }
 
 // Dispatches all of the DPCs in a loop.
@@ -120,7 +120,7 @@ void KiDispatchDpcs()
 		KeCrash("KiDispatchDpcs: Current IPL is not IPL_DPC");
 	
 	// Disable interrupts while we are working with the queue.
-	bool Restore = KeSetInterruptsEnabled(false);
+	bool Restore = KeDisableInterrupts();
 	
 	PKDPC_QUEUE Queue = &KeGetCurrentPRCB()->DpcQueue;
 	while (!IsListEmpty(&Queue->List))
@@ -133,7 +133,7 @@ void KiDispatchDpcs()
 		PKDPC Dpc = CONTAINING_RECORD(Entry, KDPC, List);
 		Dpc->Enqueued = false;
 		
-		KeSetInterruptsEnabled(true);
+		ENABLE_INTERRUPTS();
 		
 		Dpc->Routine(Dpc,
 		             Dpc->DeferredContext,
@@ -145,8 +145,8 @@ void KiDispatchDpcs()
 		Dpc = NULL;
 		
 		// Disable interrupts again to process the list.
-		KeSetInterruptsEnabled(false);
+		DISABLE_INTERRUPTS();
 	}
 	
-	KeSetInterruptsEnabled(Restore);
+	KeRestoreInterrupts(Restore);
 }
