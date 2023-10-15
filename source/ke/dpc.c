@@ -27,15 +27,13 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
 	
-	//SLogMsg("KIHandleSoftIpi: %d", Flags);
-	
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
 	
 	if (Flags & PENDING_QUANTUM_END)
 		KiEndThreadQuantum(Regs);
 	
-	if (KiNeedToSwitchThread())
+	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();
 	
 	return Regs;
@@ -91,9 +89,9 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	
 	bool IsImportant = false;
 	
-	// Raise IRQL to prevent interrupts from using the incompletely
+	// Disable interrupts to prevent them from using the incompletely
 	// manipulated DPC queue.
-	KIPL OldIpl = KeRaiseIPL(IPL_NOINTS);
+	bool Restore = KeSetInterruptsEnabled(false);
 	
 	IsImportant = Dpc->Important;
 	
@@ -109,7 +107,7 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 		KeIssueSoftwareInterrupt();
 	
 	// Restore interrupts.
-	KeLowerIPL(OldIpl);
+	KeSetInterruptsEnabled(Restore);
 }
 
 // Dispatches all of the DPCs in a loop.
@@ -122,7 +120,7 @@ void KiDispatchDpcs()
 		KeCrash("KiDispatchDpcs: Current IPL is not IPL_DPC");
 	
 	// Disable interrupts while we are working with the queue.
-	KeSetInterruptsEnabled(false);
+	bool Restore = KeSetInterruptsEnabled(false);
 	
 	PKDPC_QUEUE Queue = &KeGetCurrentPRCB()->DpcQueue;
 	while (!IsListEmpty(&Queue->List))
@@ -149,4 +147,6 @@ void KiDispatchDpcs()
 		// Disable interrupts again to process the list.
 		KeSetInterruptsEnabled(false);
 	}
+	
+	KeSetInterruptsEnabled(Restore);
 }

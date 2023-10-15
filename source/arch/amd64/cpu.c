@@ -19,14 +19,6 @@ void KeInvalidatePage(void* page)
 
 extern void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL); // defined in x.asm
 
-void KeSetInterruptsEnabled(bool b)
-{
-	if (b)
-		ASM("sti":::"memory");
-	else
-		ASM("cli":::"memory");
-}
-
 static UNUSED uint64_t KepGetRflags()
 {
 	uint64_t rflags = 0;

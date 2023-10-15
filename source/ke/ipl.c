@@ -41,21 +41,20 @@ KIPL KeGetIPL()
 // The hardware interrupts modify the IPL by using KeEnterHardwareInterrupt and
 // KeExitHardwareInterrupt.
 
+// Note: KeOnUpdateIPL lets the interrupt controller know we're updating the IPL.
+// So it's important that we raise the IPL in the PRCB after, and lower it in the
+// PRCB before, we let the interrupt controller know.
+
 KIPL KeRaiseIPLIfNeeded(KIPL newIPL)
 {
 	KPRCB* me = KeGetCurrentPRCB();
-	
-	// @TODO: Get rid of these checks and ensure that IPL modification functions
-	// are not called before SMP init.
-	if (!me)
-		return 0;
+	if (!me) return 0;
 	
 	KIPL oldIPL = me->Ipl;
 	
 	if (newIPL > oldIPL)
 	{
 		KeOnUpdateIPL(newIPL, oldIPL);
-		
 		me->Ipl = newIPL;
 	}
 	
@@ -68,17 +67,16 @@ KIPL KeRaiseIPL(KIPL newIPL)
 	if (!me) return 0;
 		
 	KIPL oldIPL = me->Ipl;
-	//SLogMsg("KeRaiseIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
-	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
 	
+#ifdef DEBUG // In the exposed version we should probably check this even if we aren't debug. Drivers can go rogue
 	if (oldIPL > newIPL)
 		KeCrash("Error, can't raise the IPL to a lower level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
+#endif
 	
 	KeOnUpdateIPL(newIPL, oldIPL);
 	
-	// Set the current IPL
 	me->Ipl = newIPL;
 	
 	return oldIPL;
@@ -91,24 +89,29 @@ KIPL KeLowerIPL(KIPL newIPL)
 	if (!me) return 0;
 	
 	KIPL oldIPL = me->Ipl;
-	//SLogMsg("KeLowerIPL(%d), old %d, CPU %d, called from %p", newIPL, oldIPL, me->LapicId, __builtin_return_address(0));
 	
 	if (oldIPL == newIPL)
 		return oldIPL; // no changes
 	
+#ifdef DEBUG
 	if (oldIPL < newIPL)
 		KeCrash("Error, can't lower the IPL to a higher level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
-	
-	// Set the current IPL
-	me->Ipl = newIPL;
-	
-	KeOnUpdateIPL(newIPL, oldIPL);
+#endif
 	
 	// If we fell below DPC level, check if we have any pending events and issue a self IPI.
 	if (newIPL < IPL_DPC)
 	{
-		HalSendSelfIpi();
+		bool Restore = KeSetInterruptsEnabled(false);
+		
+		if (KeGetPendingEvents())
+			HalSendSelfIpi();
+		
+		KeSetInterruptsEnabled(Restore);
 	}
+	
+	// Set the current IPL
+	me->Ipl = newIPL;
+	KeOnUpdateIPL(newIPL, oldIPL);
 	
 	return oldIPL;
 }

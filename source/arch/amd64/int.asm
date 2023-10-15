@@ -120,3 +120,21 @@ KeJumpContext:
 	POPSTATE
 	add  rsp, 8    ; the KREGISTERS struct contains a dummy error code which we don't use..
 	iretq
+
+; Arguments:
+; rdi - New interrupt state
+; Return Value:
+; rax - Old interrupt state
+global KeSetInterruptsEnabled
+KeSetInterruptsEnabled:
+	pushfq               ; push RFLAGS register
+	pop  rax             ; pop it into RAX
+	and  rax, 0x200      ; check the previous interrupt flag (1 << 9)
+	shr  rax, 9          ; shift right by 9
+	test rdi, rdi        ; check if rdi (the new int state) is set
+	jnz  .set            ; if it's not set, disable interrupts
+	cli                  ; disable interrupts
+	ret                  ; return rax
+.set:
+	sti                  ; enable interrupts
+	ret                  ; return rax
