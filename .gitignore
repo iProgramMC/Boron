@@ -1,5 +1,6 @@
 build/*
 boron/build/*
+loader/build/*
 .keep/*
 limine/*
 keep/*
