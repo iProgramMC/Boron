@@ -16,7 +16,7 @@ Author:
 #include "../../arch/amd64/pio.h"
 #include "uart.h"
 
-#define USE_SERIAL_COM1
+//#define USE_SERIAL_COM1
 
 #ifdef USE_SERIAL_COM1
 

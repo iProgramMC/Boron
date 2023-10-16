@@ -7,6 +7,12 @@
 DEBUG ?= yes
 DEBUG2 ?= no
 
+# List of things to build:
+#  KERNEL - Self explanatory
+#  LOADER - OS loader
+KERNEL_NAME = kernel.elf
+LOADER_NAME = boronldr.elf
+
 # debug1: general debugging text, works all the time and keeps the
 #   kernel behaving how it should
 
@@ -18,12 +24,6 @@ DEBUG2 ?= no
 # The build directory
 BUILD_DIR = build
 
-# The source directory
-SRC_DIR = boron/source
-
-# The include directory
-INC_DIR = boron/include
-
 # The ISO root directory
 ISO_DIR=$(BUILD_DIR)/iso_root
 
@@ -33,11 +33,13 @@ IMAGE_TARGET=$(BUILD_DIR)/image.iso
 # The platform we are targetting
 TARGET=AMD64
 
-KERNEL_NAME=kernel.elf
 KERNEL_BUILD=boron/build
+LOADER_BUILD=loader/build
 
 KERNEL_ELF=$(KERNEL_BUILD)/$(KERNEL_NAME)
 KERNEL_DELF=$(BUILD_DIR)/$(KERNEL_NAME)
+LOADER_ELF=$(LOADER_BUILD)/$(LOADER_NAME)
+LOADER_DELF=$(BUILD_DIR)/$(LOADER_NAME)
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -57,17 +59,19 @@ all: image
 .PHONY: clean
 clean:
 	@echo "Cleaning..."
-	rm -rf $(KERNEL_BUILD) $(BUILD_DIR)
+	rm -rf $(KERNEL_BUILD) $(LOADER_BUILD) $(BUILD_DIR)
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel
+$(IMAGE_TARGET): kernel loader
 	@echo "Building iso..."
 	@mkdir -p $(dir $(KERNEL_DELF))
+	@mkdir -p $(dir $(LOADER_DELF))
 	@cp $(KERNEL_ELF) $(KERNEL_DELF)
+	@cp $(LOADER_ELF) $(LOADER_DELF)
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_DELF) limine.cfg limine/limine.sys limine/limine-cd.bin $(ISO_DIR)
+	@cp $(KERNEL_DELF) $(LOADER_DELF) limine.cfg limine/limine.sys limine/limine-cd.bin $(ISO_DIR)
 	@xorriso -as mkisofs -b limine-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
@@ -84,4 +88,8 @@ kernel: $(KERNEL_ELF)
 
 $(KERNEL_ELF):
 	$(MAKE) -C boron
-	
+
+loader: $(LOADER_ELF)
+
+$(LOADER_ELF):
+	$(MAKE) -C loader

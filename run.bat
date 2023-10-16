@@ -10,13 +10,13 @@ set path=%path%;%NSPath%
 qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
 -M q35                                          ^
 -m 64M                                          ^
--smp 1                                         ^
+-smp 1                                          ^
 -boot d                                         ^
 -cdrom %nspath%\build\image.iso                 ^
 -display sdl                                    ^
 -accel tcg                                      ^
 -monitor telnet:127.0.0.1:56789,server,nowait   ^
--serial stdio                                   ^
+-debugcon stdio                                 ^
 -s
 
 :-debugcon stdio                                 ^
