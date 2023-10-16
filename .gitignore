@@ -1,4 +1,5 @@
 build/*
+boron/build/*
 .keep/*
 limine/*
 keep/*

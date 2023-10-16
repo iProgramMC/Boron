@@ -3,5 +3,5 @@
 	url = https://github.com/limine-bootloader/limine.git
 	branch = v4.x-branch-binary
 [submodule "source/ha/flanterm"]
-	path = source/hal/iapc/flanterm
+	path = boron/source/hal/iapc/flanterm
 	url = https://github.com/mintsuki/flanterm.git
