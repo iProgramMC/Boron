@@ -4,19 +4,29 @@
 *                                                             *
 *              Copyright (C) 2023 iProgramInCpp               *
 *                                                             *
-*                           main.h                            *
+*                         requests.c                          *
 \*************************************************************/
-#include <loader.h>
-#include "mapper.h"
+#include "requests.h"
+#include <_limine.h>
 
-void LdrStartup()
+volatile struct limine_hhdm_request HhdmRequest =
 {
-	InitializeMapper();
-	DumpMemMap();
-	
-	LogMsg("Test");
-	
-	ASM("cli");
-	while (true)
-		ASM("hlt");
+	.id = LIMINE_HHDM_REQUEST,
+	.revision = 0,
+	.response = NULL,
+};
+
+volatile struct limine_memmap_request MemMapRequest =
+{
+	.id = LIMINE_MEMMAP_REQUEST,
+	.revision = 0,
+	.response = NULL,
+};
+
+
+
+uintptr_t GetHhdmOffset()
+{
+	return HhdmRequest.response->offset;
 }
+

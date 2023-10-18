@@ -4,19 +4,17 @@
 *                                                             *
 *              Copyright (C) 2023 iProgramInCpp               *
 *                                                             *
-*                           main.h                            *
+*                          charout.c                          *
 \*************************************************************/
 #include <loader.h>
-#include "mapper.h"
+#include "../charout.h"
 
-void LdrStartup()
+void PortWriteByte(uint16_t portNo, uint8_t data)
 {
-	InitializeMapper();
-	DumpMemMap();
-	
-	LogMsg("Test");
-	
-	ASM("cli");
-	while (true)
-		ASM("hlt");
+	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
+}
+
+void PrintChar(char c)
+{
+	PortWriteByte(0xE9, c);
 }

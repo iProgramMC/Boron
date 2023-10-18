@@ -86,10 +86,12 @@ runw: image
 
 kernel: $(KERNEL_ELF)
 
-$(KERNEL_ELF):
+$(KERNEL_ELF): FORCE
 	$(MAKE) -C boron
 
 loader: $(LOADER_ELF)
 
-$(LOADER_ELF):
+$(LOADER_ELF): FORCE
 	$(MAKE) -C loader
+
+FORCE: ;

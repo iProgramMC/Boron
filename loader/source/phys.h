@@ -4,19 +4,10 @@
 *                                                             *
 *              Copyright (C) 2023 iProgramInCpp               *
 *                                                             *
-*                           main.h                            *
+*                           phys.h                            *
 \*************************************************************/
-#include <loader.h>
-#include "mapper.h"
+#pragma once
 
-void LdrStartup()
-{
-	InitializeMapper();
-	DumpMemMap();
-	
-	LogMsg("Test");
-	
-	ASM("cli");
-	while (true)
-		ASM("hlt");
-}
+uintptr_t AllocatePages(size_t SizePages, bool IsReservedForKernel);
+
+void InitializePmm();

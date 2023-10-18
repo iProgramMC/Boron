@@ -4,19 +4,8 @@
 *                                                             *
 *              Copyright (C) 2023 iProgramInCpp               *
 *                                                             *
-*                           main.h                            *
+*                          charout.h                          *
 \*************************************************************/
-#include <loader.h>
-#include "mapper.h"
+#pragma once
 
-void LdrStartup()
-{
-	InitializeMapper();
-	DumpMemMap();
-	
-	LogMsg("Test");
-	
-	ASM("cli");
-	while (true)
-		ASM("hlt");
-}
+void PrintChar(char c);
