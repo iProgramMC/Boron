@@ -8,13 +8,16 @@
 \*************************************************************/
 #include <loader.h>
 #include "mapper.h"
+#include "requests.h"
 
 void LdrStartup()
 {
 	InitializeMapper();
 	DumpMemMap();
+	LoadModules();
 	
-	LogMsg("Test");
+	
+	LogMsg("Hi");
 	
 	ASM("cli");
 	while (true)

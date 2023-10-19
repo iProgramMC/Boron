@@ -10,11 +10,7 @@
 #include "phys.h"
 #include "requests.h"
 
-#ifdef TARGET_AMD64
-#include "amd64/mapint.h"
-#else
-#error Your platform here
-#endif
+#include "mapint.h"
 
 typedef struct limine_memmap_entry MEMMAP_ENTRY, *PMEMMAP_ENTRY;
 

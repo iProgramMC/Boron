@@ -9,8 +9,10 @@
 #pragma once
 
 #include <loader.h>
-#include "../mapper.h"
-#include "../requests.h"
+#include "mapper.h"
+#include "requests.h"
+
+#ifdef TARGET_AMD64
 
 // Page table entry bits
 #define MM_PTE_PRESENT    (1ULL <<  0)
@@ -29,3 +31,20 @@
 #define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
 
 #define PAGE_SIZE (0x1000)
+
+typedef uint64_t MMPTE, *PMMPTE;
+
+// bits 0.11   - Offset within the page
+// bits 12..20 - Index within the PML1
+// bits 21..29 - Index within the PML2
+// bits 30..38 - Index within the PML3
+// bits 39..47 - Index within the PML4
+// bits 48..63 - Sign extension of the 47th bit
+#define PML1_IDX(addr)  (((addr) >> 12) & 0x1FF)
+#define PML2_IDX(addr)  (((addr) >> 21) & 0x1FF)
+#define PML3_IDX(addr)  (((addr) >> 30) & 0x1FF)
+#define PML4_IDX(addr)  (((addr) >> 39) & 0x1FF)
+
+#else
+#error Hey
+#endif

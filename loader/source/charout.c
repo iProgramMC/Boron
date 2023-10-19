@@ -4,28 +4,23 @@
 *                                                             *
 *              Copyright (C) 2023 iProgramInCpp               *
 *                                                             *
-*                          mapper.c                           *
+*                          charout.c                          *
 \*************************************************************/
-#include "mapint.h"
-#include "../phys.h"
+#include <loader.h>
+#include "charout.h"
 
-PPAGEMAP PageMap;
+#ifdef TARGET_AMD64
 
-PPAGEMAP GetCurrentPageMap()
+void PortWriteByte(uint16_t portNo, uint8_t data)
 {
-	uint64_t Return;
-	ASM("mov %%cr3, %0":"=a"(Return));
-	return (void*) (GetHhdmOffset() + Return);
+	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
 }
 
-uint64_t* PhysToInt64Array(uintptr_t PhysAddr)
+void PrintChar(char c)
 {
-	return (uint64_t*)(GetHhdmOffset() + PhysAddr);
+	PortWriteByte(0xE9, c);
 }
 
-void InitializeMapper()
-{
-	PageMap = GetCurrentPageMap();
-	
-	InitializePmm();
-}
+#else
+#error Hey
+#endif
