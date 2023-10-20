@@ -34,10 +34,12 @@ to run the built iso using your native QEMU installation on Windows.
 
 #### Source code layout
 Currently, the OS's source is structured into the following:
-* `hal/` - Hardware specifics (currently, only for x86_64)
-* `ke/`  - Kernel (scheduler)
-* `mm/`  - Memory manager
-* `*.*`  - Misc stuff
+
+* `boron/` - The OS kernel itself. See [the Boron kernel's structure](boron/structure.md) for more details.
+
+* `ddk/` - Driver Development Kit. The OS kernel and drivers use includes from this directory.
+
+* `drivers/` - The actual drivers themselves.
 
 Kernel DLL exports will use the prefix `Bn`. I know this isn't the chemical symbol for boron (that being B),
 but it is what it is.

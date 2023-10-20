@@ -3,11 +3,11 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	string.h
+	main.h
 	
 Abstract:
-	This header file contains the definitions that
-	everyone should have available at all times.
+	This header file contains the global definitions
+	for the Boron kernel and drivers.
 	
 Author:
 	iProgramInCpp - 20 August 2023

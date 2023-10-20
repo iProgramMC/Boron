@@ -1,4 +1,4 @@
-The Project Structure of BORON
+## The Project Structure of the BORON kernel
 
 Currently this is only a plan.
 

@@ -15,28 +15,15 @@ DEBUG2 ?= no
 #   debug console won't lock. The advantage is that you'll be able
 #   to log basically anywhere
 
-# The build directory
 BUILD_DIR = build
-
-# The source directory
 SRC_DIR = source
-
-# The include directory
 INC_DIR = include
-
-# The scripts directory
+DDKI_DIR = ../ddk/include
 SCRIPTS_DIR = scripts
-
-# The linker script
 LINKER_FILE = linker.ld
-
-# The ISO root directory
 ISO_DIR=$(BUILD_DIR)/iso_root
-
-# The ISO target.
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
-# The platform we are targetting
 TARGET=AMD64
 
 # This is the name that our final kernel executable will have.
@@ -74,16 +61,16 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
+CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) $(DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -O2 -pipe -Wall -Wextra -I $(INC_DIR) -DTARGET_$(TARGET) $(DEFINES)
+CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) $(DEFINES)
 
-# User controllable preprocessor flags. We set none by default.
-CPPFLAGS ?=
+# User controllable preprocessor flags.
+CPPFLAGS ?= -I $(INC_DIR) -I $(DDKI_DIR)
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR)
+NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDKI_DIR)
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=
