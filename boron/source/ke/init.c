@@ -17,6 +17,7 @@ Author:
 #include <hal.h>
 #include <mm.h>
 #include "ki.h"
+#include <rtl/symdefs.h>
 //#include <cpuid.h>
 
 // The entry point to our kernel.
@@ -27,6 +28,8 @@ void KiSystemStartup(void)
 	
 	HalTerminalInit();
 	LogMsg("Boron (TM), October 2023 - V0.004");
+	
+	SLogMsg("%p %d", KiSymbolTable, KiSymbolTableSize);
 	
 	MiInitPMM();
 	MmInitAllocators();

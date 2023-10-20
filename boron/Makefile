@@ -24,6 +24,12 @@ SRC_DIR = source
 # The include directory
 INC_DIR = include
 
+# The scripts directory
+SCRIPTS_DIR = scripts
+
+# The linker script
+LINKER_FILE = linker.ld
+
 # The ISO root directory
 ISO_DIR=$(BUILD_DIR)/iso_root
 
@@ -125,14 +131,16 @@ override CXXFLAGS +=     \
 	-fno-exceptions      \
 	-fno-rtti            \
 	-I.
+	
+override LDFLAGSBASE +=     \
+	-nostdlib               \
+	-m elf_x86_64           \
+	-z max-page-size=0x1000
 
 # Internal linker flags that should not be changed by the user.
-override LDFLAGS +=         \
-	-nostdlib               \
-	-static                 \
-	-m elf_x86_64           \
-	-z max-page-size=0x1000 \
-	-T linker.ld
+override LDFLAGS +=  \
+	$(LDFLAGSBASE)   \
+	-T $(LINKER_FILE)
 
 # Check if the linker supports -no-pie and enable it if it does
 ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
@@ -151,13 +159,29 @@ override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*
 override OBJ := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))
 override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
 
+KERNEL2 = $(BUILD_DIR)/kernel2.elf
+KERNEL_PARTIAL = $(BUILD_DIR)/kernelp.o
+SYMBOLS = $(BUILD_DIR)/_symtab.o
+
 # Default target.
 .PHONY: all
 all: kernel
 
 # Link rules for the final kernel executable.
-$(KERNEL): $(OBJ)
-	$(LD) $(OBJ) $(LDFLAGS) -o $@
+$(KERNEL): $(SYMBOLS)
+	$(LD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
+	
+$(SYMBOLS): $(KERNEL2)
+	@echo "Dumping Symbols..."
+	nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.c -o $(BUILD_DIR)/_symtab.o
+	
+$(KERNEL2): $(KERNEL_PARTIAL)
+	$(LD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
+
+# Link rules for the amalgam object file.
+$(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
+	$(LD) -r $(OBJ) $(LDFLAGSBASE) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)

@@ -29,6 +29,8 @@ SECTIONS
 
 	.rodata : {
 		*(.rodata .rodata.*)
+		PROVIDE(KiSymbolTable = .);
+		PROVIDE(KiSymbolTableEnd = .);
 	} :rodata
 
 	/* Move to the next memory page for .data */
