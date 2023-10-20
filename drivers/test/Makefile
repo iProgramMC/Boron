@@ -1,34 +1,25 @@
-# Boron kernel makefile
-
-# TODO: Have a root makefile which tackles making the image, which depends
-# on another makefile which makes the kernel itself!
+# Boron test driver makefile
 
 # DEBUG flag
 DEBUG ?= yes
 DEBUG2 ?= no
 
-# debug1: general debugging text, works all the time and keeps the
-#   kernel behaving how it should
+NAME = test
 
-# debug2: in-depth debugging, printing of page faults and stuff.
-#   careful because you might get jumbled output on SMP since the
-#   debug console won't lock. The advantage is that you'll be able
-#   to log basically anywhere
+# Only turn on debug2 temporarily
 
 BUILD_DIR = build
 SRC_DIR = source
 INC_DIR = include
-DDKI_DIR = ../ddk/include
+DDKI_DIR = ../../ddk/include
 SCRIPTS_DIR = scripts
 LINKER_FILE = linker.ld
-ISO_DIR=$(BUILD_DIR)/iso_root
-IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
-TARGET=AMD64
+ARCHITECTURE=AMD64
 
-# This is the name that our final kernel executable will have.
+# This is the name that our final driver executable will have.
 # Change as needed.
-override KERNEL := $(BUILD_DIR)/kernel.elf
+override TARGET := $(BUILD_DIR)/out.sys
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -40,9 +31,6 @@ define DEFAULT_VAR =
 	endif
 endef
 
-# Defines - I would edit flanterm itself but then submodules would get rid of our work.
-DEFINES = -DFLANTERM_FB_DISABLE_CANVAS -DFLANTERM_FB_DISABLE_BUMP_ALLOC
-
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
 endif
@@ -51,7 +39,7 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
-# It is highly recommended to use a custom built cross toolchain to build a kernel.
+# It is highly recommended to use a custom built cross toolchain to build a driver.
 # We are only using "cc" as a placeholder here. It may work by using
 # the host system's toolchain, but this is not guaranteed.
 $(eval $(call DEFAULT_VAR,CC,cc))
@@ -61,10 +49,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) $(DEFINES)
+CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) $(DEFINES)
+CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(DDKI_DIR)
@@ -82,8 +70,8 @@ override CFLAGS +=       \
 	-fno-stack-protector \
 	-fno-stack-check     \
 	-fno-lto             \
-	-fno-pie             \
-	-fno-pic             \
+	-fPIE                \
+	-fPIC                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -92,7 +80,6 @@ override CFLAGS +=       \
 	-mno-sse             \
 	-mno-sse2            \
 	-mno-red-zone        \
-	-mcmodel=kernel      \
 	-MMD                 \
 	-MP                  \
 	-I.
@@ -104,8 +91,8 @@ override CXXFLAGS +=     \
 	-fno-stack-protector \
 	-fno-stack-check     \
 	-fno-lto             \
-	-fno-pie             \
-	-fno-pic             \
+	-fPIE                \
+	-fPIC                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -123,6 +110,7 @@ override CXXFLAGS +=     \
 	
 override LDFLAGSBASE +=     \
 	-nostdlib               \
+	-shared -pie            \
 	-m elf_x86_64           \
 	-z max-page-size=0x1000
 
@@ -130,11 +118,6 @@ override LDFLAGSBASE +=     \
 override LDFLAGS +=  \
 	$(LDFLAGSBASE)   \
 	-T $(LINKER_FILE)
-
-# Check if the linker supports -no-pie and enable it if it does
-ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
-	override LDFLAGS += -no-pie
-endif
 
 # Internal nasm flags that should not be changed by the user.
 override NASMFLAGS += \
@@ -148,36 +131,14 @@ override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*
 override OBJ := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))
 override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
 
-# It's kind of a mess, but basically, here's what everything does:
-# kernel2.elf - Kernel.elf without the symbol table
-# kernelp.o   - The entire kernel as an object file, so that we don't have to link _everything_ twice
-# _symtab.o   - The compiled symbol table (currently, only .text) for the kernel.
-KERNEL2        = $(BUILD_DIR)/kernel2.elf
-KERNEL_PARTIAL = $(BUILD_DIR)/kernelp.o
-SYMBOLS        = $(BUILD_DIR)/_symtab.o
-
 # Default target.
 .PHONY: all
-all: kernel
+all: driver
 
-# Link rules for the final kernel executable.
-$(KERNEL): $(SYMBOLS)
+# Link rules for the final driver executable.
+$(TARGET): $(OBJ) $(LINKER_FILE)
 	@echo "[LD]\tBuilding $(KERNEL)"
-	@$(LD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
-	
-$(SYMBOLS): $(KERNEL2)
-	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.c
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.c -o $(BUILD_DIR)/_symtab.o
-	
-$(KERNEL2): $(KERNEL_PARTIAL)
-	@echo "[LD]\tLinking kernel to extract symbols"
-	@$(LD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
-
-# Link rules for the amalgam object file.
-$(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
-	@echo "[LD]\tPartially linking kernel"
-	@$(LD) -r $(OBJ) $(LDFLAGSBASE) -o $@
+	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
@@ -210,6 +171,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
 .PHONY: clean
 clean:
 	@echo "Cleaning..."
-	@rm -rf $(KERNEL) $(OBJ) $(HEADER_DEPS)
+	rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
 
-kernel: $(KERNEL)
+driver: $(TARGET)
