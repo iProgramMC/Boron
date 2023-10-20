@@ -38,12 +38,6 @@ LOADER_BUILD=loader/build
 
 KERNEL_ELF=$(KERNEL_BUILD)/$(KERNEL_NAME)
 KERNEL_DELF=$(BUILD_DIR)/$(KERNEL_NAME)
-LOADER_ELF=$(LOADER_BUILD)/$(LOADER_NAME)
-LOADER_DELF=$(BUILD_DIR)/$(LOADER_NAME)
-TEST_ELF=test.elf
-TEST_DELF=$(BUILD_DIR)/test.elf
-TESTT_ELF=test.txt
-TESTT_DELF=$(BUILD_DIR)/test.txt
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -67,17 +61,13 @@ clean:
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel loader
+$(IMAGE_TARGET): kernel
 	@echo "Building iso..."
 	@mkdir -p $(dir $(KERNEL_DELF))
-	@mkdir -p $(dir $(LOADER_DELF))
 	@cp $(KERNEL_ELF) $(KERNEL_DELF)
-	@cp $(LOADER_ELF) $(LOADER_DELF)
-	@cp $(TEST_ELF) $(TEST_DELF)
-	@cp $(TESTT_ELF) $(TESTT_DELF)
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_DELF) $(LOADER_DELF) $(TEST_DELF) $(TESTT_DELF) limine.cfg limine/limine.sys limine/limine-cd.bin $(ISO_DIR)
+	@cp $(KERNEL_DELF) limine.cfg limine/limine.sys limine/limine-cd.bin $(ISO_DIR)
 	@xorriso -as mkisofs -b limine-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
@@ -94,10 +84,5 @@ kernel: $(KERNEL_ELF)
 
 $(KERNEL_ELF): FORCE
 	$(MAKE) -C boron
-
-loader: $(LOADER_ELF)
-
-$(LOADER_ELF): FORCE
-	$(MAKE) -C loader
 
 FORCE: ;

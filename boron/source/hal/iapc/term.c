@@ -116,11 +116,6 @@ void HalTerminalInit()
 	{
 		KeCrashBeforeSMPInit("Error, no terminal context");
 	}
-	
-	if (!HalpIsSerialAvailable)
-	{
-		LogMsg("Hey!");
-	}
 }
 
 void HalPrintString(const char* str)
