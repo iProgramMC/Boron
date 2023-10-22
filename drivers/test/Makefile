@@ -11,7 +11,9 @@ NAME = test
 BUILD_DIR = build
 SRC_DIR = source
 INC_DIR = include
-DDKI_DIR = ../../ddk/include
+# TODO: Separate DDK includes, don't depend on kernel
+#DDKI_DIR = ../../ddk/include
+DDKI_DIR = ../../boron/include
 SCRIPTS_DIR = scripts
 LINKER_FILE = linker.ld
 

@@ -64,7 +64,7 @@ void AcpiInitPmt()
 	if (Header->PMTimerLength < 4)
 	{
 	NOT_AVAILABLE:
-		SLogMsg("ACPI PMT is not available.");
+		DbgPrint("ACPI PMT is not available.");
 		return;
 	}
 	
@@ -159,7 +159,7 @@ void HalAcpiLocateImportantSdts()
 		char Signature[5];
 		Signature[4] = 0;
 		memcpy(Signature, Header->Signature, 4);
-		SLogMsg("ACPI: Found sdt with signature %s", Signature);
+		DbgPrint("ACPI: Found sdt with signature %s", Signature);
 	#endif
 		
 		// Check the signature of this SDT to see if we support it
@@ -195,7 +195,7 @@ void HalInitAcpi()
 		HalpRsdt = MmGetHHDMOffsetAddr(HalpRsdp->RsdtAddress);
 	
 #ifdef DEBUG
-	SLogMsg("ACPI: Revision %d, %susing XSDT, RSDT at %p", HalpRsdp->Revision, AcpiUsingXsdt() ? "" : "not ", HalpRsdt);
+	DbgPrint("ACPI: Revision %d, %susing XSDT, RSDT at %p", HalpRsdp->Revision, AcpiUsingXsdt() ? "" : "not ", HalpRsdt);
 #endif
 	
 	HalAcpiLocateImportantSdts();

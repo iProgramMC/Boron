@@ -19,7 +19,7 @@ Author:
 int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
 #ifdef DEBUG2
-	SLogMsg("Handling page fault at PC=%p ADDR=%p MODE=%p", FaultPC, FaultAddress, FaultMode);
+	DbgPrint("Handling page fault at PC=%p ADDR=%p MODE=%p", FaultPC, FaultAddress, FaultMode);
 #endif
 	
 	if (KeGetIPL() >= IPL_DPC)
@@ -65,7 +65,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 			{
 				// Error: Out of memory! This is bad, but we can check if we can do anything to fix it.
 				// TODO
-				SLogMsg("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
+				DbgPrint("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
 				return FAULT_OUTOFMEMORY;
 			}
 			

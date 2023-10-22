@@ -32,6 +32,12 @@ volatile struct limine_memmap_request KeLimineMemMapRequest =
 	.revision = 0,
 	.response = NULL,
 };
+volatile struct limine_module_request KeLimineModuleRequest =
+{
+	.id       = LIMINE_MODULE_REQUEST,
+	.revision = 0,
+	.response = NULL,
+};
 volatile struct limine_smp_request KeLimineSmpRequest =
 {
 	.id = LIMINE_SMP_REQUEST,

@@ -43,7 +43,7 @@ static void* HalpTerminalMemAlloc(size_t sz)
 {
 	if (HalpTerminalMemoryHead + sz > HalpTerminalMemorySize)
 	{
-		SLogMsg("Error, running out of memory in the terminal heap");
+		DbgPrint("Error, running out of memory in the terminal heap");
 		return NULL;
 	}
 	

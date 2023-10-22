@@ -61,8 +61,8 @@ static NO_RETURN void KiCrashedEntry()
 	KeStopCurrentCPU();
 }
 
-extern KSPIN_LOCK g_PrintLock;
-extern KSPIN_LOCK g_DebugPrintLock;
+extern KSPIN_LOCK KiPrintLock;
+extern KSPIN_LOCK KiDebugPrintLock;
 
 bool KiSmpInitted = false;
 
@@ -83,8 +83,8 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
-	g_PrintLock.Locked = 0;
-	g_DebugPrintLock.Locked = 0;
+	KiPrintLock.Locked = 0;
+	KiDebugPrintLock.Locked = 0;
 	
 	if (HalIsTerminalInitted())
 	{

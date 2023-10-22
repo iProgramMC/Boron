@@ -6,6 +6,7 @@
 #include <ke.h>
 #include <mm.h>
 #include <string.h>
+#include "pio.h"
 
 void KeWaitForNextInterrupt()
 {
@@ -161,3 +162,16 @@ void KeInitCPU()
 	KepSetupGdt(Data);
 	KepLoadIdt();
 }
+
+#ifdef DEBUG
+
+void DbgPrintString(const char* str)
+{
+	while (*str)
+	{
+		KePortWriteByte(0xE9, *str);
+		str++;
+	}
+}
+
+#endif

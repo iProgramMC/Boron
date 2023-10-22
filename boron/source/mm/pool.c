@@ -119,7 +119,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	}
 	
 #ifdef DEBUG
-	SLogMsg("ERROR: MiReservePoolSpaceTagged ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
+	DbgPrint("ERROR: MiReservePoolSpaceTagged ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
 #endif
 	
 	if (OutputAddress)
@@ -178,8 +178,8 @@ void MiDumpPoolInfo()
 	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
-	SLogMsg("MiDumpPoolInfo:");
-	SLogMsg("  EntryAddr         State   Tag     BaseAddr         Limit              SizePages");
+	DbgPrint("MiDumpPoolInfo:");
+	DbgPrint("  EntryAddr         State   Tag     BaseAddr         Limit              SizePages");
 	
 	while (CurrentEntry != &MmpPoolList)
 	{
@@ -193,7 +193,7 @@ void MiDumpPoolInfo()
 		if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
 			UsedText = "Used";
 		
-		SLogMsg("* %p  %s    %s    %p %p   %18zu",
+		DbgPrint("* %p  %s    %s    %p %p   %18zu",
 			Current,
 			UsedText,
 			Tag,
@@ -204,7 +204,7 @@ void MiDumpPoolInfo()
 		CurrentEntry = CurrentEntry->Flink;
 	}
 	
-	SLogMsg("MiDumpPoolInfo done");
+	DbgPrint("MiDumpPoolInfo done");
 	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
 #endif
 }

@@ -36,7 +36,12 @@ Author:
 #define static_assert _Static_assert
 
 void LogMsg(const char* msg, ...);
-void SLogMsg(const char* msg, ...);
+
+#ifdef DEBUG
+void DbgPrint(const char* msg, ...);
+#else
+#define DbgPrint(...)
+#endif
 
 #define CallerAddress() ((uintptr_t) __builtin_return_address(0))
 

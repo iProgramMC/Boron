@@ -239,7 +239,7 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			int pfn = MmAllocatePhysicalPage();
 			if (pfn == PFN_INVALID)
 			{
-				//SLogMsg("MmGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
+				//DbgPrint("MmGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
 				
 				// rollback
 				for (int i = 0; i < NumPfnsAllocated; i++)
@@ -264,13 +264,13 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
 		{
 			// Higher page size, we can't allocate here.  Probably HHDM or something - the kernel itself doesn't use this
-			//SLogMsg("MmGetPTEPointer: Address %p contains a higher page size, we don't support that for now", Address);
+			//DbgPrint("MmGetPTEPointer: Address %p contains a higher page size, we don't support that for now", Address);
 			return NULL;
 		}
 		
-		//SLogMsg("DUMPING PML%d (got here from PML%d[%d]) :", pml, pml + 1, indices[pml + 1]);
+		//DbgPrint("DUMPING PML%d (got here from PML%d[%d]) :", pml, pml + 1, indices[pml + 1]);
 		//for (int i = 0; i < 512; i++)
-		//	SLogMsg("[%d] = %p", i, Entries[i]);
+		//	DbgPrint("[%d] = %p", i, Entries[i]);
 		
 		CurrentLevel = Entry & MM_PTE_ADDRESSMASK;
 	}
@@ -394,13 +394,13 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 		int pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
-			//SLogMsg("MmMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
+			//DbgPrint("MmMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
 			return false;
 		}
 		
 		if (!Pte)
 		{
-			//SLogMsg("MmMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
+			//DbgPrint("MmMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
 			return false;
 		}
 		

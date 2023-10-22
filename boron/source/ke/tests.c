@@ -27,18 +27,18 @@ static void KepTestAllMemory(void* Memory, size_t Size)
 
 void KiPerformSlabAllocTest()
 {
-	//SLogMsg("Allocating a single uint32_t");
+	//DbgPrint("Allocating a single uint32_t");
 	uint32_t* Memory = MiSlabAllocate(sizeof(uint32_t));
 	*Memory = 5;
 	LogMsg("Allocated pointer %p of size %d, reading back %u", Memory, sizeof(uint32_t), *Memory);
 	
-	//SLogMsg("Freeing that uint32_t");
+	//DbgPrint("Freeing that uint32_t");
 	
 	MiSlabFree(Memory, sizeof(uint32_t));
 	
-	//SLogMsg("Freed that uint32_t");
+	//DbgPrint("Freed that uint32_t");
 	
-	//SLogMsg("Allocating a bunch of things");
+	//DbgPrint("Allocating a bunch of things");
 	
 	void* Mem16 = MiSlabAllocate(16);
 	void* Mem32 = MiSlabAllocate(32);
@@ -53,7 +53,7 @@ void KiPerformSlabAllocTest()
 	void* Mem1024_5 = MiSlabAllocate(1024);
 	void* Mem1024_6 = MiSlabAllocate(1024);
 	
-	//SLogMsg("Testing the several allocations");
+	//DbgPrint("Testing the several allocations");
 	
 	KepTestAllMemory(Mem16, 16);
 	KepTestAllMemory(Mem32, 32);
@@ -68,7 +68,7 @@ void KiPerformSlabAllocTest()
 	KepTestAllMemory(Mem1024_5, 1024);
 	KepTestAllMemory(Mem1024_6, 1024);
 	
-	//SLogMsg("Freeing everything");
+	//DbgPrint("Freeing everything");
 	
 	MiSlabFree(Mem16, 16);
 	MiSlabFree(Mem32, 32);
@@ -83,7 +83,7 @@ void KiPerformSlabAllocTest()
 	MiSlabFree(Mem1024_5, 1024);
 	MiSlabFree(Mem1024_6, 1024);
 	
-	//SLogMsg("KiPerformSlabAllocTest Done");
+	//DbgPrint("KiPerformSlabAllocTest Done");
 }
 
 void KiPerformPageMapTest()

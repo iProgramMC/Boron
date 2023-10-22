@@ -16,11 +16,11 @@ Author:
 
 //#define SCHED_DEBUG
 #ifdef SCHED_DEBUG
-#define DbgPrint(...) SLogMsg(__VA_ARGS__)
-#define Dbg2Print(...) SLogMsg(__VA_ARGS__)
+#define SchedDebug(...) DbgPrint(__VA_ARGS__)
+#define SchedDebug2(...) DbgPrint(__VA_ARGS__)
 #else
-#define DbgPrint(...)
-#define Dbg2Print(...) SLogMsg(__VA_ARGS__)
+#define SchedDebug(...)
+#define SchedDebug2(...) DbgPrint(__VA_ARGS__)
 #endif
 
 LIST_ENTRY KiGlobalThreadList;
@@ -203,7 +203,7 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 	{
 		CurrentThread->Status = KTHREAD_STATUS_READY;
 		
-		DbgPrint("Emplacing Thread %p In Queue", CurrentThread);
+		SchedDebug("Emplacing Thread %p In Queue", CurrentThread);
 		
 		// Emplace it back on the ready queue.
 		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
@@ -234,7 +234,7 @@ PKREGISTERS KiSwitchToNextThread()
 	// There is no current thread loaded.
 	// If KiEndThreadQuantum has picked a next thread, it's also gotten rid
 	// of CurrentThread.
-	DbgPrint("Scheduling In Thread %p", Scheduler->NextThread);
+	SchedDebug("Scheduling In Thread %p", Scheduler->NextThread);
 	
 	Scheduler->CurrentThread = Scheduler->NextThread;
 	Scheduler->NextThread    = NULL;
@@ -261,7 +261,7 @@ void KiRescheduleTimerNoChange()
 	if (TicksTillQuantumExpiry < 500)
 	{
 		// Do it anyway
-		DbgPrint("Thread Quantum Has Almost Expired");
+		SchedDebug("Thread Quantum Has Almost Expired");
 		KeSetPendingEvent(PENDING_QUANTUM_END);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 		return;
@@ -270,7 +270,7 @@ void KiRescheduleTimerNoChange()
 	int64_t NanosecondsTillQuantumExpiry = TicksTillQuantumExpiry * 1000000000 / HalGetTicksPerSecond();
 	int64_t ItTicksTillQuantumExpiry = HalGetItTicksPerSecond() * NanosecondsTillQuantumExpiry / 1000000000;
 	
-	DbgPrint("Correction: IT: %lld NS: %lld TI: %lld",
+	SchedDebug("Correction: IT: %lld NS: %lld TI: %lld",
 	         ItTicksTillQuantumExpiry,
 			 NanosecondsTillQuantumExpiry,
 			 TicksTillQuantumExpiry);
@@ -278,7 +278,7 @@ void KiRescheduleTimerNoChange()
 	if (ItTicksTillQuantumExpiry == 0)
 	{
 		// Do it anyway
-		DbgPrint("ItTicksTillQuantumExpiry Is Zero, Marking Quantum End Anyway");
+		SchedDebug("ItTicksTillQuantumExpiry Is Zero, Marking Quantum End Anyway");
 		KeSetPendingEvent(PENDING_QUANTUM_END);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 		return;
@@ -298,12 +298,12 @@ void KeTimerTick()
 		return;
 	}
 	
-	DbgPrint("Thread->QuantumUntil: %lld  HalGetTickCount: %lld", Thread->QuantumUntil, HalGetTickCount());
+	SchedDebug("Thread->QuantumUntil: %lld  HalGetTickCount: %lld", Thread->QuantumUntil, HalGetTickCount());
 	
 	if (Thread->QuantumUntil <= HalGetTickCount())
 	{
 		// Thread's quantum has expired!!
-		DbgPrint("Thread Quantum Has Expired");
+		SchedDebug("Thread Quantum Has Expired");
 		KeSetPendingEvent(PENDING_QUANTUM_END);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 	}

@@ -3,6 +3,7 @@
 
 #include <main.h>
 
+// Note. Two qwords is how we define it in the assembly version
 typedef struct KSYMBOL_tag
 {
 	uint64_t Address;

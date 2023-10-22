@@ -19,8 +19,8 @@ Author:
 #include <string.h>
 
 // TODO: Have a worker thread or service?
-KSPIN_LOCK g_PrintLock;
-KSPIN_LOCK g_DebugPrintLock;
+KSPIN_LOCK KiPrintLock;
+KSPIN_LOCK KiDebugPrintLock;
 
 void LogMsg(const char* msg, ...)
 {
@@ -34,12 +34,16 @@ void LogMsg(const char* msg, ...)
 	
 	// this one goes to the screen
 	KIPL OldIpl;
-	KeAcquireSpinLock(&g_PrintLock, &OldIpl);
+	KeAcquireSpinLock(&KiPrintLock, &OldIpl);
 	HalPrintString(buffer);
-	KeReleaseSpinLock(&g_PrintLock, OldIpl);
+	KeReleaseSpinLock(&KiPrintLock, OldIpl);
 }
 
-void SLogMsg(const char* msg, ...)
+#ifdef DEBUG
+
+void DbgPrintString(const char* str);
+
+void DbgPrint(const char* msg, ...)
 {
 	va_list va;
 	va_start(va, msg);
@@ -52,10 +56,12 @@ void SLogMsg(const char* msg, ...)
 	// This one goes to the debug log.
 #ifndef DEBUG2
 	KIPL OldIpl;
-	KeAcquireSpinLock(&g_DebugPrintLock, &OldIpl);
+	KeAcquireSpinLock(&KiDebugPrintLock, &OldIpl);
 #endif
 	HalPrintStringDebug(buffer);
 #ifndef DEBUG2
-	KeReleaseSpinLock(&g_DebugPrintLock, OldIpl);
+	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
 #endif
 }
+
+#endif

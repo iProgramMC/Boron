@@ -12,13 +12,12 @@
 // ==== Terminal ====
 // Warning: Only run these on the BSP
 void HalTerminalInit(void);
-void HalDebugTerminalInit(void);
 bool HalIsTerminalInitted();
 
-// Warning: You need to lock g_PrintLock to use this:
+// Warning: You need to lock KiPrintLock to use this:
 void HalPrintString(const char* str);
 
-// Warning: You need to lock g_DebugPrintLock to use this:
+// Warning: You need to lock KiDebugPrintLock to use this:
 void HalPrintStringDebug(const char* str);
 
 // ==== TLB Shootdown ====

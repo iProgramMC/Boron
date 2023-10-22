@@ -17,3 +17,5 @@ Currently this is only a plan.
   interrupt priority level setting, and CPU intrinsics
 
 * `rtl/` - Run-time library - Includes functions such as sprint, memcpy, strcpy.
+
+* `ldr/` - DLL driver loader. Loads the driver DLLs into the kernel's memory region.

@@ -97,7 +97,7 @@ PKREGISTERS KiTrapFDHandler(PKREGISTERS Regs)
 	KPRCB* myCPU = KeGetCurrentPRCB();
 	
 #ifdef DEBUG2
-	SLogMsg("Handling TLB shootdown on CPU %u", myCPU->LapicId);
+	DbgPrint("Handling TLB shootdown on CPU %u", myCPU->LapicId);
 #endif
 	
 	for (size_t i = 0; i < myCPU->TlbsLength; i++)

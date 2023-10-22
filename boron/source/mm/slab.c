@@ -101,7 +101,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	int ItemPfn = MmAllocatePhysicalPage();
 	if (ItemPfn == PFN_INVALID)
 	{
-		SLogMsg("MmpSlabContainerAllocate: Run out of memory! What will we do?!");
+		DbgPrint("MmpSlabContainerAllocate: Run out of memory! What will we do?!");
 		// TODO: invoke the out of memory handler here, then try again
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return NULL;
@@ -132,7 +132,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	
 	if (Item->Check != MI_SLAB_ITEM_CHECK || Item->Parent != Container)
 	{
-		SLogMsg("Error in MmpSlabContainerFree: Pointer %p isn't actually part of this container!", Ptr);
+		DbgPrint("Error in MmpSlabContainerFree: Pointer %p isn't actually part of this container!", Ptr);
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return;
 	}
@@ -141,7 +141,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	ptrdiff_t Diff = PtrBytes - (uint8_t*)Item;
 	if (Diff % Container->ItemSize != 0)
 	{
-		SLogMsg("Error in MmpSlabContainerFree: Pointer %p was made up", Ptr);
+		DbgPrint("Error in MmpSlabContainerFree: Pointer %p was made up", Ptr);
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return;
 	}
@@ -166,7 +166,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 #ifdef MI_SLAB_DEBUG
 #define DEBUG_PRINT_THEN_RETURN(Result, Format, ...) do { \
 	void* __RESULT = (Result);    \
-	SLogMsg(Format, __VA_ARGS__); \
+	DbgPrint(Format, __VA_ARGS__); \
 	return __RESULT;              \
 } while (0)
 #else
@@ -180,14 +180,14 @@ void* MiSlabAllocate(size_t Size)
 #ifdef MI_SLAB_DEBUG
 	static int Something;
 	int SomethingElse = AtAddFetch(Something, 1);
-	SLogMsg("[%d] MiSlabAllocate(%zu)", SomethingElse, Size);
+	DbgPrint("[%d] MiSlabAllocate(%zu)", SomethingElse, Size);
 #endif
 	
 	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{
-		SLogMsg("Error, MiSlabAllocate(%zu) is not supported", Size);
+		DbgPrint("Error, MiSlabAllocate(%zu) is not supported", Size);
 		return NULL;
 	}
 	
@@ -199,20 +199,20 @@ void MiSlabFree(void* Ptr, size_t Size)
 #ifdef MI_SLAB_DEBUG
 	static int Something;
 	int SomethingElse = AtAddFetch(Something, 1);
-	SLogMsg("[%d] MiSlabFree(%p, %zu)", SomethingElse, Ptr, Size);
+	DbgPrint("[%d] MiSlabFree(%p, %zu)", SomethingElse, Ptr, Size);
 #endif
 
 	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{
-		SLogMsg("Error, MiSlabFree(%p, %zu) is not supported", Ptr, Size);
+		DbgPrint("Error, MiSlabFree(%p, %zu) is not supported", Ptr, Size);
 		return;
 	}
 	
 	MmpSlabContainerFree(&MiSlabContainer[Index], Ptr);
 	
 #ifdef MI_SLAB_DEBUG
-	SLogMsg("[%d] Done", SomethingElse);
+	DbgPrint("[%d] Done", SomethingElse);
 #endif
 }

@@ -17,20 +17,6 @@ Author:
 #include <hal.h>
 #include <string.h>
 
-/*void SLogMsg2(const char* msg, ...)
-{
-	va_list va;
-	va_start(va, msg);
-	char buffer[512]; // should be big enough...
-	buffer[sizeof buffer - 1] = 0;
-	int chars = vsnprintf(buffer, sizeof buffer - 1, msg, va);
-	strcpy(buffer + chars, "\n");
-	va_end(va);
-	
-	// this one goes to the screen
-	HalPrintStringDebug(buffer);
-}*/
-
 KIPL KeGetIPL()
 {
 	KPRCB* me = KeGetCurrentPRCB();

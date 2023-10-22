@@ -37,7 +37,7 @@ void HpetInitialize()
 {
 	if (!HalSdtHpet)
 	{
-		SLogMsg("HpetInitialize: There is no HPET installed.");
+		DbgPrint("HpetInitialize: There is no HPET installed.");
 		return;
 	}
 	
@@ -72,13 +72,13 @@ void HpetInitialize()
 	HpetGeneralCaps.Contents = HpetpRegisters->GeneralCaps;
 	
 #ifdef DEBUG
-	SLogMsg("HPET Capabilities: %p, Vendor ID: %04x",
-	        HpetGeneralCaps.Contents,
-	        HpetGeneralCaps.VendorID);
+	DbgPrint("HPET Capabilities: %p, Vendor ID: %04x",
+	         HpetGeneralCaps.Contents,
+	         HpetGeneralCaps.VendorID);
 	
-	SLogMsg("Counter Clock Period: %d Femtoseconds per Tick (%d Nanoseconds)",
-	        HpetGeneralCaps.CounterClockPeriod,
-	        HpetGeneralCaps.CounterClockPeriod / 1000);
+	DbgPrint("Counter Clock Period: %d Femtoseconds per Tick (%d Nanoseconds)",
+	         HpetGeneralCaps.CounterClockPeriod,
+	         HpetGeneralCaps.CounterClockPeriod / 1000);
 #endif
 	
 	// Enable and reset the main counter

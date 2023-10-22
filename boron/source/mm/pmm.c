@@ -200,7 +200,7 @@ void MiInitPMM()
 		if (pEntry->type != LIMINE_MEMMAP_USABLE)
 			continue;
 		
-		SLogMsg("%p-%p (%d pages)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE);
+		DbgPrint("%p-%p (%d pages)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE);
 	}
 	
 	// pass 1: mapping the pages themselves
@@ -234,7 +234,7 @@ void MiInitPMM()
 		}
 	}
 	
-	SLogMsg("Initializing the PFN database.", sizeof(MMPFN));
+	DbgPrint("Initializing the PFN database.", sizeof(MMPFN));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	
@@ -293,7 +293,7 @@ void MiInitPMM()
 	for (int i = 0; i < 200; i++)
 		MmZeroOutFirstPFN();
 	
-	SLogMsg("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
+	DbgPrint("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
 	
 	// final evaluation of the current amount of memory:
 	size_t TotalMemory = 0;
@@ -389,7 +389,7 @@ int MmAllocatePhysicalPage()
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
 #ifdef DEBUG2
-	SLogMsg("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
+	DbgPrint("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
 #endif
 	
 	return currPFN;
@@ -400,7 +400,7 @@ void MmFreePhysicalPage(int pfn)
 	KIPL OldIpl;
 	
 #ifdef DEBUG2
-	SLogMsg("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
+	DbgPrint("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 	
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
@@ -419,7 +419,7 @@ static void MmpZeroOutPFN(int pfn)
 	
 	if (pPF->Type != PF_TYPE_FREE)
 	{
-		SLogMsg("Error, attempting to zero out pfn %d which is used", pfn);
+		DbgPrint("Error, attempting to zero out pfn %d which is used", pfn);
 		return;
 	}
 	
