@@ -4,11 +4,13 @@
 # This Python script generates the symbol definitions.
 import sys
 
-print('/********** The Boron Operating System **********/')
-print('#include <rtl/symdefs.h>')
-print('const KSYMBOL KiSymbolTable[] = {')
+print('; ********** The Boron Operating System **********/')
+print('global KiSymbolTable')
+print('global KiSymbolTableEnd')
+print('KiSymbolTable:')
 
 Count = 0
+Names = "section .rodata\n"
 
 for Line in sys.stdin:
     Line = Line.rstrip()
@@ -18,9 +20,11 @@ for Line in sys.stdin:
     Address = Tokens[2]
     
     if Type == 'T' or Type == 't':
-        print(f'{{ 0x{Address}ull, "{Name}" }},');
+        print(f'dq 0x{Address}');
+        print(f'dq name_{Count}');
+        Names += f'name_{Count}: db "{Name}"\n'
     
     Count += 1
 
-print('};')
-print(f'const KSYMBOL KiSymbolTableEnd[] = {{ {{ 0x0, "" }} }};')
+print('KiSymbolTableEnd:')
+print(Names)

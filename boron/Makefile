@@ -167,8 +167,8 @@ $(KERNEL): $(SYMBOLS)
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.c
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.c -o $(BUILD_DIR)/_symtab.o
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.asm
+	@nasm $(NASMFLAGS) $(BUILD_DIR)/_symtab.asm -o $(BUILD_DIR)/_symtab.o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
 	@echo "[LD]\tLinking kernel to extract symbols"
