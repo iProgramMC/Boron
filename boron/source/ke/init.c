@@ -25,7 +25,6 @@ Author:
 void KiSystemStartup(void)
 {
 	DbgPrint("Boron is starting up");
-	LdrInit();
 	
 	HalTerminalInit();
 	LogMsg("Boron (TM), October 2023 - V0.004");
@@ -35,6 +34,8 @@ void KiSystemStartup(void)
 	MiInitPMM();
 	MmInitAllocators();
 	KeSchedulerInitUP();
+	
+	LdrInit();
 	
 	// phase 1 of HAL initialization on the BSP:
 	HalUPInit();

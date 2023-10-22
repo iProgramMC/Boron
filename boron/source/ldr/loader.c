@@ -20,7 +20,7 @@ uintptr_t LdrAllocateRange(size_t Size)
 {
 	// note: Atomic operations aren't really needed in this case.
 	// But I like my one liner
-	return AtFetchAdd(LdrpCurrentBase, Size);
+	return AtFetchAdd(LdrpCurrentBase, Size * PAGE_SIZE);
 }
 
 static bool LdriEndsWith(const char* String, const char* EndsWith)

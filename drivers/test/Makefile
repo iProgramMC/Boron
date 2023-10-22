@@ -73,7 +73,6 @@ override CFLAGS +=       \
 	-fno-stack-check     \
 	-fno-lto             \
 	-fPIE                \
-	-fPIC                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -94,7 +93,6 @@ override CXXFLAGS +=     \
 	-fno-stack-check     \
 	-fno-lto             \
 	-fPIE                \
-	-fPIC                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -112,14 +110,13 @@ override CXXFLAGS +=     \
 	
 override LDFLAGSBASE +=     \
 	-nostdlib               \
-	-shared -pie            \
+	-shared                 \
 	-m elf_x86_64           \
 	-z max-page-size=0x1000
 
 # Internal linker flags that should not be changed by the user.
 override LDFLAGS +=  \
-	$(LDFLAGSBASE)   \
-	-T $(LINKER_FILE)
+	$(LDFLAGSBASE)
 
 # Internal nasm flags that should not be changed by the user.
 override NASMFLAGS += \

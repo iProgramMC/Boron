@@ -4,5 +4,6 @@ loader/build/*
 .keep/*
 limine/*
 keep/*
+drivers/*/build/*
 
 source/ha/flanterm/*

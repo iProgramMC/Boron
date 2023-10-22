@@ -23,7 +23,7 @@ Author:
 
 typedef NO_RETURN void(*ELF_ENTRY_POINT)();
 
-typedef enum ELF_IDENT_INDEX_tag
+enum
 {
 	ELF_IDENT_MAGIC_0,
 	ELF_IDENT_MAGIC_1,
@@ -34,8 +34,23 @@ typedef enum ELF_IDENT_INDEX_tag
 	ELF_IDENT_VERSION,
 	ELF_IDENT_OS_ABI,
 	ELF_IDENT_ABI_VERSION,
-}
-ELF_IDENT_INDEX;
+};
+
+enum
+{
+	ELF_TYPE_NONE,
+	ELF_TYPE_RELOCATABLE,
+	ELF_TYPE_EXECUTABLE,
+	ELF_TYPE_DYNAMIC,
+	ELF_TYPE_CORE_DUMP,
+};
+
+enum
+{
+	ELF_PHDR_READ  = (1 << 2),
+	ELF_PHDR_WRITE = (1 << 1),
+	ELF_PHDR_EXEC  = (1 << 0),
+};
 
 typedef struct ELF_HEADER_tag
 {
@@ -44,14 +59,14 @@ typedef struct ELF_HEADER_tag
 	uint16_t  Machine;
 	uint32_t  Version;
 	ELF_ENTRY_POINT EntryPoint;
-	uintptr_t ProgramHeaderTableOffset;
-	uintptr_t SectionHeaderTableOffset;
+	uintptr_t ProgramHeadersOffset;
+	uintptr_t SectionHeadersOffset;
 	uint32_t  Flags;
 	uint16_t  HeaderSize;
-	uint16_t  ProgramHeaderTableEntrySize;
-	uint16_t  ProgramHeaderTableEntries;
-	uint16_t  SectionHeaderTableEntrySize;
-	uint16_t  SectionHeaderTableEntries;
+	uint16_t  ProgramHeaderSize;
+	uint16_t  ProgramHeaderCount;
+	uint16_t  SectionHeaderSize;
+	uint16_t  SectionHeaderCount;
 	uint16_t  SectionHeaderNameIndex;
 }
 PACKED
