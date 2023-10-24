@@ -95,7 +95,7 @@ $(KERNEL_ELF): FORCE
 drivers: $(DRIVERS_TARGETS)
 
 # note: the $(dir $(dir)) is kind of cheating but it works!
-$(BUILD_DIR)/%.sys:
+$(BUILD_DIR)/%.sys: FORCE
 	@echo "[MK]\tMaking driver $(patsubst $(BUILD_DIR)/%.sys,%,$@)"
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%,$@)
 	@mkdir -p $(dir $@)

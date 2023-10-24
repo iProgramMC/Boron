@@ -11,6 +11,8 @@ typedef struct KSYMBOL_tag
 }
 KSYMBOL, *PKSYMBOL;
 
+typedef const KSYMBOL* PCKSYMBOL;
+
 extern const KSYMBOL KiSymbolTable[];
 extern const KSYMBOL KiSymbolTableEnd[];
 

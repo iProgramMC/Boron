@@ -38,7 +38,8 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
 }
 
 // Allocates a page from the memmap for eternity during init.  Used to prepare the PFN database.
-static uintptr_t MiAllocatePageFromMemMap()
+// Also used in the initial DLL loader.
+uintptr_t MiAllocatePageFromMemMap()
 {
 	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
 	

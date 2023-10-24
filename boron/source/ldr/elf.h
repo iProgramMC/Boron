@@ -47,9 +47,81 @@ enum
 
 enum
 {
+	DYN_NULL,
+	DYN_NEEDED,
+	DYN_PLTRELSZ,
+	DYN_PLTGOT,
+	DYN_HASH,
+	DYN_STRTAB,
+	DYN_SYMTAB,
+	DYN_RELA,
+	DYN_RELASZ,
+	DYN_RELAENT,
+	DYN_STRSZ,
+	DYN_SYMENT,
+	DYN_INIT,
+	DYN_FINI,
+	DYN_SONAME,
+	DYN_RPATH,
+	DYN_SYMBOLIC,
+	DYN_REL,
+	DYN_RELSZ,
+	DYN_RELENT,
+	DYN_PLTREL,
+	DYN_DEBUG,
+	DYN_TEXTREL,
+	DYN_JMPREL,
+	DYN_BIND_NOW,
+	DYN_INIT_ARRAY,
+	DYN_FINI_ARRAY,
+	DYN_INIT_ARRAYSZ,
+	DYN_FINI_ARRAYSZ,
+	DYN_RUNPATH,
+	DYN_ENCODING = 32,
+	DYN_PREINIT_ARRAY = 32, // ignored
+	DYN_PREINIT_ARRAYSZ,
+	DYN_MAXPOSTAGS,
+};
+
+enum
+{
 	ELF_PHDR_READ  = (1 << 2),
 	ELF_PHDR_WRITE = (1 << 1),
 	ELF_PHDR_EXEC  = (1 << 0),
+};
+
+enum
+{
+	PROG_NULL,
+	PROG_LOAD,
+	PROG_DYNAMIC,
+	PROG_INTERP,
+	PROG_NOTE,
+};
+
+enum
+{
+#ifdef TARGET_AMD64
+	R_X86_64_NONE,
+	R_X86_64_64,
+	R_X86_64_PC32,
+	R_X86_64_GOT32,
+	R_X86_64_PLT32,
+	R_X86_64_COPY,
+	R_X86_64_GLOB_DAT,
+	R_X86_64_JUMP_SLOT,
+	R_X86_64_RELATIVE,
+	R_X86_64_GOTPCREL,
+	R_X86_64_32,
+	R_X86_64_32S,
+	R_X86_64_16,
+	R_X86_64_16S,
+	R_X86_64_8,
+	R_X86_64_8S,
+	//...
+#else
+#error Hey! Add ELF relocation types here
+#endif
 };
 
 typedef struct ELF_HEADER_tag
@@ -106,5 +178,76 @@ typedef struct ELF_SECTION_HEADER_tag
 }
 PACKED
 ELF_SECTION_HEADER, *PELF_SECTION_HEADER;
+
+typedef struct ELF_DYNAMIC_ITEM_tag
+{
+	uintptr_t Tag;
+	
+	union
+	{
+	#ifdef IS_64_BIT
+		long long int Value;
+	#else
+		int           Value;
+	#endif
+		
+		uintptr_t     Pointer;
+	};
+}
+PACKED
+ELF_DYNAMIC_ITEM, *PELF_DYNAMIC_ITEM;
+
+typedef struct
+{
+#ifdef IS_64_BIT
+	uint32_t  Name;
+	uint8_t   Info;
+	uint8_t   Other;
+	uint16_t  SectionHeaderIndex;
+	uintptr_t Value;
+	uintptr_t Size;
+#else
+	uint32_t  Name;
+	uintptr_t Value;
+	uintptr_t Size;
+	uint8_t   Info;
+	uint8_t   Other;
+	uint16_t  SectionHeaderIndex;
+#endif
+}
+PACKED
+ELF_SYMBOL, *PELF_SYMBOL;
+
+typedef struct
+{
+	uintptr_t Offset;
+	uintptr_t Info;
+}
+PACKED
+ELF_REL, *PELF_REL;
+
+typedef struct
+{
+	uintptr_t Offset;
+	uintptr_t Info;
+	intptr_t  Addend;
+}
+PACKED
+ELF_RELA, *PELF_RELA;
+
+// Struct not part of the ELF format, but part of the loader.
+typedef struct ELF_DYNAMIC_INFO_tag
+{
+	const char *StringTable;
+	ELF_SYMBOL *SymbolTable;
+	const void *PltRelocations;
+	size_t      PltRelocationCount;
+	ELF_RELA   *RelaEntries;
+	size_t      RelaCount;
+	ELF_REL    *RelEntries;
+	size_t      RelCount;
+	bool        PltUsesRela;
+}
+ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
 
 #endif//BORON_ELF_H

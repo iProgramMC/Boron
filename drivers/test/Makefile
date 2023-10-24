@@ -72,6 +72,7 @@ override CFLAGS +=       \
 	-fno-stack-protector \
 	-fno-stack-check     \
 	-fno-lto             \
+	-fPIC                \
 	-fPIE                \
 	-m64                 \
 	-march=x86-64        \

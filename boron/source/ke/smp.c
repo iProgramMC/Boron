@@ -66,6 +66,10 @@ extern KSPIN_LOCK KiDebugPrintLock;
 
 bool KiSmpInitted = false;
 
+#ifdef DEBUG
+void DbgPrintString(const char* str);
+#endif
+
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 {
 	if (KiSmpInitted) {
@@ -86,13 +90,15 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	KiPrintLock.Locked = 0;
 	KiDebugPrintLock.Locked = 0;
 	
+#ifdef DEBUG
+	DbgPrintString("\x1B[35m*** Init error: \x1B[0m");
+	DbgPrintString(buffer);
+#endif
+	
 	if (HalIsTerminalInitted())
 	{
 		HalPrintString("\x1B[35m*** Init error: \x1B[0m");
 		HalPrintString(buffer);
-		
-		HalPrintStringDebug("\x1B[35m*** Init error: \x1B[0m");
-		HalPrintStringDebug(buffer);
 	}
 	
 	if (pSMP)

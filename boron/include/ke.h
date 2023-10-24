@@ -21,11 +21,14 @@
 // === Statistics ===
 #include <ke/stats.h>
 
+// === Routine Lookup ===
+uintptr_t DbgLookUpAddress(const char* Name);
+const char* DbgLookUpRoutineByAddress(uintptr_t Address);
+
 // === SMP ===
 NO_RETURN void KeInitSMP(void);
 
 // === Crashing ===
 NO_RETURN void KeCrash(const char* message, ...);
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
-
 #endif//NS64_KE_H

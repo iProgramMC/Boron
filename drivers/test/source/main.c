@@ -1,8 +1,16 @@
 #include <main.h>
 
+int* Test()
+{
+	static int stuff;
+	return &stuff;
+}
+
 int DriverEntry()
 {
-	LogMsg("Hisssssssssssssssss, Viper Lives\n");
+	LogMsg("Hisssssssssssssssss, Viper Lives");
 	
-	return 42;
+	*Test() = 69;
+	
+	return 42 + *Test();
 }

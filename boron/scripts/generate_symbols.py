@@ -5,6 +5,7 @@
 import sys
 
 print('; ********** The Boron Operating System **********/')
+print('section .rodata')
 print('global KiSymbolTable')
 print('global KiSymbolTableEnd')
 print('KiSymbolTable:')
@@ -22,7 +23,7 @@ for Line in sys.stdin:
     if Type == 'T' or Type == 't':
         print(f'dq 0x{Address}');
         print(f'dq name_{Count}');
-        Names += f'name_{Count}: db "{Name}"\n'
+        Names += f'name_{Count}: db "{Name}", 0\n'
     
     Count += 1
 

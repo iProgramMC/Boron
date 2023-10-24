@@ -60,7 +60,7 @@ void KeSetPriorityThread(PKTHREAD Thread, int Priority)
 
 static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 {
-	LogMsg("Hello from the idle thread from CPU %d!", KeGetCurrentPRCB()->LapicId);
+	//LogMsg("Hello from the idle thread from CPU %d!", KeGetCurrentPRCB()->LapicId);
 	
 	while (true)
 		KeWaitForNextInterrupt();
@@ -70,7 +70,7 @@ static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
 {
 	while (true)
 	{
-		LogMsg("Hello from the test1 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
+		//LogMsg("Hello from the test1 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
 		KeWaitForNextInterrupt();
 	}
 }
@@ -79,7 +79,7 @@ static NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
 {
 	while (true)
 	{
-		LogMsg("Hello from the test2 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
+		//LogMsg("Hello from the test2 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
 		KeWaitForNextInterrupt();
 	}
 }
