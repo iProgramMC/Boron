@@ -27,6 +27,7 @@ Author:
 #define ALWAYS_INLINE __attribute__((always_inline))
 
 #include <rtl/list.h>
+#include <rtl/ansi.h>
 
 #define BIT(x) (1ULL << (x))
 

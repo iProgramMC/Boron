@@ -17,4 +17,8 @@ Author:
 
 void LdrInit();
 
+void LdrInitializeHal();
+
+void LdrInitializeDrivers();
+
 #endif//NS64_LDR_H

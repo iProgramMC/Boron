@@ -18,6 +18,7 @@ Author:
 #include <arch.h>
 #include <string.h>
 #include <limreq.h>
+#include <ldr.h>
 #include "ki.h"
 
 KPRCB**  KeProcessorList;
@@ -38,10 +39,15 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeInitCPU();
 	KeLowerIPL(IPL_NORMAL);
 	
+	DbgPrint("Hello from CPU %u", (unsigned) pInfo->lapic_id);
+	
 	HalMPInit();
+	LdrInitializeHal();
+	
 	KeSchedulerInit();
 	
-	LogMsg("Hello from CPU %u", (unsigned) pInfo->lapic_id);
+	// If this is the bootstrap processor, initialize all drivers too.
+	LdrInitializeDrivers();
 	
 	//KiPerformTests();
 	

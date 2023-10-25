@@ -240,6 +240,9 @@ typedef struct ELF_DYNAMIC_INFO_tag
 {
 	const char *StringTable;
 	ELF_SYMBOL *SymbolTable;
+	size_t      SymbolTableSize; // (1)
+	uintptr_t  *GlobalOffsetTable;
+	size_t      GlobalOffsetTableSize;
 	const void *PltRelocations;
 	size_t      PltRelocationCount;
 	ELF_RELA   *RelaEntries;
@@ -249,5 +252,7 @@ typedef struct ELF_DYNAMIC_INFO_tag
 	bool        PltUsesRela;
 }
 ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
+// (1) - Not figured out by LdrpParseDynamicTable but by
+//       LdrpParseInterestingSections.
 
 #endif//BORON_ELF_H

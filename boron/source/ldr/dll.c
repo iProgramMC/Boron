@@ -218,6 +218,10 @@ static bool LdrpComputeRelocation(
 			*Value  = Base + Addend;
 			*Length = sizeof(uint64_t);
 			break;
+		case R_X86_64_GLOB_DAT:
+			*Value  = Symbol;
+			*Length = sizeof(uint64_t);
+			break;
 		case R_X86_64_JUMP_SLOT:
 			*Value  = Symbol;
 			*Length = sizeof(uint64_t);
@@ -332,19 +336,27 @@ static bool LdrpLinkPlt(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t 
 		// NOTE: PELF_RELA and PELF_REL need to have the same starting members!!
 		PELF_REL Rel = (PELF_REL)((uintptr_t)DynInfo->PltRelocations + i);
 		
-		uintptr_t SymbolOffset = DynInfo->SymbolTable[Rel->Info >> 32].Name;
+		PELF_SYMBOL Symbol = &DynInfo->SymbolTable[Rel->Info >> 32];
+		
+		uintptr_t SymbolOffset = Symbol->Name;
 		const char* SymbolName = DynInfo->StringTable + SymbolOffset;
 		
-		uintptr_t Symbol = DbgLookUpAddress(SymbolName);
+		uintptr_t SymbolAddress = 0;
 		
-		if (!Symbol)
+		// If the symbol's Info field doesn't specify a type, but is globally bound:
+		if (Symbol->Info == 0x10) //! TODO: Specify this with a defined constant, not a magic number
+			SymbolAddress = DbgLookUpAddress(SymbolName);
+		else
+			SymbolAddress = LoadBase + Symbol->Value;
+		
+		if (!SymbolAddress)
 			KeCrashBeforeSMPInit("LdrLink: Module %s: lookup of function %s failed (Offset: %zu)", File->path, SymbolName, SymbolOffset);
 		
 		if (!LdrpApplyRelocation(DynInfo,
 		                        DynInfo->PltUsesRela ? Rel : NULL,
 		                        DynInfo->PltUsesRela ? NULL : (PELF_RELA)Rel,
 		                        LoadBase,
-		                        Symbol))
+		                        SymbolAddress))
 			return false;
 	}
 	
@@ -364,7 +376,7 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 	LdrpGetLimits(File, &BaseAddr, &LargestAddr);
 	
 	if (BaseAddr > LargestAddr)
-		KeCrashBeforeSMPInit("LdrpLoadProgramHeaders: Error, base address > largest address");
+		KeCrashBeforeSMPInit("LdrpLoadProgramHeaders: Error, base address %p > largest address %p", BaseAddr, LargestAddr);
 	
 	uintptr_t Size = LargestAddr - BaseAddr;
 	
@@ -396,6 +408,54 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 	return Dynamic;
 }
 
+static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
+{
+	PELF_HEADER Header = (PELF_HEADER) File->address;
+	PELF_SECTION_HEADER GotSection = NULL; // need later
+	uintptr_t Offset = (uintptr_t) File->address + Header->SectionHeadersOffset;
+	
+	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)(File->address + Header->SectionHeadersOffset + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
+	const char* SHStringTable = (const char*)(File->address + SHStrHeader->OffsetInFile);
+	
+	for (int i = 0; i < Header->SectionHeaderCount; i++)
+	{
+		PELF_SECTION_HEADER SectionHeader = (PELF_SECTION_HEADER) Offset;
+		Offset += Header->SectionHeaderSize;
+		
+		// Seems like we gotta grab the name. But we have grabbed the string table already
+		const char* SectName = &SHStringTable[SectionHeader->Name];
+		
+		// Yes, we're looking for just .got for now.
+		if (strcmp(SectName, ".got") == 0)
+			GotSection = SectionHeader;
+	}
+	
+	if (GotSection)
+	{
+		DynInfo->GlobalOffsetTable     = (uintptr_t*)(LoadBase + GotSection->VirtualAddress);
+		DynInfo->GlobalOffsetTableSize = GotSection->Size / sizeof(uintptr_t);
+	}
+	else
+	{
+		DynInfo->GlobalOffsetTable     = NULL;
+		DynInfo->GlobalOffsetTableSize = 0;
+	}
+}
+
+static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
+{
+	// Note! A check for 0 here would be redundant as the contents of the
+	// for loop just wouldn't execute if the size was zero
+	
+	for (size_t i = 0; i < DynInfo->GlobalOffsetTableSize; i++)
+	{
+		DynInfo->GlobalOffsetTable[i] += LoadBase;
+	}
+	
+	return true;
+}
+
+// TODO: not sure we even need this, I mean, we don't lookup the driver's entry point anymore
 void* LdrpLookUpRoutineAddress(PELF_DYNAMIC_INFO DynInfo, uintptr_t Base, const char* Name)
 {
 	// TODO: Better way to do this, that doesn't go out of bounds when the symbol isn't found!
@@ -447,17 +507,34 @@ void LdriLoadDll(PLIMINE_FILE File)
 	if (!LdrpPerformRelocations(&DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
 	
+	LdrpParseInterestingSections(File, &DynInfo, LoadBase);
+	LdrpUpdateGlobalOffsetTable(&DynInfo, LoadBase);
+	
 	if (!LdrpLinkPlt(File, &DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);
 	
-	LoadedDLL->EntryPoint = LdrpLookUpRoutineAddress(&DynInfo, LoadBase, "DriverEntry");
+	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);
+	//LdrpLookUpRoutineAddress(&DynInfo, LoadBase, "DriverEntry");
 	
 	if (!LoadedDLL->EntryPoint)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
-	
-	DbgPrint("Entering entry point: %p", LoadedDLL->EntryPoint);
-	
-	int Value = LoadedDLL->EntryPoint();
-	
-	LogMsg("Value that %s returned: %d", File->path, Value);
+}
+
+void LdrInitializeHal()
+{
+	// TODO
+}
+
+void LdrInitializeDrivers()
+{
+	for (int i = 0; i < KeLoadedDLLCount; i++)
+	{
+		PLOADED_DLL Dll = &KeLoadedDLLs[i];
+		
+		int Result = Dll->EntryPoint();
+		if (Result != 0)
+		{
+			LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
+		}
+	}
 }

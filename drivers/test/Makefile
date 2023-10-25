@@ -17,6 +17,8 @@ DDKI_DIR = ../../boron/include
 SCRIPTS_DIR = scripts
 LINKER_FILE = linker.ld
 
+DRIVER_ENTRY=DriverEntry
+
 ARCHITECTURE=AMD64
 
 # This is the name that our final driver executable will have.
@@ -73,7 +75,6 @@ override CFLAGS +=       \
 	-fno-stack-check     \
 	-fno-lto             \
 	-fPIC                \
-	-fPIE                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -93,7 +94,7 @@ override CXXFLAGS +=     \
 	-fno-stack-protector \
 	-fno-stack-check     \
 	-fno-lto             \
-	-fPIE                \
+	-fPIC                \
 	-m64                 \
 	-march=x86-64        \
 	-mabi=sysv           \
@@ -102,7 +103,6 @@ override CXXFLAGS +=     \
 	-mno-sse             \
 	-mno-sse2            \
 	-mno-red-zone        \
-	-mcmodel=kernel      \
 	-MMD                 \
 	-MP                  \
 	-fno-exceptions      \
@@ -110,8 +110,8 @@ override CXXFLAGS +=     \
 	-I.
 	
 override LDFLAGSBASE +=     \
-	-nostdlib               \
-	-shared                 \
+	-nostdlib -shared       \
+	-e $(DRIVER_ENTRY)      \
 	-m elf_x86_64           \
 	-z max-page-size=0x1000
 
@@ -170,7 +170,7 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
 # Remove object files and the final executable.
 .PHONY: clean
 clean:
-	@echo "Cleaning..."
-	rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
+	@echo "Cleaning"
+	@rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
 
 driver: $(TARGET)
