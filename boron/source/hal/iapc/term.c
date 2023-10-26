@@ -118,13 +118,13 @@ void HalTerminalInit()
 	}
 }
 
-void HalPrintString(const char* str)
+void _HalDisplayString(const char* Message)
 {
 	if (!HalpTerminalContext)
 	{
-		HalPrintStringDebug(str);
+		HalPrintStringDebug(Message);
 		return;
 	}
 	
-	flanterm_write(HalpTerminalContext, str, strlen(str));
+	flanterm_write(HalpTerminalContext, Message, strlen(Message));
 }

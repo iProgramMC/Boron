@@ -161,12 +161,12 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority)
 
 void KiAssignDefaultQuantum(PKTHREAD Thread)
 {
-	uint64_t QuantumTicks = HalGetTicksPerSecond() * MAX_QUANTUM_US / 1000000;
+	uint64_t QuantumTicks = HalGetTickFrequency() * MAX_QUANTUM_US / 1000000;
 	Thread->QuantumUntil = HalGetTickCount() + QuantumTicks;
 	
-	if (HalUseOneShotTimer())
+	if (HalUseOneShotIntTimer())
 	{
-		HalRequestInterruptInTicks(HalGetItTicksPerSecond() * MAX_QUANTUM_US / 1000000);
+		HalRequestInterruptInTicks(HalGetIntTimerFrequency() * MAX_QUANTUM_US / 1000000);
 	}
 	else
 	{
@@ -252,7 +252,7 @@ PKREGISTERS KiSwitchToNextThread()
 
 void KiRescheduleTimerNoChange()
 {
-	if (!HalUseOneShotTimer())
+	if (!HalUseOneShotIntTimer())
 		return; // it's going to trigger again anyways
 	
 	PKTHREAD Thread = KeGetCurrentThread();
@@ -267,8 +267,8 @@ void KiRescheduleTimerNoChange()
 		return;
 	}
 	
-	int64_t NanosecondsTillQuantumExpiry = TicksTillQuantumExpiry * 1000000000 / HalGetTicksPerSecond();
-	int64_t ItTicksTillQuantumExpiry = HalGetItTicksPerSecond() * NanosecondsTillQuantumExpiry / 1000000000;
+	int64_t NanosecondsTillQuantumExpiry = TicksTillQuantumExpiry * 1000000000 / HalGetTickFrequency();
+	int64_t ItTicksTillQuantumExpiry = HalGetIntTimerFrequency() * NanosecondsTillQuantumExpiry / 1000000000;
 	
 	SchedDebug("Correction: IT: %lld NS: %lld TI: %lld",
 	         ItTicksTillQuantumExpiry,

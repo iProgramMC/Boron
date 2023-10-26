@@ -35,7 +35,7 @@ void LogMsg(const char* msg, ...)
 	// this one goes to the screen
 	KIPL OldIpl;
 	KeAcquireSpinLock(&KiPrintLock, &OldIpl);
-	HalPrintString(buffer);
+	HalDisplayString(buffer);
 	KeReleaseSpinLock(&KiPrintLock, OldIpl);
 }
 

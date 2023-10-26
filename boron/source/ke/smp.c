@@ -103,8 +103,8 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	
 	if (HalIsTerminalInitted())
 	{
-		HalPrintString("\x1B[35m*** Init error: \x1B[0m");
-		HalPrintString(buffer);
+		HalDisplayString("\x1B[35m*** Init error: \x1B[0m");
+		HalDisplayString(buffer);
 	}
 	
 	if (pSMP)

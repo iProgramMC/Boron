@@ -111,7 +111,7 @@ bool HalIsApicAvailable()
 	return edx & (1 << 9);
 }
 
-static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool includeSelf)
+static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool self)
 {
 	// wait until our current IPI request is finished
 	while (ApicReadRegister(APIC_REG_ICR0) & APIC_ICR0_DELIVERY_STATUS)
@@ -125,13 +125,21 @@ static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool inclu
 	if (broadcast)
 	{
 		mode = APIC_ICR0_BROADCAST_OTHERS;
-		if (includeSelf)
+		if (self)
 			mode = APIC_ICR0_BROADCAST;
+	}
+	else if (self)
+	{
+		mode = APIC_ICR0_SELF;
 	}
 	
 	ApicWriteRegister(APIC_REG_ICR0, mode | vector);
 }
 
+void _HalRequestIpi(uint32_t LapicId, uint32_t Flags)
+{
+	ApicSendIpi(LapicId, INTV_DPC_IPI, Flags & HAL_IPI_BROADCAST, Flags & HAL_IPI_SELF);
+}
 
 // Interface code.
 void HalSendIpi(uint32_t Processor, int Vector)
@@ -144,7 +152,7 @@ void HalBroadcastIpi(int Vector, bool IncludeSelf)
 	ApicSendIpi(0, Vector, true, IncludeSelf);
 }
 
-void HalApicEoi()
+void _HalEndOfInterrupt()
 {
 	ApicEndOfInterrupt();
 }

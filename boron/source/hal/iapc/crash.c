@@ -25,12 +25,12 @@ extern int        KeProcessorCount;
 extern KSPIN_LOCK g_PrintLock;
 extern KSPIN_LOCK g_DebugPrintLock;
 
-void HalpOnCrashedCPU()
+void _HalProcessorCrashed()
 {
 	AtAddFetch(HalpCrashedProcessors, 1);
 }
 
-void HalCrashSystem(const char* message)
+void _HalCrashSystem(const char* message)
 {
 	KIPL Unused;
 	// lock the crash in so that no one else can crash but us
@@ -60,8 +60,8 @@ void HalCrashSystem(const char* message)
 	
 	// now that we got that out of the way, print the error message
 	// (and the 'fatal error' tag in red) to the console..
-	HalPrintString(buff);
-	HalPrintString(message);
+	HalDisplayString(buff);
+	HalDisplayString(message);
 	// and the debug console
 	HalPrintStringDebug(buff);
 	HalPrintStringDebug(message);

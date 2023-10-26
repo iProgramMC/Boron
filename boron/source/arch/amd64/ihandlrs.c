@@ -69,7 +69,7 @@ PKREGISTERS KiTrap0EHandler(PKREGISTERS Regs)
 PKREGISTERS KiTrap40Handler(PKREGISTERS Regs)
 {
 	PKREGISTERS New = KiHandleSoftIpi(Regs);
-	HalApicEoi();
+	HalEndOfInterrupt();
 	return New;
 }
 
@@ -77,7 +77,7 @@ PKREGISTERS KiTrap40Handler(PKREGISTERS Regs)
 PKREGISTERS KiTrap50Handler(PKREGISTERS Regs)
 {
 	HalHandleKeyboardInterrupt();
-	HalApicEoi();
+	HalEndOfInterrupt();
 	return Regs;
 }
 
@@ -87,7 +87,7 @@ void HalApicHandleInterrupt();
 PKREGISTERS KiTrapF0Handler(PKREGISTERS Regs)
 {
 	HalApicHandleInterrupt();
-	HalApicEoi();
+	HalEndOfInterrupt();
 	return Regs;
 }
 
@@ -107,31 +107,25 @@ PKREGISTERS KiTrapFDHandler(PKREGISTERS Regs)
 	
 	KeReleaseSpinLock(&myCPU->TlbsLock, IPL_NOINTS);
 	
-	HalApicEoi();
+	HalEndOfInterrupt();
 	return Regs;
 }
 
 // Crash IPI (inter processor interrupt).
-void HalpOnCrashedCPU();
-PKREGISTERS KiTrapFEHandler(PKREGISTERS Regs)
+PKREGISTERS KiTrapFEHandler(UNUSED PKREGISTERS Regs)
 {
 	KeDisableInterrupts();
 	
 	// We have received an interrupt from the processor that has crashed. We should crash too!
 	// Interrupts are disabled at this point
 	
-	// notify the crash handler that we've stopped
-	HalpOnCrashedCPU();
-	
-	// and stop!!
-	KeStopCurrentCPU();
-	
-	return Regs;
+	// Notify the HAL that we've crashed. This function doesn't return;
+	HalProcessorCrashed();
 }
 
 // Spurious interrupt.
 PKREGISTERS KiTrapFFHandler(PKREGISTERS Regs)
 {
-	HalApicEoi();
+	HalEndOfInterrupt();
 	return Regs;
 }

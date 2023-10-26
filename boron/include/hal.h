@@ -9,6 +9,25 @@
 #include <hal/timer.h>
 #include <hal/data.h>
 
+
+#define HAL_IPI_BROADCAST (1 << 0)
+#define HAL_IPI_SELF      (1 << 1)
+
+
+void HalEndOfInterrupt();
+void HalRequestIpi(uint32_t LapicId, uint32_t Flags);
+void HalInitSystemUP();
+void HalInitSystemMP();
+void HalDisplayString(const char* Message);
+void HalCrashSystem(const char* Message);
+bool HalUseOneShotIntTimer();
+void HalProcessorCrashed() NO_RETURN;
+uint64_t HalGetIntTimerFrequency();
+uint64_t HalGetTickCount();
+uint64_t HalGetTickFrequency();
+
+
+
 // ==== Terminal ====
 // Warning: Only run these on the BSP
 void HalTerminalInit(void);

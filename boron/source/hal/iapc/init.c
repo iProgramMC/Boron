@@ -45,3 +45,13 @@ void HalMPInit()
 	HalEnableApic();
 	HalCalibrateApic();
 }
+
+void _HalInitSystemUP()
+{
+	HalUPInit();
+}
+
+void _HalInitSystemMP()
+{
+	HalMPInit();
+}
