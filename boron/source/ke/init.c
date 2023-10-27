@@ -22,25 +22,13 @@ Author:
 //#include <cpuid.h>
 
 // The entry point to our kernel.
-void KiSystemStartup(void)
+NO_RETURN void KiSystemStartup(void)
 {
-	DbgPrint("Boron is starting up");
-	
-	HalTerminalInit();
-	LogMsg("Boron (TM), October 2023 - V0.004");
-	
-	DbgPrint("%p %d", KiSymbolTable, KiSymbolTableSize);
-	
 	MiInitPMM();
 	MmInitAllocators();
 	KeSchedulerInitUP();
-	
+	KeInitArchUP();
 	LdrInit();
-	
-	// phase 1 of HAL initialization on the BSP:
-	HalUPInit();
-	
-	// initialize SMP. This function doesn't return
-	KeInitSMP();
+	KeInitSMP(); // no return
 }
 

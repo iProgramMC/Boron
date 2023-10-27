@@ -19,18 +19,17 @@ Author:
 #include "apic.h"
 #include "hpet.h"
 
-void KiSetupIdt();
-
 PKHALCB KeGetCurrentHalCB()
 {
 	return KeGetCurrentPRCB()->HalData;
 }
 
 // Initialize the HAL on the BSP, for all processors.
-void HalUPInit()
+void _HalInitSystemUP()
 {
-	// Initialize the IDT
-	KiSetupIdt();
+	HalInitTerminal();
+	LogMsg("Boron (TM), October 2023 - V0.005");
+	
 	HalInitAcpi();
 	HalInitIoApic();
 	HpetInitialize();
@@ -38,20 +37,10 @@ void HalUPInit()
 
 // Initialize the HAL separately for each processor.
 // This function is run on ALL processors.
-void HalMPInit()
+void _HalInitSystemMP()
 {
 	KeGetCurrentPRCB()->HalData = ExAllocateSmall(sizeof(KHALCB));
 	
 	HalEnableApic();
 	HalCalibrateApic();
-}
-
-void _HalInitSystemUP()
-{
-	HalUPInit();
-}
-
-void _HalInitSystemMP()
-{
-	HalMPInit();
 }

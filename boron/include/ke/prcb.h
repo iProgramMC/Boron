@@ -71,9 +71,9 @@ typedef struct KPRCB_tag
 	// HAL Control Block - HAL specific data.
 	HALCB_PTR HalData;
 }
-KPRCB;
+KPRCB, *PKPRCB;
 
-KPRCB* KeGetCurrentPRCB();
+PKPRCB KeGetCurrentPRCB();
 
 enum
 {

@@ -22,6 +22,8 @@ Author:
 extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
+size_t MmTotalAvailablePages;
+
 uint8_t* MmGetHHDMBase()
 {
 	return (uint8_t*)KeLimineHhdmRequest.response->offset;
@@ -309,7 +311,9 @@ void MiInitPMM()
 		TotalMemory += pEntry->length;
 	}
 	
-	LogMsg("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
+	DbgPrint("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
+	
+	MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
 }
 
 // TODO: Add locking

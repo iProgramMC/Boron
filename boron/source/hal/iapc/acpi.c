@@ -76,7 +76,7 @@ void AcpiInitPmt()
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
 	{
-		LogMsg("ACPI timer available using port I/O");
+		DbgPrint("ACPI timer available using port I/O");
 		AcpipPmtUsePort = true;
 		AcpipPmtPortNum = Header->PMTimerBlock;
 		AcpipIsPmtAvailable = true;
@@ -107,7 +107,7 @@ void AcpiInitPmt()
 		uintptr_t PageAddress2 = (uintptr_t) PageAddress;
 		PageAddress2 += OffsetWithinPage;
 		
-		LogMsg("ACPI timer available using memory mapped I/O");
+		DbgPrint("ACPI timer available using memory mapped I/O");
 		AcpipPmtUsePort = false;
 		AcpipPmtAddress = (int*) PageAddress2;
 		AcpipIsPmtAvailable = true;

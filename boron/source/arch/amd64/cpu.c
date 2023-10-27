@@ -138,8 +138,6 @@ void KeInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	LogMsg("Map for CPU %u is %x.   RFLAGS = %x", KeGetCurrentPRCB()->LapicId, Map, KepGetRflags());
-	
 	KeSetCurrentPageTable(Map);
 	
 	int ispPFN = MmAllocatePhysicalPage();

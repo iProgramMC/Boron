@@ -25,12 +25,15 @@ KPRCB**  KeProcessorList;
 int      KeProcessorCount = 0;
 uint32_t KeBootstrapLapicId = 0;
 
+extern size_t MmTotalAvailablePages;
+
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
 NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 {
-	KeSetCPUPointer((KPRCB*)pInfo->extra_argument);
+	PKPRCB Prcb = (PKPRCB)pInfo->extra_argument;
+	KeSetCPUPointer(Prcb);
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
 	KeOnUpdateIPL(KeGetIPL(), 0);
@@ -39,20 +42,13 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeInitCPU();
 	KeLowerIPL(IPL_NORMAL);
 	
-	DbgPrint("Hello from CPU %u", (unsigned) pInfo->lapic_id);
-	
-	HalMPInit();
-	LdrInitializeHal();
-	
 	KeSchedulerInit();
 	
-	// If this is the bootstrap processor, initialize all drivers too.
-	LdrInitializeDrivers();
-	
-	//KiPerformTests();
-	
-	//while (true)
-	//	KeWaitForNextInterrupt();
+	if (Prcb->IsBootstrap)
+	{
+		HalInitSystemMP();
+		LdrInitializeDrivers();
+	}
 	
 	KeSchedulerCommit();
 }
@@ -179,6 +175,13 @@ NO_RETURN void KeInitSMP()
 	}
 	
 	KiSmpInitted = true;
+	
+	LdrInitializeHal();
+	
+	// phase 1 of HAL initialization on the BSP:
+	HalInitSystemUP();
+	
+	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", pSMP->cpu_count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
 	{

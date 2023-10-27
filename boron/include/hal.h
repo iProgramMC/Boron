@@ -8,12 +8,15 @@
 
 #include <hal/timer.h>
 #include <hal/data.h>
+#include <hal/init.h>
 
 
 #define HAL_IPI_BROADCAST (1 << 0)
 #define HAL_IPI_SELF      (1 << 1)
 
+bool HalWasInitted();
 
+// HAL API. See hal/init.h
 void HalEndOfInterrupt();
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags);
 void HalInitSystemUP();
@@ -28,9 +31,12 @@ uint64_t HalGetTickFrequency();
 
 
 
+// Outdated and will be removed:
+
+
 // ==== Terminal ====
 // Warning: Only run these on the BSP
-void HalTerminalInit(void);
+void HalInitTerminal(void);
 bool HalIsTerminalInitted();
 
 // Warning: You need to lock KiPrintLock to use this:

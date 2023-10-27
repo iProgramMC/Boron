@@ -18,6 +18,7 @@ Author:
 #include <hal.h>
 #include <mm.h>
 #include <ke.h>
+#include <ex.h>
 #include "../../arch/amd64/pio.h"
 #include "font.h"
 #include <_limine.h>
@@ -25,9 +26,10 @@ Author:
 #include "flanterm/backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
-uint8_t* HalpTerminalMemory;
-size_t   HalpTerminalMemoryHead;
-size_t   HalpTerminalMemorySize;
+EXMEMORY_HANDLE HalpTerminalMemoryHandle;
+uint8_t*        HalpTerminalMemory;
+size_t          HalpTerminalMemoryHead;
+size_t          HalpTerminalMemorySize;
 
 // This is defined in init.c
 extern volatile struct limine_framebuffer_request KeLimineFramebufferRequest;
@@ -58,9 +60,7 @@ static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 
 bool HalpIsSerialAvailable;
 
-uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages);
-
-void HalTerminalInit()
+void HalInitTerminal()
 {
 	struct limine_framebuffer* pFramebuffer = KeLimineFramebufferRequest.response->framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
@@ -85,9 +85,12 @@ void HalTerminalInit()
 	
 	LogMsg("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
 	
-	HalpTerminalMemory     = MmGetHHDMOffsetAddr(MiAllocateMemoryFromMemMap(sizePages));
-	HalpTerminalMemoryHead = 0;
-	HalpTerminalMemorySize = sizePages * PAGE_SIZE;
+	void* memory;
+	
+	HalpTerminalMemoryHandle = ExAllocatePool(POOL_FLAG_NON_PAGED, sizePages, &memory, EX_TAG("Term"));
+	HalpTerminalMemory       = memory;
+	HalpTerminalMemoryHead   = 0;
+	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;
 	
 	HalpTerminalContext = flanterm_fb_init(
 		&HalpTerminalMemAlloc,

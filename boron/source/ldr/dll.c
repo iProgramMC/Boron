@@ -520,9 +520,11 @@ void LdriLoadDll(PLIMINE_FILE File)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
 }
 
+void HalInitializeTemporary(); // Will be removed soon
+
 void LdrInitializeHal()
 {
-	// TODO
+	HalInitializeTemporary();
 }
 
 void LdrInitializeDrivers()
