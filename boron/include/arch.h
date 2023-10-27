@@ -32,6 +32,6 @@ void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 KARCH_DATA* KeGetData();
 
 // ==== Execution Control ====
-NO_RETURN void KeJumpContext(PKREGISTERS Registers);
+//Don't use - reimplement if you need to: NO_RETURN void KeJumpContext(PKREGISTERS Registers);
 
 #endif//NS64_ARCH_H

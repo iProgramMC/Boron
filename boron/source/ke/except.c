@@ -16,9 +16,15 @@ Author:
 #include "ki.h"
 #include <mm.h>
 
-void KeOnUnknownInterrupt(uintptr_t FaultPC)
+void KeOnUnknownInterrupt(uintptr_t FaultPC, uintptr_t Vector)
 {
-	KeCrash("Unknown interrupt at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
+#ifdef TARGET_AMD64
+#define SPECIFIER "%02x"
+#else
+#define SPECIFIER "%08x"
+#endif
+	KeCrash("Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
+#undef SPECIFIER
 }
 
 void KeOnDoubleFault(uintptr_t FaultPC)

@@ -79,6 +79,31 @@ typedef uint64_t MMPTE, *PMMPTE;
 #define MSR_GS_BASE        (0xC0000101)
 #define MSR_GS_BASE_KERNEL (0xC0000102)
 
+/*
+
+$8 = {
+	0x0, 
+	0x10, 0x10, 0x10, 0x10, 
+	0x0, 
+	0x0, 0xffff8000fee00000, 0x4, 
+	0x1, 0xffff800003f58000, 0xffff800003f69000, 0x0, 
+	0xffffa08000003f00, 0xffffa08000003f00, 0x0, 0xffff8000fd04ec24, 
+	
+	0xffff800000000000, 0xc0000102, 0xffff800000141000, 0xffff8000fee00000, 
+	
+	0x40,
+	0x0, 
+	
+	// no a1,a2,a3
+	
+	0xffffffff80005cdb, 
+	0x8, 
+	0x282, 
+	0xffff800003fa4f80, 
+	0x10}
+
+*/
+
 struct KREGISTERS_tag
 {
 	// Old IPL
@@ -87,12 +112,14 @@ struct KREGISTERS_tag
 	// Registers pushed by our entry code. Pushed in reverse order from how they're laid out.
 	uint16_t ds, es, fs, gs;
 	uint64_t cr2;
-	uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
 	uint64_t rbp, rdi, rsi;
+	uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
 	uint64_t rdx, rcx, rbx, rax;
 	
 	// Registers pushed by the CPU when handling the interrupt.
-	uint64_t error_code; // only sometimes pushed - we'll push a 0 in the cases where that's not done
+	uint64_t IntNumber; // the interrupt vector
+	uint64_t ErrorCode; // only sometimes actually implemented, if not, it's a zero
+	
 	uint64_t rip;
 	uint64_t cs;
 	uint64_t rflags;
@@ -133,13 +160,13 @@ typedef struct KIDT_ENTRY_tag
 	uint64_t Reserved2  : 32;
 }
 PACKED
-KIDT_ENTRY;
+KIDT_ENTRY, *PKIDT_ENTRY;
 
 typedef struct
 {
 	KIDT_ENTRY Entries[C_IDT_MAX_ENTRIES];
 }
-KIDT;
+KIDT, *PKIDT;
 
 // GDT
 

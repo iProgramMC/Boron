@@ -17,7 +17,7 @@ KIDT KiIdt;
 struct KIDT_DESCRIPTOR_tag
 {
 	uint16_t Limit;
-	KIDT*    Base;
+	PKIDT    Base;
 }
 PACKED
 KiIdtDescriptor;
@@ -27,7 +27,7 @@ typedef void(*KiInterruptVector)();
 
 // Probably not going to be used because SYSCALL and SYSENTER both bypass the interrupt system.
 // These are going to be optimized out, and are also niceties when needed, so I will keep them.
-static UNUSED void KiSetInterruptDPL(KIDT* Idt, int Vector, int Ring)
+static UNUSED void KiSetInterruptDPL(PKIDT Idt, int Vector, int Ring)
 {
 	Idt->Entries[Vector].DPL = Ring;
 }
@@ -37,7 +37,7 @@ static UNUSED void KiSetInterruptDPL(KIDT* Idt, int Vector, int Ring)
 // This is bad, since a keyboard interrupt could manage to sneak past an important clock interrupt
 // before we manage to raise the IPL in the clock interrupt.
 // Not to mention the performance gains would be minimal if at all existent.
-static UNUSED void KiSetInterruptGateType(KIDT* Idt, int Vector, int GateType)
+static UNUSED void KiSetInterruptGateType(PKIDT Idt, int Vector, int GateType)
 {
 	Idt->Entries[Vector].GateType = GateType;
 }
@@ -45,7 +45,7 @@ static UNUSED void KiSetInterruptGateType(KIDT* Idt, int Vector, int GateType)
 // Set the IST of an interrupt vector. This is probably useful for the double fault handler,
 // as it is triggered only when another interrupt failed to be called, which is useful in cases
 // where the kernel stack went missing and bad (Which I hope there aren't any!)
-static UNUSED void KiSetInterruptStackIndex(KIDT* Idt, int Vector, int Ist)
+static UNUSED void KiSetInterruptStackIndex(PKIDT Idt, int Vector, int Ist)
 {
 	Idt->Entries[Vector].IST = Ist;
 }
@@ -54,9 +54,9 @@ static UNUSED void KiSetInterruptStackIndex(KIDT* Idt, int Vector, int Ist)
 // Parameters:
 // Idt     - The IDT that the interrupt vector will be loaded in.
 // Vector  - The interrupt number that the handler will be assigned to.
-static void KiLoadInterruptVector(KIDT* Idt, int Vector, KiInterruptVector Handler)
+static void KiLoadInterruptVector(PKIDT Idt, int Vector, KiInterruptVector Handler)
 {
-	KIDT_ENTRY* Entry = &Idt->Entries[Vector];
+	PKIDT_ENTRY Entry = &Idt->Entries[Vector];
 	memset(Entry, 0, sizeof * Entry);
 	
 	uintptr_t HandlerAddr = (uintptr_t) Handler;
@@ -82,16 +82,6 @@ static void KiLoadInterruptVector(KIDT* Idt, int Vector, KiInterruptVector Handl
 	// The entry is present.
 	Entry->Present = true;
 }
-
-extern void KiTrapUnknown();
-extern void KiTrap08();
-extern void KiTrap0D();
-extern void KiTrap0E();
-extern void KiTrap40();
-extern void KiTrapF0();
-extern void KiTrapFD();
-extern void KiTrapFE();
-extern void KiTrapFF();
 
 int KiEnterHardwareInterrupt(int NewIpl)
 {
@@ -130,21 +120,23 @@ void KiExitHardwareInterrupt(int OldIpl)
 	KeOnUpdateIPL(OldIpl, PrevIpl);
 }
 
+extern void KiTrapUnknownHandler(PKREGISTERS Regs);
+
+extern void* const KiTrapList[];     // traplist.asm
+extern uint8_t     KiTrapIplList[];  // trap.asm
+extern void*       KiTrapCallList[]; // trap.asm
+
 // Run on the BSP only.
 void KiSetupIdt()
 {
 	KiIdtDescriptor.Base  = &KiIdt;
 	KiIdtDescriptor.Limit = sizeof(KiIdt) - 1;
 	
-	for (int i = 0; i < C_IDT_MAX_ENTRIES; i++)
-		KiLoadInterruptVector(&KiIdt, i, KiTrapUnknown);
-	
-	KiLoadInterruptVector(&KiIdt, 0x08, KiTrap08); // double faults
-	KiLoadInterruptVector(&KiIdt, 0x0D, KiTrap0D); // general protection faults
-	KiLoadInterruptVector(&KiIdt, 0x0E, KiTrap0E); // page faults
-	KiLoadInterruptVector(&KiIdt, 0x40, KiTrap40); // DPC IPI 
-	KiLoadInterruptVector(&KiIdt, 0xF0, KiTrapF0); // APIC timer interrupt
-	KiLoadInterruptVector(&KiIdt, 0xFD, KiTrapFD); // crash IPI
-	KiLoadInterruptVector(&KiIdt, 0xFE, KiTrapFE); // crash IPI
-	KiLoadInterruptVector(&KiIdt, 0xFF, KiTrapFF); // spurious interrupts
+	for (int i = 0; i < 0x100; i++)
+	{
+		KiLoadInterruptVector(&KiIdt, i, KiTrapList[i]);
+		
+		KiTrapIplList[i]  = IPL_NOINTS;
+		KiTrapCallList[i] = KiTrapUnknownHandler;
+	}
 }

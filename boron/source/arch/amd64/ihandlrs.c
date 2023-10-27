@@ -11,7 +11,8 @@ static UNUSED void KiDumpCPURegs(PKREGISTERS Regs)
     LogMsg("cr2:    %llx", Regs->cr2);
     LogMsg("rip:    %llx", Regs->rip);
     LogMsg("rsp:    %llx", Regs->rsp);
-    LogMsg("error:  %llx", Regs->error_code);
+    LogMsg("error:  %llx", Regs->ErrorCode);
+    LogMsg("vect:   %02x", Regs->IntNumber);
     LogMsg("cs:     %llx", Regs->cs);
     LogMsg("ss:     %llx", Regs->ss);
     LogMsg("ds:     %llx", Regs->ds);
@@ -35,6 +36,16 @@ static UNUSED void KiDumpCPURegs(PKREGISTERS Regs)
     LogMsg("r14:    %llx", Regs->r14);
     LogMsg("r15:    %llx", Regs->r15);
 }
+
+// Generic interrupt handler.
+// Used in case an interrupt is not implemented
+PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
+{
+	KeOnUnknownInterrupt(Regs->rip, Regs->IntNumber);
+	return Regs;
+}
+
+#if 0
 
 // Generic interrupt handler.
 // Used in case an interrupt is not implemented
@@ -129,3 +140,6 @@ PKREGISTERS KiTrapFFHandler(PKREGISTERS Regs)
 	HalEndOfInterrupt();
 	return Regs;
 }
+
+#endif
+
