@@ -29,12 +29,26 @@ uintptr_t DbgLookUpAddress(const char* Name)
 	return 0;
 }
 
-const char* DbgLookUpRoutineByAddress(uintptr_t Address)
+const char* DbgLookUpRoutineNameByAddressExact(uintptr_t Address)
 {
 	for (PCKSYMBOL Symbol = KiSymbolTable; Symbol != KiSymbolTableEnd; Symbol++)
 	{
 		if (Symbol->Address == Address)
 			return Symbol->Name;
+	}
+	
+	return NULL;
+}
+
+const char* DbgLookUpRoutineNameByAddress(uintptr_t Address, uintptr_t* BaseAddressOut)
+{
+	for (PCKSYMBOL Symbol = KiSymbolTable; Symbol != KiSymbolTableEnd; Symbol++)
+	{
+		if (Symbol->Address <= Address && Address < Symbol->Address + Symbol->Size)
+		{
+			*BaseAddressOut = Symbol->Address;
+			return Symbol->Name;
+		}
 	}
 	
 	return NULL;

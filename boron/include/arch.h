@@ -29,6 +29,8 @@ void KeInitCPU(); // initializes the current CPU
 // ==== Interrupt priority level ====
 void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
+void KeIssueTLBShootDown(uintptr_t Address, size_t Length);
+
 // Architecture specific data
 KARCH_DATA* KeGetData();
 

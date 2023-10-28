@@ -1,48 +1,30 @@
-// Boron - Kernel
-#ifndef NS64_KE_H
-#define NS64_KE_H
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke.h
+	
+Abstract:
+	This header file contains the amalgam include file
+	for the kernel core.
+	
+Author:
+	iProgramInCpp - 20 August 2023
+***/
+#pragma once
 
 #include <main.h>
-#include <_limine.h>
+#include <limreq.h>
 #include <arch.h>
 
-// === Interrupt priority levels ===
 #include <ke/ipl.h>
-
-// === Locking ===
 #include <ke/locks.h>
-
-// === CPU ===
 #include <ke/prcb.h>
-
-// === Atomics ===
 #include <ke/atomics.h>
-
-// === Statistics ===
 #include <ke/stats.h>
-
-// === Interrupts ===
 #include <ke/irq.h>
-
-// === Debugging ===
-void DbgPrintString(const char* str);
-uintptr_t DbgLookUpAddress(const char* Name);
-const char* DbgLookUpRoutineByAddress(uintptr_t Address);
-
-// === SMP ===
-NO_RETURN void KeInitSMP(void);
-void KeInitArchUP();
-void KeInitArchMP();
-
-// === Crashing ===
-NO_RETURN void KeCrash(const char* message, ...);
-NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
-
-NO_RETURN void KeCrashConclusion(const char* Message);
-
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length);
-
-int KeGetVersionNumber();
-
-
-#endif//NS64_KE_H
+#include <ke/dbg.h>
+#include <ke/ver.h>
+#include <ke/smp.h>
+#include <ke/crash.h>

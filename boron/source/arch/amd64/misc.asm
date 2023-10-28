@@ -3,6 +3,18 @@ bits 64
 
 %include "arch/amd64.inc"
 
+; these functions get the RIP and RBP respectively
+global KiGetRIP
+global KiGetRBP
+
+KiGetRIP:
+	mov rax, [rsp]
+	ret
+
+KiGetRBP:
+	mov rax, rbp
+	ret
+
 ; these functions set the CR3
 global KeSetCurrentPageTable
 global KeGetCurrentPageTable

@@ -76,49 +76,51 @@ NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDKI_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
-override CFLAGS +=       \
-	-std=c11             \
-	-ffreestanding       \
-	-fno-stack-protector \
-	-fno-stack-check     \
-	-fno-lto             \
-	-fno-pie             \
-	-fno-pic             \
-	-m64                 \
-	-march=x86-64        \
-	-mabi=sysv           \
-	-mno-80387           \
-	-mno-mmx             \
-	-mno-sse             \
-	-mno-sse2            \
-	-mno-red-zone        \
-	-mcmodel=kernel      \
-	-MMD                 \
-	-MP                  \
+override CFLAGS +=          \
+	-fno-omit-frame-pointer \
+	-std=c11                \
+	-ffreestanding          \
+	-fno-stack-protector    \
+	-fno-stack-check        \
+	-fno-lto                \
+	-fno-pie                \
+	-fno-pic                \
+	-m64                    \
+	-march=x86-64           \
+	-mabi=sysv              \
+	-mno-80387              \
+	-mno-mmx                \
+	-mno-sse                \
+	-mno-sse2               \
+	-mno-red-zone           \
+	-mcmodel=kernel         \
+	-MMD                    \
+	-MP                     \
 	-I.
 
 # Internal C++ flags that should not be changed by the user.
-override CXXFLAGS +=     \
-	-std=c++17           \
-	-ffreestanding       \
-	-fno-stack-protector \
-	-fno-stack-check     \
-	-fno-lto             \
-	-fno-pie             \
-	-fno-pic             \
-	-m64                 \
-	-march=x86-64        \
-	-mabi=sysv           \
-	-mno-80387           \
-	-mno-mmx             \
-	-mno-sse             \
-	-mno-sse2            \
-	-mno-red-zone        \
-	-mcmodel=kernel      \
-	-MMD                 \
-	-MP                  \
-	-fno-exceptions      \
-	-fno-rtti            \
+override CXXFLAGS +=        \
+	-fno-omit-frame-pointer \
+	-std=c++17              \
+	-ffreestanding          \
+	-fno-stack-protector    \
+	-fno-stack-check        \
+	-fno-lto                \
+	-fno-pie                \
+	-fno-pic                \
+	-m64                    \
+	-march=x86-64           \
+	-mabi=sysv              \
+	-mno-80387              \
+	-mno-mmx                \
+	-mno-sse                \
+	-mno-sse2               \
+	-mno-red-zone           \
+	-mcmodel=kernel         \
+	-MMD                    \
+	-MP                     \
+	-fno-exceptions         \
+	-fno-rtti               \
 	-I.
 	
 override LDFLAGSBASE +=     \

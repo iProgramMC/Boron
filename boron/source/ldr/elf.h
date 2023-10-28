@@ -235,24 +235,4 @@ typedef struct
 PACKED
 ELF_RELA, *PELF_RELA;
 
-// Struct not part of the ELF format, but part of the loader.
-typedef struct ELF_DYNAMIC_INFO_tag
-{
-	const char *StringTable;
-	ELF_SYMBOL *SymbolTable;
-	size_t      SymbolTableSize; // (1)
-	uintptr_t  *GlobalOffsetTable;
-	size_t      GlobalOffsetTableSize;
-	const void *PltRelocations;
-	size_t      PltRelocationCount;
-	ELF_RELA   *RelaEntries;
-	size_t      RelaCount;
-	ELF_REL    *RelEntries;
-	size_t      RelCount;
-	bool        PltUsesRela;
-}
-ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
-// (1) - Not figured out by LdrpParseDynamicTable but by
-//       LdrpParseInterestingSections.
-
 #endif//BORON_ELF_H

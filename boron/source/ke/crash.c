@@ -64,6 +64,10 @@ void KeCrashConclusion(const char* Message)
 		LogMsg("%p %s", LoadedDll->ImageBase, LoadedDll->Name);
 	}
 	
+	LogMsg("\n");
+	
+	DbgPrintStackTrace(0);
+	
 	// Now that all that's done, HALT!
 	KeStopCurrentCPU();
 }

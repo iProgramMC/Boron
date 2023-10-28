@@ -166,11 +166,11 @@ static bool LdrpParseDynamicTable(PLIMINE_FILE File, PELF_PROGRAM_HEADER Dynamic
 				break;
 			
 			case DYN_STRTAB:
-				Info->StringTable = (const char*)(LoadBase + DynItem->Pointer);
+				Info->DynStrTable = (const char*)(LoadBase + DynItem->Pointer);
 				break;
 			
 			case DYN_SYMTAB:
-				Info->SymbolTable = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
+				Info->DynSymTable = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
 				break;
 			
 			case DYN_JMPREL:
@@ -256,7 +256,7 @@ static bool LdrpApplyRelocation(PELF_DYNAMIC_INFO DynInfo, PELF_REL PtrRel, PELF
 	}
 	
 	if (ResolvedSymbol == 0)
-		ResolvedSymbol = DynInfo->SymbolTable[Rela.Info >> 32].Value;
+		ResolvedSymbol = DynInfo->DynSymTable[Rela.Info >> 32].Value;
 	
 	uintptr_t Place  = LoadBase + Rela.Offset;
 	uintptr_t Addend = Rela.Addend;
@@ -336,10 +336,10 @@ static bool LdrpLinkPlt(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t 
 		// NOTE: PELF_RELA and PELF_REL need to have the same starting members!!
 		PELF_REL Rel = (PELF_REL)((uintptr_t)DynInfo->PltRelocations + i);
 		
-		PELF_SYMBOL Symbol = &DynInfo->SymbolTable[Rel->Info >> 32];
+		PELF_SYMBOL Symbol = &DynInfo->DynSymTable[Rel->Info >> 32];
 		
 		uintptr_t SymbolOffset = Symbol->Name;
-		const char* SymbolName = DynInfo->StringTable + SymbolOffset;
+		const char* SymbolName = DynInfo->DynStrTable + SymbolOffset;
 		
 		uintptr_t SymbolAddress = 0;
 		
@@ -363,7 +363,7 @@ static bool LdrpLinkPlt(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t 
 	return true;
 }
 
-static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *LoadBase)
+static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *LoadBase, size_t *LoadSize)
 {
 	PELF_HEADER Header = (PELF_HEADER) File->address;
 	
@@ -387,6 +387,7 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 	
 	uintptr_t VirtualAddr = LdrAllocateRange(Size);
 	*LoadBase = VirtualAddr;
+	*LoadSize = Size * PAGE_SIZE;
 	
 	// The program headers can be placed anywhere page aligned so long as the PHDRs' position relative to each other isn't changed.
 	for (int i = 0; i < Header->ProgramHeaderCount; i++)
@@ -410,8 +411,8 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 
 static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 {
+	PELF_SECTION_HEADER GotSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
 	PELF_HEADER Header = (PELF_HEADER) File->address;
-	PELF_SECTION_HEADER GotSection = NULL; // need later
 	uintptr_t Offset = (uintptr_t) File->address + Header->SectionHeadersOffset;
 	
 	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)(File->address + Header->SectionHeadersOffset + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
@@ -425,9 +426,12 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 		// Seems like we gotta grab the name. But we have grabbed the string table already
 		const char* SectName = &SHStringTable[SectionHeader->Name];
 		
-		// Yes, we're looking for just .got for now.
 		if (strcmp(SectName, ".got") == 0)
 			GotSection = SectionHeader;
+		else if (strcmp(SectName, ".symtab") == 0)
+			SymTabSection = SectionHeader;
+		else if (strcmp(SectName, ".strtab") == 0)
+			StrTabSection = SectionHeader;
 	}
 	
 	if (GotSection)
@@ -440,6 +444,15 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 		DynInfo->GlobalOffsetTable     = NULL;
 		DynInfo->GlobalOffsetTableSize = 0;
 	}
+	
+	if (SymTabSection)
+	{
+		DynInfo->SymbolTable     = (PELF_SYMBOL)(File->address + SymTabSection->OffsetInFile);
+		DynInfo->SymbolTableSize = SymTabSection->Size / sizeof(ELF_SYMBOL);
+	}
+	
+	if (StrTabSection)
+		DynInfo->StringTable = (const char*)(File->address + StrTabSection->OffsetInFile);
 }
 
 static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
@@ -453,22 +466,6 @@ static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t Loa
 	}
 	
 	return true;
-}
-
-// TODO: not sure we even need this, I mean, we don't lookup the driver's entry point anymore
-void* LdrpLookUpRoutineAddress(PELF_DYNAMIC_INFO DynInfo, uintptr_t Base, const char* Name)
-{
-	// TODO: Better way to do this, that doesn't go out of bounds when the symbol isn't found!
-	for (PELF_SYMBOL Symbol = DynInfo->SymbolTable; ; Symbol++)
-	{
-		uintptr_t SymbolOffset = Symbol->Name;
-		const char* SymbolName = DynInfo->StringTable + SymbolOffset;
-		
-		if (strcmp(SymbolName, Name) == 0)
-			return (void*)(Base + Symbol->Value);
-	}
-	
-	// TODO!
 }
 
 void LdriLoadDll(PLIMINE_FILE File)
@@ -493,9 +490,11 @@ void LdriLoadDll(PLIMINE_FILE File)
 	
 	// Load the program headers into memory.
 	uintptr_t LoadBase;
-	PELF_PROGRAM_HEADER Dynamic = LdrpLoadProgramHeaders(File, &LoadBase);
+	size_t LoadSize;
+	PELF_PROGRAM_HEADER Dynamic = LdrpLoadProgramHeaders(File, &LoadBase, &LoadSize);
 	
 	LoadedDLL->ImageBase = LoadBase;
+	LoadedDLL->ImageSize = LoadSize;
 	
 	if (!Dynamic)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: No dynamic table?", File->path);
@@ -519,10 +518,42 @@ void LdriLoadDll(PLIMINE_FILE File)
 	if (!LoadedDLL->EntryPoint)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
 	
+	LoadedDLL->StringTable     = DynInfo.StringTable;
+	LoadedDLL->SymbolTable     = DynInfo.SymbolTable;
+	LoadedDLL->SymbolTableSize = DynInfo.SymbolTableSize;
+	
 	DbgPrint("Module %s was loaded at base %p", File->path, LoadBase);
 }
 
-void HalInitializeTemporary(); // Will be removed soon
+const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress)
+{
+	if (!LoadedDll->StringTable || !LoadedDll->SymbolTable)
+		return NULL;
+	
+	DbgPrint("LOOKUP %p", Address);
+	
+	const uintptr_t No = (uintptr_t)-1;
+	
+	uintptr_t NameOffset = No;
+	uintptr_t ClosestAddress = 0;
+	
+	size_t SymbolTableSize  = LoadedDll->SymbolTableSize;
+	PELF_SYMBOL SymbolTable = LoadedDll->SymbolTable;
+	
+	for (size_t i = 0; i < SymbolTableSize; i++)
+	{
+		uintptr_t SymAddr = SymbolTable[i].Value;
+		
+		if (ClosestAddress < SymAddr && SymAddr <= Address)
+			ClosestAddress = SymAddr, NameOffset = SymbolTable[i].Name;
+	}
+	
+	if (NameOffset == No)
+		return NULL;
+	
+	*BaseAddress = ClosestAddress;
+	return LoadedDll->StringTable + NameOffset;
+}
 
 void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 {

@@ -62,19 +62,19 @@ void HalInitSystemMP()
 
 int DriverEntry()
 {
-	HalpVfTable.EndOfInterrupt = HalEndOfInterrupt,
-	HalpVfTable.RequestInterruptInTicks = HalRequestInterruptInTicks,
-	HalpVfTable.RequestIpi = HalRequestIpi,
-	HalpVfTable.InitSystemUP = HalInitSystemUP,
-	HalpVfTable.InitSystemMP = HalInitSystemMP,
-	HalpVfTable.DisplayString = HalDisplayString,
-	HalpVfTable.CrashSystem = HalCrashSystem,
-	HalpVfTable.ProcessorCrashed = HalProcessorCrashed,
-	HalpVfTable.UseOneShotIntTimer = HalUseOneShotIntTimer,
-	HalpVfTable.GetIntTimerFrequency = HalGetIntTimerFrequency,
-	HalpVfTable.GetTickCount = HalGetTickCount,
-	HalpVfTable.GetTickFrequency = HalGetTickFrequency,
-	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
+	HalpVfTable.EndOfInterrupt = HalEndOfInterrupt;
+	HalpVfTable.RequestInterruptInTicks = HalRequestInterruptInTicks;
+	HalpVfTable.RequestIpi = HalRequestIpi;
+	HalpVfTable.InitSystemUP = HalInitSystemUP;
+	HalpVfTable.InitSystemMP = HalInitSystemMP;
+	HalpVfTable.DisplayString = HalDisplayString;
+	HalpVfTable.CrashSystem = HalCrashSystem;
+	HalpVfTable.ProcessorCrashed = HalProcessorCrashed;
+	HalpVfTable.UseOneShotIntTimer = HalUseOneShotIntTimer;
+	HalpVfTable.GetIntTimerFrequency = HalGetIntTimerFrequency;
+	HalpVfTable.GetTickCount = HalGetTickCount;
+	HalpVfTable.GetTickFrequency = HalGetTickFrequency;
+	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks;
 	HalpVfTable.Flags = HAL_VFTABLE_LOADED;
 	
 	// Hook the HAL's functions.

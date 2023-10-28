@@ -26,7 +26,11 @@ typedef struct
 	const char*      Name; // should be == LimineFile->path
 	PLIMINE_FILE     LimineFile;
 	uintptr_t        ImageBase;
+	size_t           ImageSize;
 	PDLL_ENTRY_POINT EntryPoint;
+	const char*      StringTable;
+	void*            SymbolTable;
+	size_t           SymbolTableSize;
 }
 LOADED_DLL, *PLOADED_DLL;
 
@@ -42,5 +46,7 @@ void LdrInit();
 void LdrInitializeHal();
 
 void LdrInitializeDrivers();
+
+const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress);
 
 #endif//NS64_LDR_H

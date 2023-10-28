@@ -6,7 +6,8 @@
 // Note. Two qwords is how we define it in the assembly version
 typedef struct KSYMBOL_tag
 {
-	uint64_t Address;
+	uintptr_t Address;
+	uintptr_t Size;
 	const char* Name;
 }
 KSYMBOL, *PKSYMBOL;
