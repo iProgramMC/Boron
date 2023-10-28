@@ -530,8 +530,6 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 	if (!LoadedDll->StringTable || !LoadedDll->SymbolTable)
 		return NULL;
 	
-	DbgPrint("LOOKUP %p", Address);
-	
 	const uintptr_t No = (uintptr_t)-1;
 	
 	uintptr_t NameOffset = No;

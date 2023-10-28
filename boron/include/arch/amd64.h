@@ -79,31 +79,6 @@ typedef uint64_t MMPTE, *PMMPTE;
 #define MSR_GS_BASE        (0xC0000101)
 #define MSR_GS_BASE_KERNEL (0xC0000102)
 
-/*
-
-$8 = {
-	0x0, 
-	0x10, 0x10, 0x10, 0x10, 
-	0x0, 
-	0x0, 0xffff8000fee00000, 0x4, 
-	0x1, 0xffff800003f58000, 0xffff800003f69000, 0x0, 
-	0xffffa08000003f00, 0xffffa08000003f00, 0x0, 0xffff8000fd04ec24, 
-	
-	0xffff800000000000, 0xc0000102, 0xffff800000141000, 0xffff8000fee00000, 
-	
-	0x40,
-	0x0, 
-	
-	// no a1,a2,a3
-	
-	0xffffffff80005cdb, 
-	0x8, 
-	0x282, 
-	0xffff800003fa4f80, 
-	0x10}
-
-*/
-
 struct KREGISTERS_tag
 {
 	// Old IPL
@@ -132,8 +107,9 @@ struct KREGISTERS_tag
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
 
-//#define INTV_DBL_FAULT  (0x08) // just an outright crash
-//#define INTV_PAGE_FAULT (0x0E) // exempt from the IPL stuff, but any page fault above IPL_APC is considered an error
+#define INTV_DBL_FAULT  (0x08)
+#define INTV_PROT_FAULT (0x0D)
+#define INTV_PAGE_FAULT (0x0E)
 //#define INTV_DPC_IPI    (0x40)
 //#define INTV_APIC_TIMER (0xF0)
 //#define INTV_TLBS_IPI   (0xFD)

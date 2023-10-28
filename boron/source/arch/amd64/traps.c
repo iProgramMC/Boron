@@ -123,6 +123,8 @@ void KiExitHardwareInterrupt(int OldIpl)
 	KeOnUpdateIPL(OldIpl, PrevIpl);
 }
 
+// ==== Interrupt Handlers ====
+
 // Generic interrupt handler. Used in case an interrupt is not implemented
 PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
 {
@@ -135,6 +137,24 @@ PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs)
 	PKREGISTERS New = KiHandleSoftIpi(Regs);
 	HalEndOfInterrupt();
 	return New;
+}
+
+PKREGISTERS KiHandleDoubleFault(PKREGISTERS Regs)
+{
+	KeOnDoubleFault(Regs->rip);
+	return Regs;
+}
+
+PKREGISTERS KiHandleProtectionFault(PKREGISTERS Regs)
+{
+	KeOnProtectionFault(Regs->rip);
+	return Regs;
+}
+
+PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
+{
+	KeOnPageFault(Regs->rip, Regs->cr2, Regs->ErrorCode);
+	return Regs;
 }
 
 extern void* const KiTrapList[];     // traplist.asm
@@ -161,6 +181,13 @@ void KiSetupIdt()
 	{
 		KepIplVectors[i] = i * 0x10;
 	}
+	
+	KeRegisterInterrupt(INTV_DBL_FAULT,  KiHandleDoubleFault);
+	KeRegisterInterrupt(INTV_PROT_FAULT, KiHandleProtectionFault);
+	KeRegisterInterrupt(INTV_PAGE_FAULT, KiHandlePageFault);
+	KeSetInterruptIPL(INTV_DBL_FAULT,  IPL_NOINTS);
+	KeSetInterruptIPL(INTV_PROT_FAULT, IPL_NOINTS);
+	KeSetInterruptIPL(INTV_PAGE_FAULT, IPL_UNDEFINED);
 }
 
 // NOTE: This works fine on AMD64 because we can reprogram the IOAPIC

@@ -59,6 +59,8 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	if (Prcb->IsBootstrap)
 		LdrInitializeDrivers();
 	
+	//KiPerformTests();
+	
 	KeSchedulerCommit();
 }
 
