@@ -4,8 +4,8 @@
 
 Boron is a 64-bit operating system designed with SMP in mind.
 
-The project is wholly licensed under the GNU General Public License V3, **except the following**:
-- Flanterm (source/ha/flanterm): https://github.com/mintsuki/flanterm
+The project is wholly licensed under the three clause BSD license, **except the following**:
+- Flanterm (source/ha/flanterm): https://github.com/mintsuki/flanterm - Licensed under the two clause BSD license
 
 #### Be advised that this is currently alpha-level software and you should not expect any stability from it.
 
