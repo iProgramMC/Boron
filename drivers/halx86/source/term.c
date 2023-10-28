@@ -13,10 +13,9 @@ Author:
 	iProgramInCpp - 20 August 2023
 ***/
 
-#include <main.h>
+#include "hali.h"
 #include <string.h>
 #include <limreq.h>
-#include <hal.h>
 #include <mm.h>
 #include <ke.h>
 #include <ex.h>
@@ -117,7 +116,7 @@ void HalInitTerminal()
 	}
 }
 
-void _HalDisplayString(const char* Message)
+HAL_API void HalDisplayString(const char* Message)
 {
 	if (!HalpTerminalContext)
 	{

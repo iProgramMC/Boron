@@ -12,25 +12,26 @@ Abstract:
 Author:
 	iProgramInCpp - 23 September 2023
 ***/
-#include <hal.h>
+#include "hali.h"
 #include <ke.h>
 #include <ex.h>
 #include "acpi.h"
 #include "apic.h"
 #include "hpet.h"
 
-void _HalEndOfInterrupt();
-void _HalRequestInterruptInTicks(uint64_t Ticks);
-void _HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
-void _HalInitSystemUP();
-void _HalInitSystemMP();
-void _HalDisplayString(const char* Message);
-void _HalCrashSystem(const char* Message) NO_RETURN;
-bool _HalUseOneShotIntTimer();
-void _HalProcessorCrashed() NO_RETURN;
-uint64_t _HalGetIntTimerFrequency();
-uint64_t _HalGetTickCount();
-uint64_t _HalGetTickFrequency();
+void HalEndOfInterrupt();
+void HalRequestInterruptInTicks(uint64_t Ticks);
+void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
+void HalInitSystemUP();
+void HalInitSystemMP();
+void HalDisplayString(const char* Message);
+void HalCrashSystem(const char* Message) NO_RETURN;
+bool HalUseOneShotIntTimer();
+void HalProcessorCrashed() NO_RETURN;
+uint64_t HalGetIntTimerFrequency();
+uint64_t HalGetTickCount();
+uint64_t HalGetTickFrequency();
+uint64_t HalGetIntTimerDeltaTicks();
 
 static HAL_VFTABLE HalpVfTable;
 
@@ -40,7 +41,7 @@ PKHALCB KeGetCurrentHalCB()
 }
 
 // Initialize the HAL on the BSP, for all processors.
-void _HalInitSystemUP()
+void HalInitSystemUP()
 {
 	HalInitTerminal();
 	LogMsg("Boron (TM), October 2023 - V0.005");
@@ -53,7 +54,7 @@ void _HalInitSystemUP()
 
 // Initialize the HAL separately for each processor.
 // This function is run on ALL processors.
-void _HalInitSystemMP()
+void HalInitSystemMP()
 {
 	KeGetCurrentPRCB()->HalData = ExAllocateSmall(sizeof(KHALCB));
 	
@@ -63,18 +64,19 @@ void _HalInitSystemMP()
 
 int DriverEntry()
 {
-	HalpVfTable.EndOfInterrupt = _HalEndOfInterrupt,
-	HalpVfTable.RequestInterruptInTicks = _HalRequestInterruptInTicks,
-	HalpVfTable.RequestIpi = _HalRequestIpi,
-	HalpVfTable.InitSystemUP = _HalInitSystemUP,
-	HalpVfTable.InitSystemMP = _HalInitSystemMP,
-	HalpVfTable.DisplayString = _HalDisplayString,
-	HalpVfTable.CrashSystem = _HalCrashSystem,
-	HalpVfTable.ProcessorCrashed = _HalProcessorCrashed,
-	HalpVfTable.UseOneShotIntTimer = _HalUseOneShotIntTimer,
-	HalpVfTable.GetIntTimerFrequency = _HalGetIntTimerFrequency,
-	HalpVfTable.GetTickCount = _HalGetTickCount,
-	HalpVfTable.GetTickFrequency = _HalGetTickFrequency,
+	HalpVfTable.EndOfInterrupt = HalEndOfInterrupt,
+	HalpVfTable.RequestInterruptInTicks = HalRequestInterruptInTicks,
+	HalpVfTable.RequestIpi = HalRequestIpi,
+	HalpVfTable.InitSystemUP = HalInitSystemUP,
+	HalpVfTable.InitSystemMP = HalInitSystemMP,
+	HalpVfTable.DisplayString = HalDisplayString,
+	HalpVfTable.CrashSystem = HalCrashSystem,
+	HalpVfTable.ProcessorCrashed = HalProcessorCrashed,
+	HalpVfTable.UseOneShotIntTimer = HalUseOneShotIntTimer,
+	HalpVfTable.GetIntTimerFrequency = HalGetIntTimerFrequency,
+	HalpVfTable.GetTickCount = HalGetTickCount,
+	HalpVfTable.GetTickFrequency = HalGetTickFrequency,
+	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
 	HalpVfTable.Flags = HAL_VFTABLE_LOADED;
 	
 	// Hook the HAL's functions.

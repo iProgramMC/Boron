@@ -12,7 +12,7 @@ Author:
 	iProgramInCpp - 14 September 2023
 ***/
 
-#include <hal.h>
+#include "hali.h"
 #include <mm.h>
 #include <ke.h>
 #include "apic.h"
@@ -20,7 +20,6 @@ Author:
 #include "hpet.h"
 #include "pit.h"
 #include "tsc.h"
-//#include "../../arch/amd64/archi.h"
 
 #define APIC_TIMER_MODE_ONESHOT   (0b00 << 17)
 #define APIC_TIMER_MODE_PERIODIC  (0b01 << 17) // not used right now, but may be needed.
@@ -138,11 +137,6 @@ static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool self)
 	ApicWriteRegister(APIC_REG_ICR0, mode | vector);
 }
 
-void _HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
-{
-	ApicSendIpi(LapicId, Vector, Flags & HAL_IPI_BROADCAST, Flags & HAL_IPI_SELF);
-}
-
 // Interface code.
 void HalSendIpi(uint32_t Processor, int Vector)
 {
@@ -152,11 +146,6 @@ void HalSendIpi(uint32_t Processor, int Vector)
 void HalBroadcastIpi(int Vector, bool IncludeSelf)
 {
 	ApicSendIpi(0, Vector, true, IncludeSelf);
-}
-
-void _HalEndOfInterrupt()
-{
-	ApicEndOfInterrupt();
 }
 
 // Frequency of the PIT and PMT timers in hertz.
@@ -447,4 +436,15 @@ void HalInitApicMP()
 {
 	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
 	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | HalpVectorSpurious);
+}
+
+
+HAL_API void HalEndOfInterrupt()
+{
+	ApicEndOfInterrupt();
+}
+
+HAL_API void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
+{
+	ApicSendIpi(LapicId, Vector, Flags & HAL_IPI_BROADCAST, Flags & HAL_IPI_SELF);
 }

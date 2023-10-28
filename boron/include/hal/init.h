@@ -33,6 +33,7 @@ typedef void(*PFHAL_PROCESSOR_CRASHED)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_TICK_COUNT)(void);
 typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
+typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
 
 typedef struct
 {
@@ -49,6 +50,7 @@ typedef struct
 	PFHAL_GET_INT_TIMER_FREQUENCY GetIntTimerFrequency;
 	PFHAL_GET_TICK_COUNT GetTickCount;
 	PFHAL_GET_TICK_FREQUENCY GetTickFrequency;
+	PFHAL_GET_INT_TIMER_DELTA_TICKS GetIntTimerDeltaTicks;
 }
 HAL_VFTABLE, *PHAL_VFTABLE;
 

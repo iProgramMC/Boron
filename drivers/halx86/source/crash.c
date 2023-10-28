@@ -13,20 +13,21 @@ Author:
 	iProgramInCpp - 16 September 2023
 ***/
 
+#include "hali.h"
 #include <ke.h>
-#include <hal.h>
 #include <string.h>
 #include "apic.h"
 
 static KSPIN_LOCK HalpCrashLock;
 static int        HalpCrashedProcessors;
 
-void _HalProcessorCrashed()
+void HalProcessorCrashed()
 {
 	AtAddFetch(HalpCrashedProcessors, 1);
+	KeStopCurrentCPU();
 }
 
-void _HalCrashSystem(const char* message)
+void HalCrashSystem(const char* message)
 {
 	KIPL Unused;
 	// lock the crash in so that no one else can crash but us

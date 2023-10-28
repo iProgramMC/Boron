@@ -89,6 +89,11 @@ uint64_t HalGetTickFrequency()
 	return HalpVftable.GetTickFrequency();
 }
 
+uint64_t HalGetIntTimerDeltaTicks()
+{
+	return HalpVftable.GetIntTimerDeltaTicks();
+}
+
 NO_RETURN void HalProcessorCrashed()
 {
 	HalpVftable.ProcessorCrashed();

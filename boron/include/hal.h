@@ -28,6 +28,7 @@ void HalProcessorCrashed() NO_RETURN;
 uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
+uint64_t HalGetIntTimerDeltaTicks();
 
 #ifdef IS_HAL
 void HalSetVftable(PHAL_VFTABLE Table);

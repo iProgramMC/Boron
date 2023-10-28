@@ -12,7 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 27 September 2023
 ***/
-#include <hal.h>
+#include "hali.h"
 #include <ke.h>
 #include "apic.h"
 #include "tsc.h"
@@ -32,7 +32,7 @@ Author:
 	Notes:
 		This can vary from CPU to CPU.
 ***/
-uint64_t _HalGetTickFrequency()
+HAL_API uint64_t HalGetTickFrequency()
 {
 	return KeGetCurrentHalCB()->TscFrequency;
 }
@@ -53,7 +53,7 @@ uint64_t _HalGetTickFrequency()
 		* This can vary from CPU to CPU. Don't assume that
 		  the frequency is the same across all processors.
 ***/
-uint64_t _HalGetTickCount()
+HAL_API uint64_t HalGetTickCount()
 {
 	return HalReadTsc();
 }
@@ -70,7 +70,7 @@ uint64_t _HalGetTickCount()
 		or periodic (zero).  If yes, the caller can call the function
 		HalRequestInterruptInTicks().
 ***/
-bool _HalUseOneShotIntTimer()
+HAL_API bool HalUseOneShotIntTimer()
 {
 	// The APIC timer is supposed to be available on the IA-PC 64 platform.
 	return true;
@@ -89,7 +89,7 @@ bool _HalUseOneShotIntTimer()
 	Notes:
 		This can vary from CPU to CPU.
 ***/
-uint64_t _HalGetIntTimerFrequency()
+HAL_API uint64_t HalGetIntTimerFrequency()
 {
 	return KeGetCurrentHalCB()->LapicFrequency;
 }
@@ -106,10 +106,10 @@ uint64_t _HalGetIntTimerFrequency()
 	Return value:
 		None.
 ***/
-void _HalRequestInterruptInTicks(uint64_t ticks)
+HAL_API void HalRequestInterruptInTicks(uint64_t ticks)
 {
 #ifdef DEBUG
-	if (!_HalUseOneShotIntTimer())
+	if (!HalUseOneShotIntTimer())
 		KeCrash("Hey, you can't use HalRequestInterruptInTicks");
 #endif
 	
@@ -121,7 +121,7 @@ void _HalRequestInterruptInTicks(uint64_t ticks)
 /***
 	Function description:
 		Returns the delta time between interrupts in IT ticks.
-		Do not use if _HalUseOneShotIntTimer() returns true.
+		Do not use if HalUseOneShotIntTimer() returns true.
 	
 	Parameters:
 		None.
@@ -129,11 +129,11 @@ void _HalRequestInterruptInTicks(uint64_t ticks)
 	Return value:
 		The delta time between interrupts in ticks.
 ***/
-uint64_t HalGetInterruptDeltaTime()
+HAL_API uint64_t HalGetIntTimerDeltaTicks()
 {
 #ifdef DEBUG
-	if (_HalUseOneShotIntTimer())
-		KeCrash("Hey, you can't use HalGetInterruptDeltaTime");
+	if (HalUseOneShotIntTimer())
+		KeCrash("Hey, you can't use HalGetIntTimerDeltaTicks");
 #endif
 	
 	// @TODO
