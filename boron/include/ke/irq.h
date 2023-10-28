@@ -12,9 +12,7 @@ typedef PKREGISTERS(*PKINTERRUPT_HANDLER)(PKREGISTERS);
 
 int KeAllocateInterruptVector(KIPL Ipl);
 
-void KeRegisterInterrupt_(int Vector, PKINTERRUPT_HANDLER Handler, const char* HashHandler);
-
-#define KeRegisterInterrupt(Vector, Handler) KeRegisterInterrupt_(Vector, Handler, #Handler);
+void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler);
 
 void KeSetInterruptIPL(int Vector, KIPL Ipl);
 

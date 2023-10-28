@@ -183,9 +183,8 @@ int KeAllocateInterruptVector(KIPL Ipl)
 	return Vector;
 }
 
-void KeRegisterInterrupt_(int Vector, PKINTERRUPT_HANDLER Handler, const char* HandlerName)
+void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
 {
-	DbgPrint("KeRegisterInterrupt(%d, %p, %s)", Vector, Handler, HandlerName);
 	KiTrapCallList[Vector] = Handler;
 }
 

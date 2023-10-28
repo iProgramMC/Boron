@@ -118,6 +118,7 @@ KiTrapCommon:
 	lea   rax, [rsp + 16]                  ; Get the pointer to the value after rbx and rax on the stack
 	mov   rbx, [rax]                       ; Retrieve the interrupt number located there
 	PUSH_STATE                             ; Push the state, except for the old ipl
+	cld                                    ; Clear direction flag, will be restored by iretq
 	lea   rax, [KiTrapIplList + rbx]       ; Retrieve the IPL for the respective interrupt vector
 	movsx rdi, byte [rax]                  ; Get the IPL itself
 	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
