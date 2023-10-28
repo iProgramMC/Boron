@@ -6,6 +6,18 @@ int KiVectorCrash,
     KiVectorTlbShootdown,
     KiVectorDpcIpi;
 
+int KeGetSystemInterruptVector(int Number)
+{
+	switch (Number)
+	{
+		case KGSIV_NONE:
+		default:                  return 0;
+		case KGSIV_CRASH:         return KiVectorCrash;
+		case KGSIV_TLB_SHOOTDOWN: return KiVectorTlbShootdown;
+		case KGSIV_DPC_IPI:       return KiVectorDpcIpi;
+	}
+}
+
 void KiSetupIdt();
 
 void KeInitArchUP()
