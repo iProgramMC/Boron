@@ -25,6 +25,16 @@ KPRCB**  KeProcessorList;
 int      KeProcessorCount = 0;
 uint32_t KeBootstrapLapicId = 0;
 
+int KeGetProcessorCount()
+{
+	return KeProcessorCount;
+}
+
+uint32_t KeGetBootstrapLapicId()
+{
+	return KeBootstrapLapicId;
+}
+
 extern size_t MmTotalAvailablePages;
 
 // An atomic write to this field causes the parked CPU to jump to the written address,
@@ -96,7 +106,7 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	DbgPrintString(buffer);
 #endif
 	
-	if (HalIsTerminalInitted())
+	if (HalWasInitted())
 	{
 		HalDisplayString("\x1B[35m*** Init error: \x1B[0m");
 		HalDisplayString(buffer);

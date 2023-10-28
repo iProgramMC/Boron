@@ -15,13 +15,12 @@ Author:
 
 #include <main.h>
 #include <string.h>
+#include <limreq.h>
 #include <hal.h>
 #include <mm.h>
 #include <ke.h>
 #include <ex.h>
-#include "../../arch/amd64/pio.h"
 #include "font.h"
-#include <_limine.h>
 #include "flanterm/flanterm.h"
 #include "flanterm/backends/fb.h"
 
@@ -30,9 +29,6 @@ EXMEMORY_HANDLE HalpTerminalMemoryHandle;
 uint8_t*        HalpTerminalMemory;
 size_t          HalpTerminalMemoryHead;
 size_t          HalpTerminalMemorySize;
-
-// This is defined in init.c
-extern volatile struct limine_framebuffer_request KeLimineFramebufferRequest;
 
 static struct flanterm_context* HalpTerminalContext;
 
@@ -83,7 +79,7 @@ void HalInitTerminal()
 	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
 	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	LogMsg("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
+	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
 	
 	void* memory;
 	

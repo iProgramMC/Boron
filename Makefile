@@ -21,6 +21,7 @@ TARGET=AMD64
 KERNEL_NAME = kernel.elf
 
 DRIVERS_LIST = \
+	halx86     \
 	test
 
 # The build directory

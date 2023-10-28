@@ -13,7 +13,7 @@ Author:
 ***/
 #include "ldri.h"
 
-static const char* LdrpHalPath = "test.sys";
+static const char* LdrpHalPath = "halx86.sys";
 static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
 
 uintptr_t LdrAllocateRange(size_t Size)

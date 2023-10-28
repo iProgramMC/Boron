@@ -75,6 +75,10 @@ KPRCB, *PKPRCB;
 
 PKPRCB KeGetCurrentPRCB();
 
+int KeGetProcessorCount();
+
+uint32_t KeGetBootstrapLapicId();
+
 enum
 {
 	PENDING_QUANTUM_END = (1 << 0),

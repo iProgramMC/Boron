@@ -17,14 +17,9 @@ Author:
 #include <hal.h>
 #include <string.h>
 #include "apic.h"
-#include "../../arch/amd64/archi.h"
 
 static KSPIN_LOCK HalpCrashLock;
 static int        HalpCrashedProcessors;
-extern int        KeProcessorCount;
-
-extern KSPIN_LOCK g_PrintLock;
-extern KSPIN_LOCK g_DebugPrintLock;
 
 void _HalProcessorCrashed()
 {
@@ -42,6 +37,8 @@ void _HalCrashSystem(const char* message)
 	// disable interrupts
 	DISABLE_INTERRUPTS();
 	
+	int ProcessorCount = KeGetProcessorCount();
+	
 	// pre-lock the print and debug print lock so there are no threading issues later from
 	// stopping the CPUs.
 	// TODO: Also lock other important used locks too
@@ -53,7 +50,7 @@ void _HalCrashSystem(const char* message)
 	HalRequestIpi(0, HAL_IPI_BROADCAST, KiVectorCrash);
 	
 	//HalPrintStringDebug("CRASH: Waiting for all processors to halt!\n");
-	while (AtLoad(HalpCrashedProcessors) != KeProcessorCount)
+	while (AtLoad(HalpCrashedProcessors) != ProcessorCount)
 		KeSpinningHint();
 	
 	char buff[64];
@@ -69,13 +66,4 @@ void _HalCrashSystem(const char* message)
 	
 	// Now that all that's done, HALT!
 	KeStopCurrentCPU();
-}
-
-PKREGISTERS KiHandleCrashIpi(PKREGISTERS Regs)
-{
-	DISABLE_INTERRUPTS();
-	
-	HalProcessorCrashed();
-	KeStopCurrentCPU();
-	return Regs;
 }

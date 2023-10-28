@@ -29,6 +29,9 @@ uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 
+#ifdef IS_HAL
+void HalSetVftable(PHAL_VFTABLE Table);
+#endif
 
 
 // Outdated and will be removed:

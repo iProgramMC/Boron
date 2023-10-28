@@ -15,7 +15,7 @@ Author:
 #include <hal.h>
 #include "ps2.h"
 #include "ioapic.h"
-#include "../../arch/amd64/pio.h"
+#include "pio.h"
 
 void HalHandleKeyboardInterrupt()
 {

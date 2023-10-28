@@ -14,7 +14,7 @@ Author:
 ***/
 #include <hal.h>
 #include "pit.h"
-#include "../../arch/amd64/pio.h"
+#include "pio.h"
 
 #define PIT_DATA_PORT (0x40) // channel 0
 #define PIT_COMD_PORT (0x43) // channel 0

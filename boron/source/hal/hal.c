@@ -21,34 +21,9 @@ bool HalWasInitted()
 	return HalpVftable.Flags & HAL_VFTABLE_LOADED;
 }
 
-void _HalEndOfInterrupt();
-void _HalRequestInterruptInTicks(uint64_t Ticks);
-void _HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
-void _HalInitSystemUP();
-void _HalInitSystemMP();
-void _HalDisplayString(const char* Message);
-void _HalCrashSystem(const char* Message) NO_RETURN;
-bool _HalUseOneShotIntTimer();
-void _HalProcessorCrashed() NO_RETURN;
-uint64_t _HalGetIntTimerFrequency();
-uint64_t _HalGetTickCount();
-uint64_t _HalGetTickFrequency();
-
-void HalInitializeTemporary()
+void HalSetVftable(PHAL_VFTABLE Table)
 {
-	HalpVftable.EndOfInterrupt = _HalEndOfInterrupt;
-	HalpVftable.RequestInterruptInTicks = _HalRequestInterruptInTicks;
-	HalpVftable.RequestIpi = _HalRequestIpi;
-	HalpVftable.InitSystemUP = _HalInitSystemUP;
-	HalpVftable.InitSystemMP = _HalInitSystemMP;
-	HalpVftable.DisplayString = _HalDisplayString;
-	HalpVftable.CrashSystem = _HalCrashSystem;
-	HalpVftable.ProcessorCrashed = _HalProcessorCrashed;
-	HalpVftable.UseOneShotIntTimer = _HalUseOneShotIntTimer;
-	HalpVftable.GetIntTimerFrequency = _HalGetIntTimerFrequency;
-	HalpVftable.GetTickCount = _HalGetTickCount;
-	HalpVftable.GetTickFrequency = _HalGetTickFrequency;
-	HalpVftable.Flags |= HAL_VFTABLE_LOADED;
+	HalpVftable = *Table;
 }
 
 void HalEndOfInterrupt()
@@ -118,4 +93,13 @@ NO_RETURN void HalProcessorCrashed()
 {
 	HalpVftable.ProcessorCrashed();
 	KeStopCurrentCPU();
+}
+
+PKREGISTERS KiHandleCrashIpi(PKREGISTERS Regs)
+{
+	DISABLE_INTERRUPTS();
+	
+	HalProcessorCrashed();
+	KeStopCurrentCPU();
+	return Regs;
 }

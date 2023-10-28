@@ -518,25 +518,30 @@ void LdriLoadDll(PLIMINE_FILE File)
 	
 	if (!LoadedDLL->EntryPoint)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
+	
+	DbgPrint("Module %s was loaded at base %p", File->path, LoadBase);
 }
 
 void HalInitializeTemporary(); // Will be removed soon
 
+void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
+{
+	int Result = Dll->EntryPoint();
+	if (Result != 0)
+	{
+		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
+	}
+}
+
 void LdrInitializeHal()
 {
-	HalInitializeTemporary();
+	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
 }
 
 void LdrInitializeDrivers()
 {
-	for (int i = 0; i < KeLoadedDLLCount; i++)
+	for (int i = 1; i < KeLoadedDLLCount; i++)
 	{
-		PLOADED_DLL Dll = &KeLoadedDLLs[i];
-		
-		int Result = Dll->EntryPoint();
-		if (Result != 0)
-		{
-			LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
-		}
+		LdrpInitializeDllByIndex(&KeLoadedDLLs[i]);
 	}
 }

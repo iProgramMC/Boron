@@ -4,6 +4,9 @@
 DEBUG ?= yes
 DEBUG2 ?= no
 
+# User parms
+USER_DEFINES ?=
+
 # Only turn on debug2 temporarily
 
 BUILD_DIR = build
@@ -32,6 +35,8 @@ define DEFAULT_VAR =
 	endif
 endef
 
+DEFINES = -DIS_DRIVER
+
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
 endif
@@ -50,10 +55,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE)
+CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE)
+CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)

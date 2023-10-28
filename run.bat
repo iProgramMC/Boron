@@ -8,7 +8,7 @@ cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
 qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
--M q35                                          ^
+-M q35 -d int -D %nspath%\keep\test.txt         ^
 -m 64M                                          ^
 -smp 4                                          ^
 -boot d                                         ^

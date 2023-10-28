@@ -13,6 +13,7 @@ Author:
 ***/
 #include <stddef.h>
 #include <_limine.h>
+#include <limreq.h>
 
 volatile struct limine_hhdm_request KeLimineHhdmRequest =
 {
@@ -51,3 +52,23 @@ volatile struct limine_rsdp_request KeLimineRsdpRequest =
 	.revision = 0,
 	.response = NULL,
 };
+
+// Note: This MUST match the order of the KLGR enum.
+static volatile void* const KepLimineRequestTable[] =
+{
+	NULL,
+	&KeLimineHhdmRequest,
+	&KeLimineFramebufferRequest,
+	&KeLimineMemMapRequest,
+	&KeLimineSmpRequest,
+	&KeLimineRsdpRequest,
+	&KeLimineModuleRequest,
+};
+
+volatile void* KeLimineGetRequest(int RequestId)
+{
+	if (RequestId <= KLGR_NONE || RequestId >= KLGR_COUNT)
+		return NULL;
+	
+	return KepLimineRequestTable[RequestId];
+}

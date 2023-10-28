@@ -20,9 +20,8 @@ Author:
 #include "hpet.h"
 #include "pit.h"
 #include "tsc.h"
-#include "../../arch/amd64/archi.h"
+//#include "../../arch/amd64/archi.h"
 
-#define SPURIOUS_INTERRUPT_VECTOR (0xFF)
 #define APIC_TIMER_MODE_ONESHOT   (0b00 << 17)
 #define APIC_TIMER_MODE_PERIODIC  (0b01 << 17) // not used right now, but may be needed.
 #define APIC_TIMER_MODE_TSCDEADLN (0b10 << 17)

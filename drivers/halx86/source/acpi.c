@@ -15,7 +15,7 @@ Author:
 #include <ex.h>
 #include <ke.h>
 #include "acpi.h"
-#include "../../arch/amd64/pio.h"
+#include "pio.h"
 
 static PRSDP_DESCRIPTION HalpRsdp;
 static PRSDT_TABLE       HalpRsdt;

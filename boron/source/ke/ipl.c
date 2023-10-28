@@ -91,7 +91,7 @@ KIPL KeLowerIPL(KIPL newIPL)
 		
 		// TODO: Don't use an IPI to do this. Huge overhead
 		if (KeGetPendingEvents())
-			HalSendSelfIpi();
+			HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
 		
 		KeRestoreInterrupts(Restore);
 	}
