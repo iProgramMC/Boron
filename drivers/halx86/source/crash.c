@@ -27,7 +27,7 @@ void HalProcessorCrashed()
 	KeStopCurrentCPU();
 }
 
-void HalCrashSystem(const char* message)
+void HalCrashSystem(const char* Message)
 {
 	KIPL Unused;
 	// lock the crash in so that no one else can crash but us
@@ -54,17 +54,5 @@ void HalCrashSystem(const char* message)
 	while (AtLoad(HalpCrashedProcessors) != ProcessorCount)
 		KeSpinningHint();
 	
-	char buff[64];
-	snprintf(buff, sizeof buff, "\x1B[91m*** STOP (CPU %u): \x1B[0m", KeGetCurrentPRCB()->LapicId);
-	
-	// now that we got that out of the way, print the error message
-	// (and the 'fatal error' tag in red) to the console..
-	HalDisplayString(buff);
-	HalDisplayString(message);
-	// and the debug console
-	HalPrintStringDebug(buff);
-	HalPrintStringDebug(message);
-	
-	// Now that all that's done, HALT!
-	KeStopCurrentCPU();
+	KeCrashConclusion(Message);
 }

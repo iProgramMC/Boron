@@ -124,6 +124,11 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	KiCrashedEntry();
 }
 
+int KeGetVersionNumber()
+{
+	return 1;
+}
+
 NO_RETURN void KeInitSMP()
 {
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
@@ -190,6 +195,8 @@ NO_RETURN void KeInitSMP()
 	// phase 1 of HAL initialization on the BSP:
 	HalInitSystemUP();
 	
+	int VersionNumber = KeGetVersionNumber();
+	LogMsg("Boron (TM), October 2023 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);
 	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", pSMP->cpu_count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)

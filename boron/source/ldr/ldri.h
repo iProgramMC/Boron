@@ -15,28 +15,11 @@ Author:
 #ifndef BORON_LDRI_H
 #define BORON_LDRI_H
 
-#include <_limine.h>
-#include <main.h>
 #include <ke.h>
 #include <mm.h>
+#include <ldr.h>
 #include <string.h>
 #include <limreq.h>
-
-typedef struct limine_file LIMINE_FILE, *PLIMINE_FILE;
-
-typedef int(*PDLL_ENTRY_POINT)();
-
-typedef struct
-{
-	const char*      Name; // should be == LimineFile->path
-	PLIMINE_FILE     LimineFile;
-	uintptr_t        ImageBase;
-	PDLL_ENTRY_POINT EntryPoint;
-}
-LOADED_DLL, *PLOADED_DLL;
-
-extern LOADED_DLL KeLoadedDLLs[];
-extern int        KeLoadedDLLCount;
 
 void LdriLoadDll(PLIMINE_FILE File);
 

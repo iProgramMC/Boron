@@ -19,7 +19,6 @@ Author:
 #include <ldr.h>
 #include "ki.h"
 #include <rtl/symdefs.h>
-//#include <cpuid.h>
 
 // The entry point to our kernel.
 NO_RETURN void KiSystemStartup(void)

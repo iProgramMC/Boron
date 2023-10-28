@@ -38,8 +38,11 @@ void KeInitArchMP();
 NO_RETURN void KeCrash(const char* message, ...);
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
 
+NO_RETURN void KeCrashConclusion(const char* Message);
 
 void KeIssueTLBShootDown(uintptr_t Address, size_t Length);
+
+int KeGetVersionNumber();
 
 
 #endif//NS64_KE_H

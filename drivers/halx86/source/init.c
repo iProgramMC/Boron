@@ -44,8 +44,6 @@ PKHALCB KeGetCurrentHalCB()
 void HalInitSystemUP()
 {
 	HalInitTerminal();
-	LogMsg("Boron (TM), October 2023 - V0.005");
-	
 	HalInitApicUP();
 	HalInitAcpi();
 	HalInitIoApic();

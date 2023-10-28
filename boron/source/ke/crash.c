@@ -16,6 +16,7 @@ Author:
 
 #include <ke.h>
 #include <hal.h>
+#include <ldr.h>
 #include <string.h>
 
 extern bool KiSmpInitted;
@@ -36,4 +37,33 @@ void KeCrash(const char* message, ...)
 	va_end(va);
 	
 	HalCrashSystem(buffer);
+}
+
+extern KSPIN_LOCK KiPrintLock;
+extern KSPIN_LOCK KiDebugPrintLock;
+
+void KeCrashConclusion(const char* Message)
+{
+	static char CrashBuffer[4096];
+	
+	// NOTE: We are running in a single processor context - all other processors were shut down
+	KiPrintLock.Locked = 0;
+	KiDebugPrintLock.Locked = 0;
+	
+	snprintf(CrashBuffer, sizeof CrashBuffer, "\n\x1B[91m*** STOP (CPU %u): \x1B[0m %s\n", KeGetCurrentPRCB()->LapicId, Message);
+	
+	HalDisplayString(CrashBuffer);
+	DbgPrintString(CrashBuffer);
+	
+	// List each loaded DLL's base
+	LogMsg("Dll Base         Name");
+	for (int i = 0; i < KeLoadedDLLCount; i++)
+	{
+		PLOADED_DLL LoadedDll = &KeLoadedDLLs[i];
+		
+		LogMsg("%p %s", LoadedDll->ImageBase, LoadedDll->Name);
+	}
+	
+	// Now that all that's done, HALT!
+	KeStopCurrentCPU();
 }
