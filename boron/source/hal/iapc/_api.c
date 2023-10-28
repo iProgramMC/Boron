@@ -23,7 +23,7 @@ bool HalWasInitted()
 
 void _HalEndOfInterrupt();
 void _HalRequestInterruptInTicks(uint64_t Ticks);
-void _HalRequestIpi(uint32_t LapicId, uint32_t Flags);
+void _HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void _HalInitSystemUP();
 void _HalInitSystemMP();
 void _HalDisplayString(const char* Message);
@@ -61,9 +61,9 @@ void HalRequestInterruptInTicks(uint64_t Ticks)
 	HalpVftable.RequestInterruptInTicks(Ticks);
 }
 
-void HalRequestIpi(uint32_t LapicId, uint32_t Flags)
+void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 {
-	HalpVftable.RequestIpi(LapicId, Flags);
+	HalpVftable.RequestIpi(LapicId, Flags, Vector);
 }
 
 void HalInitSystemUP()

@@ -18,7 +18,7 @@ bool HalWasInitted();
 
 // HAL API. See hal/init.h
 void HalEndOfInterrupt();
-void HalRequestIpi(uint32_t LapicId, uint32_t Flags);
+void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();
 void HalDisplayString(const char* Message);
@@ -44,9 +44,6 @@ void HalPrintString(const char* str);
 
 // Warning: You need to lock KiDebugPrintLock to use this:
 void HalPrintStringDebug(const char* str);
-
-// ==== TLB Shootdown ====
-void HalIssueTLBShootDown(uintptr_t Address, size_t Length);
 
 // ==== Crashing ====
 // don't use. Use KeCrash instead

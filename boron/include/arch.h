@@ -7,6 +7,7 @@
 #ifdef TARGET_AMD64
 #include <arch/amd64.h>
 #endif
+
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
 typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 

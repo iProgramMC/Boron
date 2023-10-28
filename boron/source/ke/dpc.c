@@ -17,9 +17,11 @@ Author:
 #include <hal.h>
 #include "ki.h"
 
+extern int KiVectorDpcIpi;
+
 void KeIssueSoftwareInterrupt()
 {
-	HalSendSelfIpi();
+	HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
 }
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)

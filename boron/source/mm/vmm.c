@@ -20,7 +20,7 @@ Author:
 // TLB - with invlpg on amd64 for instance)
 void MmIssueTLBShootDown(uintptr_t Address, size_t Length)
 {
-	HalIssueTLBShootDown(Address, Length);
+	KeIssueTLBShootDown(Address, Length);
 }
 
 HPAGEMAP MmGetCurrentPageMap()

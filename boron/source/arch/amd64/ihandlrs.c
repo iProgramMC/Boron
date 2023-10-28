@@ -1,4 +1,7 @@
 // Boron64 - Interrupt handlers
+
+#if 0
+
 #include "../../ke/ki.h"
 #include <arch.h>
 #include <except.h>
@@ -36,16 +39,6 @@ static UNUSED void KiDumpCPURegs(PKREGISTERS Regs)
     LogMsg("r14:    %llx", Regs->r14);
     LogMsg("r15:    %llx", Regs->r15);
 }
-
-// Generic interrupt handler.
-// Used in case an interrupt is not implemented
-PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
-{
-	KeOnUnknownInterrupt(Regs->rip, Regs->IntNumber);
-	return Regs;
-}
-
-#if 0
 
 // Generic interrupt handler.
 // Used in case an interrupt is not implemented

@@ -19,7 +19,8 @@ void HalEndOfInterrupt();
 
 void HalSendIpi(uint32_t Processor, int Vector);
 void HalBroadcastIpi(int Vector, bool IncludeSelf);
-void HalEnableApic();
+void HalInitApicUP();
+void HalInitApicMP();
 void HalCalibrateApic();
 bool HalIsApicAvailable();
 void HalApicSetIrqIn(uint64_t Ticks);

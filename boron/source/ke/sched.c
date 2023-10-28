@@ -294,6 +294,7 @@ void KeTimerTick()
 	
 	if (!Thread)
 	{
+		DbgPrint("No thread");
 		// TODO
 		return;
 	}

@@ -44,11 +44,10 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	KeSchedulerInit();
 	
+	HalInitSystemMP();
+	
 	if (Prcb->IsBootstrap)
-	{
-		HalInitSystemMP();
 		LdrInitializeDrivers();
-	}
 	
 	KeSchedulerCommit();
 }

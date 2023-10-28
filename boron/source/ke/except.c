@@ -23,6 +23,7 @@ void KeOnUnknownInterrupt(uintptr_t FaultPC, uintptr_t Vector)
 #else
 #define SPECIFIER "%08x"
 #endif
+	DbgPrint("** Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
 	KeCrash("Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
 #undef SPECIFIER
 }

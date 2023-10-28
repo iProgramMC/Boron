@@ -23,7 +23,7 @@ Author:
 // Function pointer definitions
 typedef void(*PFHAL_END_OF_INTERRUPT)(void);
 typedef void(*PFHAL_REQUEST_INTERRUPT_IN_TICKS)(uint64_t Ticks);
-typedef void(*PFHAL_REQUEST_IPI)(uint32_t LapicId, uint32_t Flags);
+typedef void(*PFHAL_REQUEST_IPI)(uint32_t LapicId, uint32_t Flags, int Vector);
 typedef void(*PFHAL_INIT_SYSTEM_UP)(void);
 typedef void(*PFHAL_INIT_SYSTEM_MP)(void);
 typedef void(*PFHAL_DISPLAY_STRING)(const char* Message);

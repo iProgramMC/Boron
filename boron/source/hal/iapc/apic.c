@@ -20,6 +20,7 @@ Author:
 #include "hpet.h"
 #include "pit.h"
 #include "tsc.h"
+#include "../../arch/amd64/archi.h"
 
 #define SPURIOUS_INTERRUPT_VECTOR (0xFF)
 #define APIC_TIMER_MODE_ONESHOT   (0b00 << 17)
@@ -29,6 +30,8 @@ Author:
 #define APIC_LVT_INT_MASKED (0x10000)
 
 #define IA32_APIC_BASE_MSR (0x1B)
+
+static int HalpVectorApicTimer, HalpVectorSpurious;
 
 enum
 {
@@ -136,9 +139,9 @@ static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool self)
 	ApicWriteRegister(APIC_REG_ICR0, mode | vector);
 }
 
-void _HalRequestIpi(uint32_t LapicId, uint32_t Flags)
+void _HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 {
-	ApicSendIpi(LapicId, INTV_DPC_IPI, Flags & HAL_IPI_BROADCAST, Flags & HAL_IPI_SELF);
+	ApicSendIpi(LapicId, Vector, Flags & HAL_IPI_BROADCAST, Flags & HAL_IPI_SELF);
 }
 
 // Interface code.
@@ -155,12 +158,6 @@ void HalBroadcastIpi(int Vector, bool IncludeSelf)
 void _HalEndOfInterrupt()
 {
 	ApicEndOfInterrupt();
-}
-
-void HalEnableApic()
-{
-	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
-	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | INTV_SPURIOUS);
 }
 
 // Frequency of the PIT and PMT timers in hertz.
@@ -410,16 +407,45 @@ void HalCalibrateApic()
 
 void HalSendSelfIpi()
 {
-	HalSendIpi(KeGetCurrentPRCB()->LapicId, INTV_DPC_IPI);
+	HalSendIpi(KeGetCurrentPRCB()->LapicId, KiVectorDpcIpi);
 }
 
 void HalApicSetIrqIn(uint64_t Ticks)
 {
 	ApicWriteRegister(APIC_REG_TMR_INIT_CNT, Ticks);
-	ApicWriteRegister(APIC_REG_LVT_TIMER,    INTV_APIC_TIMER);
+	ApicWriteRegister(APIC_REG_LVT_TIMER,    HalpVectorApicTimer);
 }
 
-void HalApicHandleInterrupt()
+// Interrupt Handling
+
+static PKREGISTERS HalpSpuriousHandler(PKREGISTERS Regs)
+{
+	ApicEndOfInterrupt();
+	return Regs;
+}
+
+static PKREGISTERS HalpApicTimerHandler(PKREGISTERS Regs)
 {
 	KeTimerTick();
+	ApicEndOfInterrupt();
+	return Regs;
+}
+
+// Initialization
+
+void HalInitApicUP()
+{
+	HalpVectorApicTimer = KeAllocateInterruptVector(IPL_CLOCK);
+	HalpVectorSpurious  = KeAllocateInterruptVector(IPL_NOINTS);
+	
+	KeRegisterInterrupt(HalpVectorSpurious,  HalpSpuriousHandler);
+	KeRegisterInterrupt(HalpVectorApicTimer, HalpApicTimerHandler);
+	
+	DbgPrint("HalpVectorApicTimer: %d", HalpVectorApicTimer);
+}
+
+void HalInitApicMP()
+{
+	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
+	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | HalpVectorSpurious);
 }

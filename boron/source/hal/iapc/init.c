@@ -30,6 +30,7 @@ void _HalInitSystemUP()
 	HalInitTerminal();
 	LogMsg("Boron (TM), October 2023 - V0.005");
 	
+	HalInitApicUP();
 	HalInitAcpi();
 	HalInitIoApic();
 	HpetInitialize();
@@ -41,6 +42,6 @@ void _HalInitSystemMP()
 {
 	KeGetCurrentPRCB()->HalData = ExAllocateSmall(sizeof(KHALCB));
 	
-	HalEnableApic();
+	HalInitApicMP();
 	HalCalibrateApic();
 }

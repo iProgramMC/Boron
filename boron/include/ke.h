@@ -21,6 +21,9 @@
 // === Statistics ===
 #include <ke/stats.h>
 
+// === Interrupts ===
+#include <ke/irq.h>
+
 // === Debugging ===
 void DbgPrintString(const char* str);
 uintptr_t DbgLookUpAddress(const char* Name);
@@ -34,4 +37,9 @@ void KeInitArchMP();
 // === Crashing ===
 NO_RETURN void KeCrash(const char* message, ...);
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
+
+
+void KeIssueTLBShootDown(uintptr_t Address, size_t Length);
+
+
 #endif//NS64_KE_H

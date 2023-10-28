@@ -17,6 +17,7 @@ Author:
 #include <hal.h>
 #include <string.h>
 #include "apic.h"
+#include "../../arch/amd64/archi.h"
 
 static KSPIN_LOCK HalpCrashLock;
 static int        HalpCrashedProcessors;
@@ -49,7 +50,7 @@ void _HalCrashSystem(const char* message)
 	
 	// Send IPI to the other processors to make them halt.
 	// Don't send an IPI to ourselves as we already are in the process of crashing.
-	HalBroadcastIpi(INTV_CRASH_IPI, false);
+	HalRequestIpi(0, HAL_IPI_BROADCAST, KiVectorCrash);
 	
 	//HalPrintStringDebug("CRASH: Waiting for all processors to halt!\n");
 	while (AtLoad(HalpCrashedProcessors) != KeProcessorCount)
@@ -68,4 +69,13 @@ void _HalCrashSystem(const char* message)
 	
 	// Now that all that's done, HALT!
 	KeStopCurrentCPU();
+}
+
+PKREGISTERS KiHandleCrashIpi(PKREGISTERS Regs)
+{
+	DISABLE_INTERRUPTS();
+	
+	HalProcessorCrashed();
+	KeStopCurrentCPU();
+	return Regs;
 }

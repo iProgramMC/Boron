@@ -12,11 +12,13 @@ NO_RETURN void StartRoutine()
 {
 	LogMsg("Hello from test.sys's Start Routine!!");
 	
-	while (true) {
-		LogMsg("My thread's still running!!");
+	for (int i = 0; i < 20; i++) {
+		LogMsg("My thread's still running!!  %d", i);
 		for (int i = 0; i < 4; i++)
 			ASM("hlt");
 	}
+	
+	KeCrash("From test driver");
 }
 
 int DriverEntry()

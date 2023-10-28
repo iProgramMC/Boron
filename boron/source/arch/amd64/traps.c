@@ -2,6 +2,9 @@
 #include <arch.h>
 #include <string.h>
 #include <ke.h>
+#include <hal.h>
+#include <except.h>
+#include "../../ke/ki.h"
 
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
@@ -120,11 +123,25 @@ void KiExitHardwareInterrupt(int OldIpl)
 	KeOnUpdateIPL(OldIpl, PrevIpl);
 }
 
-extern void KiTrapUnknownHandler(PKREGISTERS Regs);
+// Generic interrupt handler. Used in case an interrupt is not implemented
+PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
+{
+	KeOnUnknownInterrupt(Regs->rip, Regs->IntNumber);
+	return Regs;
+}
+
+PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs)
+{
+	PKREGISTERS New = KiHandleSoftIpi(Regs);
+	HalEndOfInterrupt();
+	return New;
+}
 
 extern void* const KiTrapList[];     // traplist.asm
-extern uint8_t     KiTrapIplList[];  // trap.asm
+extern int8_t      KiTrapIplList[];  // trap.asm
 extern void*       KiTrapCallList[]; // trap.asm
+
+static int KepIplVectors[IPL_COUNT];
 
 // Run on the BSP only.
 void KiSetupIdt()
@@ -139,4 +156,40 @@ void KiSetupIdt()
 		KiTrapIplList[i]  = IPL_NOINTS;
 		KiTrapCallList[i] = KiTrapUnknownHandler;
 	}
+	
+	for (int i = 0; i < IPL_COUNT; i++)
+	{
+		KepIplVectors[i] = i * 0x10;
+	}
+}
+
+// NOTE: This works fine on AMD64 because we can reprogram the IOAPIC
+// to give us whichever interrupt number we want.
+
+int KeAllocateInterruptVector(KIPL Ipl)
+{
+	if (Ipl < 0 || Ipl > IPL_NOINTS)
+		return -1;
+	
+	if (KepIplVectors[Ipl] >= (Ipl + 1) * 0x10)
+		// We return -1 instead of crashing so that device drivers
+		// can opt for different IPLs in case one doesn't work
+		return -1;
+	
+	int Vector = KepIplVectors[Ipl]++;
+	
+	// Set the IPL that we expect to run at
+	KiTrapIplList[Vector] = Ipl;
+	return Vector;
+}
+
+void KeRegisterInterrupt_(int Vector, PKINTERRUPT_HANDLER Handler, const char* HandlerName)
+{
+	DbgPrint("KeRegisterInterrupt(%d, %p, %s)", Vector, Handler, HandlerName);
+	KiTrapCallList[Vector] = Handler;
+}
+
+void KeSetInterruptIPL(int Vector, KIPL Ipl)
+{
+	KiTrapIplList[Vector] = Ipl;
 }
