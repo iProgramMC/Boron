@@ -32,4 +32,5 @@ void MmInitAllocators()
 {
 	MiInitSlabs();
 	MiInitPool();
+	DbgAddToProgressBar();
 }

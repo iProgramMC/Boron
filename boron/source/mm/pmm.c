@@ -237,6 +237,8 @@ void MiInitPMM()
 		}
 	}
 	
+	DbgAddToProgressBar();
+	
 	DbgPrint("Initializing the PFN database.", sizeof(MMPFN));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
@@ -290,6 +292,8 @@ void MiInitPMM()
 		}
 	}
 	
+	DbgAddToProgressBar();
+	
 	MiLastFreePFN = lastPfnOfPrevBlock;
 	
 	// zero out like 200 of these
@@ -314,6 +318,8 @@ void MiInitPMM()
 	DbgPrint("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
 	
 	MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
+	
+	DbgAddToProgressBar();
 }
 
 // TODO: Add locking

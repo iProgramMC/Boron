@@ -24,6 +24,8 @@ void KeInitArchUP()
 {
 	KiSetupIdt();
 	
+	DbgAddToProgressBar();
+	
 	// Initialize interrupt vectors for certain things
 	KiVectorCrash        = KeAllocateInterruptVector(IPL_NOINTS);
 	KiVectorTlbShootdown = KeAllocateInterruptVector(IPL_NOINTS);
@@ -32,6 +34,8 @@ void KeInitArchUP()
 	KeRegisterInterrupt(KiVectorDpcIpi,       KiHandleDpcIpi);
 	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpi);
 	KeRegisterInterrupt(KiVectorCrash,        KiHandleCrashIpi);
+	
+	DbgAddToProgressBar();
 }
 
 void KeInitArchMP()

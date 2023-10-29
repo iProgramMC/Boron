@@ -44,11 +44,13 @@ for Symbol in SymbolList:
     Name = Symbol[2]
 
     if Count < len(SymbolList) - 1:
+        UpdateSize = False
+        
         # Attempt to correct the size of small asm functions
         # that aren't aligned to sixteen bytes. Their size is reported
         # as bigger than it actually is for some reason
         if Address + Size > SymbolList[Count + 1][0]:
-            Size = SymbolList[Count + 1][0] - Address
+            UpdateSize = True
         
         # If the symbol has at most 15 bytes until the next symbol,
         # expand the size to include the padding.
@@ -56,7 +58,15 @@ for Symbol in SymbolList:
         Thing = (Address + Size + 0xF) & 0xFFFFFFFFFFFFFFF0
         
         if Thing == SymbolList[Count + 1][0]:
+            UpdateSize = True
+        
+        # TODO FIXME: If we're KiTrapCommon or siblings, update the size anyway
+        if Name.startswith('KiTrapCommon'):
+            UpdateSize = True
+        
+        if UpdateSize:
             Size = SymbolList[Count + 1][0] - Address
+           
     
     print(f'dq 0x{Address:x}')
     print(f'dq 0x{Size:x}')

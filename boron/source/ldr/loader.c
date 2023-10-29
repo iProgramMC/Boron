@@ -107,4 +107,6 @@ void LdrInit()
 		
 		LdriLoadFile(File);
 	}
+	
+	DbgAddToProgressBar();
 }

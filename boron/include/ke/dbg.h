@@ -25,3 +25,22 @@ uintptr_t DbgLookUpAddress(const char* Name);
 const char* DbgLookUpRoutineNameByAddressExact(uintptr_t Address);
 
 const char* DbgLookUpRoutineNameByAddress(uintptr_t Address, uintptr_t* BaseAddressOut);
+
+#ifdef DEBUG
+
+void DbgSetProgressBarSteps(int Steps);
+
+void DbgAddToProgressBar();
+
+void DbgBusyWaitABit();
+
+#else
+
+#define DbgSetProgressBarSteps()
+
+#define DbgAddToProgressBar()
+
+#define DbgBusyWaitABit()
+
+#endif
+

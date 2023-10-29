@@ -154,6 +154,8 @@ NO_RETURN void KeInitSMP()
 	if (cpuListPFN == PFN_INVALID)
 		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
 	
+	DbgAddToProgressBar();
+	
 	KeProcessorList  = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuListPFN));
 	KeProcessorCount = pSMP->cpu_count;
 	
@@ -190,9 +192,13 @@ NO_RETURN void KeInitSMP()
 			pBSPInfo = pInfo;
 	}
 	
+	DbgAddToProgressBar();
+	
 	KiSmpInitted = true;
 	
 	LdrInitializeHal();
+	
+	DbgAddToProgressBar();
 	
 	// phase 1 of HAL initialization on the BSP:
 	HalInitSystemUP();
