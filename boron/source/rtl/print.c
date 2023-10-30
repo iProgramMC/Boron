@@ -32,11 +32,7 @@ void LogMsg(const char* msg, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
-	// this one goes to the screen
-	KIPL OldIpl;
-	KeAcquireSpinLock(&KiPrintLock, &OldIpl);
 	HalDisplayString(buffer);
-	KeReleaseSpinLock(&KiPrintLock, OldIpl);
 }
 
 #ifdef DEBUG

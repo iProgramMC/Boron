@@ -61,6 +61,9 @@ int KeWaitForMultipleObjects(
 	bool Alertable,
 	PKWAIT_BLOCK WaitBlockArray);
 
+// Initialize the dispatcher header.
+void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object);
+
 // Wait for a single object.
 int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable);
 

@@ -1,3 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	arch/amd64/init.c
+	
+Abstract:
+	This module implements the architecture specific UP-init
+	and MP-init routines.
+	
+Author:
+	iProgramInCpp - 27 October 2023
+***/
 #include <ke.h>
 #include <hal.h>
 #include "archi.h"

@@ -3,11 +3,11 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/dbg.c
+	arch/amd64/debug.c
 	
 Abstract:
-	This header file contains the implementation of the
-	architecture specific debugging routines.
+	This module implements architecture specific debugging
+	routines.
 	
 Author:
 	iProgramInCpp - 28 October 2023

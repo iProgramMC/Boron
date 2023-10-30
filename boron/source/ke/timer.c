@@ -1,12 +1,22 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke/timer.c
+	
+Abstract:
+	This header file implements the Timer dispatcher object.
+	
+Author:
+	iProgramInCpp - 30 October 2023
+***/
 #include <ke.h>
 #include <hal.h>
 
 void KeInitializeTimer(PKTIMER Timer)
 {
-	Timer->Header.Type = DISPOBJ_TIMER;
-	Timer->Header.Signaled = false;
-	
-	InitializeListHead(&Timer->Header.WaitBlockList);
+	KeInitializeDispatchHeader(&Timer->Header);
 	
 	Timer->ExpiryTick = 0;
 	

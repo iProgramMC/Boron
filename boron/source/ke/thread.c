@@ -32,6 +32,8 @@ PKTHREAD KeCreateEmptyThread()
 // TODO: Process Parameter at the end (PKPROCESS Process)
 void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext)
 {
+	KeInitializeDispatchHeader(&Thread->Header);
+	
 	if (!KernelStack)
 		KernelStack = ExAllocatePool(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, EX_TAG("ThSt"));
 	

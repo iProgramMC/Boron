@@ -119,8 +119,8 @@ void KeWakeUpThread(PKTHREAD Thread)
 	Thread->WaitCount = 0;
 	Thread->WaitBlockArray = NULL;
 	
-	// Emplace ourselves on the execution queue, with a small boost - we're placed on the head of the list.
-	InsertHeadList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
+	// Emplace ourselves on the execution queue.
+	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 }
 
 static UNUSED void KepCreateTestThread(PKTHREAD_START Start)
@@ -364,8 +364,10 @@ void KeTimerTick()
 	
 	if (!Thread)
 	{
-		DbgPrint("No thread");
-		// TODO
+		// No thread. It's likely that we interrupted the scheduler..
+		// Reschedule ourselves in an arbitrary amount of time to fix
+		DbgPrint("KeTimerTick: No thread");
+		HalRequestInterruptInTicks(100);
 		return;
 	}
 	
@@ -382,4 +384,24 @@ void KeTimerTick()
 	{
 		KiRescheduleTimerNoChange();
 	}
+}
+
+NO_RETURN void KeTerminateThread()
+{
+	// Raise IPL so we don't get scheduled away.
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	// Mark the thread as terminated.
+	Thread->Status = KTHREAD_STATUS_TERMINATED;
+	
+	// Signal all objects waiting for us.
+	KeSignalObject(&Thread->Header);
+	
+	KeLowerIPL(Ipl);
+	
+	KeYieldCurrentThread();
+	
+	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

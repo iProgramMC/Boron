@@ -1,5 +1,18 @@
-// Boron - Hardware abstraction
-// CPU management
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	arch/amd64/cpu.c
+	
+Abstract:
+	This module implements certain utility functions,
+	as well as certain parts of UP initialization code,
+	relating to CPU features such as the GDT and IDT.
+	
+Author:
+	iProgramInCpp - 20 August 2023
+***/
 #include <main.h>
 #include <arch.h>
 #include <hal.h>

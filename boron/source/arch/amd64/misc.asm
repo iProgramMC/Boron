@@ -1,4 +1,18 @@
-; Boron - CPU abstraction functions
+;
+;    The Boron Operating System
+;    Copyright (C) 2023 iProgramInCpp
+; 
+; Module name:
+;    arch/amd64/trap.asm
+; 	
+; Abstract:
+;    This module implements certain utility functions for
+;    the AMD64 platform.
+; 	
+; Author:
+;    iProgramInCpp - 28 August 2023
+;
+
 bits 64
 
 %include "arch/amd64.inc"

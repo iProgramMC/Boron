@@ -1,4 +1,26 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	ke/dispatch.c
+	
+Abstract:
+	This header file contains the definitions for the
+	event dispatcher.
+	
+Author:
+	iProgramInCpp - 30 October 2023
+***/
 #include <ke.h>
+
+void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object)
+{
+	Object->Type = DISPOBJ_TIMER;
+	Object->Signaled = false;
+	
+	InitializeListHead(&Object->WaitBlockList);
+}
 
 int KeWaitForMultipleObjects(
 	int Count,

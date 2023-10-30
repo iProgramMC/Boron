@@ -400,8 +400,8 @@ void HalSendSelfIpi()
 
 void HalApicSetIrqIn(uint64_t Ticks)
 {
-	ApicWriteRegister(APIC_REG_TMR_INIT_CNT, Ticks);
 	ApicWriteRegister(APIC_REG_LVT_TIMER,    HalpVectorApicTimer);
+	ApicWriteRegister(APIC_REG_TMR_INIT_CNT, Ticks);
 }
 
 // Interrupt Handling

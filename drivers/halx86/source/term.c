@@ -124,5 +124,11 @@ HAL_API void HalDisplayString(const char* Message)
 		return;
 	}
 	
-	flanterm_write(HalpTerminalContext, Message, strlen(Message));
+	size_t Length = strlen(Message);
+	
+	static KSPIN_LOCK SpinLock;
+	KIPL Ipl;
+	KeAcquireSpinLock(&SpinLock, &Ipl);
+	flanterm_write(HalpTerminalContext, Message, Length);
+	KeReleaseSpinLock(&SpinLock, Ipl);
 }

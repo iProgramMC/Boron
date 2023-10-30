@@ -51,6 +51,8 @@ KTHREAD_STACK, *PKTHREAD_STACK;
 
 struct KTHREAD_tag
 {
+	KDISPATCH_HEADER Header;
+	
 	LIST_ENTRY EntryGlobal;    // Entry into global thread list
 	LIST_ENTRY EntryList;      // Entry into CPU local scheduler's thread list
 	LIST_ENTRY EntryQueue;     // Entry into the CPU local dispatcher ready queue
@@ -105,5 +107,8 @@ void KeYieldCurrentThread();
 
 // Wakes up a thread after a wait.
 void KeWakeUpThread(PKTHREAD Thread);
+
+// Terminate the current thread.
+NO_RETURN void KeTerminateThread();
 
 #endif//BORON_KE_THREAD_H

@@ -1,4 +1,17 @@
-// Boron64 - Interrupt management
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	arch/amd64/traps.c
+	
+Abstract:
+	This header file implements support for the IDT (Interrupt
+	Dispatch Table).
+	
+Author:
+	iProgramInCpp - 28 October 2023
+***/
 #include <arch.h>
 #include <string.h>
 #include <ke.h>

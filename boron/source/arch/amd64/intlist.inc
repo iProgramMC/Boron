@@ -1,7 +1,18 @@
-; The Boron Operating System
-; Copyright (C) 2023 iProgramInCpp
-
-; Author - iProgramInCpp - 27 October 2023
+;
+;    The Boron Operating System
+;    Copyright (C) 2023 iProgramInCpp
+; 
+; Module name:
+;    arch/amd64/intlist.inc
+; 	
+; Abstract:
+;    This is a define file.  It is used to loop through all
+;    256 interrupt vectors through the macro INT,2 in a way
+;    that doesn't repeat itself too much.
+; 	
+; Author:
+;    iProgramInCpp - 27 October 2023
+;
 
 INT 00, N
 INT 01, N

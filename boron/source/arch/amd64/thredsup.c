@@ -6,8 +6,8 @@ Module name:
 	arch/amd64/thredsup.c
 	
 Abstract:
-	This module contains the implementation of the
-	KiSetupRegistersThread routine
+	This module implements the architecture specific
+	thread state setup routine.
 	
 Author:
 	iProgramInCpp - 9 October 2023

@@ -152,8 +152,6 @@ extern KiHandleSoftIpi
 ; void KeYieldCurrentThreadSub()
 global KeYieldCurrentThreadSub
 KeYieldCurrentThreadSub:
-	hlt
-	ret
 	; Push the state of the thread.
 	mov  rcx, rsp                   ; Store the old contents of RSP into RCX, a scratch register
 	xor  rax, rax                   ; Clear RAX, we'll use it to push segment registers

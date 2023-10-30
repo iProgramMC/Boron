@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ha/__troll.c
+	hal/hal.c
 	
 Abstract:
 	This module contains the troll.

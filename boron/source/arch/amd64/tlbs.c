@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ha/tlbs.c
+	arch/amd64/tlbs.c
 	
 Abstract:
 	This module contains the AMD64 platform's specific

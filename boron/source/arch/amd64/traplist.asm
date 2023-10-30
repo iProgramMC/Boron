@@ -1,3 +1,18 @@
+;
+;    The Boron Operating System
+;    Copyright (C) 2023 iProgramInCpp
+; 
+; Module name:
+;    arch/amd64/trap.asm
+; 	
+; Abstract:
+;    This module contains the implementation for each of the
+;    individual trap handlers, which call into the common
+;    trap handler.
+; 	
+; Author:
+;    iProgramInCpp - 27 October 2023
+;
 bits 64
 section .text
 

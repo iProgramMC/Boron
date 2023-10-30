@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ha/dbg.c
+	hal/dbg.c
 	
 Abstract:
 	This module implements the debug terminal functions for
