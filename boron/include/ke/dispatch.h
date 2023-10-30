@@ -72,3 +72,4 @@ void KeSignalObject(PKDISPATCH_HEADER Object);
 
 // Dispatch objects
 #include "timer.h"
+#include "mutex.h"

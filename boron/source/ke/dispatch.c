@@ -22,6 +22,47 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object)
 	InitializeListHead(&Object->WaitBlockList);
 }
 
+// Performs a wait on the current thread with the specified parameters.
+// Returns the WaitStatus after waiting.
+int KiPerformWaitThread(int WaitType, int WaitCount, PKDISPATCH_HEADER WaitObjects[], PKWAIT_BLOCK WaitBlockArray, bool WaitIsAlertable)
+{
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	Thread->WaitBlockArray = WaitBlockArray;
+	Thread->WaitType = WaitType;
+	Thread->WaitCount = WaitCount;
+	Thread->WaitIsAlertable = WaitIsAlertable;
+	Thread->WaitStatus = STATUS_WAITING;
+	
+	if (WaitCount && WaitObjects && WaitBlockArray)
+	{
+		for (int i = 0; i < WaitCount; i++)
+		{
+			PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
+			
+			WaitBlock->Thread = Thread;
+			WaitBlock->Object = WaitObjects[i];
+			
+			// The thread's wait block should be part of the object's waiting object linked list.
+			InsertTailList(&WaitBlock->Object->WaitBlockList, &WaitBlock->Entry);
+		}
+	}
+	
+	Thread->WaitStatus = STATUS_WAITING;
+	Thread->Status = KTHREAD_STATUS_WAITING;
+	
+	KeLowerIPL(Ipl);
+	
+	KeYieldCurrentThread();
+	
+	if (Thread->WaitStatus == STATUS_WAITING)
+		KeCrash("KiPerformWaitThread: still waiting");
+	
+	return Thread->WaitStatus;
+}
+
 int KeWaitForMultipleObjects(
 	int Count,
 	PKDISPATCH_HEADER Objects[],
@@ -42,33 +83,36 @@ int KeWaitForMultipleObjects(
 	if (Count > Maximum)
 		KeCrash("KeWaitForMultipleObjects: Object count %d is bigger than the maximum wait blocks of %d", Count, Maximum); 
 	
-	// Raise the IPL so that we do not get interrupted while modifying the thread's wait parameters
-	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	int Status;
 	
-	Thread->WaitBlockArray = WaitBlockArray;
-	Thread->WaitType = WaitType;
-	Thread->WaitCount = Count;
-	Thread->WaitIsAlertable = Alertable;
-	Thread->WaitStatus = STATUS_WAITING;
-	
-	for (int i = 0; i < Count; i++)
+	while (true)
 	{
-		PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
+		Status = KiPerformWaitThread(WaitType, Count, Objects, WaitBlockArray, Alertable);
 		
-		WaitBlock->Thread = Thread;
-		WaitBlock->Object = Objects[i];
+		if (Status != STATUS_KEEP_GOING)
+			break;
 		
-		// The thread's wait block should be part of the object's waiting object linked list.
-		InsertTailList(&WaitBlock->Object->WaitBlockList, &WaitBlock->Entry);
+		if (WaitType == WAIT_TYPE_ANY)
+			KeCrash("KeWaitForMultipleObjects: got KEEP_GOING in wait type ANY");
+		
+		bool AllGood = true;
+		
+		for (int i = 0; i < Count; i++)
+		{
+			PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
+			
+			if (!AtLoad(WaitBlock->Object->Signaled))
+			{
+				AllGood = false;
+				break;
+			}
+		}
+		
+		if (AllGood)
+			return STATUS_SUCCESS;
 	}
 	
-	Thread->Status = KTHREAD_STATUS_WAITING;
-	
-	KeLowerIPL(Ipl);
-	
-	KeYieldCurrentThread();
-	
-	return Thread->WaitStatus;
+	return Status;
 }
 
 int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable)
@@ -81,32 +125,16 @@ void KeSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	PKTHREAD Thread = WaitBlock->Thread;
 	int Index = WaitBlock - Thread->WaitBlockArray;
 	
-	bool WakeUp = false;
-	
+	// If the wait mode is "ANY", set the wait status as
+	// the thing that woke up the thread.
 	if (Thread->WaitType == WAIT_TYPE_ANY)
-	{
-		WakeUp = true;
 		Thread->WaitStatus = STATUS_RANGE_WAIT + Index;
-	}
+	// If it's "ALL", optimistically wake it up with the
+	// status "KEEP_GOING" so that the loop can continue
 	else if (Thread->WaitType == WAIT_TYPE_ALL)
-	{
-		// Optimistically assume we already can wake up the thread
-		WakeUp = true;
-		
-		// Check if all other objects are signaled as well
-		for (int i = 0; i < Thread->WaitCount; i++)
-		{
-			PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
-			if (!WaitBlock->Object->Signaled)
-			{
-				WakeUp = false;
-				break;
-			}
-		}
-	}
+		Thread->WaitStatus = STATUS_KEEP_GOING;
 	
-	if (WakeUp)
-		KeWakeUpThread(Thread);
+	KeWakeUpThread(Thread);
 }
 
 void KeSignalObject(PKDISPATCH_HEADER Object)
