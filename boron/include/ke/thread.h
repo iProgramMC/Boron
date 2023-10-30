@@ -18,14 +18,18 @@ Author:
 #include <rtl/list.h>
 #include <arch.h>
 #include <ex.h>
+#include <ke/dispatch.h>
 
-#define MAXIMUM_WAIT_OBJECTS (64)
+#define MAXIMUM_WAIT_BLOCKS (64)
+#define THREAD_WAIT_BLOCKS (4)
 
 #define KERNEL_STACK_SIZE (8192) // Note: Must be a multiple of PAGE_SIZE.
 
 #define MAX_QUANTUM_US (10000)
 
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
+
+typedef struct KTHREAD_tag KTHREAD, *PKTHREAD;
 
 enum
 {
@@ -37,34 +41,6 @@ enum
 	KTHREAD_STATUS_TERMINATED,    // Thread was terminated and is awaiting cleanup.
 };
 
-enum
-{
-	KTHREAD_WAIT_ANY, // If any one of the wait objects is signalled, the entire thread is waken up
-	KTHREAD_WAIT_ALL, // The thread is only waken up if ALL the wait objects 
-};
-
-enum
-{
-	KTHREAD_YIELD_QUANTUM, // Yielded because quantum expired.
-	KTHREAD_YIELD_WAITING, // Yielded because thread is waiting on a dispatcher object.
-};
-
-enum
-{
-	KWAIT_BLOCK_RESOLVED, // If resolved, the wait block doesn't represent an actual entry into a linked list of entries anymore.
-	KWAIT_BLOCK_WAITING,
-};
-
-typedef struct KWAIT_BLOCK_tag
-{
-	LIST_ENTRY Entry;      // Entry into the linked list of threads waiting for an object.
-	void*      Object;     // The object that the containing thread waits on.
-	uint8_t    WaitNumber; // The wait number. This is used to get the KTHREAD instance from a wait block instance.
-	                       // It represents the index into the WaitBlock array.
-	uint8_t    Status;     // The wait block's status.
-}
-KWAIT_BLOCK, PKWAIT_BLOCK;
-
 typedef struct KTHREAD_STACK_tag
 {
 	void*  Top;
@@ -73,7 +49,7 @@ typedef struct KTHREAD_STACK_tag
 }
 KTHREAD_STACK, *PKTHREAD_STACK;
 
-typedef struct KTHREAD_tag
+struct KTHREAD_tag
 {
 	LIST_ENTRY EntryGlobal;    // Entry into global thread list
 	LIST_ENTRY EntryList;      // Entry into CPU local scheduler's thread list
@@ -96,15 +72,22 @@ typedef struct KTHREAD_tag
 	
 	int WaitType;
 	
-	//KWAIT_BLOCK WaitBlock[MAXIMUM_WAIT_OBJECTS];
+	int WaitCount;
+	
+	KWAIT_BLOCK WaitBlocks[THREAD_WAIT_BLOCKS];
+	
+	PKWAIT_BLOCK WaitBlockArray;
+	
+	bool WaitIsAlertable;
+	
+	int WaitStatus;
 	
 	PKTHREAD_START StartRoutine;
 	
 	void* StartContext;
 	
 	uint64_t QuantumUntil;
-}
-KTHREAD, *PKTHREAD;
+};
 
 // Creates an empty, uninitialized, thread object.
 // TODO Use the object manager for this purpose and expose the thread object there.
@@ -114,6 +97,13 @@ PKTHREAD KeCreateEmptyThread();
 void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext);
 
 // Readies the thread object for execution.
+// Note. Don't call this more than once per thread! Bad things will happen!!
 void KeReadyThread(PKTHREAD Thread);
+
+// Yield this thread's time slice.
+void KeYieldCurrentThread();
+
+// Wakes up a thread after a wait.
+void KeWakeUpThread(PKTHREAD Thread);
 
 #endif//BORON_KE_THREAD_H

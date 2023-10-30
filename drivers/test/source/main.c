@@ -2,6 +2,8 @@
 #include <ke.h>
 #include <ex.h>
 
+KTIMER Timer;
+
 int* Test()
 {
 	static int stuff;
@@ -16,7 +18,10 @@ NO_RETURN void Start1Routine()
 	
 	for (int i = 0; ; i++) {
 		LogMsg("\x1B[15;1HMy first thread's still running!!  %d", i);
-		KeYieldCurrentThread();
+		
+		KeInitializeTimer(&Timer);
+		KeSetTimer(&Timer, 2000);
+		KeWaitForSingleObject(&Timer.Header, false);
 	}
 	
 	KeCrash("From test driver");
@@ -46,7 +51,7 @@ int DriverEntry()
 	KeSetPriorityThread(Thread2, PRIORITY_REALTIME);
 	
 	KeReadyThread(Thread1);
-	KeReadyThread(Thread2);
+	//KeReadyThread(Thread2);
 	
 	*Test() = 69;
 	

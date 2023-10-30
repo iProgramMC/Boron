@@ -14,6 +14,31 @@
 * Camel case - Same as Pascal case except that the first letter is small. <br>
   Examples: `systemStartup`, `debugPrint`
 
+### Restrictions
+
+* Lines shouldn't stretch for more than 125 characters.
+
+### Alignment
+
+* When aligning, make sure to use spaces instead of tabs.
+
+Correct:
+```c
+DbgPrint("Some values: %d %d %d",
+         Value1,
+         Value2,
+         Value3);
+```
+Incorrect:
+```c
+DbgPrint("Some values: %d %d %d",
+		 Value1,
+		 Value2,
+		 Value3);
+```
+
+These two statements will look the same only if you prefer a tab width of 4.
+
 ### Function names
 
 * Function names are written in Pascal case.
@@ -23,6 +48,51 @@
 
 * Acronyms are written the same way as regular words. However, writing the acronym in capitals is also accepted. <br>
   Right: `Acpi`, OK: `ACPI`
+
+### Function definitions and calls
+
+Function definitions usually look the following way:
+```c
+return_type MyFunction(arg1, arg2, ...);
+```
+
+However, sometimes there is not enough space on one line. In that case, split the function declaration as follows:
+```c
+return_type MyFunction(
+	arg1,
+	arg2,
+	arg3);```
+where the opening parenthesis is on the line containing the function name, but the closing one is on the line containing
+the last argument.
+
+Don't do this - this isn't how we roll:
+```c
+return_type
+MyFunction(
+	arg1,
+	arg2,
+	arg3
+);
+```
+
+And especially don't split the declaration if it isn't warranted. So something like this is totally OK: ```c
+void KeWaitForMultipleObjects(
+	int Count,
+	void* Objects[],
+	int WaitType,
+	int WaitReason,
+	int WaitMode,
+	bool Alertable,
+	PKWAIT_BLOCK WaitBlockArray)
+```
+
+But something like this isn't...:
+```c
+void DbgPrint(
+	const char* Message,
+	...);
+```
+... because we can write it on a single line without going over the maximum line length.
 
 ### Local variable names
 

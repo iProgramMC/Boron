@@ -152,6 +152,8 @@ extern KiHandleSoftIpi
 ; void KeYieldCurrentThreadSub()
 global KeYieldCurrentThreadSub
 KeYieldCurrentThreadSub:
+	hlt
+	ret
 	; Push the state of the thread.
 	mov  rcx, rsp                   ; Store the old contents of RSP into RCX, a scratch register
 	xor  rax, rax                   ; Clear RAX, we'll use it to push segment registers
@@ -163,17 +165,18 @@ KeYieldCurrentThreadSub:
 	push rax
 	lea  rax, [rel KeExitYield]     ; Load the address of KeExitYield so that we return there when we're scheduled in again
 	push rax                        ; 
-	sub  rsp, 8 * 3                 ; Push Error Code, Int Number, Stack Frame RA.
-	push rbp                        ; Enter a stack frame
+	sub  rsp, 8 * 3                 ; Push Error Code, Int Number, RAX.
+	push rbx                        ; RBX is callee saved register
+	sub  rsp, 8                     ; Push RCX
+	push rax                        ; Push RAX (the address of KeExitYield) again to enter a stack frame
+	push rbp
 	mov  rbp, rsp
-	sub  rsp, 8                     ; Push RAX
-	push rbx                        ; Push RBX, a callee saved register
-	sub  rsp, 8 * 6                 ; Push RCX, RDX, R8, R9, R10 and R11
+	sub  rsp, 8 * 5                 ; Push RDX, R8, R9, R10 and R11
 	push r12                        ; All of these are callee saved registers
 	push r13
 	push r14
 	push r15
-	sub  rsp, 8 * 3                 ; RSI and RDI are scratch registers
+	sub  rsp, 8 * 3                 ; Push RSI, RDI and CR2
 	xor  rax, rax                   ; Clear RAX once again to push some more segment registers
 	mov  ax, gs
 	push ax
@@ -204,11 +207,11 @@ KeExitUsingPartialFrame:
 	pop  r14
 	pop  r13
 	pop  r12
-	add  rsp, 8 * 6                 ; R11, R10, R9, R8, RDX, RCX
+	add  rsp, 8 * 5                 ; R11, R10, R9, R8, RDX
+	pop  rbp
+	add  rsp, 8 * 2                 ; SFRA, RCX
 	pop  rbx
-	add  rsp, 8                     ; RAX
-	pop  rbp                        ; Leave the stack frame
-	add  rsp, 8 * 3                 ; SFRA, Int Number, Error Code
+	add  rsp, 8 * 3                 ; RAX, Int Number, Error Code
 	iretq                           ; Pop the RIP, CS, RFLAGS, RSP and SS all in one, and return
 KeExitUsingFullFrame:
 	push rax                        ; Push IPL back on the stack

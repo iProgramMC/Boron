@@ -29,6 +29,8 @@ Author:
 #include <rtl/list.h>
 #include <rtl/ansi.h>
 
+#include <status.h>
+
 #define BIT(x) (1ULL << (x))
 
 #define ASM __asm__ __volatile__

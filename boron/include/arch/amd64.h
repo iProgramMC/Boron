@@ -89,10 +89,14 @@ struct KREGISTERS_tag
 	uint64_t cr2;
 	uint64_t rdi, rsi;
 	uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
-	uint64_t rdx, rcx, rbx, rax;
+	uint64_t rdx;
 	
 	uint64_t rbp;
 	uint64_t sfra; // stack frame return address
+	
+	uint64_t rcx, rbx, rax;
+	
+	
 	
 	// Registers pushed by each trap handler
 	uint64_t IntNumber; // the interrupt vector
