@@ -14,6 +14,8 @@ Author:
 ***/
 #include "ki.h"
 
+void KeYieldCurrentThreadSub(); // trap.asm
+
 PKTHREAD KeCreateEmptyThread()
 {
 	PKTHREAD Thread = ExAllocateSmall(sizeof(KTHREAD));
@@ -49,13 +51,11 @@ void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_S
 	Thread->Status = KTHREAD_STATUS_INITIALIZED;
 }
 
-void KeYieldCurrentThreadSub();
-
 void KeYieldCurrentThread()
 {
 	KIPL Ipl = KeRaiseIPL(IPL_DPC);
 	
-	KeSetPendingEvent(PENDING_QUANTUM_END);
+	KeSetPendingEvent(PENDING_YIELD);
 	
 	KeYieldCurrentThreadSub();
 	

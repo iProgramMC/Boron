@@ -29,13 +29,14 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
 	
+	if (KeGetSoonestTimerExpiry() <= HalGetTickCount() + 100)
+		KiDispatchTimerObjects();
+	
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
 	
-	if (Flags & PENDING_QUANTUM_END)
-	{
-		KiEndThreadQuantum(Regs);
-	}
+	if (Flags & PENDING_YIELD)
+		KiPerformYield(Regs);
 	
 	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();

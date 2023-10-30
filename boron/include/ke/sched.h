@@ -45,6 +45,8 @@ typedef struct
 	
 	PKTHREAD IdleThread;
 	
+	LIST_ENTRY TimerQueue;
+	
 	EXMEMORY_HANDLE IdleThreadStack;
 }
 KSCHEDULER, *PKSCHEDULER;

@@ -37,14 +37,14 @@ Author:
 
 // ==== Monotonic timer ====
 // Gets the frequency of the monotonic timer.
-uint64_t HalGetTicksPerSecond();
+uint64_t HalGetTickFrequency();
 
-// Gets the 
+// Gets the number of ticks elapsed since the monotonic timer was setup.
 uint64_t HalGetTickCount();
 
 // ==== Interrupt timer (OST + PT common) ====
 // Get the frequency of the interrupt timer.
-uint64_t HalGetItTicksPerSecond();
+uint64_t HalGetIntTimerFrequency();
 
 // Whether to use the OST (true) or the PT (false).
 bool HalUseOneShotTimer();

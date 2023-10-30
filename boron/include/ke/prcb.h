@@ -81,9 +81,9 @@ uint32_t KeGetBootstrapLapicId();
 
 enum
 {
-	PENDING_QUANTUM_END = (1 << 0),
-	PENDING_APCS = (1 << 1),
-	PENDING_DPCS = (1 << 2),
+	PENDING_YIELD = (1 << 0),
+	PENDING_APCS  = (1 << 1),
+	PENDING_DPCS  = (1 << 2),
 };
 
 int KeGetPendingEvents();

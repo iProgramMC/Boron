@@ -66,7 +66,7 @@ static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 		KeWaitForNextInterrupt();
 }
 
-static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
+static UNUSED NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
 {
 	while (true)
 	{
@@ -75,7 +75,7 @@ static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
 	}
 }
 
-static NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
+static UNUSED NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
 {
 	while (true)
 	{
@@ -98,7 +98,32 @@ void KeReadyThread(PKTHREAD Thread)
 	KeLowerIPL(OldIpl);
 }
 
-static void KepCreateTestThread(PKTHREAD_START Start)
+void KeWakeUpThread(PKTHREAD Thread)
+{
+	// If the thread is already ready, then it's also already a part of
+	// the execution queue, so get outta here.
+	if (Thread->Status == KTHREAD_STATUS_READY)
+		return;
+	
+	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	
+	Thread->Status = KTHREAD_STATUS_READY;
+	
+	// Remove ourselves from all the objects' wait block lists
+	for (int i = 0; i < Thread->WaitCount; i++)
+	{
+		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlocks[i];
+		RemoveEntryList(&WaitBlock->Entry);
+	}
+	
+	Thread->WaitCount = 0;
+	Thread->WaitBlockArray = NULL;
+	
+	// Emplace ourselves on the execution queue, with a small boost - we're placed on the head of the list.
+	InsertHeadList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
+}
+
+static UNUSED void KepCreateTestThread(PKTHREAD_START Start)
 {
 	PKTHREAD Thread = KeCreateEmptyThread();
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, Start, NULL);
@@ -113,6 +138,7 @@ void KeSchedulerInit()
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
 	InitializeListHead(&Scheduler->ThreadList);
+	InitializeListHead(&Scheduler->TimerQueue);
 	
 	for (int i = 0; i < PRIORITY_COUNT; i++)
 		InitializeListHead(&Scheduler->ExecQueue[i]);
@@ -125,17 +151,13 @@ void KeSchedulerInit()
 	KeSetPriorityThread(Thread, PRIORITY_IDLE);
 	KeReadyThread(Thread);
 	
-	// Create two testing threads.
-	KepCreateTestThread(KiTestThread1Entry);
-	KepCreateTestThread(KiTestThread2Entry);
-	
 	KeLowerIPL(OldIpl);
 }
 
 // Commit to running threads managed by the scheduler.
 NO_RETURN void KeSchedulerCommit()
 {
-	KeSetPendingEvent(PENDING_QUANTUM_END);
+	KeSetPendingEvent(PENDING_YIELD);
 	KeIssueSoftwareInterrupt();
 	
 	// Wait for the waves to pick us up...
@@ -166,7 +188,13 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 	
 	if (HalUseOneShotIntTimer())
 	{
-		HalRequestInterruptInTicks(HalGetIntTimerFrequency() * MAX_QUANTUM_US / 1000000);
+		uint64_t Tick = HalGetIntTimerFrequency() * MAX_QUANTUM_US / 1000000;
+		uint64_t TimerTick = KeGetNextTimerExpiryDurationInItTicks();
+		
+		if (Tick > TimerTick && TimerTick)
+			Tick = TimerTick;
+		
+		HalRequestInterruptInTicks(Tick);
 	}
 	else
 	{
@@ -209,7 +237,43 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
 		
 		// Save the registers
-		CurrentThread->Registers = *Regs;
+		CurrentThread->State = Regs;
+	}
+	
+	// Unload the current thread.
+	Scheduler->CurrentThread = NULL;
+}
+
+void KiPerformYield(PKREGISTERS Regs)
+{
+	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKTHREAD CurrentThread = Scheduler->CurrentThread;
+	
+	// If the current thread was "running" when it yielded, its quantum has
+	// ended forcefully and we should place it back on the execution queue.
+	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
+		return KiEndThreadQuantum(Regs);
+	
+	int MinPriority = 0;
+	if (CurrentThread)
+		MinPriority = CurrentThread->Priority;
+	
+	PKTHREAD NextThread = KepPopNextThreadIfNeeded(Scheduler, MinPriority);
+	if (!NextThread)
+	{
+		// Try again but with the minimum priority of zero.
+		NextThread = KepPopNextThreadIfNeeded(Scheduler, 0);
+		
+		if (!NextThread)
+			KeCrash("KiPerformYield: Nothing to run");
+	}
+	
+	Scheduler->NextThread = NextThread;
+	
+	if (CurrentThread)
+	{
+		// Save the registers
+		CurrentThread->State = Regs;
 	}
 	
 	// Unload the current thread.
@@ -247,7 +311,7 @@ PKREGISTERS KiSwitchToNextThread()
 	// Assign a quantum to the thread.
 	KiAssignDefaultQuantum(Thread);
 	
-	return &Thread->Registers;
+	return Thread->State;
 }
 
 void KiRescheduleTimerNoChange()
@@ -262,7 +326,7 @@ void KiRescheduleTimerNoChange()
 	{
 		// Do it anyway
 		SchedDebug("Thread Quantum Has Almost Expired");
-		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeSetPendingEvent(PENDING_YIELD);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 		return;
 	}
@@ -279,12 +343,18 @@ void KiRescheduleTimerNoChange()
 	{
 		// Do it anyway
 		SchedDebug("ItTicksTillQuantumExpiry Is Zero, Marking Quantum End Anyway");
-		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeSetPendingEvent(PENDING_YIELD);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 		return;
 	}
+
+	uint64_t Tick = ItTicksTillQuantumExpiry;
+	uint64_t TimerTick = KeGetNextTimerExpiryDurationInItTicks();
 	
-	HalRequestInterruptInTicks(ItTicksTillQuantumExpiry);
+	if (Tick > TimerTick && TimerTick)
+		Tick = TimerTick;
+	
+	HalRequestInterruptInTicks(Tick);
 }
 
 void KeTimerTick()
@@ -305,7 +375,7 @@ void KeTimerTick()
 	{
 		// Thread's quantum has expired!!
 		SchedDebug("Thread Quantum Has Expired");
-		KeSetPendingEvent(PENDING_QUANTUM_END);
+		KeSetPendingEvent(PENDING_YIELD);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 	}
 	else
