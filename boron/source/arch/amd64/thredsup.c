@@ -14,12 +14,18 @@ Author:
 ***/
 #include <arch.h>
 #include <ke.h>
+#include <string.h>
 
 void KiSetupRegistersThread(PKTHREAD Thread)
 {
-	uint64_t StackBottom = ((uint64_t) Thread->Stack.Top + (uint64_t) Thread->Stack.Size - 0x10) & ~0xF;
+	const uint64_t OffsetFromActualBottom = 0x20;
+	const uint64_t OffsetOfPKREGISTERSFromBottom = sizeof(KREGISTERS) + 0x50;
 	
-	PKREGISTERS Regs = (PKREGISTERS) ((StackBottom - sizeof(KREGISTERS) - 0x10) & ~0xF);
+	uint64_t StackBottom = ((uint64_t) Thread->Stack.Top + (uint64_t) Thread->Stack.Size - OffsetFromActualBottom) & ~0xF;
+	
+	PKREGISTERS Regs = (PKREGISTERS) ((StackBottom - OffsetOfPKREGISTERSFromBottom) & ~0xF);
+	
+	memset(Regs, 0, OffsetOfPKREGISTERSFromBottom + OffsetFromActualBottom);
 	
 	Regs->rip = (uint64_t) Thread->StartRoutine;
 	
