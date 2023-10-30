@@ -130,6 +130,8 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 				return false;
 			}
 			
+			memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
+			
 			uint64_t Flags = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 			
 			if (i != 0)
@@ -237,8 +239,6 @@ void MiInitPMM()
 		}
 	}
 	
-	DbgAddToProgressBar();
-	
 	DbgPrint("Initializing the PFN database.", sizeof(MMPFN));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
@@ -292,8 +292,6 @@ void MiInitPMM()
 		}
 	}
 	
-	DbgAddToProgressBar();
-	
 	MiLastFreePFN = lastPfnOfPrevBlock;
 	
 	// zero out like 200 of these
@@ -318,8 +316,6 @@ void MiInitPMM()
 	DbgPrint("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
 	
 	MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
-	
-	DbgAddToProgressBar();
 }
 
 // TODO: Add locking

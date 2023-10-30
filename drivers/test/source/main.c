@@ -12,10 +12,7 @@ NO_RETURN void StartRoutine()
 {
 	LogMsg("Hello from test.sys's Start Routine!!");
 	
-	DbgSetProgressBarSteps(20);
-	
 	for (int i = 0; i < 20; i++) {
-		DbgAddToProgressBar();
 		LogMsg("My thread's still running!!  %d", i);
 		for (int i = 0; i < 8; i++)
 			ASM("hlt");

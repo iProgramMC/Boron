@@ -40,17 +40,15 @@ static bool LdriEndsWith(const char* String, const char* EndsWith)
 static void LdriFixUpPath(PLIMINE_FILE File)
 {
 	size_t PathLength = strlen(File->path);
-	char* PathPtr = File->path + PathLength;
+	char* PathPtr = File->path;
 	
-	while (PathLength--)
+	for (size_t i = PathLength - 1; i < PathLength; i--)
 	{
-		if (*PathPtr == '/')
+		if (File->path[i] == '/')
 		{
-			PathPtr++;
+			PathPtr = &File->path[i + 1];
 			break;
 		}
-		
-		PathPtr--;
 	}
 	
 	File->path = PathPtr;
@@ -107,6 +105,4 @@ void LdrInit()
 		
 		LdriLoadFile(File);
 	}
-	
-	DbgAddToProgressBar();
 }

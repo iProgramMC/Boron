@@ -483,8 +483,6 @@ void LdriLoadDll(PLIMINE_FILE File)
 	
 	PELF_HEADER Header = (PELF_HEADER) File->address;
 	
-	DbgPrint("Loading module %s (Address %p)", File->path, File);
-	
 	if (Header->Type != ELF_TYPE_DYNAMIC)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Error, module is not actually a DLL", File->path);
 	

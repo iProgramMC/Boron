@@ -23,7 +23,6 @@ Author:
 // The entry point to our kernel.
 NO_RETURN void KiSystemStartup(void)
 {
-	DbgSetProgressBarSteps(10);
 	MiInitPMM();
 	MmInitAllocators();
 	KeSchedulerInitUP();
