@@ -66,7 +66,7 @@ static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 		KeWaitForNextInterrupt();
 }
 
-static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
+static UNUSED NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
 {
 	while (true)
 	{
@@ -75,7 +75,7 @@ static NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
 	}
 }
 
-static NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
+static UNUSED NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
 {
 	while (true)
 	{
@@ -123,7 +123,7 @@ void KeWakeUpThread(PKTHREAD Thread)
 	InsertHeadList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 }
 
-static void KepCreateTestThread(PKTHREAD_START Start)
+static UNUSED void KepCreateTestThread(PKTHREAD_START Start)
 {
 	PKTHREAD Thread = KeCreateEmptyThread();
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, Start, NULL);
@@ -150,10 +150,6 @@ void KeSchedulerInit()
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
 	KeSetPriorityThread(Thread, PRIORITY_IDLE);
 	KeReadyThread(Thread);
-	
-	// Create two testing threads.
-	KepCreateTestThread(KiTestThread1Entry);
-	KepCreateTestThread(KiTestThread2Entry);
 	
 	KeLowerIPL(OldIpl);
 }
@@ -215,8 +211,6 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
-	DbgPrint("KiEndThreadQuantum(%p)", CurrentThread);
-	
 	int MinPriority = 0;
 	if (CurrentThread)
 		MinPriority = CurrentThread->Priority;
@@ -243,7 +237,7 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
 		
 		// Save the registers
-		CurrentThread->Registers = *Regs;
+		CurrentThread->State = Regs;
 	}
 	
 	// Unload the current thread.
@@ -260,8 +254,6 @@ void KiPerformYield(PKREGISTERS Regs)
 	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
 		return KiEndThreadQuantum(Regs);
 	
-	DbgPrint("Thread %p Yields   Status %d", CurrentThread, CurrentThread->Status);
-	
 	int MinPriority = 0;
 	if (CurrentThread)
 		MinPriority = CurrentThread->Priority;
@@ -276,14 +268,12 @@ void KiPerformYield(PKREGISTERS Regs)
 			KeCrash("KiPerformYield: Nothing to run");
 	}
 	
-	DbgPrint("Next thread is %p", NextThread);
-	
 	Scheduler->NextThread = NextThread;
 	
 	if (CurrentThread)
 	{
 		// Save the registers
-		CurrentThread->Registers = *Regs;
+		CurrentThread->State = Regs;
 	}
 	
 	// Unload the current thread.
@@ -321,7 +311,7 @@ PKREGISTERS KiSwitchToNextThread()
 	// Assign a quantum to the thread.
 	KiAssignDefaultQuantum(Thread);
 	
-	return &Thread->Registers;
+	return Thread->State;
 }
 
 void KiRescheduleTimerNoChange()

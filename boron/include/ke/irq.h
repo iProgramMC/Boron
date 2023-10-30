@@ -5,11 +5,18 @@
 #include <ke/ipl.h>
 #include <arch.h>
 
-// Note - This API is to be used during single processor initialization (UP-Init) only.
-// Behavior is not defined during MP-Init initialization.
-
+// Note! The interrupt handler doesn't ACTUALLY deal in KREGISTERS
+// pointers. It just so happens that what we pass in as parameter
+// and what we return are PKREGISTERS instances! In reality the pointer
+// is actually located within the current thread's stack.
+//
+// Don't return an instance to PKREGISTERS like I did - since the exit part of the
+// trap handler calls KiExitHardwareInterrupt, it's going to go into addresses less
+// than that which you return!!
 typedef PKREGISTERS(*PKINTERRUPT_HANDLER)(PKREGISTERS);
 
+// Note - This API is to be used during single processor initialization (UP-Init) only.
+// Behavior is not defined during MP-Init initialization.
 int KeAllocateInterruptVector(KIPL Ipl);
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler);

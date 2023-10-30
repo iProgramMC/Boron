@@ -68,7 +68,7 @@ struct KTHREAD_tag
 	
 	KTHREAD_STACK Stack;
 	
-	KREGISTERS Registers;
+	PKREGISTERS State; // Part of the kernel stack!!
 	
 	int WaitType;
 	

@@ -14,8 +14,6 @@ void KeInitializeTimer(PKTIMER Timer)
 	
 	Timer->EntryQueue.Flink =
 	Timer->EntryQueue.Blink = NULL;
-	
-	DbgPrint("INITIALIZING TIMER");
 }
 
 bool KeCancelTimer(PKTIMER Timer)
@@ -42,8 +40,6 @@ bool KeReadStateTimer(PKTIMER Timer)
 
 bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 {
-	DbgPrint("Thread %p Set Timer", KeGetCurrentThread());
-	
 	bool Status = KeCancelTimer(Timer);
 
 	// Calculate the amount of ticks we need to wait.
@@ -134,8 +130,6 @@ void KiDispatchTimerObjects()
 		
 		if (Timer->ExpiryTick >= HalGetTickCount() + 100)
 			break;
-		
-		DbgPrint("DISPATCHING TIMER");
 		
 		KeSignalObject(&Timer->Header);
 		

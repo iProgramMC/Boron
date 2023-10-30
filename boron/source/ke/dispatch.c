@@ -7,8 +7,6 @@ int KeWaitForMultipleObjects(
 	bool Alertable,
 	PKWAIT_BLOCK WaitBlockArray)
 {
-	DbgPrint("Waiting for objects");
-	
 	PKTHREAD Thread = KeGetCurrentThread();
 	
 	int Maximum = MAXIMUM_WAIT_BLOCKS;
@@ -46,11 +44,7 @@ int KeWaitForMultipleObjects(
 	
 	KeLowerIPL(Ipl);
 	
-	DbgPrint("Yielding!");
-	
 	KeYieldCurrentThread();
-	
-	DbgPrint("Yielding Done");
 	
 	return Thread->WaitStatus;
 }

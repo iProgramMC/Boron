@@ -14,13 +14,15 @@ void KeYieldCurrentThread();
 
 NO_RETURN void Start1Routine()
 {
-	LogMsg("Hello from test.sys's Start 1 Routine!!");
+	LogMsg("Hello there. Below is the amount of seconds since I entered the Start1Routine.");
 	
 	for (int i = 0; ; i++) {
-		LogMsg("\x1B[15;1HMy first thread's still running!!  %d", i);
+		//LogMsg("\x1B[15;1HMy first thread's still running!!  %d", i);
+		
+		LogMsg("\x1B[15;15H%02d:%02d", i/60, i%60);
 		
 		KeInitializeTimer(&Timer);
-		KeSetTimer(&Timer, 2000);
+		KeSetTimer(&Timer, 1000);
 		KeWaitForSingleObject(&Timer.Header, false);
 	}
 	

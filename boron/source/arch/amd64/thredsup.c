@@ -17,7 +17,9 @@ Author:
 
 void KiSetupRegistersThread(PKTHREAD Thread)
 {
-	PKREGISTERS Regs = &Thread->Registers;
+	uint64_t StackBottom = ((uint64_t) Thread->Stack.Top + (uint64_t) Thread->Stack.Size - 0x10) & ~0xF;
+	
+	PKREGISTERS Regs = (PKREGISTERS) ((StackBottom - sizeof(KREGISTERS) - 0x10) & ~0xF);
 	
 	Regs->rip = (uint64_t) Thread->StartRoutine;
 	
@@ -28,7 +30,7 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	// The stack is empty. Nothing is pushed.
 	// Ensure that it is aligned to 16 bytes.
 	// The function is specified not to return.
-	Regs->rsp = ((uint64_t) Thread->Stack.Top + (uint64_t) Thread->Stack.Size - 0x10) & ~0xF;
+	Regs->rsp = StackBottom;
 	
 	// Assign the code and data segments.
 	Regs->cs = SEG_RING_0_CODE;
@@ -42,4 +44,6 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	
 	// Enable interrupts when entering the thread.
 	Regs->rflags |= 0x200;
+	
+	Thread->State = Regs;
 }
