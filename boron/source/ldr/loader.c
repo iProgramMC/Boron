@@ -40,7 +40,7 @@ static bool LdriEndsWith(const char* String, const char* EndsWith)
 static void LdriFixUpPath(PLIMINE_FILE File)
 {
 	size_t PathLength = strlen(File->path);
-	char* PathPtr = File->path;
+	char* PathPtr = File->path + PathLength;
 	
 	while (PathLength--)
 	{
@@ -74,7 +74,7 @@ void LdrInit()
 	struct limine_module_response* Response = KeLimineModuleRequest.response;
 	if (!Response)
 	{
-		DbgPrint("No response to the module request from limine?!");
+		KeCrashBeforeSMPInit("No response to the module request from limine?!");
 		return;
 	}
 
@@ -94,7 +94,7 @@ void LdrInit()
 	
 	if (!HalFile)
 	{
-		DbgPrint("No HAL loaded");
+		KeCrashBeforeSMPInit("No HAL loaded");
 		return;
 	}
 	
