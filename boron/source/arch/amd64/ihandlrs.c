@@ -1,4 +1,18 @@
 // Boron64 - Interrupt handlers
+#include <arch.h>
+void KiDumpCPURegs(PKREGISTERS Regs)
+{
+	DbgPrint("OldIpl=%p",Regs->OldIpl);
+	DbgPrint("DS=%02x,ES=%02x,FS=%02x,GS=%02x",Regs->ds,Regs->es,Regs->fs,Regs->gs);
+	DbgPrint("CR2=%p,RBP=%p,RDI=%p,RSI=%p",Regs->cr2,Regs->rbp,Regs->rdi,Regs->rsi);
+	DbgPrint("R15=%p,R14=%p,R13=%p,R12=%p",Regs->r15,Regs->r14,Regs->r13,Regs->r12);
+	DbgPrint("R11=%p,R10=%p,R9 =%p,R8 =%p",Regs->r11,Regs->r10,Regs->r9, Regs->r8);
+	DbgPrint("RAX=%p,RBX=%p,RCX=%p,RDX=%p",Regs->rax,Regs->rbx,Regs->rcx,Regs->rdx);
+	DbgPrint("IntNum=%p  ErrCode=%p",Regs->IntNumber, Regs->ErrorCode);
+	DbgPrint("RIP=%p,CS=%02x",Regs->rip,Regs->cs);
+	DbgPrint("RFLAGS=%p",Regs->rflags);
+	DbgPrint("RSP=%p,SS=%02x",Regs->rsp,Regs->ss);
+}
 
 #if 0
 

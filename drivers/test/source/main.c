@@ -8,17 +8,28 @@ int* Test()
 	return &stuff;
 }
 
-NO_RETURN void StartRoutine()
+void KeYieldCurrentThread();
+
+NO_RETURN void Start1Routine()
 {
-	LogMsg("Hello from test.sys's Start Routine!!");
+	LogMsg("Hello from test.sys's Start 1 Routine!!");
 	
-	for (int i = 0; i < 20; i++) {
-		LogMsg("My thread's still running!!  %d", i);
-		for (int i = 0; i < 8; i++)
-			ASM("hlt");
+	for (int i = 0; ; i++) {
+		LogMsg("\x1B[15;1HMy first thread's still running!!  %d", i);
+		KeYieldCurrentThread();
 	}
 	
 	KeCrash("From test driver");
+}
+
+NO_RETURN void Start2Routine()
+{
+	LogMsg("Hello from test.sys's Start 1 Routine!!");
+	
+	for (int i = 0; ; i++) {
+		LogMsg("\x1B[20;1HMy second thread's still running!!  %d", i);
+		KeYieldCurrentThread();
+	}
 }
 
 int DriverEntry()
@@ -26,13 +37,16 @@ int DriverEntry()
 	LogMsg("Hisssssssssssssssss, Viper Lives");
 	
 	// Create a basic thread.
-	PKTHREAD Thread = KeCreateEmptyThread();
+	PKTHREAD Thread1 = KeCreateEmptyThread();
+	KeInitializeThread(Thread1, EX_NO_MEMORY_HANDLE, Start1Routine, NULL);
+	KeSetPriorityThread(Thread1, PRIORITY_REALTIME);
 	
-	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, StartRoutine, NULL);
+	PKTHREAD Thread2 = KeCreateEmptyThread();
+	KeInitializeThread(Thread2, EX_NO_MEMORY_HANDLE, Start2Routine, NULL);
+	KeSetPriorityThread(Thread2, PRIORITY_REALTIME);
 	
-	KeSetPriorityThread(Thread, PRIORITY_REALTIME);
-	
-	KeReadyThread(Thread);
+	KeReadyThread(Thread1);
+	KeReadyThread(Thread2);
 	
 	*Test() = 69;
 	

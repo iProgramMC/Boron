@@ -128,13 +128,89 @@ KiTrapCommon:
 	mov   rax, [rax]                       ; Retrieve the pointer to the function to call...
 	call  rax                              ; And call the function!!
 	mov   rsp, rax                         ; Use the new PKREGISTERS instance as what to pull
+; NO_RETURN KiPopFullFrame(PKREGISTERS Regs@rax)
+KiPopFullFrame:
 	pop   rdi                              ; Pop the old IPL that was pushed before
+	cmp   rdi, MAGIC_IPL                   ; Check if it's the magic IPL
+	je    KeExitUsingPartialFrame          ; If yes, exit with the partial frame instead
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
 	POP_STATE                              ; Pop the state
 	pop   rbx                              ; Pop the RBX register
 	pop   rax                              ; Pop the RAX register
 	add   rsp, 16                          ; Pop the interrupt number and the error code
 	iretq
+
+; void KeSetPendingEvent(int PendingEvent);
+extern KeSetPendingEvent
+
+; PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs);
+extern KiHandleSoftIpi
+
+; void KeYieldCurrentThreadSub()
+global KeYieldCurrentThreadSub
+KeYieldCurrentThreadSub:
+	; Push the state of the thread.
+	mov  rcx, rsp                   ; Store the old contents of RSP into RCX, a scratch register
+	xor  rax, rax                   ; Clear RAX, we'll use it to push segment registers
+	mov  ax, ss                     ; Push the stack segment number, because we perform ...
+	push rax                        ; ... an 'iretq' when exiting yield, this is important
+	push rcx                        ; Push the old value of RSP
+	pushfq                          ; Push the RFLAGS
+	mov  ax, cs                     ; Push the code segment number for the same reason
+	push rax
+	lea  rax, [rel KeExitYield]     ; Load the address of KeExitYield so that we return there when we're scheduled in again
+	push rax                        ; 
+	sub  rsp, 8 * 3                 ; Push Error Code, Int Number, RAX.
+	push rbx                        ; Push RBX, a callee saved register
+	sub  rsp, 8 * 6                 ; Push RCX, RDX, R8, R9, R10 and R11
+	push r12                        ; All of these are callee saved registers
+	push r13
+	push r14
+	push r15
+	sub  rsp, 8 * 2                 ; RSI and RDI are scratch registers
+	push rbp                        ; RBP is a callee saved register
+	sub  rsp, 8                     ; CR2
+	xor  rax, rax                   ; Clear RAX once again to push some more segment registers
+	mov  ax, gs
+	push ax
+	mov  ax, fs
+	push ax
+	mov  ax, es
+	push ax
+	mov  ax, ds
+	push ax
+	push qword MAGIC_IPL            ; Push the magic IPL - the IPL is saved by the caller
+	mov  rdi, rsp                   ; Call the soft IPI handler
+	call KiHandleSoftIpi
+	mov  rsp, rax                   ; New interrupt frame is in RAX
+	pop  rax                        ; Pop the "OldIPL" field
+	cmp  rax, MAGIC_IPL             ; If the OldIPL we pushed is MAGIC_IPL, that means we pushed this frame in KeYieldCurrentThread
+	jne  KeExitUsingFullFrame       ; Otherwise, we need to exit using the full frame
+KeExitUsingPartialFrame:
+	pop  ax                         ; Restore the state as pushed by KeYieldCurrentThreadSub
+	mov  ds, ax
+	pop  ax
+	mov  es, ax
+	pop  ax
+	mov  fs, ax
+	pop  ax
+	mov  gs, ax
+	add  rsp, 8                     ; CR2
+	pop  rbp
+	add  rsp, 8 * 2                 ; RDI and RSI
+	pop  r15
+	pop  r14
+	pop  r13
+	pop  r12
+	add  rsp, 8 * 6                 ; R11, R10, R9, R8, RDX, RCX
+	pop  rbx
+	add  rsp, 8 * 3                 ; RAX, Int Number, Error Code
+	iretq                           ; Pop the RIP, CS, RFLAGS, RSP and SS all in one, and return
+KeExitUsingFullFrame:
+	push rax                        ; Push IPL back on the stack
+	jmp  KiPopFullFrame             ; Pop the full frame as if we were returning from an interrupt
+KeExitYield:
+	ret
 
 ; Arguments:
 ; rdi - Register state as in KREGISTERS

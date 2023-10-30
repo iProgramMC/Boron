@@ -48,3 +48,16 @@ void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_S
 	
 	Thread->Status = KTHREAD_STATUS_INITIALIZED;
 }
+
+void KeYieldCurrentThreadSub();
+
+void KeYieldCurrentThread()
+{
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	
+	KeSetPendingEvent(PENDING_QUANTUM_END);
+	
+	KeYieldCurrentThreadSub();
+	
+	KeLowerIPL(Ipl);
+}

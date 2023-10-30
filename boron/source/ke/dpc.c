@@ -33,7 +33,9 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 		KiDispatchDpcs();
 	
 	if (Flags & PENDING_QUANTUM_END)
+	{
 		KiEndThreadQuantum(Regs);
+	}
 	
 	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();
