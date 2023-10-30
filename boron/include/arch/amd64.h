@@ -104,6 +104,8 @@ struct KREGISTERS_tag
 
 #include <arch/ipl.h>
 
+#define MAGIC_IPL (0x42424242) // see arch/amd64.inc
+
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
 

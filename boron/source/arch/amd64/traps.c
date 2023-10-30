@@ -117,6 +117,9 @@ void KiExitHardwareInterrupt(int OldIpl)
 {
 	DISABLE_INTERRUPTS();
 	
+	if (OldIpl == MAGIC_IPL)
+		OldIpl = IPL_DPC;
+	
 	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
 	KIPL PrevIpl = *IplPtr;
 	*IplPtr = OldIpl;

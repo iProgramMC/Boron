@@ -131,8 +131,6 @@ KiTrapCommon:
 ; NO_RETURN KiPopFullFrame(PKREGISTERS Regs@rax)
 KiPopFullFrame:
 	pop   rdi                              ; Pop the old IPL that was pushed before
-	cmp   rdi, MAGIC_IPL                   ; Check if it's the magic IPL
-	je    KeExitUsingPartialFrame          ; If yes, exit with the partial frame instead
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
 	POP_STATE                              ; Pop the state
 	pop   rbx                              ; Pop the RBX register
