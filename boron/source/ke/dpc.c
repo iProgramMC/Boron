@@ -29,6 +29,8 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
 	
+	KIPL Ipl = KeLockDispatcher();
+	
 	if (KeGetSoonestTimerExpiry() <= HalGetTickCount() + 100)
 		KiDispatchTimerObjects();
 	
@@ -40,6 +42,8 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	
 	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();
+	
+	KeUnlockDispatcher(Ipl);
 	
 	return Regs;
 }

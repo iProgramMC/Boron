@@ -33,4 +33,6 @@ PKREGISTERS KiSwitchToNextThread();
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
 
+void KiUnwaitThread(PKTHREAD Thread, int Status);
+
 #endif//BORON_KE_KI_H

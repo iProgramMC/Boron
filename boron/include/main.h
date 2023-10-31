@@ -25,6 +25,7 @@ Author:
 #define RETURNS_TWICE __attribute__((returns_twice))
 #define UNUSED        __attribute__((unused))
 #define ALWAYS_INLINE __attribute__((always_inline))
+#define NO_DISCARD    __attribute__((warn_unused_result))
 
 #include <rtl/list.h>
 #include <rtl/ansi.h>
@@ -51,5 +52,8 @@ void DbgPrint(const char* msg, ...);
 #define CallerAddress() ((uintptr_t) __builtin_return_address(0))
 
 #define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)(Pointer) - (uintptr_t)offsetof(Type, Field)))
+
+// Include only the kernel crash routines specifically
+#include <ke/crash.h>
 
 #endif//NS64_MAIN_H

@@ -12,7 +12,32 @@ Abstract:
 Author:
 	iProgramInCpp - 30 October 2023
 ***/
-#include <ke.h>
+#include "ki.h"
+
+KSPIN_LOCK KiDispatcherLock;
+
+NO_DISCARD
+KIPL KeLockDispatcher()
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&KiDispatcherLock, &Ipl);
+	return Ipl;
+}
+
+void KeUnlockDispatcher(KIPL Ipl)
+{
+	KeReleaseSpinLock(&KiDispatcherLock, Ipl);
+}
+
+#ifdef DEBUG
+
+void KiAssertOwnDispatcherLock_(const char* FunctionName)
+{
+	if (!KiDispatcherLock.Locked)
+		KeCrash("%s: dispatcher lock is unlocked", FunctionName);
+}
+
+#endif
 
 void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object)
 {
@@ -76,22 +101,23 @@ int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable)
 	return KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, NULL);
 }
 
-void KeSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
+void KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 {
+	ASSERT(KiDispatcherLock.Locked);
+	
 	PKTHREAD Thread = WaitBlock->Thread;
 	int Index = WaitBlock - Thread->WaitBlockArray;
 	
-	bool WakeUp = false;
+	int Result = -1;
 	
 	if (Thread->WaitType == WAIT_TYPE_ANY)
 	{
-		WakeUp = true;
-		Thread->WaitStatus = STATUS_RANGE_WAIT + Index;
+		Result = STATUS_RANGE_WAIT + Index;
 	}
 	else if (Thread->WaitType == WAIT_TYPE_ALL)
 	{
 		// Optimistically assume we already can wake up the thread
-		WakeUp = true;
+		Result = STATUS_SUCCESS;
 		
 		// Check if all other objects are signaled as well
 		for (int i = 0; i < Thread->WaitCount; i++)
@@ -99,14 +125,14 @@ void KeSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 			PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
 			if (!WaitBlock->Object->Signaled)
 			{
-				WakeUp = false;
+				Result = -1;
 				break;
 			}
 		}
 	}
 	
-	if (WakeUp)
-		KeWakeUpThread(Thread);
+	if (Result != -1)
+		KiUnwaitThread(Thread, Result);
 }
 
 void KeSignalObject(PKDISPATCH_HEADER Object)
@@ -119,7 +145,7 @@ void KeSignalObject(PKDISPATCH_HEADER Object)
 	{
 		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
 		
-		KeSatisfyWaitBlock(WaitBlock);
+		KiSatisfyWaitBlock(WaitBlock);
 		
 		Entry = Entry->Flink;
 	}

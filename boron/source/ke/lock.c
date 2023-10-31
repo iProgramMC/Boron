@@ -40,6 +40,15 @@ void KeAcquireSpinLock(PKSPIN_LOCK SpinLock, PKIPL OldIpl)
 {
 	*OldIpl = KeRaiseIPLIfNeeded(IPL_DPC);
 	
+#ifdef DEBUG
+	// If we are a uniprocessor system, check if the lock is locked.
+	// If it is already locked, it can only mean one thing...
+	// ... a deadlock has occurred!!
+	if (KeGetProcessorCount() == 1 && SpinLock->Locked)
+		KeCrash("KeAcquireSpinLock: spinlock already locked");
+		
+#endif
+	
 	while (true)
 	{
 		if (!AtTestAndSetMO(SpinLock->Locked, ATOMIC_MEMORD_ACQUIRE))
@@ -53,6 +62,14 @@ void KeAcquireSpinLock(PKSPIN_LOCK SpinLock, PKIPL OldIpl)
 
 void KeReleaseSpinLock(PKSPIN_LOCK SpinLock, KIPL OldIpl)
 {
+#ifdef DEBUG
+	// If we are a uniprocessor system, check if the lock is locked.
+	// If it is already locked, it can only mean one thing...
+	// ... a deadlock has occurred!!
+	if (KeGetProcessorCount() == 1 && !SpinLock->Locked)
+		KeCrash("KeReleaseSpinLock: spinlock was not acquired");
+		
+#endif
 	AtClearMO(SpinLock->Locked, ATOMIC_MEMORD_RELEASE);
 	KeLowerIPL(OldIpl);
 }

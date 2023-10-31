@@ -11,8 +11,8 @@ Abstract:
 Author:
 	iProgramInCpp - 3 October 2023
 ***/
-#include <ke.h>
 #include <hal.h>
+#include "ki.h"
 
 //#define SCHED_DEBUG
 #ifdef SCHED_DEBUG
@@ -84,22 +84,34 @@ static UNUSED NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
 	}
 }
 
-void KeReadyThread(PKTHREAD Thread)
+// Same as KeReadyThread, but the dispatcher is already locked
+void KiReadyThread(PKTHREAD Thread)
 {
+	KiAssertOwnDispatcherLock();
+	
 	Thread->Status = KTHREAD_STATUS_READY;
 	
-	KIPL OldIpl = KeRaiseIPL(IPL_DPC);
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
 	InsertTailList(&KiGlobalThreadList,                     &Thread->EntryGlobal);
 	InsertTailList(&Scheduler->ThreadList,                  &Thread->EntryList);
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
-	
-	KeLowerIPL(OldIpl);
 }
 
-void KeWakeUpThread(PKTHREAD Thread)
+void KeReadyThread(PKTHREAD Thread)
 {
+	KIPL OldIpl = KeLockDispatcher();
+	KiReadyThread(Thread);
+	KeUnlockDispatcher(OldIpl);
+}
+
+void KiUnwaitThread(PKTHREAD Thread, int Status)
+{
+	// this has chances to fail if WE (the current processor)
+	// don't own it, but another processor does. However, it's
+	// still good as a debug check.
+	KiAssertOwnDispatcherLock();
+	
 	// If the thread is already ready, then it's also already a part of
 	// the execution queue, so get outta here.
 	if (Thread->Status == KTHREAD_STATUS_READY)
@@ -119,21 +131,15 @@ void KeWakeUpThread(PKTHREAD Thread)
 	Thread->WaitCount = 0;
 	Thread->WaitBlockArray = NULL;
 	
+	Thread->WaitStatus = Status;
+	
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 }
 
-static UNUSED void KepCreateTestThread(PKTHREAD_START Start)
-{
-	PKTHREAD Thread = KeCreateEmptyThread();
-	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, Start, NULL);
-	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
-	KeReadyThread(Thread);
-}
-
 void KeSchedulerInit()
 {
-	KIPL OldIpl = KeRaiseIPL(IPL_DPC);
+	KIPL Ipl = KeLockDispatcher();
 	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
@@ -149,9 +155,9 @@ void KeSchedulerInit()
 	PKTHREAD Thread = KeCreateEmptyThread();
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
 	KeSetPriorityThread(Thread, PRIORITY_IDLE);
-	KeReadyThread(Thread);
+	KiReadyThread(Thread);
 	
-	KeLowerIPL(OldIpl);
+	KeUnlockDispatcher(Ipl);
 }
 
 // Commit to running threads managed by the scheduler.
@@ -183,6 +189,8 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority)
 
 void KiAssignDefaultQuantum(PKTHREAD Thread)
 {
+	KiAssertOwnDispatcherLock();
+	
 	uint64_t QuantumTicks = HalGetTickFrequency() * MAX_QUANTUM_US / 1000000;
 	Thread->QuantumUntil = HalGetTickCount() + QuantumTicks;
 	
@@ -204,6 +212,8 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 
 void KiEndThreadQuantum(PKREGISTERS Regs)
 {
+	KiAssertOwnDispatcherLock();
+	
 	// NOTE: This function is called only if the thread's quantum expired.
 	// Thus, there's always going to be something running at at least that thread's
 	// priority, including the current thread itself.
@@ -242,10 +252,13 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 	
 	// Unload the current thread.
 	Scheduler->CurrentThread = NULL;
+	Scheduler->QuantumUntil  = 0;
 }
 
 void KiPerformYield(PKREGISTERS Regs)
 {
+	KiAssertOwnDispatcherLock();
+	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
@@ -278,10 +291,13 @@ void KiPerformYield(PKREGISTERS Regs)
 	
 	// Unload the current thread.
 	Scheduler->CurrentThread = NULL;
+	Scheduler->QuantumUntil  = 0;
 }
 
 bool KiNeedToSwitchThread()
 {
+	KiAssertOwnDispatcherLock();
+	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
 	return Scheduler->NextThread != NULL;
@@ -289,6 +305,8 @@ bool KiNeedToSwitchThread()
 
 PKREGISTERS KiSwitchToNextThread()
 {
+	KiAssertOwnDispatcherLock();
+	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
 	// Load other properties about the thread.
@@ -311,79 +329,41 @@ PKREGISTERS KiSwitchToNextThread()
 	// Assign a quantum to the thread.
 	KiAssignDefaultQuantum(Thread);
 	
+	Scheduler->QuantumUntil = Thread->QuantumUntil;
+	
 	return Thread->State;
-}
-
-void KiRescheduleTimerNoChange()
-{
-	if (!HalUseOneShotIntTimer())
-		return; // it's going to trigger again anyways
-	
-	PKTHREAD Thread = KeGetCurrentThread();
-	
-	int64_t TicksTillQuantumExpiry = Thread->QuantumUntil - HalGetTickCount();
-	if (TicksTillQuantumExpiry < 500)
-	{
-		// Do it anyway
-		SchedDebug("Thread Quantum Has Almost Expired");
-		KeSetPendingEvent(PENDING_YIELD);
-		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
-		return;
-	}
-	
-	int64_t NanosecondsTillQuantumExpiry = TicksTillQuantumExpiry * 1000000000 / HalGetTickFrequency();
-	int64_t ItTicksTillQuantumExpiry = HalGetIntTimerFrequency() * NanosecondsTillQuantumExpiry / 1000000000;
-	
-	SchedDebug("Correction: IT: %lld NS: %lld TI: %lld",
-	         ItTicksTillQuantumExpiry,
-			 NanosecondsTillQuantumExpiry,
-			 TicksTillQuantumExpiry);
-	
-	if (ItTicksTillQuantumExpiry == 0)
-	{
-		// Do it anyway
-		SchedDebug("ItTicksTillQuantumExpiry Is Zero, Marking Quantum End Anyway");
-		KeSetPendingEvent(PENDING_YIELD);
-		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
-		return;
-	}
-
-	uint64_t Tick = ItTicksTillQuantumExpiry;
-	uint64_t TimerTick = KeGetNextTimerExpiryDurationInItTicks();
-	
-	if (Tick > TimerTick && TimerTick)
-		Tick = TimerTick;
-	
-	HalRequestInterruptInTicks(Tick);
 }
 
 void KeTimerTick()
 {
-	// Check if the current thread's quantum has expired.
-	PKTHREAD Thread = KeGetCurrentThread();
+	// Check if the current thread's quantum has expired. If it has, set
+	// the PENDING_YIELD pending event and issue a software interrupt.
 	
-	if (!Thread)
-	{
-		// No thread. It's likely that we interrupted the scheduler..
-		// Reschedule ourselves in an arbitrary amount of time to fix
-		DbgPrint("KeTimerTick: No thread");
-		HalRequestInterruptInTicks(100);
-		return;
-	}
+	// N.B. Don't mess with the dispatcher lock.
+	// 1. KeTimerTick may have arrived at an inopportune time, by which
+	//    I mean that it may have interrupted normal execution _while_
+	//    the dispatcher is locked.
+	// 2. You really don't need it!
+	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
 	SchedDebug("Thread->QuantumUntil: %lld  HalGetTickCount: %lld", Thread->QuantumUntil, HalGetTickCount());
 	
-	if (Thread->QuantumUntil <= HalGetTickCount())
+	// TODO: Optimize the amount of reschedules we perform.
+	
+	if (Scheduler->QuantumUntil <= HalGetTickCount())
 	{
 		// Thread's quantum has expired!!
 		SchedDebug("Thread Quantum Has Expired");
 		KeSetPendingEvent(PENDING_YIELD);
 		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
 	}
-	else
+	else if (HalUseOneShotIntTimer())
 	{
-		KiRescheduleTimerNoChange();
+		// We arrived a little too early! Reschedule in a bit
+		HalRequestInterruptInTicks(100);
 	}
+	
+	// If using a periodic timer, a new tick will just show up again soon.
 }
 
 NO_RETURN void KeTerminateThread()

@@ -22,3 +22,17 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
 #ifdef IS_HAL
 NO_RETURN void KeCrashConclusion(const char* Message);
 #endif
+
+#ifdef DEBUG
+
+#define ASSERT(condition) do {                 \
+	if (!(condition))                          \
+		KeCrash("%s: assertion \"%s\" failed", \
+		        __func__, #condition);         \
+} while (0)
+	
+#else
+
+#define ASSERT(condition)
+
+#endif

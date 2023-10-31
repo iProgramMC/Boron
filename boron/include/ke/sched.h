@@ -48,6 +48,10 @@ typedef struct
 	LIST_ENTRY TimerQueue;
 	
 	EXMEMORY_HANDLE IdleThreadStack;
+	
+	// in ticks, copy of CurrentThread->QuantumUntil unless
+	// CurrentThread is null, in which case it's zero
+	uint64_t QuantumUntil;
 }
 KSCHEDULER, *PKSCHEDULER;
 
