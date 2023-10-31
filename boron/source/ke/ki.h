@@ -15,6 +15,7 @@ Author:
 #define BORON_KE_KI_H
 
 #include <ke.h>
+#include <hal.h>
 #include <string.h>
 
 // ===== Tests =====
@@ -34,5 +35,11 @@ PKREGISTERS KiSwitchToNextThread();
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
 
 void KiUnwaitThread(PKTHREAD Thread, int Status);
+
+uint64_t KiGetNextTimerExpiryTick();
+
+uint64_t KiGetNextTimerExpiryItTick();
+
+void KiDispatchTimerObjects(); // Called by the scheduler
 
 #endif//BORON_KE_KI_H

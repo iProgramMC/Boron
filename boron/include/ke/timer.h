@@ -28,6 +28,8 @@ typedef struct KTIMER_tag
 }
 KTIMER, *PKTIMER;
 
+#define ASSERT_TIMER(Timer) ASSERT((Timer)->Header.Type == DISPATCH_TIMER)
+
 void KeInitializeTimer(PKTIMER Timer);
 
 bool KeCancelTimer(PKTIMER Timer);
@@ -35,9 +37,3 @@ bool KeCancelTimer(PKTIMER Timer);
 bool KeReadStateTimer(PKTIMER Timer);
 
 bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs);
-
-uint64_t KeGetSoonestTimerExpiry();
-
-uint64_t KeGetNextTimerExpiryDurationInItTicks();
-
-void KiDispatchTimerObjects(); // Called by the scheduler

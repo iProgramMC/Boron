@@ -16,7 +16,7 @@ Author:
 
 void KeInitializeTimer(PKTIMER Timer)
 {
-	KeInitializeDispatchHeader(&Timer->Header);
+	KeInitializeDispatchHeader(&Timer->Header, DISPATCH_TIMER);
 	
 	Timer->ExpiryTick = 0;
 	
@@ -28,37 +28,38 @@ void KeInitializeTimer(PKTIMER Timer)
 
 bool KeCancelTimer(PKTIMER Timer)
 {
-	bool Status = false;
-	// Since this code is fast, disable interrupts instead of raising ipl.
-	bool Restore = KeDisableInterrupts();
+	KIPL Ipl = KeLockDispatcher();
 	
-	if (Timer->IsEnqueued)
-	{
+	bool Status = Timer->IsEnqueued;
+	if (Status)
 		RemoveEntryList(&Timer->EntryQueue);
-		Status = true;
-	}
 	
-	KeRestoreInterrupts(Restore);
+	Timer->IsEnqueued = false;
+	
+	KeUnlockDispatcher(Ipl);
 	
 	return Status;
 }
 
 bool KeReadStateTimer(PKTIMER Timer)
 {
+	ASSERT_TIMER(Timer);
 	return AtLoad(Timer->Header.Signaled);
 }
 
 bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 {
-	bool Status = KeCancelTimer(Timer);
+	KIPL Ipl = KeLockDispatcher();
+	
+	bool Status = Timer->IsEnqueued;
+	if (Status)
+		RemoveEntryList(&Timer->EntryQueue);
 
 	// Calculate the amount of ticks we need to wait.
 	uint64_t TickCount  = HalGetTickFrequency() * DueTimeMs / 1000;
 	uint64_t ExpiryTick = HalGetTickCount() + TickCount;
 	
 	Timer->ExpiryTick = ExpiryTick;
-	
-	KIPL Ipl = KeRaiseIPL(IPL_DPC);
 	
 	bool WasEmplaced = false;
 	
@@ -87,37 +88,35 @@ bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 	
 	Timer->IsEnqueued = true;
 	
-	KeLowerIPL(Ipl);
+	KeUnlockDispatcher(Ipl);
 	
 	return Status;
 }
 
-uint64_t KeGetSoonestTimerExpiry()
+uint64_t KiGetNextTimerExpiryTick()
 {
-	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	KiAssertOwnDispatcherLock();
+	
 	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
 	
 	uint64_t Expiry = 0;
 	
 	if (!IsListEmpty(TimerQueue))
 		Expiry = CONTAINING_RECORD(TimerQueue->Flink, KTIMER, EntryQueue)->ExpiryTick;
-	
-	KeLowerIPL(Ipl);
 	
 	return Expiry;
 }
 
-uint64_t KeGetNextTimerExpiryDurationInItTicks()
+uint64_t KiGetNextTimerExpiryItTick()
 {
-	KIPL Ipl = KeRaiseIPLIfNeeded(IPL_DPC);
+	KiAssertOwnDispatcherLock();
+	
 	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
 	
 	uint64_t Expiry = 0;
 	
 	if (!IsListEmpty(TimerQueue))
 		Expiry = CONTAINING_RECORD(TimerQueue->Flink, KTIMER, EntryQueue)->ExpiryTick;
-	
-	KeLowerIPL(Ipl);
 	
 	if (!Expiry)
 		return Expiry;
@@ -131,6 +130,8 @@ uint64_t KeGetNextTimerExpiryDurationInItTicks()
 
 void KiDispatchTimerObjects()
 {
+	KiAssertOwnDispatcherLock();
+	
 	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
 	
 	while (!IsListEmpty(TimerQueue))

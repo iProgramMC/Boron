@@ -35,11 +35,6 @@ PKTHREAD KeGetCurrentThread()
 	return KeGetCurrentScheduler()->CurrentThread;
 }
 
-void KeSchedulerInitUP()
-{
-	InitializeListHead(&KiGlobalThreadList);
-}
-
 void KeSetPriorityThread(PKTHREAD Thread, int Priority)
 {
 	if (!IsListEmpty(&Thread->EntryQueue))
@@ -60,28 +55,8 @@ void KeSetPriorityThread(PKTHREAD Thread, int Priority)
 
 static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 {
-	//LogMsg("Hello from the idle thread from CPU %d!", KeGetCurrentPRCB()->LapicId);
-	
 	while (true)
 		KeWaitForNextInterrupt();
-}
-
-static UNUSED NO_RETURN void KiTestThread1Entry(UNUSED void* Context)
-{
-	while (true)
-	{
-		//LogMsg("Hello from the test1 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
-		KeWaitForNextInterrupt();
-	}
-}
-
-static UNUSED NO_RETURN void KiTestThread2Entry(UNUSED void* Context)
-{
-	while (true)
-	{
-		//LogMsg("Hello from the test2 thread from CPU %d!  %lld", KeGetCurrentPRCB()->LapicId, HalGetTickCount());
-		KeWaitForNextInterrupt();
-	}
 }
 
 // Same as KeReadyThread, but the dispatcher is already locked
@@ -135,6 +110,11 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
+}
+
+void KeSchedulerInitUP()
+{
+	InitializeListHead(&KiGlobalThreadList);
 }
 
 void KeSchedulerInit()
@@ -197,7 +177,7 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 	if (HalUseOneShotIntTimer())
 	{
 		uint64_t Tick = HalGetIntTimerFrequency() * MAX_QUANTUM_US / 1000000;
-		uint64_t TimerTick = KeGetNextTimerExpiryDurationInItTicks();
+		uint64_t TimerTick = KiGetNextTimerExpiryItTick();
 		
 		if (Tick > TimerTick && TimerTick)
 			Tick = TimerTick;

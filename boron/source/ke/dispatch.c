@@ -39,10 +39,11 @@ void KiAssertOwnDispatcherLock_(const char* FunctionName)
 
 #endif
 
-void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object)
+void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type)
 {
-	Object->Type = DISPOBJ_TIMER;
+	Object->Type     = Type;
 	Object->Signaled = false;
+	Object->ProcId   = KeGetCurrentPRCB()->Id;
 	
 	InitializeListHead(&Object->WaitBlockList);
 }
@@ -149,4 +150,28 @@ void KeSignalObject(PKDISPATCH_HEADER Object)
 		
 		Entry = Entry->Flink;
 	}
+}
+
+PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
+{
+	int Flags = KeGetPendingEvents();
+	KeClearPendingEvents();
+	
+	KIPL Ipl = KeLockDispatcher();
+	
+	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
+		KiDispatchTimerObjects();
+	
+	if (Flags & PENDING_DPCS)
+		KiDispatchDpcs();
+	
+	if (Flags & PENDING_YIELD)
+		KiPerformYield(Regs);
+	
+	if (KeGetCurrentPRCB()->Scheduler.NextThread)
+		Regs = KiSwitchToNextThread();
+	
+	KeUnlockDispatcher(Ipl);
+	
+	return Regs;
 }

@@ -21,9 +21,9 @@ typedef struct KTHREAD_tag KTHREAD, *PKTHREAD;
 typedef struct KDISPATCH_HEADER_tag
 {
 	uint8_t Type;
-	uint8_t Signaled;
-	uint16_t Spare1;
-	uint32_t Spare2;
+	uint8_t Spare1;
+	short   Signaled;
+	int     ProcId;   // Owner processor ID
 	
 	LIST_ENTRY WaitBlockList;
 }
@@ -31,12 +31,12 @@ KDISPATCH_HEADER, *PKDISPATCH_HEADER;
 
 enum
 {
-	DISPOBJ_EVENT,
-	DISPOBJ_TIMER,
-	DISPOBJ_MUTEX,
-	DISPOBJ_SEMAPHORE,
-	DISPOBJ_THREAD,
-	DISPOBJ_PROCESS,
+	DISPATCH_EVENT,
+	DISPATCH_TIMER,
+	DISPATCH_MUTEX,
+	DISPATCH_SEMAPHORE,
+	DISPATCH_THREAD,
+	DISPATCH_PROCESS,
 };
 
 enum
@@ -62,7 +62,7 @@ int KeWaitForMultipleObjects(
 	PKWAIT_BLOCK WaitBlockArray);
 
 // Initialize the dispatcher header.
-void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object);
+void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 
 // Wait for a single object.
 int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable);

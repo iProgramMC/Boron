@@ -24,30 +24,6 @@ void KeIssueSoftwareInterrupt()
 	HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
 }
 
-PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
-{
-	int Flags = KeGetPendingEvents();
-	KeClearPendingEvents();
-	
-	KIPL Ipl = KeLockDispatcher();
-	
-	if (KeGetSoonestTimerExpiry() <= HalGetTickCount() + 100)
-		KiDispatchTimerObjects();
-	
-	if (Flags & PENDING_DPCS)
-		KiDispatchDpcs();
-	
-	if (Flags & PENDING_YIELD)
-		KiPerformYield(Regs);
-	
-	if (KeGetCurrentPRCB()->Scheduler.NextThread)
-		Regs = KiSwitchToNextThread();
-	
-	KeUnlockDispatcher(Ipl);
-	
-	return Regs;
-}
-
 void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)
 {
 	Dpc->List.Flink = Dpc->List.Blink = NULL;
