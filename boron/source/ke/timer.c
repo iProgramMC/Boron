@@ -11,32 +11,15 @@ Abstract:
 Author:
 	iProgramInCpp - 30 October 2023
 ***/
-#include <ke.h>
-#include <hal.h>
+#include "ki.h"
 
-void KeInitializeTimer(PKTIMER Timer)
+bool KiCancelTimer(PKTIMER Timer)
 {
-	KeInitializeDispatchHeader(&Timer->Header, DISPATCH_TIMER);
-	
-	Timer->ExpiryTick = 0;
-	
-	Timer->IsEnqueued = false;
-	
-	Timer->EntryQueue.Flink =
-	Timer->EntryQueue.Blink = NULL;
-}
-
-bool KeCancelTimer(PKTIMER Timer)
-{
-	KIPL Ipl = KeLockDispatcher();
-	
 	bool Status = Timer->IsEnqueued;
 	if (Status)
 		RemoveEntryList(&Timer->EntryQueue);
 	
 	Timer->IsEnqueued = false;
-	
-	KeUnlockDispatcher(Ipl);
 	
 	return Status;
 }
@@ -47,10 +30,8 @@ bool KeReadStateTimer(PKTIMER Timer)
 	return AtLoad(Timer->Header.Signaled);
 }
 
-bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
+bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 {
-	KIPL Ipl = KeLockDispatcher();
-	
 	bool Status = Timer->IsEnqueued;
 	if (Status)
 		RemoveEntryList(&Timer->EntryQueue);
@@ -87,8 +68,6 @@ bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 	InsertTailList(TimerQueue, &Timer->EntryQueue);
 	
 	Timer->IsEnqueued = true;
-	
-	KeUnlockDispatcher(Ipl);
 	
 	return Status;
 }
@@ -142,8 +121,38 @@ void KiDispatchTimerObjects()
 		if (Timer->ExpiryTick >= HalGetTickCount() + 100)
 			break;
 		
-		KeSignalObject(&Timer->Header);
+		KiSignalObject(&Timer->Header);
 		
 		RemoveHeadList(TimerQueue);
 	}
+}
+
+// -------- Exposed API --------
+
+void KeInitializeTimer(PKTIMER Timer)
+{
+	KeInitializeDispatchHeader(&Timer->Header, DISPATCH_TIMER);
+	
+	Timer->ExpiryTick = 0;
+	
+	Timer->IsEnqueued = false;
+	
+	Timer->EntryQueue.Flink =
+	Timer->EntryQueue.Blink = NULL;
+}
+
+bool KeCancelTimer(PKTIMER Timer)
+{
+	KIPL Ipl = KiLockDispatcher();
+	bool Status = KiCancelTimer(Timer);
+	KiUnlockDispatcher(Ipl);
+	return Status;
+}
+
+bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
+{
+	KIPL Ipl = KiLockDispatcher();
+	bool Status = KiSetTimer(Timer, DueTimeMs);
+	KiUnlockDispatcher(Ipl);
+	return Status;
 }

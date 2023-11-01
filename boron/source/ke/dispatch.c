@@ -17,14 +17,14 @@ Author:
 KSPIN_LOCK KiDispatcherLock;
 
 NO_DISCARD
-KIPL KeLockDispatcher()
+KIPL KiLockDispatcher()
 {
 	KIPL Ipl;
 	KeAcquireSpinLock(&KiDispatcherLock, &Ipl);
 	return Ipl;
 }
 
-void KeUnlockDispatcher(KIPL Ipl)
+void KiUnlockDispatcher(KIPL Ipl)
 {
 	KeReleaseSpinLock(&KiDispatcherLock, Ipl);
 }
@@ -44,6 +44,8 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type)
 	Object->Type     = Type;
 	Object->Signaled = false;
 	Object->ProcId   = KeGetCurrentPRCB()->Id;
+	
+	// Note. If a mutex, it's signaled by default until acquired.
 	
 	InitializeListHead(&Object->WaitBlockList);
 }
@@ -104,7 +106,7 @@ int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable)
 
 void KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 {
-	ASSERT(KiDispatcherLock.Locked);
+	KiAssertOwnDispatcherLock();
 	
 	PKTHREAD Thread = WaitBlock->Thread;
 	int Index = WaitBlock - Thread->WaitBlockArray;
@@ -136,20 +138,54 @@ void KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 		KiUnwaitThread(Thread, Result);
 }
 
-void KeSignalObject(PKDISPATCH_HEADER Object)
+bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
 {
-	Object->Signaled = true;
+	if (Header->Type == DISPATCH_MUTEX)
+		return Header->Signaled == 0;
 	
-	PLIST_ENTRY Entry = Object->WaitBlockList.Flink;
-	
-	while (Entry != &Object->WaitBlockList)
+	// default case
+	return Header->Signaled != 0;
+}
+
+// Set the signaled state of the object and do nothing else.
+static void KiSetSignaled(PKDISPATCH_HEADER Object)
+{
+	switch (Object->Type)
 	{
-		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
+		case DISPATCH_MUTEX:
+		case DISPATCH_SEMAPHORE:
+			Object->Signaled--;
+			break;
 		
+		default:
+			Object->Signaled = true;
+	}
+}
+
+void KiSignalObject(PKDISPATCH_HEADER Object)
+{
+	KiSetSignaled(Object);
+	
+	int SatisfiedCount = 0;
+	
+	while (!IsListEmpty(&Object->WaitBlockList))
+	{
+		PLIST_ENTRY Entry = Object->WaitBlockList.Flink;
+		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
 		KiSatisfyWaitBlock(WaitBlock);
 		
-		Entry = Entry->Flink;
+		// Remove the entry
+		RemoveHeadList(&Object->WaitBlockList);
+		
+		SatisfiedCount++;
+		
+		// If the object is a mutex and at least one object was satisfied, stop.
+		if (SatisfiedCount == 1 && Object->Type == DISPATCH_MUTEX)
+			return;
+		
+		// If the object is a semaphore, check for the Limit field of the semaphore.
 	}
+	
 }
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
@@ -157,7 +193,7 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	int Flags = KeGetPendingEvents();
 	KeClearPendingEvents();
 	
-	KIPL Ipl = KeLockDispatcher();
+	KIPL Ipl = KiLockDispatcher();
 	
 	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
 		KiDispatchTimerObjects();
@@ -171,7 +207,7 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();
 	
-	KeUnlockDispatcher(Ipl);
+	KiUnlockDispatcher(Ipl);
 	
 	return Regs;
 }

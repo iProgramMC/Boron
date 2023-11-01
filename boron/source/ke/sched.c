@@ -11,7 +11,6 @@ Abstract:
 Author:
 	iProgramInCpp - 3 October 2023
 ***/
-#include <hal.h>
 #include "ki.h"
 
 //#define SCHED_DEBUG
@@ -35,7 +34,7 @@ PKTHREAD KeGetCurrentThread()
 	return KeGetCurrentScheduler()->CurrentThread;
 }
 
-void KeSetPriorityThread(PKTHREAD Thread, int Priority)
+void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 {
 	if (!IsListEmpty(&Thread->EntryQueue))
 	{
@@ -71,13 +70,6 @@ void KiReadyThread(PKTHREAD Thread)
 	InsertTailList(&KiGlobalThreadList,                     &Thread->EntryGlobal);
 	InsertTailList(&Scheduler->ThreadList,                  &Thread->EntryList);
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
-}
-
-void KeReadyThread(PKTHREAD Thread)
-{
-	KIPL OldIpl = KeLockDispatcher();
-	KiReadyThread(Thread);
-	KeUnlockDispatcher(OldIpl);
 }
 
 void KiUnwaitThread(PKTHREAD Thread, int Status)
@@ -119,7 +111,7 @@ void KeSchedulerInitUP()
 
 void KeSchedulerInit()
 {
-	KIPL Ipl = KeLockDispatcher();
+	KIPL Ipl = KiLockDispatcher();
 	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
@@ -134,10 +126,10 @@ void KeSchedulerInit()
 	// Create an idle thread.
 	PKTHREAD Thread = KeCreateEmptyThread();
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
-	KeSetPriorityThread(Thread, PRIORITY_IDLE);
+	KiSetPriorityThread(Thread, PRIORITY_IDLE);
 	KiReadyThread(Thread);
 	
-	KeUnlockDispatcher(Ipl);
+	KiUnlockDispatcher(Ipl);
 }
 
 // Commit to running threads managed by the scheduler.
@@ -346,6 +338,21 @@ void KeTimerTick()
 	// If using a periodic timer, a new tick will just show up again soon.
 }
 
+// -------- Exposed API --------
+void KeSetPriorityThread(PKTHREAD Thread, int Priority)
+{
+	KIPL OldIpl = KiLockDispatcher();
+	KiSetPriorityThread(Thread, Priority);
+	KiUnlockDispatcher(OldIpl);
+}
+
+void KeReadyThread(PKTHREAD Thread)
+{
+	KIPL OldIpl = KiLockDispatcher();
+	KiReadyThread(Thread);
+	KiUnlockDispatcher(OldIpl);
+}
+
 NO_RETURN void KeTerminateThread()
 {
 	// Raise IPL so we don't get scheduled away.
@@ -357,7 +364,7 @@ NO_RETURN void KeTerminateThread()
 	Thread->Status = KTHREAD_STATUS_TERMINATED;
 	
 	// Signal all objects waiting for us.
-	KeSignalObject(&Thread->Header);
+	KiSignalObject(&Thread->Header);
 	
 	KeLowerIPL(Ipl);
 	
@@ -365,3 +372,4 @@ NO_RETURN void KeTerminateThread()
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }
+

@@ -67,28 +67,5 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 // Wait for a single object.
 int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable);
 
-// Set an object to the signaled state, and alert the waiting threads about it.
-void KeSignalObject(PKDISPATCH_HEADER Object);
-
 // Dispatch objects
 #include "timer.h"
-
-// Kernel specific stuff
-#ifdef KERNEL
-
-NO_DISCARD KIPL KeLockDispatcher();
-
-void KeUnlockDispatcher(KIPL OldIpl);
-
-#ifdef DEBUG
-
-void KiAssertOwnDispatcherLock_(const char* FunctionName);
-#define KiAssertOwnDispatcherLock() KiAssertOwnDispatcherLock_(__func__)
-
-#else
-
-#define KiAssertOwnDispatcherLock()
-
-#endif
-
-#endif

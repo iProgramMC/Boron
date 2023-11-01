@@ -42,4 +42,22 @@ uint64_t KiGetNextTimerExpiryItTick();
 
 void KiDispatchTimerObjects(); // Called by the scheduler
 
+NO_DISCARD KIPL KiLockDispatcher();
+
+void KiUnlockDispatcher(KIPL OldIpl);
+
+// Check if an object is signaled.
+bool KiIsObjectSignaled(PKDISPATCH_HEADER Header);
+
+// Set an object to the signaled state, and alert the waiting threads about it.
+void KiSignalObject(PKDISPATCH_HEADER Object);
+
+// Define KiAssertOwnDispatcherLock
+#ifdef DEBUG
+void KiAssertOwnDispatcherLock_(const char* FunctionName);
+#define KiAssertOwnDispatcherLock() KiAssertOwnDispatcherLock_(__func__)
+#else
+#define KiAssertOwnDispatcherLock()
+#endif
+
 #endif//BORON_KE_KI_H
