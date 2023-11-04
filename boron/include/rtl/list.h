@@ -56,6 +56,10 @@ PLIST_ENTRY RemoveHeadList(PLIST_ENTRY ListHead)
 	PLIST_ENTRY Entry = ListHead->Flink;
 	ListHead->Flink = Entry->Flink;
 	ListHead->Flink->Blink = ListHead;
+#ifdef DEBUG
+	Entry->Flink = NULL;
+	Entry->Blink = NULL;
+#endif
 	return Entry;
 }
 
@@ -66,6 +70,10 @@ PLIST_ENTRY RemoveTailList(PLIST_ENTRY ListHead)
 	PLIST_ENTRY Entry = ListHead->Blink;
 	ListHead->Blink = Entry->Blink;
 	ListHead->Blink->Flink = ListHead;
+#ifdef DEBUG
+	Entry->Flink = NULL;
+	Entry->Blink = NULL;
+#endif
 	return Entry;
 }
 
@@ -78,6 +86,10 @@ bool RemoveEntryList(PLIST_ENTRY Entry)
 	OldBlink = Entry->Blink;
 	OldBlink->Flink = OldFlink;
 	OldFlink->Blink = OldBlink;
+#ifdef DEBUG
+	Entry->Flink = NULL;
+	Entry->Blink = NULL;
+#endif
 	return OldFlink == OldBlink;
 }
 
