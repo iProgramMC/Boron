@@ -43,10 +43,10 @@ NO_RETURN void TestThread2()
 	KeTerminateThread();
 }
 
-const int LimitLeft   = 5;
-const int LimitTop    = 5;
-const int LimitRight  = 135;
-const int LimitBottom = 45;
+const int LimitLeft   = 2;
+const int LimitTop    = 2;
+const int LimitRight  = 124;
+const int LimitBottom = 48;
 
 void DisplayBorder()
 {
@@ -77,7 +77,10 @@ void DisplayBorder()
 
 int RNG()
 {
-	static int Seed = 127482417;
+	static int Seed = 0;
+	
+	if (!Seed)
+		Seed = HalGetTickCount();
 	
 	int N1 = AtAddFetch(Seed, 713545724);
 	int N2 = AtAddFetch(Seed, 895878516);
@@ -93,22 +96,22 @@ int RNGRange(int Min, int Max)
 
 NO_RETURN void BallTest()
 {
-	int BallX = RNGRange(LimitLeft, LimitRight - 1);
+	int LimitRightTF = LimitLeft + (LimitRight - LimitLeft) / 2;
+	int BallX = RNGRange(LimitLeft, LimitRightTF - 1);
 	int BallY = RNGRange(LimitTop, LimitBottom - 1);
 	
 	int VelX = RNGRange(0, 2) ? 1 : -1;
 	int VelY = RNGRange(0, 2) ? 1 : -1;
 	int Color = RNGRange(0, 8), Letter = RNGRange(0, 26);
 	
+	int BallOldX = BallX;
+	int BallOldY = BallY;
+	int TickCounter = 0;
+	
+	bool FirstTick = true;
+	
 	while (true)
 	{
-		char Buffer[64];
-		snprintf(Buffer, sizeof Buffer, "\x1B[%d;%dH\x1B[%dm%c\x1B[0m", BallY + 1, BallX + 1, 90 + Color, 'A' + Letter);
-		HalDisplayString(Buffer);
-		
-		Color  = (Color  + 1) % 8;
-		Letter = (Letter + 1) % 26;
-		
 		int OldBallX = BallX, OldBallY = BallY;
 		
 		BallX += VelX;
@@ -121,7 +124,7 @@ NO_RETURN void BallTest()
 			Revert = true, VelX = -VelX;
 		if (BallY < LimitTop)
 			Revert = true, VelY = -VelY;
-		if (BallX >= LimitRight)
+		if (BallX >= LimitRightTF)
 			Revert = true, VelX = -VelX;
 		if (BallY >= LimitBottom)
 			Revert = true, VelY = -VelY;
@@ -133,7 +136,28 @@ NO_RETURN void BallTest()
 			BallY = OldBallY;
 		}
 		
-		PerformDelay(5);
+		int BallOldXTF   = LimitLeft + (BallOldX - LimitLeft) * 2;
+		int BallXTF      = LimitLeft + (BallX    - LimitLeft) * 2;
+		
+		char Buffer[64];
+		snprintf(Buffer, sizeof Buffer, "\x1B[%d;%dH\x1B[%dm  \x1B[0m\x1B[%d;%dH  ", BallY + 1, BallXTF + 1, 100 + Color, BallOldY + 1, BallOldXTF + 1);
+		HalDisplayString(Buffer);
+		
+		if (!Revert)
+		{
+			BallOldX = BallX;
+			BallOldY = BallY;
+		}
+		
+		if (FirstTick)
+			PerformDelay(2000);
+		
+		FirstTick = false;
+		
+		PerformDelay(16 + (TickCounter != 0));
+		TickCounter++;
+		if (TickCounter > 3)
+			TickCounter = 0;
 	}
 }
 
@@ -150,7 +174,7 @@ void CreateTestThread(int Index, PKTHREAD_START Routine)
 
 int DriverEntry()
 {
-	LogMsg("\x1B[2J\x1B[H\x1B[0m");
+	LogMsg("\x1B[2J\x1B[H\x1B[0m\x1B[?25l");
 	
 	DisplayBorder();
 	
