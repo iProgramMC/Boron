@@ -104,7 +104,7 @@ int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable)
 	return KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, NULL);
 }
 
-void KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
+bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -136,6 +136,8 @@ void KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	
 	if (Result != -1)
 		KiUnwaitThread(Thread, Result);
+	
+	return Result != -1;
 }
 
 bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
@@ -172,10 +174,12 @@ void KiSignalObject(PKDISPATCH_HEADER Object)
 	{
 		PLIST_ENTRY Entry = Object->WaitBlockList.Flink;
 		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
-		KiSatisfyWaitBlock(WaitBlock);
 		
-		// Remove the entry
-		RemoveHeadList(&Object->WaitBlockList);
+		// If we could satisfy the wait block (and the thread is woken up), then
+		// the WaitBlockList may be empty. We don't want to mess with it, unless
+		// the WaitBlockList wasn't actually modified.
+		if (!KiSatisfyWaitBlock(WaitBlock))
+			RemoveHeadList(&Object->WaitBlockList);
 		
 		SatisfiedCount++;
 		

@@ -57,7 +57,7 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 		if (TimerCurrent->ExpiryTick > Timer->ExpiryTick)
 		{
 			InsertTailList(&TimerCurrent->EntryQueue, &Timer->EntryQueue);
-			WasEmplaced = true;
+			break;
 		}
 		
 		Entry = Entry->Flink;
