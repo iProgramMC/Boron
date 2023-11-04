@@ -57,6 +57,7 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 		if (TimerCurrent->ExpiryTick > Timer->ExpiryTick)
 		{
 			InsertTailList(&TimerCurrent->EntryQueue, &Timer->EntryQueue);
+			WasEmplaced = true;
 			break;
 		}
 		
@@ -65,7 +66,8 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 	
 	// If we couldn't emplace it, the timer goes later than all other timer objects,
 	// therefore we'll emplace it at the tail.
-	InsertTailList(TimerQueue, &Timer->EntryQueue);
+	if (!WasEmplaced)
+		InsertTailList(TimerQueue, &Timer->EntryQueue);
 	
 	Timer->IsEnqueued = true;
 	
