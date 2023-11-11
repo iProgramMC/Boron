@@ -56,7 +56,7 @@ KWAIT_BLOCK, *PKWAIT_BLOCK;
 // Wait for multiple objects at once.
 int KeWaitForMultipleObjects(
 	int Count,
-	PKDISPATCH_HEADER Objects[],
+	void* Objects[],
 	int WaitType,
 	bool Alertable,
 	PKWAIT_BLOCK WaitBlockArray);
@@ -65,7 +65,7 @@ int KeWaitForMultipleObjects(
 void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 
 // Wait for a single object.
-int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable);
+int KeWaitForSingleObject(void* Object, bool Alertable);
 
 // Dispatch objects
 #include "timer.h"
