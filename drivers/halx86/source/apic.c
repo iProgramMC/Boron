@@ -276,6 +276,7 @@ static void HalpCalibrateApicGeneric(
 
 void HalCalibrateApicUsingHpet()
 {
+	// TODO
 	//HalpCalibrateApicGeneric(HalHpetPrepare,
 	//                         HalHpetRead,
 	//                         HalHpetContinueSpinning,
@@ -386,10 +387,10 @@ void HalCalibrateApic()
 	HalCalibrateApicUsingPit();
 	KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
 	
-	// if the TSC increases at more than 5 GHz
-	if (KeGetCurrentHalCB()->TscFrequency >= 5000000000)
+	// if the TSC increases at more than 6 GHz. We have indeed reached 5 GHz
+	if (KeGetCurrentHalCB()->TscFrequency >= 6000000000)
 	{
-		KeCrash("TSC frequency over 5 GHz?! Ain't no way!");
+		KeCrash("TSC frequency over 6 GHz?! Ain't no way!");
 	}
 }
 

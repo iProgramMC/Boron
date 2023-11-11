@@ -164,6 +164,58 @@ static void KiSetSignaled(PKDISPATCH_HEADER Object)
 	}
 }
 
+// This routine checks if an object was satisfied enough. KiSignalObject must
+// satisfy at least one wait block. A timer satisfies all of its waiters at
+// expiry. A mutex satisfies only one waiter at a time. An event can satisfy
+// either one or all waiters, depending on whether it's a synchronization or
+// notification event.
+static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
+{
+	// Check the type of object.
+	switch (Object->Type)
+	{
+		// By default, an object satisfies all of its waiters.
+		// Timers, threads, and processes fall into this default case.
+		default:
+			return false;
+		
+		// A mutex must only be satisfied at most once.
+		case DISPATCH_MUTEX:
+			ASSERT(SatisfiedCount <= 1);
+			return SatisfiedCount == 1;
+		
+		// A semaphore event can be signaled at most "Count" times.
+		case DISPATCH_SEMAPHORE: {
+			// @TODO
+			// PKSEMAPHORE Semaphore = (PKSEMAPHORE)Object;
+			
+			// ASSERT(SatisfiedCount <= Semaphore->Count);
+			// return SatisfiedCount == Semaphore->Count;
+			break;
+		}
+		// An event depends on its subtype.
+		case DISPATCH_EVENT: {
+			PKEVENT Event = (PKEVENT)Object;
+			
+			if (Event->Type == EVENT_SYNCHRONIZATION) {
+				
+				// A synchronization event must only be satisfied at most once.
+				ASSERT(SatisfiedCount <= 1);
+				return SatisfiedCount == 1;
+				
+			} else if (Event->Type == EVENT_NOTIFICATION) {
+				
+				// A notification event will allow satisfaction for all blocks.
+				return false;
+			}
+			
+			ASSERT(!"KepSatisfiedEnough - DISPATCH_EVENT - Unreachable");
+			
+			break;
+		}
+	}
+}
+
 void KiSignalObject(PKDISPATCH_HEADER Object)
 {
 	KiSetSignaled(Object);
@@ -184,7 +236,7 @@ void KiSignalObject(PKDISPATCH_HEADER Object)
 		SatisfiedCount++;
 		
 		// If the object is a mutex and at least one object was satisfied, stop.
-		if (SatisfiedCount == 1 && Object->Type == DISPATCH_MUTEX)
+		if (KepSatisfiedEnough(Object, SatisfiedCount))
 			return;
 		
 		// If the object is a semaphore, check for the Limit field of the semaphore.

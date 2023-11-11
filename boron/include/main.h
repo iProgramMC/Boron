@@ -29,6 +29,7 @@ Author:
 
 #include <rtl/list.h>
 #include <rtl/ansi.h>
+#include <rtl/assert.h>
 
 #include <status.h>
 

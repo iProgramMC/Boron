@@ -69,3 +69,4 @@ int KeWaitForSingleObject(PKDISPATCH_HEADER Object, bool Alertable);
 
 // Dispatch objects
 #include "timer.h"
+#include "event.h"
