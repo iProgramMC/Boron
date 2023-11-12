@@ -174,7 +174,7 @@ NO_RETURN void BallTest()
 		
 		FirstTick = false;
 		
-		PerformDelay(16 + (TickCounter != 0), &DrvDpc);
+		PerformDelay(1000, &DrvDpc);//16 + (TickCounter != 0), &DrvDpc);
 		TickCounter++;
 		if (TickCounter > 3)
 			TickCounter = 0;

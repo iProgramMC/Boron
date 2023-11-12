@@ -135,6 +135,8 @@ void KiDispatchTimerObjects()
 		
 		KiSignalObject(&Timer->Header);
 		
+		Timer->IsEnqueued = false;
+		
 		RemoveHeadList(TimerQueue);
 	}
 }

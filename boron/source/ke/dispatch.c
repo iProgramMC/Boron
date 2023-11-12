@@ -172,10 +172,6 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	// @TODO Is this a bad decision? Should we not do that?
 	KiAssertOwnDispatcherLock();
 	
-	DbgPrint("KepWaitTimerExpiry %p", Context);
-	
-	return;
-	
 	PKTHREAD Thread = Context;
 	
 	ASSERT(Thread->Status == KTHREAD_STATUS_WAITING);
@@ -288,7 +284,8 @@ int KeWaitForMultipleObjects(
 		// and call KepWaitTimerExpiry, which cancels the wait.
 		KeInitializeDpc(&Thread->WaitDpc, KepWaitTimerExpiry, Thread);
 		KeSetImportantDpc(&Thread->WaitDpc, true);
-		// TODO: Broken - KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
+		KeInitializeTimer(&Thread->WaitTimer);
+		KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
 	}
 	
 	KiUnlockDispatcher(Ipl);
