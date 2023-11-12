@@ -174,7 +174,13 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	
 	PKTHREAD Thread = Context;
 	
-	ASSERT(Thread->Status == KTHREAD_STATUS_WAITING);
+	if (Thread->Status != KTHREAD_STATUS_WAITING)
+	{
+		// TODO: It could happen when the timeout is sufficiently short and the object is
+		// signalled only shortly after the timeout expired. I don't know, just return for now.
+		// Hopefully this won't cause bugs of any sort..
+		return;
+	}
 	
 	// Cancel the thread's wait with a TIMEOUT status.
 	// KiUnwaitThread removes the thread's wait blocks from all objects

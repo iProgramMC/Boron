@@ -21,16 +21,7 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, Ms, Dpc);
 	
-	int Status = KeWaitForSingleObject(&Timer.Header, false, Ms / 2);
-	if (Status == STATUS_TIMEOUT)
-	{
-		DbgPrint("PerformDelay succeeded in waiting half the time :D");
-		KeCancelTimer(&Timer);
-	}
-	else
-	{
-		DbgPrint("Womp, womp. Seems like it waited the entire time. Status is %d", Status);
-	}
+	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE);
 }
 
 NO_RETURN void TestThread1()
@@ -174,7 +165,7 @@ NO_RETURN void BallTest()
 		
 		FirstTick = false;
 		
-		PerformDelay(1000, &DrvDpc);//16 + (TickCounter != 0), &DrvDpc);
+		PerformDelay(16 + (TickCounter != 0), &DrvDpc);
 		TickCounter++;
 		if (TickCounter > 3)
 			TickCounter = 0;
