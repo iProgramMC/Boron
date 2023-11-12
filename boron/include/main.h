@@ -26,8 +26,6 @@ Author:
 #define UNUSED        __attribute__((unused))
 #define ALWAYS_INLINE __attribute__((always_inline))
 #define NO_DISCARD    __attribute__((warn_unused_result))
-
-#include <rtl/list.h>
 #include <rtl/ansi.h>
 #include <rtl/assert.h>
 
@@ -56,5 +54,7 @@ void DbgPrint(const char* msg, ...);
 
 // Include only the kernel crash routines specifically
 #include <ke/crash.h>
+
+#include <rtl/list.h>
 
 #endif//NS64_MAIN_H

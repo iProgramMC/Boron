@@ -4,6 +4,8 @@
 #include <string.h>
 #include <hal.h>
 
+#define THREADCOUNT 1
+
 int* Test()
 {
 	static int stuff;
@@ -18,7 +20,17 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, Ms, Dpc);
-	KeWaitForSingleObject(&Timer.Header, false);
+	
+	int Status = KeWaitForSingleObject(&Timer.Header, false, Ms / 2);
+	if (Status == STATUS_TIMEOUT)
+	{
+		DbgPrint("PerformDelay succeeded in waiting half the time :D");
+		KeCancelTimer(&Timer);
+	}
+	else
+	{
+		DbgPrint("Womp, womp. Seems like it waited the entire time. Status is %d", Status);
+	}
 }
 
 NO_RETURN void TestThread1()
@@ -169,7 +181,7 @@ NO_RETURN void BallTest()
 	}
 }
 
-PKTHREAD Threads[10];
+PKTHREAD Threads[THREADCOUNT];
 
 void CreateTestThread(int Index, PKTHREAD_START Routine)
 {

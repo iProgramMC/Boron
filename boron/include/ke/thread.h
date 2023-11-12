@@ -89,6 +89,9 @@ struct KTHREAD_tag
 	void* StartContext;
 	
 	uint64_t QuantumUntil;
+	
+	KDPC WaitDpc;
+	KTIMER WaitTimer;
 };
 
 // Creates an empty, uninitialized, thread object.

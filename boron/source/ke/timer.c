@@ -32,9 +32,13 @@ bool KeReadStateTimer(PKTIMER Timer)
 
 bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 {
+	KiAssertOwnDispatcherLock();
+	
 	bool Status = Timer->IsEnqueued;
-	if (Status)
+	if (Status) {
+		DbgPrint("KiSetTimer: Timer is already enqueued, removing");
 		RemoveEntryList(&Timer->EntryQueue);
+	}
 
 	// Calculate the amount of ticks we need to wait.
 	uint64_t TickCount  = HalGetTickFrequency() * DueTimeMs / 1000;

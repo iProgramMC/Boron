@@ -166,11 +166,32 @@ static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
 	}
 }
 
+static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1, UNUSED void* SA2)
+{
+	// DPCs are enqueued with the dispatcher lock held.
+	// @TODO Is this a bad decision? Should we not do that?
+	KiAssertOwnDispatcherLock();
+	
+	DbgPrint("KepWaitTimerExpiry %p", Context);
+	
+	return;
+	
+	PKTHREAD Thread = Context;
+	
+	ASSERT(Thread->Status == KTHREAD_STATUS_WAITING);
+	
+	// Cancel the thread's wait with a TIMEOUT status.
+	// KiUnwaitThread removes the thread's wait blocks from all objects
+	// it's waiting for and wakes it up.
+	KiUnwaitThread(Thread, STATUS_TIMEOUT);
+}
+
 int KeWaitForMultipleObjects(
 	int Count,
 	void* Objects[],
 	int WaitType,
 	bool Alertable,
+	int TimeoutMS,
 	PKWAIT_BLOCK WaitBlockArray)
 {
 	ASSERT(WaitType == WAIT_TYPE_ALL || WaitType == WAIT_TYPE_ANY);
@@ -236,11 +257,12 @@ int KeWaitForMultipleObjects(
 		KiUnlockDispatcher(Ipl);
 		return STATUS_SUCCESS;
 	}
-	else /* TODO
-	if (Timeout == 0) { // Just a poll
+	else if (TimeoutMS == 0)
+	{
+		// This is simply a poll, so return with a timeout status.
 		KiUnlockDispatcher(Ipl);
-		return STATUS_ABANDONED;
-	} */
+		return STATUS_TIMEOUT;
+	}
 	
 	// Ok, finally handling the non-trivial case.
 	// Insert each block into the object's wait block queue.
@@ -259,18 +281,28 @@ int KeWaitForMultipleObjects(
 	Thread->WaitStatus = STATUS_WAITING;
 	Thread->Status = KTHREAD_STATUS_WAITING;
 	
-	// TODO: Here, enqueue the thread's wait timer.
+	// Note, surely it's not zero, because we guard against that
+	if (TimeoutMS != TIMEOUT_INFINITE)
+	{
+		// Set the wait timer up. It's going to wake us up when it expires,
+		// and call KepWaitTimerExpiry, which cancels the wait.
+		KeInitializeDpc(&Thread->WaitDpc, KepWaitTimerExpiry, Thread);
+		KeSetImportantDpc(&Thread->WaitDpc, true);
+		// TODO: Broken - KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
+	}
 	
 	KiUnlockDispatcher(Ipl);
 	
 	KeYieldCurrentThread();
 	
+	ASSERT(Alertable || Thread->WaitStatus != STATUS_ALERTED);
+	
 	return Thread->WaitStatus;
 }
 
-int KeWaitForSingleObject(void* Object, bool Alertable)
+int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS)
 {
-	return KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, NULL);
+	return KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL);
 }
 
 bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
@@ -284,6 +316,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	{
 		// Waiting for any object, so acquire the object and wake the thread.
 		KiAcquireObject(WaitBlock->Object);
+		KiCancelTimer(&Thread->WaitTimer);
 		KiUnwaitThread(Thread, STATUS_RANGE_WAIT + Index);
 		return true;
 	}
@@ -317,6 +350,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	}
 	
 	// Dequeue the timeout timer here.
+	KiCancelTimer(&Thread->WaitTimer);
 	
 	KiUnwaitThread(Thread, STATUS_SUCCESS);
 	return true;

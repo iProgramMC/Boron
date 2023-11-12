@@ -39,3 +39,13 @@ bool KeCancelTimer(PKTIMER Timer);
 bool KeReadStateTimer(PKTIMER Timer);
 
 bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc);
+
+#ifdef KERNEL
+// Internal version of KiSetTimer that must be run with the dispatcher
+// locked (such as in a DPC, or in an internal dispatcher function)
+bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc);
+
+// Ditto with KeCancelTimer.
+bool KiCancelTimer(PKTIMER Timer);
+
+#endif
