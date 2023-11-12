@@ -111,8 +111,6 @@ void KiDispatchDpcs()
 	while (!IsListEmpty(&Queue->List))
 	{
 		PLIST_ENTRY Entry = RemoveHeadList(&Queue->List);
-		if (Entry == &Queue->List)
-			break;
 		
 		// Pop the DPC off of the list.
 		PKDPC Dpc = CONTAINING_RECORD(Entry, KDPC, List);

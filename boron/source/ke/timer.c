@@ -30,7 +30,7 @@ bool KeReadStateTimer(PKTIMER Timer)
 	return AtLoad(Timer->Header.Signaled);
 }
 
-bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
+bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 {
 	bool Status = Timer->IsEnqueued;
 	if (Status)
@@ -70,6 +70,8 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
 		InsertTailList(TimerQueue, &Timer->EntryQueue);
 	
 	Timer->IsEnqueued = true;
+	
+	Timer->Dpc = Dpc;
 	
 	return Status;
 }
@@ -123,6 +125,10 @@ void KiDispatchTimerObjects()
 		if (Timer->ExpiryTick >= HalGetTickCount() + 100)
 			break;
 		
+		// Enqueue the DPC associated with the timer, if needed
+		if (Timer->Dpc)
+			KeEnqueueDpc(Timer->Dpc, NULL, NULL);
+		
 		KiSignalObject(&Timer->Header);
 		
 		RemoveHeadList(TimerQueue);
@@ -151,10 +157,10 @@ bool KeCancelTimer(PKTIMER Timer)
 	return Status;
 }
 
-bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs)
+bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 {
 	KIPL Ipl = KiLockDispatcher();
-	bool Status = KiSetTimer(Timer, DueTimeMs);
+	bool Status = KiSetTimer(Timer, DueTimeMs, Dpc);
 	KiUnlockDispatcher(Ipl);
 	return Status;
 }

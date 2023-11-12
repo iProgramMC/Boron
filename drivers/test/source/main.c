@@ -12,12 +12,12 @@ int* Test()
 
 void KeYieldCurrentThread();
 
-void PerformDelay(int Ms)
+void PerformDelay(int Ms, PKDPC Dpc)
 {
 	KTIMER Timer;
 	
 	KeInitializeTimer(&Timer);
-	KeSetTimer(&Timer, Ms);
+	KeSetTimer(&Timer, Ms, Dpc);
 	KeWaitForSingleObject(&Timer.Header, false);
 }
 
@@ -27,7 +27,7 @@ NO_RETURN void TestThread1()
 	for (int i = 0; ; i++)
 	{
 		LogMsg("\x1B[2;64H     =====   %02d:%02d   =====     ", i/60, i%60);
-		PerformDelay(999);
+		PerformDelay(999, NULL);
 	}
 }
 
@@ -36,11 +36,16 @@ NO_RETURN void TestThread2()
 	for (int i = 0; i < 20; i++)
 	{
 		LogMsg("\x1B[1;1HMy second thread's still running!!  %d                         ", i);
-		PerformDelay(100);
+		PerformDelay(100, NULL);
 	}
 	
 	LogMsg("\x1B[1;40H\x1B[33mDone.\x1B[0m");
 	KeTerminateThread();
+}
+
+void BallTestDpc(PKDPC Dpc, void* Context, UNUSED void* SysAux1, UNUSED void* SysAux2)
+{
+	DbgPrint("Hello from DPC %p, %p", Dpc, Context);
 }
 
 const int LimitLeft   = 2;
@@ -96,6 +101,9 @@ int RNGRange(int Min, int Max)
 
 NO_RETURN void BallTest()
 {
+	KDPC DrvDpc;
+	KeInitializeDpc(&DrvDpc, BallTestDpc, KeGetCurrentThread());
+	
 	int LimitRightTF = LimitLeft + (LimitRight - LimitLeft) / 2;
 	int BallX = RNGRange(LimitLeft, LimitRightTF - 1);
 	int BallY = RNGRange(LimitTop, LimitBottom - 1);
@@ -150,11 +158,11 @@ NO_RETURN void BallTest()
 		}
 		
 		if (FirstTick)
-			PerformDelay(2000);
+			PerformDelay(2000, &DrvDpc);
 		
 		FirstTick = false;
 		
-		PerformDelay(16 + (TickCounter != 0));
+		PerformDelay(16 + (TickCounter != 0), &DrvDpc);
 		TickCounter++;
 		if (TickCounter > 3)
 			TickCounter = 0;

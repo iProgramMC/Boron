@@ -25,6 +25,8 @@ typedef struct KTIMER_tag
 	uint64_t ExpiryTick;   // Time at which the timer expires
 	
 	bool IsEnqueued;
+	
+	PKDPC Dpc; // DPC to be enqueued when timer is due
 }
 KTIMER, *PKTIMER;
 
@@ -36,4 +38,4 @@ bool KeCancelTimer(PKTIMER Timer);
 
 bool KeReadStateTimer(PKTIMER Timer);
 
-bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs);
+bool KeSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc);
