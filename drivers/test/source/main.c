@@ -4,7 +4,7 @@
 #include <string.h>
 #include <hal.h>
 
-#define THREADCOUNT 1
+#define THREADCOUNT 10
 
 int* Test()
 {

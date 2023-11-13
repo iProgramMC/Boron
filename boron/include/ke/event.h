@@ -28,4 +28,12 @@ typedef struct KEVENT_tag
 }
 KEVENT, *PKEVENT;
 
-// TODO
+void KeInitializeEvent(PKEVENT Event, int EventType, bool State);
+
+bool KeReadStateEvent(PKEVENT Event);
+
+void KeSetEvent(PKEVENT Event);
+
+void KeResetEvent(PKEVENT Event);
+
+void KePulseEvent(PKEVENT Event);

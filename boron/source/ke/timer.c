@@ -6,7 +6,7 @@ Module name:
 	ke/timer.c
 	
 Abstract:
-	This header file implements the Timer dispatcher object.
+	This module file implements the Timer dispatcher object.
 	
 Author:
 	iProgramInCpp - 30 October 2023
