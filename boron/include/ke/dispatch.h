@@ -64,3 +64,4 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 #include "timer.h"
 #include "event.h"
 #include "mutex.h"
+#include "semaphor.h"

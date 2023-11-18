@@ -161,15 +161,10 @@ static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
 			ASSERT(SatisfiedCount <= 1);
 			return SatisfiedCount == 1;
 		
-		// A semaphore event can be signaled at most "Count" times.
-		case DISPATCH_SEMAPHORE: {
-			// @TODO
-			// PKSEMAPHORE Semaphore = (PKSEMAPHORE)Object;
-			
-			// ASSERT(SatisfiedCount <= Semaphore->Count);
-			// return SatisfiedCount == Semaphore->Count;
-			return false;
-		}
+		// A semaphore can only be acquired if it's signaled.
+		case DISPATCH_SEMAPHORE:
+			return Object->Signaled != 0;
+		
 		// An event depends on its subtype.
 		case DISPATCH_EVENT: {
 			PKEVENT Event = (PKEVENT)Object;

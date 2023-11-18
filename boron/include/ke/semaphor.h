@@ -14,4 +14,22 @@ Author:
 ***/
 #pragma once
 
+#include <ke/dispatch.h>
 
+typedef struct KSEMAPHORE_tag
+{
+	KDISPATCH_HEADER Header;
+	
+	int Limit;
+}
+KSEMAPHORE, *PKSEMAPHORE;
+
+#define ASSERT_SEMAPHORE(Semaphore) ASSERT((Semaphore)->Header.Type == DISPATCH_SEMAPHORE)
+
+void KeInitializeSemaphore(PKSEMAPHORE Semaphore, int Count, int Limit);
+
+// Returns the current state of the semaphore.
+// If zero, the semaphore is not signaled.
+int KeReadStateSemaphore(PKSEMAPHORE Semaphore);
+
+void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment);
