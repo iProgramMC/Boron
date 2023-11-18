@@ -91,7 +91,10 @@ struct KTHREAD_tag
 	uint64_t QuantumUntil;
 	
 	KDPC WaitDpc;
+	
 	KTIMER WaitTimer;
+	
+	LIST_ENTRY MutexList;
 };
 
 // Creates an empty, uninitialized, thread object.

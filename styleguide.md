@@ -16,7 +16,10 @@
 
 ### Restrictions
 
-* Lines shouldn't stretch for more than 125 characters.
+* Lines shouldn't stretch for more than 125 characters. This is a soft limit that's usually respected.
+
+* File names are all lowercase, and abide by the 8.3 restriction. (8 characters for the file name and 3 characters for
+  the extension)
 
 ### Alignment
 
@@ -29,7 +32,7 @@ DbgPrint("Some values: %d %d %d",
          Value2,
          Value3);
 ```
-Incorrect:
+Incorrect (and it'll be obvious why if you aren't using a tab width of 4):
 ```c
 DbgPrint("Some values: %d %d %d",
 		 Value1,
@@ -158,10 +161,12 @@ The Boron kernel is currently structured in the following namespaces:
 * `Io` - I/O manager (ex: `IoAllocateIrp`)
 * `Bn` - System calls/native interfaces (ex: `BnCreateFile`)
 
-Sometimes one doesn't need to expose a function to the rest of the system. In that case, the prefix should be mutated to mark this.
+Sometimes one doesn't need to expose a function to the rest of the system. In that case, the prefix should be mutated to
+mark this.
 
 * `p` is added after the prefix if the function is private/static (ex. `MmpPlugLeaks`)
-* `i` replaces the last letter or is added after the prefix if the function is internal but may be needed by other parts of the kernel (ex. `MiAllocateSlab`)
+* `i` replaces the last letter or is added after the prefix if the function is internal but may be needed by other parts
+  of the kernel (ex. `MiAllocateSlab`)
 
 ### Comments
 

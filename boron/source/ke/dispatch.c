@@ -89,10 +89,37 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object)
 			break;
 		
 		case DISPATCH_MUTEX: {
-			// TODO
-			//PKMUTEX Mutex = (PKMUTEX) Object;
+			
+			PKTHREAD Thread = KeGetCurrentThread();
+			PKMUTEX Mutex = (PKMUTEX) Object;
+			
+			// Acquire the object.
 			Object->Signaled++;
-			//Mutex->Owner = KeGetCurrentThread();
+			
+			if (Mutex->OwnerThread != NULL && Mutex->OwnerThread != Thread)
+				// Shouldn't be able to see this, by the way.
+				KeCrash("KiAcquireObject: cannot acquire mutex already owned by someone else");
+			
+			Mutex->OwnerThread = Thread;
+			
+			// Check if the highest level mutex has a higher level than this one.
+		#ifdef DEBUG
+			if (!IsListEmpty(&Thread->MutexList))
+			{
+				PKMUTEX HighestMutex = CONTAINING_RECORD(Thread->MutexList.Flink, KMUTEX, MutexListEntry);
+				if (HighestMutex->Level > Mutex->Level)
+					KeCrash("KiAcquireObject: deadlock averted - tried to acquire mutex %p with "
+					        "level %d while already owning mutex %p with level %d",
+					        Mutex, Mutex->Level,
+					        HighestMutex, HighestMutex->Level);
+			}
+		#endif
+			
+			// Insert this mutex at the top of the mutex list.
+			InsertHeadList(&Thread->MutexList, &Mutex->MutexListEntry);
+			
+			// In effect, this means that the mutex list is always ordered
+			// descending, based on level.
 			
 			break;
 		}

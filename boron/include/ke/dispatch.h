@@ -55,23 +55,12 @@ typedef struct KWAIT_BLOCK_tag
 }
 KWAIT_BLOCK, *PKWAIT_BLOCK;
 
-// Wait for multiple objects at once.
-// Use a value of zero to poll the objects.
-// Use a value of TIMEOUT_INFINITE to specify that timeout isn't needed.
-int KeWaitForMultipleObjects(
-	int Count,
-	void* Objects[],
-	int WaitType,
-	bool Alertable,
-	int TimeoutMS,
-	PKWAIT_BLOCK WaitBlockArray);
+#include "wait.h"
 
 // Initialize the dispatcher header.
 void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 
-// Wait for a single object.
-int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS);
-
 // Dispatch objects
 #include "timer.h"
 #include "event.h"
+#include "mutex.h"

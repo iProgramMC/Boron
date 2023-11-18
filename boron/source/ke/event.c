@@ -6,7 +6,7 @@ Module name:
 	ke/event.c
 	
 Abstract:
-	This header file implements the event dispatcher object.
+	This module implements the event dispatcher object.
 	
 Author:
 	iProgramInCpp - 13 November 2023
