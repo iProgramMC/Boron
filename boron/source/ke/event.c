@@ -49,7 +49,7 @@ void KeInitializeEvent(PKEVENT Event, int EventType, bool State)
 
 bool KeReadStateEvent(PKEVENT Event)
 {
-	ASSERT_TIMER(Event);
+	ASSERT_EVENT(Event);
 	return AtLoad(Event->Header.Signaled);
 }
 
@@ -66,7 +66,7 @@ void KeResetEvent(PKEVENT Event)
 {
 	KIPL Ipl = KiLockDispatcher();
 	
-	KiSetEvent(Event);
+	KiResetEvent(Event);
 	
 	KiUnlockDispatcher(Ipl);
 }

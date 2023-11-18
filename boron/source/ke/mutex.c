@@ -49,7 +49,9 @@ void KeInitializeMutex(PKMUTEX Mutex, int Level)
 	Mutex->Level = Level;
 #endif
 	
-	Mutex->Header.Signaled = MUTEX_SIGNALED;
+	Mutex->Header.Signaled = MUTEX_SIGNALED; 
+	
+	Mutex->OwnerThread = NULL;
 }
 
 int KeReadStateMutex(PKMUTEX Mutex)

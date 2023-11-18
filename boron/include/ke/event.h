@@ -28,6 +28,8 @@ typedef struct KEVENT_tag
 }
 KEVENT, *PKEVENT;
 
+#define ASSERT_EVENT(Event) ASSERT((Event)->Header.Type == DISPATCH_EVENT)
+
 void KeInitializeEvent(PKEVENT Event, int EventType, bool State);
 
 bool KeReadStateEvent(PKEVENT Event);
