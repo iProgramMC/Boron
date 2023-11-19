@@ -16,7 +16,7 @@ Author:
 
 void KeYieldCurrentThreadSub(); // trap.asm
 
-PKTHREAD KeCreateEmptyThread()
+PKTHREAD KeAllocateThread()
 {
 	PKTHREAD Thread = ExAllocateSmall(sizeof(KTHREAD));
 	if (!Thread)
@@ -27,6 +27,28 @@ PKTHREAD KeCreateEmptyThread()
 	Thread->Status = KTHREAD_STATUS_UNINITIALIZED;
 	
 	return Thread;
+}
+
+void KeDeallocateThread(PKTHREAD Thread)
+{
+	ASSERT(
+		Thread->Status == KTHREAD_STATUS_TERMINATED ||
+		Thread->Status == KTHREAD_STATUS_UNINITIALIZED);
+	
+	ASSERT(Thread->Stack.Handle == 0);
+	
+	ExFreeSmall(Thread, sizeof(KTHREAD));
+}
+
+void KeDetachThread(PKTHREAD Thread)
+{
+	// Just like with events, we don't lock the dispatcher to make sure
+	// that the write is atomic - we lock the dispatcher to make sure we
+	// don't actually interfere with its operation.
+	KIPL Ipl = KiLockDispatcher();
+	ASSERT(!Thread->Detached);
+	Thread->Detached = true;
+	KiUnlockDispatcher(Ipl);
 }
 
 // TODO: Process Parameter at the end (PKPROCESS Process)

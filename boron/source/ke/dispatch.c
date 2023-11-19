@@ -408,6 +408,7 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
 		KiDispatchTimerObjects();
 	
+	// N.B. Dispatch DPCs before performing a yield. See KiPerformYield for more info.
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
 	

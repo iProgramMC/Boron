@@ -62,6 +62,8 @@ struct KTHREAD_tag
 	
 	int Priority;
 	
+	bool Detached;
+	
 	// TODO Parent Process Pointer
 	
 	int Status;
@@ -94,12 +96,24 @@ struct KTHREAD_tag
 	
 	KTIMER WaitTimer;
 	
+	KDPC DeleteDpc;
+	
 	LIST_ENTRY MutexList;
 };
 
 // Creates an empty, uninitialized, thread object.
 // TODO Use the object manager for this purpose and expose the thread object there.
-PKTHREAD KeCreateEmptyThread();
+PKTHREAD KeAllocateThread();
+
+// Deletes a thread that was created by KeAllocateThread.
+void KeDeallocateThread(PKTHREAD Thread);
+
+// Reads the state of a thread.
+int KeReadStateThread(PKTHREAD Thread);
+
+// Detaches a thread. This involves automatic cleanup through KeDeallocateThread.
+// Don't call if the thread instance wasn't allocated with KeAllocateThread.
+void KeDetachThread(PKTHREAD Thread);
 
 // Initializes the thread object.
 void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext);

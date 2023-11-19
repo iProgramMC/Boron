@@ -3,7 +3,7 @@
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
-	PKTHREAD Thread = KeCreateEmptyThread();
+	PKTHREAD Thread = KeAllocateThread();
 	
 	KeInitializeThread(
 		Thread,
@@ -28,7 +28,7 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 
 int DriverEntry()
 {
-	CreateThread(DriverTestThread, NULL);
+	KeDetachThread(CreateThread(DriverTestThread, NULL));
 	
 	return 0;
 }

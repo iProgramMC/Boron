@@ -23,6 +23,7 @@ Author:
 #endif
 
 LIST_ENTRY KiGlobalThreadList;
+KSPIN_LOCK KiGlobalThreadListLock;
 
 PKSCHEDULER KeGetCurrentScheduler()
 {
@@ -67,7 +68,11 @@ void KiReadyThread(PKTHREAD Thread)
 	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
-	InsertTailList(&KiGlobalThreadList,                     &Thread->EntryGlobal);
+	KIPL Ipl;
+	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl);
+	InsertTailList(&KiGlobalThreadList, &Thread->EntryGlobal);
+	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
+	
 	InsertTailList(&Scheduler->ThreadList,                  &Thread->EntryList);
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 }
@@ -124,7 +129,7 @@ void KeSchedulerInit()
 	Scheduler->CurrentThread = NULL;
 	
 	// Create an idle thread.
-	PKTHREAD Thread = KeCreateEmptyThread();
+	PKTHREAD Thread = KeAllocateThread();
 	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
 	KiReadyThread(Thread);
@@ -227,6 +232,49 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 	Scheduler->QuantumUntil  = 0;
 }
 
+static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* SystemArgument1, UNUSED void* SystemArgument2)
+{
+	DbgPrint("KepCleanUpThread %p", ContextV);
+	KiAssertOwnDispatcherLock();
+	
+	PKTHREAD Thread = ContextV;
+	
+	// Free the thread's kernel stack.
+	ASSERT(Thread->Stack.Handle);
+	ExFreePool(Thread->Stack.Handle);
+	Thread->Stack.Handle = EX_NO_MEMORY_HANDLE;
+	
+	// Remove the thread from the global list of threads.
+	KIPL Ipl;
+	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl);
+	RemoveEntryList(&Thread->EntryGlobal);
+	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
+	
+	// Remove the thread from the local list of threads.
+	RemoveEntryList(&Thread->EntryList);
+	
+	// Finally, signal all threads that are waiting on this thread.
+	// Signaling NOW and not in KeTerminateThread prevents a race condition where
+	// code that looks as follows could free the thread while it is still in the
+	// scheduler's system, which is nasty.
+	//
+	// KeWaitForSingleObject(MyThread, false, TIMEOUT_INFINITE);
+	// KeDeallocateThread(MyThread);
+	//
+	// The race condition is that the DPC could show up later than when we run the
+	// KeDeallocateThread function, which is actually several layers of nasty.
+	//   1. An invalid DPC stays in the DPC queue.
+	//   2. An invalid thread is being cleaned up.
+	//
+	// Therefore we DO NOT wait-test a thread UNTIL it is ready.
+	Thread->Header.Signaled = true;
+	KiWaitTest(&Thread->Header);
+	
+	// If the thread is detached, deallocate it.
+	if (Thread->Detached)
+		KeDeallocateThread(Thread);
+}
+
 void KiPerformYield(PKREGISTERS Regs)
 {
 	KiAssertOwnDispatcherLock();
@@ -257,13 +305,29 @@ void KiPerformYield(PKREGISTERS Regs)
 	
 	if (CurrentThread)
 	{
-		// Save the registers
+		// Save the registers.
 		CurrentThread->State = Regs;
+		
+		// Was the thread terminated?
+		if (CurrentThread->Status == KTHREAD_STATUS_TERMINATED)
+		{
+			// Yes. Issue a DPC (note, the last time DPCs were dispatched was
+			// before this function was run, and the next time is after we've
+			// switched away from this thread's stack) that will clean up after
+			// this thread, by erasing its resources, such as its thread stack.
+			
+			KeInitializeDpc(&CurrentThread->DeleteDpc, KepCleanUpThread, CurrentThread);
+			KeEnqueueDpc(&CurrentThread->DeleteDpc, NULL, NULL);
+		}
 	}
 	
 	// Unload the current thread.
+	bool Restore = KeDisableInterrupts();
+	
 	Scheduler->CurrentThread = NULL;
 	Scheduler->QuantumUntil  = 0;
+	
+	KeRestoreInterrupts(Restore);
 }
 
 bool KiNeedToSwitchThread()
@@ -362,12 +426,12 @@ NO_RETURN void KeTerminateThread()
 	// Mark the thread as terminated.
 	Thread->Status = KTHREAD_STATUS_TERMINATED;
 	
-	// Signal all objects waiting for us.
-	Thread->Header.Signaled = true;
-	KiWaitTest(&Thread->Header);
+	// Further cleanup will be performed in a DPC.
 	
+	// Unlock the dispatcher and yield.
 	KiUnlockDispatcher(Ipl);
 	
+	// Note! There is a chance we won't get to this point. That's completely fine though actually.
 	KeYieldCurrentThread();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
