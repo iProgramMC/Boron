@@ -34,7 +34,7 @@ void KiReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment)
 	ASSERT(Semaphore->Header.Signaled > 0);
 	
 	// Signal the object - maybe we'll wake something up.
-	KiSignalObject(&Semaphore->Header);
+	KiWaitTest(&Semaphore->Header);
 }
 
 // -------- Exposed API --------

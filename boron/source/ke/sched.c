@@ -364,7 +364,8 @@ NO_RETURN void KeTerminateThread()
 	Thread->Status = KTHREAD_STATUS_TERMINATED;
 	
 	// Signal all objects waiting for us.
-	KiSignalObject(&Thread->Header);
+	Thread->Header.Signaled = true;
+	KiWaitTest(&Thread->Header);
 	
 	KeLowerIPL(Ipl);
 	

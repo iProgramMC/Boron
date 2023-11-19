@@ -133,7 +133,8 @@ void KiDispatchTimerObjects()
 		if (Timer->Dpc)
 			KeEnqueueDpc(Timer->Dpc, NULL, NULL);
 		
-		KiSignalObject(&Timer->Header);
+		Timer->Header.Signaled = true;
+		KiWaitTest(&Timer->Header);
 		
 		Timer->IsEnqueued = false;
 		

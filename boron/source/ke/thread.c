@@ -50,6 +50,9 @@ void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_S
 	// of the scheduler. Initialize it as an empty list head so we can check it in KeSetPriorityThread.
 	InitializeListHead(&Thread->EntryQueue);
 	
+	// Initialize other resource lists.
+	InitializeListHead(&Thread->MutexList);
+	
 	Thread->Status = KTHREAD_STATUS_INITIALIZED;
 }
 

@@ -61,24 +61,7 @@ bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
 	return Header->Signaled != 0;
 }
 
-// Set the signaled state of the object and do nothing else.
-static void KiSetSignaled(PKDISPATCH_HEADER Object)
-{
-	KiAssertOwnDispatcherLock();
-	
-	switch (Object->Type)
-	{
-		case DISPATCH_MUTEX:
-		case DISPATCH_SEMAPHORE:
-			Object->Signaled--;
-			break;
-		
-		default:
-			Object->Signaled = true;
-	}
-}
-
-static void KiAcquireObject(PKDISPATCH_HEADER Object)
+static void KiAcquireObject(PKDISPATCH_HEADER Object, PKTHREAD Thread)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -90,7 +73,6 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object)
 		
 		case DISPATCH_MUTEX: {
 			
-			PKTHREAD Thread = KeGetCurrentThread();
 			PKMUTEX Mutex = (PKMUTEX) Object;
 			
 			// Acquire the object.
@@ -158,8 +140,7 @@ static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
 		
 		// A mutex must only be satisfied at most once.
 		case DISPATCH_MUTEX:
-			ASSERT(SatisfiedCount <= 1);
-			return SatisfiedCount == 1;
+			return Object->Signaled == 0;
 		
 		// A semaphore can only be acquired if it's signaled.
 		case DISPATCH_SEMAPHORE:
@@ -255,7 +236,7 @@ int KeWaitForMultipleObjects(
 		{
 			Satisfied = true;
 			SatisfierIndex = i;
-			KiAcquireObject(Object);
+			KiAcquireObject(Object, Thread);
 			break;
 		}
 		else if (!IsSignaled)
@@ -275,7 +256,7 @@ int KeWaitForMultipleObjects(
 		// All objects are acquireable, so acquire them all.
 		for (int i = 0; i < Count; i++)
 		{
-			KiAcquireObject(WaitBlockArray[i].Object);
+			KiAcquireObject(WaitBlockArray[i].Object, Thread);
 		}
 		
 		KiUnlockDispatcher(Ipl);
@@ -340,7 +321,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	if (Thread->WaitType == WAIT_TYPE_ANY)
 	{
 		// Waiting for any object, so acquire the object and wake the thread.
-		KiAcquireObject(WaitBlock->Object);
+		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
 		KiCancelTimer(&Thread->WaitTimer);
 		KiUnwaitThread(Thread, STATUS_RANGE_WAIT + Index);
 		return true;
@@ -371,7 +352,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	for (int i = 0; i < Thread->WaitCount; i++)
 	{
 		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
-		KiAcquireObject(WaitBlock->Object);
+		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
 	}
 	
 	// Dequeue the timeout timer here.
@@ -381,9 +362,11 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	return true;
 }
 
-void KiSignalObject(PKDISPATCH_HEADER Object)
+void KiWaitTest(PKDISPATCH_HEADER Object)
 {
-	KiSetSignaled(Object);
+	KiAssertOwnDispatcherLock();
+	
+	ASSERT(KiIsObjectSignaled(Object));
 	
 	int SatisfiedCount = 0;
 	

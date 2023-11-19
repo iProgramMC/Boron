@@ -19,7 +19,7 @@ void KiSetEvent(PKEVENT Event)
 	
 	Event->Header.Signaled = true;
 	
-	KiSignalObject(&Event->Header);
+	KiWaitTest(&Event->Header);
 }
 
 void KiResetEvent(PKEVENT Event)

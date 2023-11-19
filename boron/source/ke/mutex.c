@@ -35,7 +35,7 @@ void KiReleaseMutex(PKMUTEX Mutex)
 		Mutex->OwnerThread = NULL;
 		
 		// Signal the mutex object (i.e. allow another thread to acquire it), if we can.
-		KiSignalObject(&Mutex->Header);
+		KiWaitTest(&Mutex->Header);
 	}
 }
 
