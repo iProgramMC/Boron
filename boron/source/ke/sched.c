@@ -91,7 +91,7 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	// Remove ourselves from all the objects' wait block lists
 	for (int i = 0; i < Thread->WaitCount; i++)
 	{
-		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlocks[i];
+		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
 		RemoveEntryList(&WaitBlock->Entry);
 	}
 	
@@ -355,8 +355,7 @@ void KeReadyThread(PKTHREAD Thread)
 
 NO_RETURN void KeTerminateThread()
 {
-	// Raise IPL so we don't get scheduled away.
-	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = KeGetCurrentThread();
 	
@@ -367,7 +366,7 @@ NO_RETURN void KeTerminateThread()
 	Thread->Header.Signaled = true;
 	KiWaitTest(&Thread->Header);
 	
-	KeLowerIPL(Ipl);
+	KiUnlockDispatcher(Ipl);
 	
 	KeYieldCurrentThread();
 	

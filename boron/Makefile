@@ -6,6 +6,7 @@
 # DEBUG flag
 DEBUG ?= yes
 DEBUG2 ?= no
+DWARF_SYMBOLS ?= no
 
 # debug1: general debugging text, works all the time and keeps the
 #   kernel behaving how it should
@@ -51,6 +52,14 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
+# Note: DWARF symbols aren't really reliable on -O2, so best to use no optimization
+# while using them.
+ifeq ($(DWARF_SYMBOLS), yes)
+	DEFINES += -gdwarf-4 -O0
+else
+	DEFINES += -O2
+endif
+
 # It is highly recommended to use a custom built cross toolchain to build a kernel.
 # We are only using "cc" as a placeholder here. It may work by using
 # the host system's toolchain, but this is not guaranteed.
@@ -61,10 +70,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
+CFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
+CXXFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(DDKI_DIR)

@@ -368,28 +368,34 @@ void KiWaitTest(PKDISPATCH_HEADER Object)
 	
 	ASSERT(KiIsObjectSignaled(Object));
 	
+	// TODO: Currently, nothing uses the satisfied counter. I'm not sure of its
+	// reliability - it's proven not to be reliable when I was adding mutexes,
+	// should I remove it?
 	int SatisfiedCount = 0;
 	
-	while (!IsListEmpty(&Object->WaitBlockList))
+	PLIST_ENTRY CurrentEntry = Object->WaitBlockList.Flink;
+	PLIST_ENTRY Head = &Object->WaitBlockList;
+	
+	while (CurrentEntry != Head)
 	{
-		PLIST_ENTRY Entry = Object->WaitBlockList.Flink;
+		PLIST_ENTRY Entry = CurrentEntry;
+		CurrentEntry = CurrentEntry->Flink;
+		
 		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
 		
-		// If we could satisfy the wait block (and the thread is woken up), then
-		// the WaitBlockList may be empty. We don't want to mess with it, unless
-		// the WaitBlockList wasn't actually modified.
+		// If we couldn't satisfy the wait block, skip over it and use the next one.
 		if (!KiSatisfyWaitBlock(WaitBlock))
-			RemoveHeadList(&Object->WaitBlockList);
+			continue;
 		
+		// If we could satisfy the wait block, the list was modified. However,
+		// only "Entry" was removed. So our linked list kept its cohesion and
+		// we can continue looping.
 		SatisfiedCount++;
 		
 		// If the object is a mutex and at least one object was satisfied, stop.
 		if (KepSatisfiedEnough(Object, SatisfiedCount))
 			return;
-		
-		// If the object is a semaphore, check for the Limit field of the semaphore.
 	}
-	
 }
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
