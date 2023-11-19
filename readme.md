@@ -2,7 +2,9 @@
 
 #### EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL
 
-Boron is a 64-bit operating system designed with SMP in mind.
+Boron is a 64-bit operating system designed with SMP in mind. It borrows heavily from Windows NT but does not aim to be a total clone.
+
+Note! Boron is currently not even in a minimally usable state. Don't expect it to do anything.
 
 The project is wholly licensed under the three clause BSD license, **except the following**:
 - Flanterm (source/ha/flanterm): https://github.com/mintsuki/flanterm - Licensed under the two clause BSD license
@@ -42,47 +44,66 @@ Currently, the OS's source is structured into the following:
 Kernel DLL exports will use the prefix `Bn`. I know this isn't the chemical symbol for boron (that being B),
 but it is what it is.
 
-#### Architecture design
-There's hardly a decided architecture design, as this is right now at the experimental stage.
-Here are some ideas. Think of it like a scribble board of randon junk:
-* Worker thread centered design. This can also be interpreted as a clients-server architecture.
-* Each CPU has its own kernel heap. This reduces TLB shootdowns. If there's a need to transfer
-  data between CPUs, one may use an IPI with a list of physical pages.
-* Until swapping to disk is added, use a form of poor man's compression - if a page is filled
-  to the brim with a single byte that fills unspecified criteria, it'll be "compressed" down
-  into a single page entry.
+#### Basic features
 
-#### Primordial tasks
-* [x] Hello World
-* [x] Physical memory manager
-* [x] Safe locking
-* [x] SMP Bootstrap
-* [ ] Inter-processor communication (through IPIs)
-* [ ] Task switching and concurrency
-* [ ] Virtual memory manager
-* [ ] Inter-process communication
+- Portable, layered design
 
-#### Other features
-* [ ] Init ram disk file system
-* [ ] Ext2 file system support
-* [ ] More... (still not decided)
+- Supports SMP from birth
 
-#### Drivers
-* [ ] Limine terminal
-* [ ] PS/2 Keyboard
-* [ ] Own terminal with framebuffer
-* [ ] Serial port
-* [ ] PCI
-* [ ] PS/2 mouse
+- Dynamically linked kernel modules (drivers)
 
-#### User
-* [ ] A hello world
-* [ ] A stable API
-* [ ] A basic shell
-Still to be decided.
+- Hardware abstraction layer which allows for the same kernel to run
+  across different ISAs, loaded as a kernel module
 
-#### Far, far in the future
-* [ ] Compatibility with [NanoShell](https://github.com/iProgramMC/NanoShellOS)?
-* [ ] Networking?
-* [ ] USB (could also backport to NanoShell32 itself)
+- Nested interrupts thanks to IPLs
 
+#### Subsystems
+If an item is checked, that means it's being worked on or is complete. If not, that means that no code is at
+all present related to it.
+
+* [x] Kernel core
+	* [x] Spin locks
+	* [x] IPLs (interrupt priority levels, analogous to NT's IRQL)
+	* [x] Dispatcher (timers, mutexes, events, semaphores...)
+	* [x] Scheduler
+	* [x] DPCs (deferred procedure calls)
+	* [x] Interrupt dispatching
+	* [ ] APCs
+	* [ ] User mode programs
+
+* [x] Memory manager
+	* [x] Page frame database
+	* [x] Mapping and unmapping anonymous memory
+	* [ ] File backed memory
+	* [ ] Swap file support
+	* [ ] Swap out page tables
+	* [ ] Swap out kernel code
+
+* [ ] Object manager
+	* [ ] Object creation
+	* [ ] Object deletion
+	* [ ] Object lookup
+
+* [ ] I/O manager
+	* [ ] I/O Request Packet (IRP)
+	* [ ] Instant completion of IRPs
+	* [ ] Asynchronous completion of IRPs
+
+* [ ] File system manager
+	* [ ] ...
+
+* [ ] Cache manager (later)
+	* [ ] ...
+
+* [ ] User space
+	* [ ] Command line shell
+	* [ ] Test programs
+	* [ ] ...
+	* [ ] Window manager
+	* [ ] ...
+	* [ ] Running NanoShell applications natively???
+	* [ ] ...
+
+* [ ] ...
+
+A lot of this is still work in progress and I have yet to figure out a bunch of stuff, so wish me luck :)
