@@ -1,4 +1,4 @@
-#include "utils.h"
+ #include "utils.h"
 #include "tests.h"
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
@@ -11,8 +11,6 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 		StartRoutine,
 		Parameter);
 	
-	LogMsg("Creating thread %d, it's %p", Parameter, Thread);
-	
 	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
 	
 	KeReadyThread(Thread);
@@ -21,7 +19,8 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
-	PerformMutexTest();
+	//PerformMutexTest();
+	PerformBallTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

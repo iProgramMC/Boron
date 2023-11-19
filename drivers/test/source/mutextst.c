@@ -27,11 +27,11 @@ NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 	
 	DbgPrint("Hello from MutexTestThread #%d", ThreadNum);
 	
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 10; i++)
 	{
-		LogMsg("Thread %d Acquiring Mutex...", ThreadNum);
+		LogMsg("Thread %d Acquiring Mutexes...", ThreadNum);
 		
-		// Acquire the mutex.
+		// Acquire the mutexes.
 		void* Objects[] = { &TestMutex, &TestMutex2 };
 		KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL);
 		
@@ -42,8 +42,8 @@ NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 		KeSetTimer(&Timer, 1000, NULL);
 		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
 		
-		// Finally, release the mutex.
-		LogMsg("Thread %d Releasing Mutex...", ThreadNum);
+		// Finally, release the mutexes.
+		LogMsg("Thread %d Releasing Mutexes...", ThreadNum);
 		KeReleaseMutex(&TestMutex);
 		KeReleaseMutex(&TestMutex2);
 	}

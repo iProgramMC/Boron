@@ -15,4 +15,5 @@ Author:
 #pragma once
 
 void PerformMutexTest(void);
+void PerformBallTest(void);
 
