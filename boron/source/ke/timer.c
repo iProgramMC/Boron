@@ -13,11 +13,28 @@ Author:
 ***/
 #include "ki.h"
 
+// XXX: A tree is better in theory, but is it really in practice?
+
+bool KiRemoveTimerTree(PKTIMER Timer)
+{
+	return ExRemoveItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+}
+
+bool KiInsertTimerTree(PKTIMER Timer)
+{
+	// XXX: What if the key is 32-bit for some reason? Should the key stay 64-bit instead?
+	Timer->EntryTree.Key = Timer->ExpiryTick;
+	
+	return ExInsertItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+}
+
 bool KiCancelTimer(PKTIMER Timer)
 {
 	bool Status = Timer->IsEnqueued;
+	
+	// Note. "IF" check not necessary, but good for an optimization.
 	if (Status)
-		RemoveEntryList(&Timer->EntryQueue);
+		KiRemoveTimerTree(Timer);
 	
 	Timer->IsEnqueued = false;
 	
@@ -37,7 +54,7 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 	bool Status = Timer->IsEnqueued;
 	if (Status) {
 		DbgPrint("KiSetTimer: Timer is already enqueued, removing");
-		RemoveEntryList(&Timer->EntryQueue);
+		KiRemoveTimerTree(Timer);
 	}
 
 	// Calculate the amount of ticks we need to wait.
@@ -46,32 +63,8 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 	
 	Timer->ExpiryTick = ExpiryTick;
 	
-	bool WasEmplaced = false;
-	
-	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
-	
-	// Look for a suitable place to enqueue the timer.
-	PLIST_ENTRY Entry = TimerQueue->Flink;
-	while (Entry != TimerQueue && !WasEmplaced)
-	{
-		// If the current timer object expires later than the new one,
-		// place the new one before the current one.
-		PKTIMER TimerCurrent = CONTAINING_RECORD(Entry, KTIMER, EntryQueue);
-		
-		if (TimerCurrent->ExpiryTick > Timer->ExpiryTick)
-		{
-			InsertTailList(&TimerCurrent->EntryQueue, &Timer->EntryQueue);
-			WasEmplaced = true;
-			break;
-		}
-		
-		Entry = Entry->Flink;
-	}
-	
-	// If we couldn't emplace it, the timer goes later than all other timer objects,
-	// therefore we'll emplace it at the tail.
-	if (!WasEmplaced)
-		InsertTailList(TimerQueue, &Timer->EntryQueue);
+	// Enqueue the timer in the timer tree.
+	KiInsertTimerTree(Timer);
 	
 	Timer->IsEnqueued = true;
 	
@@ -84,12 +77,16 @@ uint64_t KiGetNextTimerExpiryTick()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
+	PAATREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
 	
 	uint64_t Expiry = 0;
 	
-	if (!IsListEmpty(TimerQueue))
-		Expiry = CONTAINING_RECORD(TimerQueue->Flink, KTIMER, EntryQueue)->ExpiryTick;
+	if (!ExIsEmptyAaTree(TimerTree))
+	{
+		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		
+		Expiry = CONTAINING_RECORD(Entry, KTIMER, EntryTree)->ExpiryTick;
+	}
 	
 	return Expiry;
 }
@@ -98,12 +95,16 @@ uint64_t KiGetNextTimerExpiryItTick()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
+	PAATREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
 	
 	uint64_t Expiry = 0;
 	
-	if (!IsListEmpty(TimerQueue))
-		Expiry = CONTAINING_RECORD(TimerQueue->Flink, KTIMER, EntryQueue)->ExpiryTick;
+	if (!ExIsEmptyAaTree(TimerTree))
+	{
+		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		
+		Expiry = CONTAINING_RECORD(Entry, KTIMER, EntryTree)->ExpiryTick;
+	}
 	
 	if (!Expiry)
 		return Expiry;
@@ -119,12 +120,13 @@ void KiDispatchTimerObjects()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PLIST_ENTRY TimerQueue = &KeGetCurrentScheduler()->TimerQueue;
+	PAATREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
 	
-	while (!IsListEmpty(TimerQueue))
+	while (!ExIsEmptyAaTree(TimerTree))
 	{
-		PLIST_ENTRY Entry = TimerQueue->Flink;
-		PKTIMER Timer = CONTAINING_RECORD(Entry, KTIMER, EntryQueue);
+		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		
+		PKTIMER Timer = CONTAINING_RECORD(Entry, KTIMER, EntryTree);
 		
 		if (Timer->ExpiryTick >= HalGetTickCount() + 100)
 			break;
@@ -138,7 +140,7 @@ void KiDispatchTimerObjects()
 		
 		Timer->IsEnqueued = false;
 		
-		RemoveHeadList(TimerQueue);
+		KiRemoveTimerTree(Timer);
 	}
 }
 
@@ -152,8 +154,7 @@ void KeInitializeTimer(PKTIMER Timer)
 	
 	Timer->IsEnqueued = false;
 	
-	Timer->EntryQueue.Flink =
-	Timer->EntryQueue.Blink = NULL;
+	ExInitializeAaTreeEntry(&Timer->EntryTree);
 }
 
 bool KeCancelTimer(PKTIMER Timer)

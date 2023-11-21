@@ -45,7 +45,7 @@ typedef struct
 	
 	PKTHREAD IdleThread;
 	
-	LIST_ENTRY TimerQueue;
+	AATREE TimerTree;
 	
 	EXMEMORY_HANDLE IdleThreadStack;
 	

@@ -20,7 +20,7 @@ typedef struct KTIMER_tag
 {
 	KDISPATCH_HEADER Header;
 	
-	LIST_ENTRY EntryQueue; // Entry in the global timer queue
+	AATREE_ENTRY EntryTree; // Entry in the global timer tree
 	
 	uint64_t ExpiryTick;   // Time at which the timer expires
 	
