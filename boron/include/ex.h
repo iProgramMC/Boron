@@ -17,6 +17,8 @@ Author:
 
 #include <main.h>
 
+#include <ex/aatree.h>
+
 // Four character tag.
 #define EX_TAG(TagStr) (*((int*)TagStr))
 

@@ -1,4 +1,20 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023 iProgramInCpp
+
+Module name:
+	status.h
+	
+Abstract:
+	This header file contains the status code enumeration
+	definition for the Boron operating system.
+	
+Author:
+	iProgramInCpp - 30 October 2023
+***/
 #pragma once
+
+typedef int BSTATUS;
 
 enum
 {
