@@ -17,7 +17,7 @@ Author:
 
 #define P(n) ((void*) (uintptr_t) (n))
 
-#define THREADCOUNT 20
+#define THREADCOUNT 64
 
 void PerformDelay(int Ms, PKDPC Dpc)
 {
@@ -123,7 +123,7 @@ NO_RETURN void BallTest()
 	int TickCounter = 0;
 	
 	// Perform initial delay before balls show up
-	PerformDelay(2000, &DrvDpc);
+	PerformDelay(2000 + RNGRange(0, 1000), &DrvDpc);
 	
 	bool FirstTick = true;
 	
@@ -171,7 +171,7 @@ NO_RETURN void BallTest()
 		
 		FirstTick = false;
 		
-		PerformDelay(16 + (TickCounter != 0), &DrvDpc);
+		PerformDelay(200 + RNGRange(0, 400), &DrvDpc);//16 + (TickCounter != 0), &DrvDpc);
 		TickCounter++;
 		if (TickCounter > 3)
 			TickCounter = 0;

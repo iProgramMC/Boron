@@ -60,7 +60,9 @@ PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE Tree);
 
 PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE Tree);
 
-size_t ExGetSizeAaTree(PAATREE Tree);
+size_t ExGetItemCountAaTree(PAATREE Tree);
+
+size_t ExGetHeightAaTree(PAATREE Tree);
 
 void ExTraverseInOrderAaTree(
 	PAATREE Tree,

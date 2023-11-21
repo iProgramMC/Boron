@@ -255,12 +255,26 @@ static PAATREE_ENTRY EiLookUpItemAaTree(PAATREE_ENTRY Root, AATREE_KEY Key)
 		return EiLookUpItemAaTree(Root->Rlink, Key);
 }
 
-size_t EiGetSizeAaTree(PAATREE_ENTRY Root)
+size_t EiGetItemCountAaTree(PAATREE_ENTRY Root)
 {
 	if (!Root)
 		return 0;
 
-	return 1 + EiGetSizeAaTree(Root->Llink) + EiGetSizeAaTree(Root->Rlink);
+	return 1 + EiGetItemCountAaTree(Root->Llink) + EiGetItemCountAaTree(Root->Rlink);
+}
+
+size_t EiGetHeightAaTree(PAATREE_ENTRY Root)
+{
+	if (!Root)
+		return 0;
+	
+	size_t Max = EiGetHeightAaTree(Root->Llink);
+	size_t RLS = EiGetHeightAaTree(Root->Rlink);
+	
+	if (Max < RLS)
+		Max = RLS;
+	
+	return Max + 1;
 }
 
 static PAATREE_ENTRY EiGetFirstEntryAaTree(PAATREE_ENTRY Root)
@@ -318,9 +332,14 @@ PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE Tree)
 	return EiGetLastEntryAaTree(Tree->Root);
 }
 
-size_t ExGetSizeAaTree(PAATREE Tree)
+size_t ExGetItemCountAaTree(PAATREE Tree)
 {
-	return EiGetSizeAaTree(Tree->Root);
+	return EiGetItemCountAaTree(Tree->Root);
+}
+
+size_t ExGetHeightAaTree(PAATREE Tree)
+{
+	return EiGetHeightAaTree(Tree->Root);
 }
 
 // TRAVERSE

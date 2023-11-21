@@ -122,6 +122,11 @@ void KiDispatchTimerObjects()
 	
 	PAATREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
 	
+#ifdef DEBUG
+	//size_t TreeSize = ExGetItemCountAaTree(TimerTree), TreeHeight = ExGetHeightAaTree(TimerTree);
+	//DbgPrint("Tree Size %zu And Height %zu", TreeSize, TreeHeight);
+#endif
+	
 	while (!ExIsEmptyAaTree(TimerTree))
 	{
 		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
