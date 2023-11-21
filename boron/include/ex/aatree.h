@@ -32,32 +32,47 @@ struct AATREE_ENTRY_tag
 	// Value is CONTAINING_RECORD(whatever);
 };
 
+typedef struct AATREE_tag
+{
+	PAATREE_ENTRY Root;
+}
+AATREE, *PAATREE;
+
+#define ExInitializeAaTree(t) \
+	((t)->Root = NULL)
+
+#define ExIsEmptyAaTree(t) \
+	((t)->Root == NULL)
+
+#define ExInitializeAaTreeEntry(t) \
+	((t)->Llink = (t)->Rlink = NULL, (t)->Key = 0, (t)->Level = 0)
+
 // Note: `Item` only has its key set up. Everything
 // else will be set up by the function.
 // Returns the new root, and whether the entry is now in the tree.
-PAATREE_ENTRY ExInsertAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted);
+bool ExInsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
 
-PAATREE_ENTRY ExDeleteAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item);
+bool ExRemoveItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
 
-PAATREE_ENTRY ExLookUpAaTree(PAATREE_ENTRY Root, AATREE_KEY Key);
+PAATREE_ENTRY ExLookUpItemAaTree(PAATREE Tree, AATREE_KEY Key);
 
-PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE_ENTRY Root);
+PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE Tree);
 
-PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE_ENTRY Root);
+PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE Tree);
 
-size_t ExGetSizeAaTree(PAATREE_ENTRY Root);
+size_t ExGetSizeAaTree(PAATREE Tree);
 
 void ExTraverseInOrderAaTree(
-	PAATREE_ENTRY Root,
+	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
 
 void ExTraversePreOrderAaTree(
-	PAATREE_ENTRY Root,
+	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
 
 void ExTraversePostOrderAaTree(
-	PAATREE_ENTRY Root,
+	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);

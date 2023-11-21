@@ -58,9 +58,9 @@ static PAATREE_ENTRY EiSplitAaTree(PAATREE_ENTRY Root)
 	return Temp;
 }
 
-PAATREE_ENTRY ExInsertAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted)
+static PAATREE_ENTRY EiInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted)
 {
-	// Optimistically assume this is the case.
+	// Optimistically assume the item will be inserted.
 	*Inserted = true;
 
 	if (!Root)
@@ -73,12 +73,12 @@ PAATREE_ENTRY ExInsertAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inser
 	else if (Item->Key < Root->Key)
 	{
 		// Perform insertion recursively in the Llink entry.
-		Root->Llink = ExInsertAaTree(Root->Llink, Item, Inserted);
+		Root->Llink = EiInsertItemAaTree(Root->Llink, Item, Inserted);
 	}
 	else if (Item->Key > Root->Key)
 	{
 		// Perform insertion recursively in the Llink entry.
-		Root->Rlink = ExInsertAaTree(Root->Rlink, Item, Inserted);
+		Root->Rlink = EiInsertItemAaTree(Root->Rlink, Item, Inserted);
 	}
 	else
 	{
@@ -144,7 +144,7 @@ static PAATREE_ENTRY EiSuccessorAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY** SuLin
 	return Successor;
 }
 
-PAATREE_ENTRY ExDeleteAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item)
+static PAATREE_ENTRY EiRemoveItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Removed)
 {
 	if (!Root)
 		return Root;
@@ -152,20 +152,26 @@ PAATREE_ENTRY ExDeleteAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item)
 	if (Root->Key != Item->Key)
 	{
 		if (Item->Key < Root->Key)
-			Root->Llink = ExDeleteAaTree(Root->Llink, Item);
+			Root->Llink = EiRemoveItemAaTree(Root->Llink, Item, Removed);
 		else
-			Root->Rlink = ExDeleteAaTree(Root->Rlink, Item);
+			Root->Rlink = EiRemoveItemAaTree(Root->Rlink, Item, Removed);
 		goto Rebalance;
 	}
 
-	if (EiIsLeafAaTree(Root))
+	if (EiIsLeafAaTree(Root)) {
+		*Removed = true;
 		return NULL;
+	}
 
-	if (Root->Rlink == NULL)
+	if (Root->Rlink == NULL) {
+		*Removed = true;
 		return Root->Llink;
+	}
 
-	if (Root->Llink == NULL)
+	if (Root->Llink == NULL) {
+		*Removed = true;
 		return Root->Rlink;
+	}
 
 	PAATREE_ENTRY* SuLink;
 	PAATREE_ENTRY Successor = EiSuccessorAaTree(Root, &SuLink);
@@ -180,10 +186,9 @@ PAATREE_ENTRY ExDeleteAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item)
 	*SuLink = NULL;
 
 	Root = Successor;
-
-	// TODO: Fix degeneration into a linked list.
-	// At least it's currently better than a dumb binary search tree :)
-
+	
+	*Removed = true;
+	
 Rebalance:
 	Root = EiDecreaseLevelAaTree(Root);
 	Root = EiSkewAaTree(Root);
@@ -197,7 +202,7 @@ Rebalance:
 	return Root;
 }
 
-void ExTraverseInOrderAaTree(
+static void EiTraverseInOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
@@ -205,12 +210,12 @@ void ExTraverseInOrderAaTree(
 	if (!Root)
 		return;
 
-	ExTraverseInOrderAaTree(Root->Llink, Function, Context);
+	EiTraverseInOrderAaTree(Root->Llink, Function, Context);
 	Function(Context, Root);
-	ExTraverseInOrderAaTree(Root->Rlink, Function, Context);
+	EiTraverseInOrderAaTree(Root->Rlink, Function, Context);
 }
 
-void ExTraversePreOrderAaTree(
+static void EiTraversePreOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
@@ -219,11 +224,11 @@ void ExTraversePreOrderAaTree(
 		return;
 
 	Function(Context, Root);
-	ExTraversePreOrderAaTree(Root->Llink, Function, Context);
-	ExTraversePreOrderAaTree(Root->Rlink, Function, Context);
+	EiTraversePreOrderAaTree(Root->Llink, Function, Context);
+	EiTraversePreOrderAaTree(Root->Rlink, Function, Context);
 }
 
-void ExTraversePostOrderAaTree(
+static void EiTraversePostOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
@@ -231,12 +236,12 @@ void ExTraversePostOrderAaTree(
 	if (!Root)
 		return;
 
-	ExTraversePostOrderAaTree(Root->Llink, Function, Context);
-	ExTraversePostOrderAaTree(Root->Rlink, Function, Context);
+	EiTraversePostOrderAaTree(Root->Llink, Function, Context);
+	EiTraversePostOrderAaTree(Root->Rlink, Function, Context);
 	Function(Context, Root);
 }
 
-PAATREE_ENTRY ExLookUpAaTree(PAATREE_ENTRY Root, AATREE_KEY Key)
+static PAATREE_ENTRY EiLookUpItemAaTree(PAATREE_ENTRY Root, AATREE_KEY Key)
 {
 	if (!Root)
 		return NULL;
@@ -245,20 +250,20 @@ PAATREE_ENTRY ExLookUpAaTree(PAATREE_ENTRY Root, AATREE_KEY Key)
 		return Root;
 
 	if (Key < Root->Key)
-		return ExLookUpAaTree(Root->Llink, Key);
+		return EiLookUpItemAaTree(Root->Llink, Key);
 	else
-		return ExLookUpAaTree(Root->Rlink, Key);
+		return EiLookUpItemAaTree(Root->Rlink, Key);
 }
 
-size_t ExGetSizeAaTree(PAATREE_ENTRY Root)
+size_t EiGetSizeAaTree(PAATREE_ENTRY Root)
 {
 	if (!Root)
 		return 0;
 
-	return 1 + ExGetSizeAaTree(Root->Llink) + ExGetSizeAaTree(Root->Rlink);
+	return 1 + EiGetSizeAaTree(Root->Llink) + EiGetSizeAaTree(Root->Rlink);
 }
 
-PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE_ENTRY Root)
+static PAATREE_ENTRY EiGetFirstEntryAaTree(PAATREE_ENTRY Root)
 {
 	if (!Root)
 		return NULL;
@@ -269,7 +274,7 @@ PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE_ENTRY Root)
 	return Root;
 }
 
-PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE_ENTRY Root)
+static PAATREE_ENTRY EiGetLastEntryAaTree(PAATREE_ENTRY Root)
 {
 	if (!Root)
 		return NULL;
@@ -278,4 +283,67 @@ PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE_ENTRY Root)
 		Root = Root->Rlink;
 
 	return Root;
+}
+
+// ------- Exposed API -------
+
+// WRITE
+bool ExInsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item)
+{
+	bool Inserted = false;
+	Tree->Root = EiInsertItemAaTree(Tree->Root, Item, &Inserted);
+	return Inserted;
+}
+
+bool ExRemoveItemAaTree(PAATREE Tree, PAATREE_ENTRY Item)
+{
+	bool Removed = false;
+	Tree->Root = EiRemoveItemAaTree(Tree->Root, Item, &Removed);
+	return Removed;
+}
+
+// READ
+PAATREE_ENTRY ExLookUpItemAaTree(PAATREE Tree, AATREE_KEY Key)
+{
+	return EiLookUpItemAaTree(Tree->Root, Key);
+}
+
+PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE Tree)
+{
+	return EiGetFirstEntryAaTree(Tree->Root);
+}
+
+PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE Tree)
+{
+	return EiGetLastEntryAaTree(Tree->Root);
+}
+
+size_t ExGetSizeAaTree(PAATREE Tree)
+{
+	return EiGetSizeAaTree(Tree->Root);
+}
+
+// TRAVERSE
+void ExTraverseInOrderAaTree(
+	PAATREE Tree,
+	PAATREE_TRAVERSAL_FUNCTION Function,
+	void* Context)
+{
+	EiTraverseInOrderAaTree(Tree->Root, Function, Context);
+}
+
+void ExTraversePreOrderAaTree(
+	PAATREE Tree,
+	PAATREE_TRAVERSAL_FUNCTION Function,
+	void* Context)
+{
+	EiTraversePreOrderAaTree(Tree->Root, Function, Context);
+}
+
+void ExTraversePostOrderAaTree(
+	PAATREE Tree,
+	PAATREE_TRAVERSAL_FUNCTION Function,
+	void* Context)
+{
+	EiTraversePostOrderAaTree(Tree->Root, Function, Context);
 }
