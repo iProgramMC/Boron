@@ -15,11 +15,10 @@ Author:
 ***/
 #include <main.h>
 #include <arch.h>
-#include <hal.h>
-#include <ke.h>
 #include <mm.h>
 #include <string.h>
 #include "pio.h"
+#include "../../ke/ki.h"
 
 void KeWaitForNextInterrupt()
 {
@@ -143,15 +142,7 @@ static void KepSetupTss(KTSS* Tss)
 
 void KeInitCPU()
 {
-	// create a new page mapping based on the one that already exists:
-	uintptr_t Map = MmCreatePageMapping(KeGetCurrentPageTable());
-	if (Map == 0)
-	{
-		LogMsg("Error, mapping is zero");
-		KeStopCurrentCPU();
-	}
-	
-	KeSetCurrentPageTable(Map);
+	KiSwitchToAddressSpaceProcess(KeGetSystemProcess());
 	
 	int ispPFN = MmAllocatePhysicalPage();
 	

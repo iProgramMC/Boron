@@ -130,7 +130,7 @@ void KeSchedulerInit()
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
-	KeInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL);
+	KiInitializeThread(Thread, EX_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL, KeGetSystemProcess());
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
 	KiReadyThread(Thread);
 	
@@ -252,6 +252,11 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	
 	// Remove the thread from the local list of threads.
 	RemoveEntryList(&Thread->EntryList);
+	
+	// Remove the thread from the parent process' list of threads.
+	RemoveEntryList(&Thread->EntryProc);
+	
+	// TODO: Signal the parent process object if the list of threads is empty.
 	
 	// Finally, signal all threads that are waiting on this thread.
 	// Signaling NOW and not in KeTerminateThread prevents a race condition where

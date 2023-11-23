@@ -9,7 +9,8 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 		Thread,
 		EX_NO_MEMORY_HANDLE,
 		StartRoutine,
-		Parameter);
+		Parameter,
+		KeGetSystemProcess());
 	
 	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
 	

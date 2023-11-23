@@ -60,4 +60,8 @@ void KiAssertOwnDispatcherLock_(const char* FunctionName);
 #define KiAssertOwnDispatcherLock()
 #endif
 
+void KiSwitchToAddressSpaceProcess(PKPROCESS Process);
+
+void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+
 #endif//BORON_KE_KI_H

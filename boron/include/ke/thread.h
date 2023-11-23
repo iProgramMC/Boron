@@ -64,7 +64,7 @@ struct KTHREAD_tag
 	
 	bool Detached;
 	
-	// TODO Parent Process Pointer
+	PKPROCESS Process;
 	
 	int Status;
 	
@@ -92,6 +92,8 @@ struct KTHREAD_tag
 	
 	uint64_t QuantumUntil;
 	
+	KAFFINITY Affinity;
+	
 	KDPC WaitDpc;
 	
 	KTIMER WaitTimer;
@@ -99,6 +101,8 @@ struct KTHREAD_tag
 	KDPC DeleteDpc;
 	
 	LIST_ENTRY MutexList;
+	
+	PKPROCESS AttachedProcess;
 };
 
 // Creates an empty, uninitialized, thread object.
@@ -113,10 +117,11 @@ int KeReadStateThread(PKTHREAD Thread);
 
 // Detaches a thread. This involves automatic cleanup through KeDeallocateThread.
 // Don't call if the thread instance wasn't allocated with KeAllocateThread.
+// After the call, treat Thread as an invalid pointer and throw it away.
 void KeDetachThread(PKTHREAD Thread);
 
 // Initializes the thread object.
-void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext);
+void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 // Readies the thread object for execution.
 // Note. Don't call this more than once per thread! Bad things will happen!!

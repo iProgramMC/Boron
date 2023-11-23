@@ -10,7 +10,7 @@ Abstract:
 	handlers.
 	
 Author:
-	iProgramInCpp - 13 Octobebr 2023
+	iProgramInCpp - 13 October 2023
 ***/
 
 #include "ki.h"

@@ -6,8 +6,9 @@ Module name:
 	ke/thread.c
 	
 Abstract:
-	This header file contains the implementation of the
-	thread object.
+	This module implements the kernel thread object. Functions
+	to allocate, deallocate, detach, initialize, and yield, are
+	provided.
 	
 Author:
 	iProgramInCpp - 2 October 2023
@@ -15,6 +16,42 @@ Author:
 #include "ki.h"
 
 void KeYieldCurrentThreadSub(); // trap.asm
+
+void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+{
+	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
+	
+	if (!KernelStack)
+		KernelStack = ExAllocatePool(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, EX_TAG("ThSt"));
+	
+	Thread->StartRoutine = StartRoutine;
+	Thread->StartContext = StartContext;
+	
+	Thread->Stack.Top    = ExGetAddressFromHandle(KernelStack);
+	Thread->Stack.Size   = ExGetSizeFromHandle(KernelStack) * PAGE_SIZE;
+	Thread->Stack.Handle = KernelStack;
+	
+	KiSetupRegistersThread(Thread);
+	
+	// Despite that the entry list will be part of the scheduler's thread list, it currently isn't part
+	// of the scheduler. Initialize it as an empty list head so we can check it in KeSetPriorityThread.
+	InitializeListHead(&Thread->EntryQueue);
+	
+	// Initialize other resource lists.
+	InitializeListHead(&Thread->MutexList);
+	
+	Thread->Process = Process;
+	
+	// Copy defaults from process.
+	Thread->Priority = Process->DefaultPriority;
+	Thread->Affinity = Process->DefaultAffinity;
+	
+	// Mark thread as initialized.
+	Thread->Status = KTHREAD_STATUS_INITIALIZED;
+	
+	// Add thread to process' thread list.
+	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
+}
 
 PKTHREAD KeAllocateThread()
 {
@@ -46,36 +83,11 @@ void KeDetachThread(PKTHREAD Thread)
 	// that the write is atomic - we lock the dispatcher to make sure we
 	// don't actually interfere with its operation.
 	KIPL Ipl = KiLockDispatcher();
+	
 	ASSERT(!Thread->Detached);
 	Thread->Detached = true;
+	
 	KiUnlockDispatcher(Ipl);
-}
-
-// TODO: Process Parameter at the end (PKPROCESS Process)
-void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext)
-{
-	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
-	
-	if (!KernelStack)
-		KernelStack = ExAllocatePool(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, EX_TAG("ThSt"));
-	
-	Thread->StartRoutine = StartRoutine;
-	Thread->StartContext = StartContext;
-	
-	Thread->Stack.Top    = ExGetAddressFromHandle(KernelStack);
-	Thread->Stack.Size   = ExGetSizeFromHandle(KernelStack) * PAGE_SIZE;
-	Thread->Stack.Handle = KernelStack;
-	
-	KiSetupRegistersThread(Thread);
-	
-	// Despite that the entry list will be part of the scheduler's thread list, it currently isn't part
-	// of the scheduler. Initialize it as an empty list head so we can check it in KeSetPriorityThread.
-	InitializeListHead(&Thread->EntryQueue);
-	
-	// Initialize other resource lists.
-	InitializeListHead(&Thread->MutexList);
-	
-	Thread->Status = KTHREAD_STATUS_INITIALIZED;
 }
 
 void KeYieldCurrentThread()
@@ -92,4 +104,13 @@ void KeYieldCurrentThread()
 	KeYieldCurrentThreadSub();
 	
 	KeLowerIPL(Ipl);
+}
+
+void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+{
+	KIPL Ipl = KiLockDispatcher();
+	
+	KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
+	
+	KiUnlockDispatcher(Ipl);
 }

@@ -41,12 +41,6 @@ bool KiCancelTimer(PKTIMER Timer)
 	return Status;
 }
 
-bool KeReadStateTimer(PKTIMER Timer)
-{
-	ASSERT_TIMER(Timer);
-	return AtLoad(Timer->Header.Signaled);
-}
-
 bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 {
 	KiAssertOwnDispatcherLock();
@@ -150,6 +144,12 @@ void KiDispatchTimerObjects()
 }
 
 // -------- Exposed API --------
+
+bool KeReadStateTimer(PKTIMER Timer)
+{
+	ASSERT_TIMER(Timer);
+	return AtLoad(Timer->Header.Signaled);
+}
 
 void KeInitializeTimer(PKTIMER Timer)
 {

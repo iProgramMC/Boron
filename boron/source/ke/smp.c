@@ -143,7 +143,8 @@ NO_RETURN void KeInitSMP()
 	
 	KeBootstrapLapicId = pSMP->bsp_lapic_id;
 	
-	const uint64_t ProcessorLimit = 512;
+	// TODO, restore to 512. Affinity is a bit mask, and there's no uint512_t. Use a bitmap instead later if you care.
+	const uint64_t ProcessorLimit = 64;
 	
 	if (pSMP->cpu_count > ProcessorLimit)
 	{
@@ -196,6 +197,13 @@ NO_RETURN void KeInitSMP()
 	
 	// phase 1 of HAL initialization on the BSP:
 	HalInitSystemUP();
+	
+	// Initialize system process.
+	KeInitializeProcess(
+		KeGetSystemProcess(),
+		PRIORITY_NORMAL,
+		AFFINITY_ALL
+	);
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), November 2023 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);

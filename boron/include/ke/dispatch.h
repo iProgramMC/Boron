@@ -25,7 +25,6 @@ typedef struct KDISPATCH_HEADER_tag
 	uint8_t Type;
 	uint8_t Spare1;
 	short   Signaled;
-	int     ProcId;   // Owner processor ID
 	
 	LIST_ENTRY WaitBlockList;
 }
@@ -65,3 +64,4 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 #include "event.h"
 #include "mutex.h"
 #include "semaphor.h"
+#include "process.h"

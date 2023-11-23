@@ -43,7 +43,6 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type)
 {
 	Object->Type     = Type;
 	Object->Signaled = false;
-	Object->ProcId   = KeGetCurrentPRCB()->Id;
 	
 	// Note. If a mutex, it's signaled by default until acquired.
 	
