@@ -234,7 +234,6 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 
 static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* SystemArgument1, UNUSED void* SystemArgument2)
 {
-	DbgPrint("KepCleanUpThread %p", ContextV);
 	KiAssertOwnDispatcherLock();
 	
 	PKTHREAD Thread = ContextV;
@@ -274,6 +273,14 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	// Therefore we DO NOT wait-test a thread UNTIL it is ready.
 	Thread->Header.Signaled = true;
 	KiWaitTest(&Thread->Header);
+	
+	// TODO: If the main thread died, send a kernel APC to all other threads to also terminate.
+	
+	if (IsListEmpty(&Thread->Process->ThreadList))
+	{
+		KiOnKillProcess(Thread->Process);
+		Thread->Process = NULL;
+	}
 	
 	// If the thread is detached, deallocate it.
 	if (Thread->Detached)

@@ -22,6 +22,28 @@ void KiSwitchToAddressSpaceProcess(PKPROCESS Process)
 	KeSetCurrentPageTable(Process->PageMap);
 }
 
+void KiOnKillProcess(PKPROCESS Process)
+{
+	// Process was killed.  This is called from the last thread's DPC routine.
+	// The thread's kernel stack is no longer used and we've long since switched
+	// to a different process' address space.
+	ASSERT(KeGetCurrentProcess() != Process);
+	
+	// Delete the page mapping.
+	// TODO
+	
+	// Close any open resources.
+	// TODO
+	
+	// Signal all threads that are waiting on this process.
+	// Here it's simpler because this IS where the process is killed!
+	Process->Header.Signaled = true;
+	KiWaitTest(&Process->Header);
+	
+	if (Process->Detached)
+		KeDeallocateProcess(Process);
+}
+
 // ------- Exposed API -------
 
 PKPROCESS KeGetCurrentProcess()

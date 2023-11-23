@@ -51,6 +51,8 @@ void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_S
 	
 	// Add thread to process' thread list.
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
+	
+	// TODO: If the list was empty before, mark this as the main thread.
 }
 
 PKTHREAD KeAllocateThread()
