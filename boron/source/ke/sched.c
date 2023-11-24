@@ -351,6 +351,16 @@ bool KiNeedToSwitchThread()
 	return Scheduler->NextThread != NULL;
 }
 
+// Get the process to switch the current address space to.
+// It can either be the attached process, or the thread's process,
+// if nothing is attached.
+static PKPROCESS KepGetProcessToSwitchAddressSpaceTo(PKTHREAD Thread)
+{
+	return Thread->AttachedProcess ?
+	       Thread->AttachedProcess :
+	       Thread->Process;
+}
+
 PKREGISTERS KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
@@ -378,6 +388,12 @@ PKREGISTERS KiSwitchToNextThread()
 	KiAssignDefaultQuantum(Thread);
 	
 	Scheduler->QuantumUntil = Thread->QuantumUntil;
+	
+	// Switch to thread's process' address space.
+	PKPROCESS DestProcess = KepGetProcessToSwitchAddressSpaceTo(Thread);
+	
+	if (MmGetCurrentPageMap() != DestProcess->PageMap)
+		KiSwitchToAddressSpaceProcess(DestProcess);
 	
 	return Thread->State;
 }
