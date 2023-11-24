@@ -16,6 +16,8 @@ Author:
 
 #include "mi.h"
 
+static KSPIN_LOCK MmpKernelSpaceLock;
+
 // forces all cores to issue a TLB shootdown (invalidate the address from the
 // TLB - with invlpg on amd64 for instance)
 void MmIssueTLBShootDown(uintptr_t Address, size_t Length)
@@ -32,4 +34,16 @@ void MmInitAllocators()
 {
 	MiInitSlabs();
 	MiInitPool();
+}
+
+KIPL MmLockKernelSpace()
+{
+	KIPL ReturnIpl;
+	KeAcquireSpinLock(&MmpKernelSpaceLock, &ReturnIpl);
+	return ReturnIpl;
+}
+
+void MmUnlockKernelSpace(KIPL OldIpl)
+{
+	KeReleaseSpinLock(&MmpKernelSpaceLock, OldIpl);
 }

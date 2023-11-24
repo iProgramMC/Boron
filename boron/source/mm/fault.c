@@ -18,9 +18,15 @@ Author:
 // Returns: Whether the page fault was fixed or not
 int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
+	KIPL Ipl;
+	bool IsKernelSpace = false;
+	
 #ifdef DEBUG2
 	DbgPrint("Handling page fault at PC=%p ADDR=%p MODE=%p", FaultPC, FaultAddress, FaultMode);
 #endif
+	
+	if (FaultAddress >= MM_KERNEL_SPACE_BASE)
+		IsKernelSpace = true;
 	
 	if (KeGetIPL() >= IPL_DPC)
 	{
@@ -31,6 +37,9 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 		
 		return FAULT_HIGHIPL;
 	}
+	
+	// However, page faults aren't handled at IPL_DPC, but at the IPL of the thread.
+	// Think of a page fault like a sort of forced, and often unexpected, system call.
 	
 	// Check the fault reason.
 	if (FaultMode & MM_FAULT_PROTECTION)
@@ -47,13 +56,21 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 	}
 	else
 	{
+		if (IsKernelSpace)
+			Ipl = MmLockKernelSpace();
+		
 		// The PTE was not marked present. Let's see what we're dealing with here
 		PMMPTE Pte = MmGetPTEPointer(MmGetCurrentPageMap(), FaultAddress, false);
 		
 		// If we don't have a PTE here, that means that we didn't mess with anything around there,
 		// thus we should return..
 		if (!Pte)
+		{
+			if (IsKernelSpace)
+				MmUnlockKernelSpace(Ipl);
+			
 			return FAULT_UNMAPPED;
+		}
 		
 		// Is the PTE demand paged?
 		if (*Pte & MM_DPTE_DEMANDPAGED)
@@ -66,6 +83,10 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 				// Error: Out of memory! This is bad, but we can check if we can do anything to fix it.
 				// TODO
 				DbgPrint("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
+				
+				if (IsKernelSpace)
+					MmUnlockKernelSpace(Ipl);
+				
 				return FAULT_OUTOFMEMORY;
 			}
 			
@@ -77,9 +98,15 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 			NewPte &= ~MM_PTE_PKMASK;
 			*Pte = NewPte;
 			
+			if (IsKernelSpace)
+				MmUnlockKernelSpace(Ipl);
+			
 			// Fault was handled successfully.
 			return FAULT_HANDLED;
 		}
+		
+		if (IsKernelSpace)
+			MmUnlockKernelSpace(Ipl);
 		
 		// TODO
 		return FAULT_UNSUPPORTED;

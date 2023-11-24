@@ -40,10 +40,15 @@ HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 		NewPageMappingAccess[i] = 0;
 	}
 	
+	// Lock the kernel space's lock to not get any surprises.
+	KIPL Ipl = MmLockKernelSpace();
+	
 	for (int i = 256; i < 512; i++)
 	{
 		NewPageMappingAccess[i] = OldPageMappingAccess[i];
 	}
+	
+	MmUnlockKernelSpace(Ipl);
 	
 	return (HPAGEMAP) NewPageMappingResult;
 }

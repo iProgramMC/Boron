@@ -13,6 +13,8 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 
 // Note! Most of these are going to be present everywhere we'll port to.
 
+#define MM_KERNEL_SPACE_BASE (0xFFFF800000000000)
+
 // memory layout:
 // hhdm base - FFFF'8000'0000'0000 - FFFF'80FF'FFFF'FFFF (usually. Could be different, but it'd better not be!)
 // PFN DB    - FFFF'A000'0000'0000 - FFFF'A00F'FFFF'FFFF (for the physical addresses, doubt you need more than 48 bits)

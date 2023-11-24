@@ -18,6 +18,8 @@ Author:
 
 // Big thanks to https://github.com/DeanoBurrito/northport for help implementing the dynamic linker.
 
+// Note: DLL loading is done during UP initialization, so there is no need to acquire the kernel space's lock.
+
 #ifdef DEBUG2
 #define DbgPrint2(...) DbgPrint(__VA_ARGS__)
 #else

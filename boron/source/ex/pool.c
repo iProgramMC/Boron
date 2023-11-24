@@ -42,12 +42,17 @@ EXMEMORY_HANDLE ExAllocatePool(int PoolFlags, size_t SizeInPages, void** OutputA
 		if (PoolFlags & POOL_FLAG_NON_PAGED)
 			NonPaged = true;
 		
+		KIPL Ipl = MmLockKernelSpace();
+		
 		// Map the memory in!  Ideally this will affect ALL page maps
 		if (!MmMapAnonPages(MmGetCurrentPageMap(), (uintptr_t) *OutputAddress, SizeInPages, MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL, NonPaged))
 		{
+			MmUnlockKernelSpace(Ipl);
 			MiFreePoolSpace((MIPOOL_SPACE_HANDLE) OutHandle);
 			return (EXMEMORY_HANDLE) 0;
 		}
+		
+		MmUnlockKernelSpace(Ipl);
 	}
 	
 	return OutHandle;
@@ -59,10 +64,14 @@ void ExFreePool(EXMEMORY_HANDLE Handle)
 	
 	if (~PoolFlags & POOL_FLAG_USER_CONTROLLED)
 	{
+		KIPL Ipl = MmLockKernelSpace();
+		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MmUnmapPages(MmGetCurrentPageMap(),
 					 (uintptr_t)ExGetAddressFromHandle(Handle),
 					 ExGetSizeFromHandle(Handle));
+		
+		MmUnlockKernelSpace(Ipl);
 	}
 	
 	// Then release its pool space handle

@@ -15,6 +15,9 @@ Author:
 #ifndef BORON_MM_PT_H
 #define BORON_MM_PT_H
 
+#include <ke/ipl.h>
+#include <ke/locks.h>
+
 // handle to a page mapping.
 typedef uintptr_t HPAGEMAP;
 
@@ -30,6 +33,12 @@ enum
 
 // WARNING! The HPAGEMAP object is not thread safe! So please take care of thread safety yourself.
 // Ideally the address space of a process will be managed by some other structure.
+
+// Acquires the lock that guards the kernel's half of the address space.
+KIPL MmLockKernelSpace();
+
+// Releases the lock that guards the kernel's half of the address space.
+void MmUnlockKernelSpace(KIPL);
 
 // Gets the current page mapping.
 HPAGEMAP MmGetCurrentPageMap();
