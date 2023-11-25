@@ -103,6 +103,12 @@ struct KTHREAD_tag
 	LIST_ENTRY MutexList;
 	
 	PKPROCESS AttachedProcess;
+	
+	// Whether the thread is in MmProbeAddress.  This value is preserved
+	// because we don't want to disable interrupts during the probe, but
+	// we also don't want other threads' invalid page faults to jump to
+	// the alternative exit.
+	bool Probing;
 };
 
 // Creates an empty, uninitialized, thread object.

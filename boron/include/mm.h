@@ -19,6 +19,7 @@ PageMapLevel;
 #include <mm/pfn.h>
 #include <mm/pmm.h>
 #include <mm/pt.h>
+#include <mm/probe.h>
 
 // Initialize the allocators.
 void MmInitAllocators();

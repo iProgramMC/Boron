@@ -144,7 +144,7 @@ void KiExitHardwareInterrupt(int OldIpl)
 // Generic interrupt handler. Used in case an interrupt is not implemented
 PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
 {
-	KeOnUnknownInterrupt(Regs->rip, Regs->IntNumber);
+	KeOnUnknownInterrupt(Regs);
 	return Regs;
 }
 
@@ -157,19 +157,19 @@ PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs)
 
 PKREGISTERS KiHandleDoubleFault(PKREGISTERS Regs)
 {
-	KeOnDoubleFault(Regs->rip);
+	KeOnDoubleFault(Regs);
 	return Regs;
 }
 
 PKREGISTERS KiHandleProtectionFault(PKREGISTERS Regs)
 {
-	KeOnProtectionFault(Regs->rip);
+	KeOnProtectionFault(Regs);
 	return Regs;
 }
 
 PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
 {
-	KeOnPageFault(Regs->rip, Regs->cr2, Regs->ErrorCode);
+	KeOnPageFault(Regs);
 	return Regs;
 }
 

@@ -1,4 +1,4 @@
- #include "utils.h"
+#include "utils.h"
 #include "tests.h"
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
@@ -20,8 +20,9 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
+	PerformProcessTest();
 	//PerformMutexTest();
-	PerformBallTest();
+	//PerformBallTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

@@ -4,9 +4,9 @@
 
 #include <main.h>
 
-void KeOnUnknownInterrupt(uintptr_t FaultPC, uintptr_t Vector);
-void KeOnDoubleFault(uintptr_t FaultPC);
-void KeOnProtectionFault(uintptr_t FaultPC);
-void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
+void KeOnUnknownInterrupt(PKREGISTERS);
+void KeOnDoubleFault(PKREGISTERS);
+void KeOnProtectionFault(PKREGISTERS);
+void KeOnPageFault(PKREGISTERS);
 
 #endif//NS64_EXCEPT_H

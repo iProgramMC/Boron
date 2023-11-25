@@ -78,6 +78,14 @@ MyFunction(
 );
 ```
 
+However, you can do something like that in calls:
+```c
+MyFunction(
+	arg1,
+	arg2,
+	arg3
+);
+
 And especially don't split the declaration if it isn't warranted. So something like this is totally OK: ```c
 void KeWaitForMultipleObjects(
 	int Count,

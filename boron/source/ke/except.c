@@ -16,8 +16,20 @@ Author:
 #include "ki.h"
 #include <mm.h>
 
-void KeOnUnknownInterrupt(uintptr_t FaultPC, uintptr_t Vector)
+#ifdef TARGET_AMD64
+#define KI_EXCEPTION_HANDLER_INIT() \
+	UNUSED uint64_t FaultPC = TrapFrame->rip;      \
+	UNUSED uint64_t FaultAddress = TrapFrame->cr2; \
+	UNUSED uint64_t FaultMode    = TrapFrame->ErrorCode; \
+	UNUSED int Vector = TrapFrame->IntNumber
+#else
+#error Go implement KI_EXCEPTION_HANDLER_INIT!
+#endif
+
+void KeOnUnknownInterrupt(PKREGISTERS TrapFrame)
 {
+	KI_EXCEPTION_HANDLER_INIT();
+	
 #ifdef TARGET_AMD64
 #define SPECIFIER "%02x"
 #else
@@ -28,18 +40,24 @@ void KeOnUnknownInterrupt(uintptr_t FaultPC, uintptr_t Vector)
 #undef SPECIFIER
 }
 
-void KeOnDoubleFault(uintptr_t FaultPC)
+void KeOnDoubleFault(PKREGISTERS TrapFrame)
 {
+	KI_EXCEPTION_HANDLER_INIT();
 	KeCrash("Double fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 }
 
-void KeOnProtectionFault(uintptr_t FaultPC)
+void KeOnProtectionFault(PKREGISTERS TrapFrame)
 {
+	KI_EXCEPTION_HANDLER_INIT();
 	KeCrash("General Protection Fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 }
 
-void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
+extern void MmProbeAddressSubEarlyReturn();
+
+void KeOnPageFault(PKREGISTERS TrapFrame)
 {
+	KI_EXCEPTION_HANDLER_INIT();
+	
 #ifdef DEBUG2
 	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
@@ -48,6 +66,27 @@ void KeOnPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMod
 	
 	if (FaultReason == FAULT_HANDLED)
 		return;
+	
+	// Invalid page fault!
+	
+	// Check if we are probing.
+	if (KeGetCurrentThread()->Probing)
+	{
+		// Yeah, so instead of crashing, just modify the trap frame to point to the
+		// return instruction of MmProbeAddressSub, and RAX to return STATUS_FAULT.
+	#ifdef TARGET_AMD64
+		
+		TrapFrame->rip = (uint64_t) MmProbeAddressSubEarlyReturn;
+		TrapFrame->rax = (uint64_t) STATUS_FAULT;
+		
+		return;
+		
+	#else
+		
+		#error Hey!
+		
+	#endif
+	}
 	
 	KeCrash("unhandled fault ip=%p, faultaddr=%p, faultmode=%p, reason=%d", FaultPC, FaultAddress, FaultMode, FaultReason);
 }

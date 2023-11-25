@@ -16,4 +16,5 @@ Author:
 
 void PerformMutexTest(void);
 void PerformBallTest(void);
+void PerformProcessTest(void);
 
