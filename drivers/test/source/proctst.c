@@ -47,6 +47,15 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
 	LogMsg("Status In Process: %d (after signalling event)", Status);
 	
+	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE);
+	
+	// Unmap the memory.
+	MmUnmapPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
+	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
+	LogMsg("Status In Process: %d (after unmapping memory)", Status);
+	
+	// Probe the memory again.
+	
 	KeTerminateThread();
 }
 
@@ -89,4 +98,10 @@ void PerformProcessTest()
 	
 	// Should be non zero.
 	LogMsg("Status In System : %d", Status);
+	
+	// Signal the event.
+	KePulseEvent(&Evnt);
+	
+	// Wait for the thread to go away.
+	KeWaitForSingleObject(&Thrd, false, TIMEOUT_INFINITE);
 }
