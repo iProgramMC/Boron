@@ -21,6 +21,7 @@ enum
 	STATUS_SUCCESS,             // Must ALWAYS be defined as zero!
 	STATUS_INVALID_PARAMETER,
 	STATUS_ACCESS_DENIED,
+	STATUS_INSUFFICIENT_MEMORY,
 	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,
 	STATUS_TIMEOUT,
@@ -31,6 +32,7 @@ enum
 	STATUS_OBJPATH_NOT_FOUND,   // Parse failed because a path component was not found
 	STATUS_OBJNAME_NOT_FOUND,   // Parse failed because the final path component was not found
 	STATUS_OBJPATH_INVALID,     // If parse succeeded and matched an object, but there were more characters to parse.
+	STATUS_OBJNAME_INVALID,     // If the object's name is invalid
 	
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS

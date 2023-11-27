@@ -18,6 +18,8 @@ typedef int POOL_TYPE;
 // If the allocation is not paged.
 #define POOL_FLAG_NON_PAGED (1 << 0)
 
+#define POOL_NONPAGED POOL_FLAG_NON_PAGED
+
 // If the pool allocation should only return the range itself,
 // but the range itself is unmapped
 #define POOL_FLAG_CALLER_CONTROLLED (1 << 1)

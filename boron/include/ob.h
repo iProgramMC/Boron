@@ -16,7 +16,7 @@ Author:
 
 #include <ps.h>
 
-typedef uintptr_t HANDLE;
+typedef uintptr_t HANDLE, *PHANDLE;
 typedef int OATTRIBUTES;
 
 typedef int ACCESS_MASK,  *PACCESS_MASK;
@@ -40,6 +40,53 @@ typedef struct OBJECT_ATTRIBUTES_tag
 	OATTRIBUTES Attributes;
 }
 OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
+
+// The PointerCount and HandleCount fields are accessed using a global
+// spin lock, so they need to be located in non-paged pool. Therefore
+// we store them in a separate structure pointed to by a field in the
+// object header.
+
+typedef struct NONPAGED_OBJECT_HEADER_tag
+{
+	void* Object;
+	POBJECT_TYPE Type;
+	
+	union
+	{
+		struct
+		{
+			int PointerCount;
+			int HandleCount;
+		};
+		
+		// Specific to types - the entry within the type object's type list.
+		LIST_ENTRY Entry;
+	};
+}
+NONPAGED_OBJECT_HEADER, *PNONPAGED_OBJECT_HEADER;
+
+typedef struct OBJECT_HEADER_tag
+{
+	int Flags;
+	
+	PEPROCESS ExclusiveProcess;
+	
+	PNONPAGED_OBJECT_HEADER NonPagedHeader;
+	
+	int Attributes;
+	
+	HANDLE RootDirectory;
+	
+	void* ParseContext;
+	
+	const char* ObjectName;
+	
+	// The size of the body.
+	size_t Size;
+	
+	char Body[0];
+}
+OBJECT_HEADER, *POBJECT_HEADER;
 
 // TODO
 
@@ -82,6 +129,12 @@ typedef struct OBJECT_TYPE_INITIALIZER_tag
 	// Whether to maintain handle count.
 	bool MaintainHandleCount;
 	
+	// Whether to maintain type list.  Specific to the type object type.
+	bool MaintainTypeList;
+	
+	// Whether objects of this type belong in non paged pool.
+	bool IsNonPagedPool;
+	
 	// ***** Function Pointers *****
 	OBJ_OPEN_METHOD Open;
 	OBJ_CLOSE_METHOD Close;
@@ -97,14 +150,24 @@ OBJECT_TYPE_INITIALIZER, *POBJECT_TYPE_INITIALIZER;
 
 struct OBJECT_TYPE_tag
 {
+	// Name of the object type.
+	const char* Name;
+	
+	// List of subtypes.
+	LIST_ENTRY TypeList;
+	
 	// Object type initializer. Contains forbidden attributes, function pointers, etc.
-	OBJECT_TYPE_INITIALIZER Initializer;
+	OBJECT_TYPE_INITIALIZER Info;
+	
+	// Total number of objects of this type.
+	size_t TotalObjectCount;
 	
 	// Offset to dispatcher object.  If zero (the object header goes first), then
 	// can't be used as an argument to BrnWaitFor*Object(s).
 	size_t OffsetDispatchObject;
 };
 
+// ******* OATTRIBUTES Possible Flags *******
 // The open handle is to be inherited by child processes
 // whenever the calling process creates a new process.
 #define OBJ_INHERIT (1 << 0)
@@ -123,18 +186,30 @@ struct OBJECT_TYPE_tag
 // already exists. If creating, and the name doesn't exist, create the object.
 #define OBJ_OPENIF (1 << 4)
 
+// ******* Object Header Flags *******
+#define OBH_FLAG_NEW_OBJECT       (1 << 0)
+#define OBH_FLAG_KERNEL_OBJECT    (1 << 1)
+#define OBH_FLAG_PERMANENT_OBJECT (1 << 2)
+
+
+#define OBJ_NAME_PATH_SEPARATOR ('/')
+
 BSTATUS ObCreateObjectType(
 	const char* TypeName,
 	POBJECT_TYPE_INITIALIZER Initializer,
-	size_t OffsetDispatchObject,
 	POBJECT_TYPE *ObjectType
 );
 
 BSTATUS ObCreateObject(
-	KPROCESSOR_MODE ProbeMode,
 	POBJECT_TYPE ObjectType,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	KPROCESSOR_MODE OwnershipMode,
 	void* ParseContext,
+	size_t ObjectBodySize,
 	void** Object
 );
+
+
+// Initialization
+void ObInitializeFirstPhase();
+void ObInitializeSecondPhase();

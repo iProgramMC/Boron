@@ -19,6 +19,7 @@ Author:
 #include <arch.h>
 
 #include <ke/affinity.h>
+#include <ke/mode.h>
 #include <ke/ipl.h>
 #include <ke/locks.h>
 #include <ke/prcb.h>

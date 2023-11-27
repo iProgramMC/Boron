@@ -19,6 +19,7 @@ Author:
 #include <string.h>
 #include <limreq.h>
 #include <ldr.h>
+#include <ob.h>
 #include "ki.h"
 
 KPRCB**  KeProcessorList;
@@ -57,9 +58,10 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	HalInitSystemMP();
 	
 	if (Prcb->IsBootstrap)
+	{
 		LdrInitializeDrivers();
-	
-	//KiPerformTests();
+		ObInitializeSecondPhase();
+	}
 	
 	KeSchedulerCommit();
 }
@@ -204,6 +206,9 @@ NO_RETURN void KeInitSMP()
 		PRIORITY_NORMAL,
 		AFFINITY_ALL
 	);
+	
+	// First phase of initialization
+	ObInitializeFirstPhase();
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), November 2023 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);
