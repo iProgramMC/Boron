@@ -17,6 +17,28 @@ Author:
 #define MI_SLAB_DEBUG
 #endif
 
+static const int MiSlabSizes[] =
+{
+	8,
+	16,
+	32,
+	64,
+	128,
+	256,
+	512,
+	1024,
+	2048,
+	4096,
+	8192,
+	12288,
+	16384,
+	20480,
+	24576,
+	28672,
+	32768,
+	0,
+};
+
 static MISLAB_CONTAINER MiSlabContainer[2][MISLAB_SIZE_COUNT];
 
 static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size, bool NonPaged)
@@ -31,25 +53,25 @@ void MiInitSlabs()
 {
 	for (int i = 0; i < MISLAB_SIZE_COUNT; i++)
 	{
-		MmpInitSlabContainer(&MiSlabContainer[0][i], 16 << i, false);
-		MmpInitSlabContainer(&MiSlabContainer[1][i], 16 << i, true);
+		MmpInitSlabContainer(&MiSlabContainer[0][i], MiSlabSizes[i], false);
+		MmpInitSlabContainer(&MiSlabContainer[1][i], MiSlabSizes[i], true);
 	}
 }
 
 int MmGetSmallestPO2ThatFitsSize(size_t Size)
 {
-	size_t MaxSize = 16;
-	int Index = 0;
-	
-	while (MaxSize < Size)
-		MaxSize <<= 1, Index++;
-	
-	return Index;
+	int i;
+	for (i = 0; i < MISLAB_SIZE_COUNT; i++)
+	{
+		if ((size_t)MiSlabSizes[i] >= Size)
+			break;
+	}
+	return i;
 }
 
 void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 {
-	int EntriesPerItem     = sizeof (Item->Data) / EntrySize;
+	int EntriesPerItem     = (Item->Length - sizeof(Item)) / EntrySize;
 	int BitmapWrdsToCheck  = (EntriesPerItem + 63) / 64;
 	int LastBitmapBitCount = EntriesPerItem % 64;
 	
@@ -75,6 +97,15 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 	}
 	
 	return NULL;
+}
+
+size_t MmpSlabItemDetermineLength(int ItemSize)
+{
+	if (ItemSize < PAGE_SIZE / 4)
+		return PAGE_SIZE;
+	
+	// Allow at least 4 items to fit.
+	return (ItemSize * 4 + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
 }
 
 void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
@@ -103,9 +134,11 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	PMISLAB_ITEM Item;
 	void* Addr;
 	
+	int Length = MmpSlabItemDetermineLength(Container->ItemSize);
+	
 	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
 		Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
-		1, // TODO
+		(Length + PAGE_SIZE - 1) / PAGE_SIZE,
 		&Addr,
 		POOL_TAG("SbIt")
 	);
@@ -124,6 +157,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
+	Item->Length = Length;
 	
 	Item->MemHandle = Handle;
 	
@@ -131,6 +165,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
 	
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
+	ASSERT(Mem);
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
 	return Mem;
 }
@@ -177,14 +212,44 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
 }
 
+void* MmpAllocateHuge(bool IsNonPaged, size_t Size)
+{	
+	size_t PageCount = (Size + sizeof(HUGE_MEMORY_BLOCK) + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	void* Addr;
+	BIG_MEMORY_HANDLE MemHandle = MmAllocatePoolBig(
+		IsNonPaged ? POOL_FLAG_NON_PAGED : 0,
+		PageCount,
+		&Addr,
+		POOL_TAG("BHUG")
+	);
+	
+	if (!MemHandle)
+	{
+		ASSERT(!"Shit!");
+		return NULL;
+	}
+	
+	PHUGE_MEMORY_BLOCK Hmb = Addr;
+	Hmb->MemHandle = MemHandle;
+	Hmb->Check = MI_HUGE_MEMORY_CHECK;
+	memset(Hmb->Data, 0, Size);
+	
+	return Hmb->Data;
+}
+
+void MmpFreeHuge(PHUGE_MEMORY_BLOCK Hmb)
+{
+	MmFreePoolBig(Hmb->MemHandle);
+}
+
 void* MiSlabAllocate(bool IsNonPaged, size_t Size)
 {
 	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{
-		DbgPrint("Error, MiSlabAllocate(%zu) is not supported", Size);
-		return NULL;
+		return MmpAllocateHuge(IsNonPaged, Size);
 	}
 	
 	return MmpSlabContainerAllocate(&MiSlabContainer[IsNonPaged][Index]);
@@ -192,7 +257,18 @@ void* MiSlabAllocate(bool IsNonPaged, size_t Size)
 
 void MiSlabFree(void* Ptr)
 {
-	PMISLAB_ITEM Item = (PMISLAB_ITEM)((uintptr_t)Ptr & ~(PAGE_SIZE - 1));
+	void* PageAlignedPtr = (void*)((uintptr_t)Ptr & ~(PAGE_SIZE - 1));
+	
+	// Test for huge memory blocks.
+	PHUGE_MEMORY_BLOCK Hmb = PageAlignedPtr;
+	if (Hmb->Check == MI_HUGE_MEMORY_CHECK)
+	{
+		// Free it as a huge memory block.
+		MmpFreeHuge(Hmb);
+		return;
+	}
+	
+	PMISLAB_ITEM Item = PageAlignedPtr;
 	
 	MmpSlabContainerFree(Item->Parent, Ptr);
 }

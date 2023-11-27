@@ -25,11 +25,15 @@ Author:
 
 struct MISLAB_CONTAINER_tag;
 
-#define MI_SLAB_ITEM_CHECK (0x424C534E4F524F42) // "BORONSLB"
+#define MI_SLAB_ITEM_CHECK (0x424C5342) // "BSLB"
+
+#define MI_MIN_SIZE_SLAB (8)
+#define MI_MAX_SIZE_SLAB (32768)
 
 typedef struct MISLAB_ITEM_tag
 {
-	char     Data[4096 - 72];
+	int Check;
+	int Length;
 	
 	uint64_t Bitmap[4]; // Supports down to 16 byte sized items
 	
@@ -38,7 +42,7 @@ typedef struct MISLAB_ITEM_tag
 	
 	BIG_MEMORY_HANDLE MemHandle;
 	
-	uint64_t Check;
+	char Data[0];
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
 
@@ -53,6 +57,7 @@ MISLAB_CONTAINER, *PMISLAB_CONTAINER;
 
 typedef enum MISLAB_SIZE_tag
 {
+	MISLAB_SIZE_8,
 	MISLAB_SIZE_16,
 	MISLAB_SIZE_32,
 	MISLAB_SIZE_64,
@@ -60,6 +65,15 @@ typedef enum MISLAB_SIZE_tag
 	MISLAB_SIZE_256,
 	MISLAB_SIZE_512,
 	MISLAB_SIZE_1024,
+	MISLAB_SIZE_2048,
+	MISLAB_SIZE_4096,
+	MISLAB_SIZE_8192,
+	MISLAB_SIZE_12288,
+	MISLAB_SIZE_16384,
+	MISLAB_SIZE_20480,
+	MISLAB_SIZE_24576,
+	MISLAB_SIZE_28672,
+	MISLAB_SIZE_32768,
 	MISLAB_SIZE_COUNT,
 }
 MISLAB_SIZE;
@@ -70,6 +84,22 @@ void* MiSlabAllocate(bool NonPaged, size_t Size);
 void  MiSlabFree(void* Pointer);
 void  MiInitSlabs();
 int   MmGetSmallestPO2ThatFitsSize(size_t Size);
+
+// MiSlabAllocate can now accept sizes bigger than MI_MAX_SIZE_SLAB. It basically
+// bundles all of the requirements of the regular pool allocator to implement its
+// stuff on top. Isn't this neat?
+typedef struct
+{
+	// Note! This check isn't just a debugging thing, it's actually how
+	// MiSlabFree tells apart huge memory blocks (HMBs) from regular slab
+	// allocated stuff.
+	uint64_t Check;
+	BIG_MEMORY_HANDLE MemHandle;
+	char Data[];
+}
+HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
+
+#define MI_HUGE_MEMORY_CHECK (0x4D454755484E5242)
 
 // ===== Pool Allocator =====
 

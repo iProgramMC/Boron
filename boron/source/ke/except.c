@@ -68,9 +68,10 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 		return;
 	
 	// Invalid page fault!
+	PKTHREAD Thread = KeGetCurrentThread();
 	
 	// Check if we are probing.
-	if (KeGetCurrentThread()->Probing)
+	if (Thread && Thread->Probing)
 	{
 		// Yeah, so instead of crashing, just modify the trap frame to point to the
 		// return instruction of MmProbeAddressSub, and RAX to return STATUS_FAULT.
@@ -88,5 +89,5 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	#endif
 	}
 	
-	KeCrash("unhandled fault ip=%p, faultaddr=%p, faultmode=%p, reason=%d", FaultPC, FaultAddress, FaultMode, FaultReason);
+	KeCrash("unhandled fault thread=%p, ip=%p, faultaddr=%p, faultmode=%p, reason=%d", Thread, FaultPC, FaultAddress, FaultMode, FaultReason);
 }
