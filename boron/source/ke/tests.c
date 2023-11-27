@@ -28,30 +28,30 @@ static void KepTestAllMemory(void* Memory, size_t Size)
 void KiPerformSlabAllocTest()
 {
 	//DbgPrint("Allocating a single uint32_t");
-	uint32_t* Memory = MiSlabAllocate(sizeof(uint32_t));
+	uint32_t* Memory = MiSlabAllocate(true, sizeof(uint32_t));
 	*Memory = 5;
 	LogMsg("Allocated pointer %p of size %d, reading back %u", Memory, sizeof(uint32_t), *Memory);
 	
 	//DbgPrint("Freeing that uint32_t");
 	
-	MiSlabFree(Memory, sizeof(uint32_t));
+	MiSlabFree(Memory);
 	
 	//DbgPrint("Freed that uint32_t");
 	
 	//DbgPrint("Allocating a bunch of things");
 	
-	void* Mem16 = MiSlabAllocate(16);
-	void* Mem32 = MiSlabAllocate(32);
-	void* Mem64 = MiSlabAllocate(64);
-	void* Mem128 = MiSlabAllocate(128);
-	void* Mem256 = MiSlabAllocate(256);
-	void* Mem512 = MiSlabAllocate(512);
-	void* Mem1024_1 = MiSlabAllocate(1024);
-	void* Mem1024_2 = MiSlabAllocate(1024);
-	void* Mem1024_3 = MiSlabAllocate(1024);
-	void* Mem1024_4 = MiSlabAllocate(1024);
-	void* Mem1024_5 = MiSlabAllocate(1024);
-	void* Mem1024_6 = MiSlabAllocate(1024);
+	void* Mem16 = MiSlabAllocate(true, 16);
+	void* Mem32 = MiSlabAllocate(true, 32);
+	void* Mem64 = MiSlabAllocate(true, 64);
+	void* Mem128 = MiSlabAllocate(true, 128);
+	void* Mem256 = MiSlabAllocate(true, 256);
+	void* Mem512 = MiSlabAllocate(true, 512);
+	void* Mem1024_1 = MiSlabAllocate(true, 1024);
+	void* Mem1024_2 = MiSlabAllocate(true, 1024);
+	void* Mem1024_3 = MiSlabAllocate(true, 1024);
+	void* Mem1024_4 = MiSlabAllocate(true, 1024);
+	void* Mem1024_5 = MiSlabAllocate(true, 1024);
+	void* Mem1024_6 = MiSlabAllocate(true, 1024);
 	
 	//DbgPrint("Testing the several allocations");
 	
@@ -70,18 +70,18 @@ void KiPerformSlabAllocTest()
 	
 	//DbgPrint("Freeing everything");
 	
-	MiSlabFree(Mem16, 16);
-	MiSlabFree(Mem32, 32);
-	MiSlabFree(Mem64, 64);
-	MiSlabFree(Mem128, 128);
-	MiSlabFree(Mem256, 256);
-	MiSlabFree(Mem512, 512);
-	MiSlabFree(Mem1024_1, 1024);
-	MiSlabFree(Mem1024_2, 1024);
-	MiSlabFree(Mem1024_3, 1024);
-	MiSlabFree(Mem1024_4, 1024);
-	MiSlabFree(Mem1024_5, 1024);
-	MiSlabFree(Mem1024_6, 1024);
+	MiSlabFree(Mem16);
+	MiSlabFree(Mem32);
+	MiSlabFree(Mem64);
+	MiSlabFree(Mem128);
+	MiSlabFree(Mem256);
+	MiSlabFree(Mem512);
+	MiSlabFree(Mem1024_1);
+	MiSlabFree(Mem1024_2);
+	MiSlabFree(Mem1024_3);
+	MiSlabFree(Mem1024_4);
+	MiSlabFree(Mem1024_5);
+	MiSlabFree(Mem1024_6);
 	
 	//DbgPrint("KiPerformSlabAllocTest Done");
 }

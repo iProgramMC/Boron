@@ -17,11 +17,12 @@ Author:
 #define MI_SLAB_DEBUG
 #endif
 
-static MISLAB_CONTAINER MiSlabContainer[MISLAB_SIZE_COUNT];
+static MISLAB_CONTAINER MiSlabContainer[2][MISLAB_SIZE_COUNT];
 
-static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size)
+static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size, bool NonPaged)
 {
 	Container->ItemSize = Size;
+	Container->NonPaged = NonPaged;
 	Container->Lock.Locked = false;
 	InitializeListHead(&Container->ListHead);
 }
@@ -30,7 +31,8 @@ void MiInitSlabs()
 {
 	for (int i = 0; i < MISLAB_SIZE_COUNT; i++)
 	{
-		MmpInitSlabContainer(&MiSlabContainer[i], 16 << i);
+		MmpInitSlabContainer(&MiSlabContainer[0][i], 16 << i, false);
+		MmpInitSlabContainer(&MiSlabContainer[1][i], 16 << i, true);
 	}
 }
 
@@ -98,20 +100,32 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	}
 	
 	// Allocate a new slab item.
-	int ItemPfn = MmAllocatePhysicalPage();
-	if (ItemPfn == PFN_INVALID)
+	PMISLAB_ITEM Item;
+	void* Addr;
+	
+	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
+		Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
+		1, // TODO
+		&Addr,
+		POOL_TAG("SbIt")
+	);
+	
+	if (!Handle)
 	{
-		DbgPrint("MmpSlabContainerAllocate: Run out of memory! What will we do?!");
-		// TODO: invoke the out of memory handler here, then try again
+		DbgPrint("ERROR: MmpSlabContainerAllocate: Out of memory! What will we do?!");
+		// TODO
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return NULL;
 	}
 	
-	PMISLAB_ITEM Item = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ItemPfn));
+	Item = Addr;
+	
 	memset(Item, 0, sizeof *Item);
 	
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
+	
+	Item->MemHandle = Handle;
 	
 	// Link it to the list:
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
@@ -156,33 +170,15 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	{
 		RemoveEntryList(&Item->ListEntry);
 		
-		int Pfn = MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(Item));
-		MmFreePhysicalPage(Pfn);
+		// Free the memory handle.
+		MmFreePoolBig(Item->MemHandle);
 	}
 	
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
 }
 
-#ifdef MI_SLAB_DEBUG
-#define DEBUG_PRINT_THEN_RETURN(Result, Format, ...) do { \
-	void* __RESULT = (Result);    \
-	DbgPrint(Format, __VA_ARGS__); \
-	return __RESULT;              \
-} while (0)
-#else
-#define DEBUG_PRINT_THEN_RETURN(Result, Unused, ...) do \
-	return (Result); \
-while (0)
-#endif
-
-void* MiSlabAllocate(size_t Size)
+void* MiSlabAllocate(bool IsNonPaged, size_t Size)
 {
-#ifdef MI_SLAB_DEBUG
-	static int Something;
-	int SomethingElse = AtAddFetch(Something, 1);
-	DbgPrint("[%d] MiSlabAllocate(%zu)", SomethingElse, Size);
-#endif
-	
 	int Index = MmGetSmallestPO2ThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
@@ -191,28 +187,12 @@ void* MiSlabAllocate(size_t Size)
 		return NULL;
 	}
 	
-	DEBUG_PRINT_THEN_RETURN(MmpSlabContainerAllocate(&MiSlabContainer[Index]), "[%d] => %p", SomethingElse, __RESULT);
+	return MmpSlabContainerAllocate(&MiSlabContainer[IsNonPaged][Index]);
 }
 
-void MiSlabFree(void* Ptr, size_t Size)
+void MiSlabFree(void* Ptr)
 {
-#ifdef MI_SLAB_DEBUG
-	static int Something;
-	int SomethingElse = AtAddFetch(Something, 1);
-	DbgPrint("[%d] MiSlabFree(%p, %zu)", SomethingElse, Ptr, Size);
-#endif
-
-	int Index = MmGetSmallestPO2ThatFitsSize(Size);
+	PMISLAB_ITEM Item = (PMISLAB_ITEM)((uintptr_t)Ptr & ~(PAGE_SIZE - 1));
 	
-	if (Index >= MISLAB_SIZE_COUNT)
-	{
-		DbgPrint("Error, MiSlabFree(%p, %zu) is not supported", Ptr, Size);
-		return;
-	}
-	
-	MmpSlabContainerFree(&MiSlabContainer[Index], Ptr);
-	
-#ifdef MI_SLAB_DEBUG
-	DbgPrint("[%d] Done", SomethingElse);
-#endif
+	MmpSlabContainerFree(Item->Parent, Ptr);
 }

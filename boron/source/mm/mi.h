@@ -25,16 +25,18 @@ Author:
 
 struct MISLAB_CONTAINER_tag;
 
-#define MI_SLAB_ITEM_CHECK (0x424C534E4F524F42)
+#define MI_SLAB_ITEM_CHECK (0x424C534E4F524F42) // "BORONSLB"
 
 typedef struct MISLAB_ITEM_tag
 {
-	char     Data[4096 - 32 - 32];
+	char     Data[4096 - 72];
 	
 	uint64_t Bitmap[4]; // Supports down to 16 byte sized items
 	
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
+	
+	BIG_MEMORY_HANDLE MemHandle;
 	
 	uint64_t Check;
 }
@@ -43,6 +45,7 @@ MISLAB_ITEM, *PMISLAB_ITEM;
 typedef struct MISLAB_CONTAINER_tag
 {
 	int          ItemSize;
+	bool         NonPaged;
 	KSPIN_LOCK   Lock;
 	LIST_ENTRY   ListHead;
 }
@@ -61,10 +64,10 @@ typedef enum MISLAB_SIZE_tag
 }
 MISLAB_SIZE;
 
-static_assert(sizeof(MISLAB_ITEM) <= 4096, "This structure needs to fit inside one page.");
+static_assert(sizeof(MISLAB_ITEM) <= PAGE_SIZE, "This structure needs to fit inside one page.");
 
-void* MiSlabAllocate(size_t size);
-void  MiSlabFree(void* ptr, size_t size);
+void* MiSlabAllocate(bool NonPaged, size_t Size);
+void  MiSlabFree(void* Pointer);
 void  MiInitSlabs();
 int   MmGetSmallestPO2ThatFitsSize(size_t Size);
 
@@ -109,7 +112,7 @@ typedef uintptr_t MIPOOL_SPACE_HANDLE;
 // The return value is an *opaque* value that must be passed as is to MiFreePoolSpace.
 // The tag is a value used to identify and track memory usage.
 
-// [!!!] The output address is NOT mapped in, in fact, it is guaranteed that no PTE
+// [!!!] The output address is NOT mapped in, and in fact, it is guaranteed that no PTE
 //       is valid at that address. The allocator will have to map their own memory there
 //       and free it when they are done.
 MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData);

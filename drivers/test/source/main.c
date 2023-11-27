@@ -20,9 +20,9 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
-	PerformProcessTest();
+	//PerformProcessTest();
 	//PerformMutexTest();
-	//PerformBallTest();
+	PerformBallTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

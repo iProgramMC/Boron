@@ -18,6 +18,7 @@ PageMapLevel;
 
 #include <mm/pfn.h>
 #include <mm/pmm.h>
+#include <mm/pool.h>
 #include <mm/pt.h>
 #include <mm/probe.h>
 
