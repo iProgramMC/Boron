@@ -14,7 +14,7 @@ Author:
 ***/
 #include <ke.h>
 
-KPROCESSOR_MODE KeGetCurrentMode()
+KPROCESSOR_MODE KeGetPreviousMode()
 {
 	// Only true during initialization
 	if (!KeGetCurrentThread())

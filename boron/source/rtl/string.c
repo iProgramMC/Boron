@@ -57,6 +57,7 @@ void* memset(void* dst, int c, size_t n)
 	uint8_t* dstp = dst;
 	while (n--)
 		*dstp++ = c;
+	
 	return dst;
 #endif
 }

@@ -14,9 +14,9 @@ Author:
 ***/
 #pragma once
 
+#include <ex/aatree.h>
 #include <ps.h>
 
-typedef uintptr_t HANDLE, *PHANDLE;
 typedef int OATTRIBUTES;
 
 typedef int ACCESS_MASK,  *PACCESS_MASK;
@@ -35,7 +35,7 @@ OBJ_OPEN_REASON;
 
 typedef struct OBJECT_ATTRIBUTES_tag
 {
-	HANDLE RootDirectory;
+	void* RootDirectory;
 	const char* ObjectName;
 	OATTRIBUTES Attributes;
 }
@@ -75,7 +75,7 @@ typedef struct OBJECT_HEADER_tag
 	
 	int Attributes;
 	
-	HANDLE RootDirectory;
+	void* RootDirectory;
 	
 	void* ParseContext;
 	
@@ -87,6 +87,19 @@ typedef struct OBJECT_HEADER_tag
 	char Body[0];
 }
 OBJECT_HEADER, *POBJECT_HEADER;
+
+typedef struct OBJECT_DIRECTORY_ENTRY_tag
+{
+	AATREE_ENTRY Entry;
+	void* Object;
+}
+OBJECT_DIRECTORY_ENTRY, *POBJECT_DIRECTORY_ENTRY;
+
+typedef struct OBJECT_DIRECTORY_tag
+{
+	AATREE DirectoryEntries;
+}
+OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
 
 // TODO
 
@@ -207,6 +220,11 @@ BSTATUS ObCreateObject(
 	void* ParseContext,
 	size_t ObjectBodySize,
 	void** Object
+);
+
+BSTATUS ObCreateDirectoryObject(
+	POBJECT_DIRECTORY* DirectoryOut,
+	POBJECT_ATTRIBUTES ObjectAttributes
 );
 
 

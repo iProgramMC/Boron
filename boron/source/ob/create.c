@@ -20,7 +20,7 @@ POBJECT_TYPE ObpSymLinkObjectType;
 
 BSTATUS ObpAllocateObject(
 	OATTRIBUTES Attributes,
-	HANDLE RootDirectory,
+	void* RootDirectory,
 	void* ParseContext,
 	KPROCESSOR_MODE OwnerShipMode,
 	POBJECT_TYPE ObjectType,
@@ -108,8 +108,8 @@ BSTATUS ObCreateObject(
 	
 	// Allocate and initialize the object.
 	Status = ObpAllocateObject(
-		ObjectAttributes->RootDirectory,
 		ObjectAttributes->Attributes,
+		ObjectAttributes->RootDirectory,
 		ParseContext,
 		OwnerShipMode,
 		ObjectType,

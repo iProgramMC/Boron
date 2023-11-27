@@ -60,6 +60,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	if (Prcb->IsBootstrap)
 	{
 		LdrInitializeDrivers();
+		ObInitializeFirstPhase();
 		ObInitializeSecondPhase();
 	}
 	
@@ -208,7 +209,7 @@ NO_RETURN void KeInitSMP()
 	);
 	
 	// First phase of initialization
-	ObInitializeFirstPhase();
+	//ObInitializeFirstPhase();
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), November 2023 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);

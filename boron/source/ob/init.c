@@ -20,7 +20,6 @@ void ObInitializeFirstPhase()
 	memset(&Initializer, 0, sizeof Initializer);
 	
 	Initializer.IsNonPagedPool = true;
-	/*
 	// Create Type object type
 	Initializer.MaintainTypeList = true;
 	
@@ -35,7 +34,7 @@ void ObInitializeFirstPhase()
 	
 	// Create Symbolic Link object type
 	if (ObCreateObjectType("SymbolicLink", &Initializer, &ObpSymLinkObjectType))
-		KeCrash("ObInitializeFirstPhase: could not create SymbolicLink type object");*/
+		KeCrash("ObInitializeFirstPhase: could not create SymbolicLink type object");
 }
 
 void ObInitializeSecondPhase()

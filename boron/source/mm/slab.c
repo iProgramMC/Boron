@@ -146,8 +146,13 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	
 	int Length = MmpSlabItemDetermineLength(Container->ItemSize);
 	
+	// TODO: Fix that since we're locking a spinlock, we can't take
+	// page faults on that memory.  Even if we mapped it all already,
+	// it's going to cause issues when freeing too..
+	
 	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
-		Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
+		//Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
+		POOL_FLAG_NON_PAGED,
 		(Length + PAGE_SIZE - 1) / PAGE_SIZE,
 		&Addr,
 		POOL_TAG("SbIt")

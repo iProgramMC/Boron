@@ -13,19 +13,35 @@ Author:
 ***/
 #include "obp.h"
 
-BSTATUS
-ObCreateDirectoryObject(
-	PHANDLE DirHandleOut,
-	ACCESS_MASK DesiredAccess,
+BSTATUS ObCreateDirectoryObject(
+	POBJECT_DIRECTORY* DirectoryOut,
 	POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	//POBJECT_DIRECTORY Directory;
-	HANDLE Handle;
+	POBJECT_DIRECTORY Directory;
 	BSTATUS Status;
+	KPROCESSOR_MODE PreviousMode;
+	void* DirectoryAddr;
 	
+	PreviousMode = KeGetPreviousMode();
 	
 	// Allocate and initialize the directory object.
-	//Status = ObCreateObject(
+	Status = ObCreateObject(
+		ObpDirectoryObjectType,
+		ObjectAttributes,
+		PreviousMode,
+		NULL,
+		sizeof (*Directory),
+		&DirectoryAddr
+	);
 	
-	return 0;
+	Directory = DirectoryAddr;
+	
+	if (Status)
+		return Status;
+	
+	memset(Directory, 0, sizeof *Directory);
+	
+	*DirectoryOut = Directory;
+	
+	return STATUS_SUCCESS;
 }
