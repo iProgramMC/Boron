@@ -26,6 +26,13 @@ Author:
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
+typedef enum KPROCESSOR_MODE_tag
+{
+	MODE_KERNEL,
+	MODE_USER,
+}
+KPROCESSOR_MODE, *PKPROCESSOR_MODE;
+
 typedef struct KPRCB_tag
 {
 	// the index of the processor within the KeProcessorList

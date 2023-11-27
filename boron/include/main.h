@@ -48,6 +48,11 @@ void DbgPrint(const char* msg, ...);
 
 #define ARRAY_COUNT(x) (sizeof(x) / sizeof((x)[0]))
 
+#define IN
+#define OUT
+#define INOUT
+#define OPTIONAL
+
 #define CallerAddress() ((uintptr_t) __builtin_return_address(0))
 
 #define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)(Pointer) - (uintptr_t)offsetof(Type, Field)))

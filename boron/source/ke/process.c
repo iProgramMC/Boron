@@ -14,8 +14,7 @@ Author:
 	iProgramInCpp - 23 November 2023
 ***/
 #include "ki.h"
-
-KPROCESS KiSystemProcess;
+#include <ps/process.h>
 
 void KiSwitchToAddressSpaceProcess(PKPROCESS Process)
 {
@@ -53,7 +52,7 @@ PKPROCESS KeGetCurrentProcess()
 
 PKPROCESS KeGetSystemProcess()
 {
-	return &KiSystemProcess;
+	return &PsGetSystemProcess()->Pcb;
 }
 
 PKPROCESS KeAllocateProcess()
