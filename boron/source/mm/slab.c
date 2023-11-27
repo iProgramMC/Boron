@@ -19,6 +19,8 @@ Author:
 
 static const int MiSlabSizes[] =
 {
+	sizeof(KTHREAD),
+	sizeof(KPROCESS),
 	8,
 	16,
 	32,
@@ -58,10 +60,18 @@ void MiInitSlabs()
 	}
 }
 
-int MmGetSmallestPO2ThatFitsSize(size_t Size)
+int MmGetSmallestSlabSizeThatFitsSize(size_t Size)
 {
 	int i;
-	for (i = 0; i < MISLAB_SIZE_COUNT; i++)
+	// Check for exact matches for common kernel structures.
+	for (i = MISLAB_EXACT_START; i < MISLAB_EXACT_LIMIT; i++)
+	{
+		if ((size_t)MiSlabSizes[i] == Size)
+			return i;
+	}
+	
+	// Check for generic matches.
+	for (i = MISLAB_GENERIC_START; i < MISLAB_GENERIC_LIMIT; i++)
 	{
 		if ((size_t)MiSlabSizes[i] >= Size)
 			break;
@@ -245,7 +255,7 @@ void MmpFreeHuge(PHUGE_MEMORY_BLOCK Hmb)
 
 void* MiSlabAllocate(bool IsNonPaged, size_t Size)
 {
-	int Index = MmGetSmallestPO2ThatFitsSize(Size);
+	int Index = MmGetSmallestSlabSizeThatFitsSize(Size);
 	
 	if (Index >= MISLAB_SIZE_COUNT)
 	{

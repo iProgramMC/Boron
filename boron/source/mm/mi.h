@@ -57,7 +57,13 @@ MISLAB_CONTAINER, *PMISLAB_CONTAINER;
 
 typedef enum MISLAB_SIZE_tag
 {
-	MISLAB_SIZE_8,
+	MISLAB_EXACT_START,
+	MISLAB_SIZE_THREAD = MISLAB_EXACT_START,
+	MISLAB_SIZE_PROCESS,
+	MISLAB_EXACT_LIMIT,
+	
+	MISLAB_GENERIC_START = MISLAB_EXACT_LIMIT,
+	MISLAB_SIZE_8 = MISLAB_GENERIC_START,
 	MISLAB_SIZE_16,
 	MISLAB_SIZE_32,
 	MISLAB_SIZE_64,
@@ -74,7 +80,9 @@ typedef enum MISLAB_SIZE_tag
 	MISLAB_SIZE_24576,
 	MISLAB_SIZE_28672,
 	MISLAB_SIZE_32768,
-	MISLAB_SIZE_COUNT,
+	MISLAB_GENERIC_LIMIT,
+	
+	MISLAB_SIZE_COUNT = MISLAB_GENERIC_LIMIT,
 }
 MISLAB_SIZE;
 
@@ -83,7 +91,6 @@ static_assert(sizeof(MISLAB_ITEM) <= PAGE_SIZE, "This structure needs to fit ins
 void* MiSlabAllocate(bool NonPaged, size_t Size);
 void  MiSlabFree(void* Pointer);
 void  MiInitSlabs();
-int   MmGetSmallestPO2ThatFitsSize(size_t Size);
 
 // MiSlabAllocate can now accept sizes bigger than MI_MAX_SIZE_SLAB. It basically
 // bundles all of the requirements of the regular pool allocator to implement its
