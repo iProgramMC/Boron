@@ -99,9 +99,16 @@ static void KiLoadInterruptVector(PKIDT Idt, int Vector, KiInterruptVector Handl
 	Entry->Present = true;
 }
 
-int KiEnterHardwareInterrupt(int NewIpl)
+int KiEnterHardwareInterrupt(int NewIpl, int OldCS)
 {
-	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	
+	PKIPL IplPtr = &Prcb->Ipl;
+	
+	if (Prcb->Scheduler.CurrentThread)
+	{
+		Prcb->Scheduler.CurrentThread->Mode =  OldCS == SEG_RING_0_CODE;
+	}
 	
 	// grab old IPL
 	int OldIpl = (int) *IplPtr;

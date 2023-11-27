@@ -51,7 +51,6 @@ KeRestoreInterrupts:
 
 ; Push the entire state except RAX and RBX
 %macro PUSH_STATE 0
-	push rdx
 	push r8
 	push r9
 	push r10
@@ -103,8 +102,7 @@ KeRestoreInterrupts:
 	pop  r11
 	pop  r10
 	pop  r9
-	pop  r8 
-	pop  rdx
+	pop  r8
 %endmacro
 
 global KiTrapCommon
@@ -112,8 +110,10 @@ KiTrapCommon:
 	push  rax
 	push  rbx
 	push  rcx
-	lea   rbx, [rsp + 24]                  ; Get the pointer to the value after rbx and rax on the stack
-	lea   rcx, [rsp + 40]                  ; Get the RIP from the interrupt frame.
+	push  rdx
+	lea   rbx, [rsp + 32]                  ; Get the pointer to the value after rbx and rax on the stack
+	lea   rcx, [rsp + 48]                  ; Get the pointer to the RIP from the interrupt frame.
+	lea   rdx, [rsp + 56]                  ; Get the pointer to the CS from the interrupt frame.
 	; Note that LEA doesn't actually perform any memory accesses, all it
 	; does it load the address of certain things into a register. We then
 	; defer actually loading those until after DS was changed.
@@ -125,12 +125,14 @@ KiTrapCommon:
 	mov   gs,  ax
 	mov   rbx, [rbx]                       ; Retrieve the interrupt number and RIP from interrupt frame. These were deferred
 	mov   rcx, [rcx]                       ; so that we wouldn't attempt to access the kernel stack using the user's data segment.
+	mov   rdx, [rdx]                       ; Load CS, to determine the previous mode when entering a hardware interrupt
 	push  rcx                              ; Enter a stack frame so that stack printing doesn't skip over anything
 	push  rbp
 	mov   rbp, rsp
 	cld                                    ; Clear direction flag, will be restored by iretq
 	lea   rax, [KiTrapIplList + rbx]       ; Retrieve the IPL for the respective interrupt vector
 	movsx rdi, byte [rax]                  ; Get the IPL itself
+	mov   rsi, rdx                         ; Pass in as second parameter the previous CS. This will determine the PreviousMode.
 	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
 	push  rax                              ; Push the old IPL that we obtained from the function
 	mov   rdi, rsp                         ; Retrieve the PKREGISTERS to call the trap handler
@@ -145,6 +147,7 @@ KiPopFullFrame:
 	pop   rbp                              ; Leave the stack frame
 	pop   rcx                              ; Skip over the RIP duplicate that we pushed
 	POP_STATE                              ; Pop the state
+	pop   rdx                              ; Pop the RDX register
 	pop   rcx                              ; Pop the RCX register
 	pop   rbx                              ; Pop the RBX register
 	pop   rax                              ; Pop the RAX register
