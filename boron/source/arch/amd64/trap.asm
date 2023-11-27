@@ -103,7 +103,7 @@ KeRestoreInterrupts:
 	pop  r11
 	pop  r10
 	pop  r9
-	pop  r8
+	pop  r8 
 	pop  rdx
 %endmacro
 
@@ -112,14 +112,22 @@ KiTrapCommon:
 	push  rax
 	push  rbx
 	push  rcx
-	lea   rax, [rsp + 24]                  ; Get the pointer to the value after rbx and rax on the stack
-	mov   rbx, [rax]                       ; Retrieve the interrupt number located there
-	lea   rcx, [rsp + 40]                  ; Get the RIP from the interrupt frame
-	mov   rcx, [rcx]
+	lea   rbx, [rsp + 24]                  ; Get the pointer to the value after rbx and rax on the stack
+	lea   rcx, [rsp + 40]                  ; Get the RIP from the interrupt frame.
+	; Note that LEA doesn't actually perform any memory accesses, all it
+	; does it load the address of certain things into a register. We then
+	; defer actually loading those until after DS was changed.
+	PUSH_STATE                             ; Push the state, except for the old ipl
+	mov   rax, SEG_RING_0_DATA             ; Use ring 0 segment for kernel mode use. We have backed the old values up
+	mov   ds,  ax
+	mov   es,  ax
+	mov   fs,  ax
+	mov   gs,  ax
+	mov   rbx, [rbx]                       ; Retrieve the interrupt number and RIP from interrupt frame. These were deferred
+	mov   rcx, [rcx]                       ; so that we wouldn't attempt to access the kernel stack using the user's data segment.
 	push  rcx                              ; Enter a stack frame so that stack printing doesn't skip over anything
 	push  rbp
 	mov   rbp, rsp
-	PUSH_STATE                             ; Push the state, except for the old ipl
 	cld                                    ; Clear direction flag, will be restored by iretq
 	lea   rax, [KiTrapIplList + rbx]       ; Retrieve the IPL for the respective interrupt vector
 	movsx rdi, byte [rax]                  ; Get the IPL itself
@@ -134,9 +142,9 @@ KiTrapCommon:
 KiPopFullFrame:
 	pop   rdi                              ; Pop the old IPL that was pushed before
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
-	POP_STATE                              ; Pop the state
 	pop   rbp                              ; Leave the stack frame
 	pop   rcx                              ; Skip over the RIP duplicate that we pushed
+	POP_STATE                              ; Pop the state
 	pop   rcx                              ; Pop the RCX register
 	pop   rbx                              ; Pop the RBX register
 	pop   rax                              ; Pop the RAX register
@@ -166,9 +174,6 @@ KeYieldCurrentThreadSub:
 	sub  rsp, 8 * 3                 ; Push Error Code, Int Number, RAX.
 	push rbx                        ; RBX is callee saved register
 	sub  rsp, 8                     ; Push RCX
-	push rax                        ; Push RAX (the address of KeExitYield) again to enter a stack frame
-	push rbp
-	mov  rbp, rsp
 	sub  rsp, 8 * 5                 ; Push RDX, R8, R9, R10 and R11
 	push r12                        ; All of these are callee saved registers
 	push r13
@@ -184,6 +189,10 @@ KeYieldCurrentThreadSub:
 	push ax
 	mov  ax, ds
 	push ax
+	lea  rax, [rel KeExitYield]     ; Load the address of KeExitYield again
+	push rax                        ; Push RAX (the address of KeExitYield) again to enter a stack frame
+	push rbp
+	mov  rbp, rsp
 	push qword MAGIC_IPL            ; Push the magic IPL - the IPL is saved by the caller
 	mov  rdi, rsp                   ; Call the soft IPI handler
 	call KiHandleSoftIpi
@@ -192,6 +201,8 @@ KeYieldCurrentThreadSub:
 	cmp  rax, MAGIC_IPL             ; If the OldIPL we pushed is MAGIC_IPL, that means we pushed this frame in KeYieldCurrentThread
 	jne  KeExitUsingFullFrame       ; Otherwise, we need to exit using the full frame
 KeExitUsingPartialFrame:
+	pop  rbp
+	add  rsp, 8                     ; SFRA
 	pop  ax                         ; Restore the state as pushed by KeYieldCurrentThreadSub
 	mov  ds, ax
 	pop  ax
@@ -206,8 +217,7 @@ KeExitUsingPartialFrame:
 	pop  r13
 	pop  r12
 	add  rsp, 8 * 5                 ; R11, R10, R9, R8, RDX
-	pop  rbp
-	add  rsp, 8 * 2                 ; SFRA, RCX
+	add  rsp, 8                     ; RCX
 	pop  rbx
 	add  rsp, 8 * 3                 ; RAX, Int Number, Error Code
 	iretq                           ; Pop the RIP, CS, RFLAGS, RSP and SS all in one, and return
