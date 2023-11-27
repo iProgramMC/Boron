@@ -40,7 +40,6 @@ void* MmGetAddressFromBigHandle(BIG_MEMORY_HANDLE Handle);
 
 size_t MmGetSizeFromBigHandle(BIG_MEMORY_HANDLE Handle);
 
-
 // ******* Little Pool *******
 // The little pool is a pool allocation system implemented on top
 // of the big pool. It is backed by a slab allocator.
@@ -52,6 +51,3 @@ size_t MmGetSizeFromBigHandle(BIG_MEMORY_HANDLE Handle);
 void* MmAllocatePool(int PoolFlags, size_t Size);
 
 void MmFreePool(void* Pointer);
-
-
-

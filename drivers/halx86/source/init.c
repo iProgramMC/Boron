@@ -54,7 +54,7 @@ void HalInitSystemUP()
 // This function is run on ALL processors.
 void HalInitSystemMP()
 {
-	KeGetCurrentPRCB()->HalData = ExAllocateSmall(sizeof(KHALCB));
+	KeGetCurrentPRCB()->HalData = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KHALCB));
 	
 	HalInitApicMP();
 	HalCalibrateApic();

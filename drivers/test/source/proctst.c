@@ -70,7 +70,7 @@ void PerformProcessTest()
 	// Process initialized, spin up a thread.
 	KeInitializeThread(
 		&Thrd,
-		EX_NO_MEMORY_HANDLE,
+		POOL_NO_MEMORY_HANDLE,
 		ProcessTestRoutine,
 		NULL,
 		&Proc

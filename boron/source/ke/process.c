@@ -57,7 +57,7 @@ PKPROCESS KeGetSystemProcess()
 
 PKPROCESS KeAllocateProcess()
 {
-	PKPROCESS Process = ExAllocateSmall(sizeof(KPROCESS));
+	PKPROCESS Process = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KPROCESS));
 	if (!Process)
 		return NULL;
 	
@@ -68,7 +68,7 @@ PKPROCESS KeAllocateProcess()
 
 void KeDeallocateProcess(PKPROCESS Process)
 {
-	ExFreeSmall(Process, sizeof(KPROCESS));
+	MmFreePool(Process);
 }
 
 void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity)

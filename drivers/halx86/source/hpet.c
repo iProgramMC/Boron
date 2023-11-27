@@ -50,7 +50,7 @@ void HpetInitialize()
 	
 	// Map the HPET as uncacheable.
 	void* Address;
-	EXMEMORY_HANDLE Handle = ExAllocatePool(POOL_FLAG_USER_CONTROLLED, 1, &Address, EX_TAG("HPET"));
+	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, &Address, POOL_TAG("HPET"));
 	if (!Handle)
 	{
 	CRASH_BECAUSE_FAILURE_TO_MAP:

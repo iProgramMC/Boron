@@ -141,11 +141,11 @@ void KiPerformPoolAllocTest()
 void KiPerformExPoolTest()
 {
 	void* Address = NULL;
-	EXMEMORY_HANDLE Handle = ExAllocatePool(0, 42, &Address, MI_TAG("Tst!"));
+	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(0, 42, &Address, MI_TAG("Tst!"));
 	
 	if (!Handle)
 	{
-		LogMsg("Error, ExAllocatePool didn't return a handle");
+		LogMsg("Error, MmAllocatePoolBig didn't return a handle");
 		return;
 	}
 	
@@ -153,7 +153,7 @@ void KiPerformExPoolTest()
 	
 	LogMsg("[CPU %d] ExPoolTest SUCCESS", KeGetCurrentPRCB()->LapicId);
 	
-	ExFreePool(Handle);
+	MmFreePoolBig(Handle);
 }
 
 static void KepDpcTest(UNUSED PKDPC Dpc, void* Context, void* SystemArgument1, void* SystemArgument2)

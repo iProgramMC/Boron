@@ -22,7 +22,7 @@ Author:
 void KiPerformTests();
 
 // ===== Threading =====
-EXMEMORY_HANDLE KiAllocateDefaultStack();
+BIG_MEMORY_HANDLE KiAllocateDefaultStack();
 
 void KiSetupRegistersThread(PKTHREAD Thread); // Defined in arch
 
@@ -62,7 +62,7 @@ void KiAssertOwnDispatcherLock_(const char* FunctionName);
 
 void KiSwitchToAddressSpaceProcess(PKPROCESS Process);
 
-void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+void KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 void KiOnKillProcess(PKPROCESS Process);
 

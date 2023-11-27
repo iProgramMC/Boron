@@ -19,18 +19,4 @@ Author:
 
 #include <ex/aatree.h>
 
-// THESE ARE DEPRECATED, and will be removed in a future version.
-#include <mm.h>
-#define EX_TAG POOL_TAG
-#define EX_NO_MEMORY_HANDLE POOL_NO_MEMORY_HANDLE
-#define EXMEMORY_HANDLE BIG_MEMORY_HANDLE
-#define POOL_FLAG_USER_CONTROLLED POOL_FLAG_CALLER_CONTROLLED
-#define ExAllocatePool MmAllocatePoolBig
-#define ExFreePool MmFreePoolBig
-#define ExGetAddressFromHandle MmGetAddressFromBigHandle
-#define ExGetSizeFromHandle MmGetSizeFromBigHandle
-
-void* ExAllocateSmall(size_t Size);
-void ExFreeSmall(void* Pointer, size_t Size);
-
 #endif//BORON_EX_H

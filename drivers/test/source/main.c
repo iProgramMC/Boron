@@ -7,7 +7,7 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 	
 	KeInitializeThread(
 		Thread,
-		EX_NO_MEMORY_HANDLE,
+		POOL_NO_MEMORY_HANDLE,
 		StartRoutine,
 		Parameter,
 		KeGetSystemProcess());

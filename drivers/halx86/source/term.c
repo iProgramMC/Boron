@@ -24,7 +24,7 @@ Author:
 #include "flanterm/backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
-EXMEMORY_HANDLE HalpTerminalMemoryHandle;
+BIG_MEMORY_HANDLE HalpTerminalMemoryHandle;
 uint8_t*        HalpTerminalMemory;
 size_t          HalpTerminalMemoryHead;
 size_t          HalpTerminalMemorySize;
@@ -82,7 +82,7 @@ void HalInitTerminal()
 	
 	void* memory;
 	
-	HalpTerminalMemoryHandle = ExAllocatePool(POOL_FLAG_NON_PAGED, sizePages, &memory, EX_TAG("Term"));
+	HalpTerminalMemoryHandle = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, &memory, POOL_TAG("Term"));
 	HalpTerminalMemory       = memory;
 	HalpTerminalMemoryHead   = 0;
 	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;

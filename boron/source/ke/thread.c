@@ -17,18 +17,18 @@ Author:
 
 void KeYieldCurrentThreadSub(); // trap.asm
 
-void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+void KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
 	
 	if (!KernelStack)
-		KernelStack = ExAllocatePool(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, EX_TAG("ThSt"));
+		KernelStack = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, POOL_TAG("ThSt"));
 	
 	Thread->StartRoutine = StartRoutine;
 	Thread->StartContext = StartContext;
 	
-	Thread->Stack.Top    = ExGetAddressFromHandle(KernelStack);
-	Thread->Stack.Size   = ExGetSizeFromHandle(KernelStack) * PAGE_SIZE;
+	Thread->Stack.Top    = MmGetAddressFromBigHandle(KernelStack);
+	Thread->Stack.Size   = MmGetSizeFromBigHandle(KernelStack) * PAGE_SIZE;
 	Thread->Stack.Handle = KernelStack;
 	
 	KiSetupRegistersThread(Thread);
@@ -57,7 +57,7 @@ void KiInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_S
 
 PKTHREAD KeAllocateThread()
 {
-	PKTHREAD Thread = ExAllocateSmall(sizeof(KTHREAD));
+	PKTHREAD Thread = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KTHREAD));
 	if (!Thread)
 		return NULL;
 	
@@ -76,7 +76,7 @@ void KeDeallocateThread(PKTHREAD Thread)
 	
 	ASSERT(Thread->Stack.Handle == 0);
 	
-	ExFreeSmall(Thread, sizeof(KTHREAD));
+	MmFreePool(Thread);
 }
 
 void KeDetachThread(PKTHREAD Thread)
@@ -108,7 +108,7 @@ void KeYieldCurrentThread()
 	KeLowerIPL(Ipl);
 }
 
-void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+void KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	KIPL Ipl = KiLockDispatcher();
 	

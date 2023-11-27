@@ -45,7 +45,7 @@ typedef struct KTHREAD_STACK_tag
 {
 	void*  Top;
 	size_t Size;
-	EXMEMORY_HANDLE Handle;
+	BIG_MEMORY_HANDLE Handle;
 }
 KTHREAD_STACK, *PKTHREAD_STACK;
 
@@ -127,7 +127,7 @@ int KeReadStateThread(PKTHREAD Thread);
 void KeDetachThread(PKTHREAD Thread);
 
 // Initializes the thread object.
-void KeInitializeThread(PKTHREAD Thread, EXMEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+void KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 // Readies the thread object for execution.
 // Note. Don't call this more than once per thread! Bad things will happen!!
