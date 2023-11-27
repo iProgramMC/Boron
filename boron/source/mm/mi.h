@@ -136,6 +136,16 @@ uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 // Dump info about the pool. Debug only.
 void MiDumpPoolInfo();
 
+// ===== Pool entry allocator =====
+// Really simple allocator that dishes out pool entries. To get rid of the pool allocator's dependency on the slab allocator.
+// The dependency chart will now look like this:
+// [PoolEntryAllocator] <----- [PoolAllocator] <----- [SlabAllocator]
+
+
+PMIPOOL_ENTRY MiCreatePoolEntry();
+
+void MiDeletePoolEntry(PMIPOOL_ENTRY Entry);
+
 // ===== Page table manager =====
 
 // Prepare a pml4 entry for the pool allocator.

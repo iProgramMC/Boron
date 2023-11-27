@@ -30,10 +30,13 @@ HPAGEMAP MmGetCurrentPageMap()
 	return (HPAGEMAP) KeGetCurrentPageTable();
 }
 
+void MiInitPoolEntryAllocator();
+
 void MmInitAllocators()
 {
-	MiInitSlabs();
+	MiInitPoolEntryAllocator();
 	MiInitPool();
+	MiInitSlabs();
 }
 
 KIPL MmLockKernelSpace()

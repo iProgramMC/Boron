@@ -19,11 +19,11 @@ Author:
 //
 // Based on NanoShell's heap manager implementation (crt/src/a_mem.c), however,
 // it deals in pages, doesn't allocate the actual memory (only the ranges),
-// and the headers are separate from the actual memory (they're managed by slab.c).
+// and the headers are separate from the actual memory (they're managed by poolhdr.c).
 //
 
-static KTICKET_LOCK MmpPoolLock;
-static LIST_ENTRY   MmpPoolList;
+static KSPIN_LOCK MmpPoolLock;
+static LIST_ENTRY MmpPoolList;
 
 #define MIP_CURRENT(CE) CONTAINING_RECORD((CE), MIPOOL_ENTRY, ListEntry)
 #define MIP_FLINK(E) CONTAINING_RECORD((E)->Flink, MIPOOL_ENTRY, ListEntry)
@@ -36,7 +36,7 @@ void MiInitPool()
 {
 	InitializeListHead(&MmpPoolList);
 	
-	PMIPOOL_ENTRY Entry = MiSlabAllocate(sizeof(MIPOOL_ENTRY));
+	PMIPOOL_ENTRY Entry = MiCreatePoolEntry();
 	Entry->Flags = 0;
 	Entry->Tag   = MI_EMPTY_TAG;
 	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE - 12);
@@ -61,7 +61,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	}
 	
 	// This entry manages the area directly after the PoolEntry does.
-	PMIPOOL_ENTRY NewEntry = MiSlabAllocate(sizeof(MIPOOL_ENTRY));
+	PMIPOOL_ENTRY NewEntry = MiCreatePoolEntry();
 	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
@@ -89,7 +89,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
 	KIPL OldIpl;
-	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
+	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	if (OutputAddress)
@@ -111,7 +111,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 		if (Current->Size >= SizeInPages)
 		{
 			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag, UserData);
-			KeReleaseTicketLock(&MmpPoolLock, OldIpl);
+			KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 			return Handle;
 		}
 		
@@ -125,7 +125,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	if (OutputAddress)
 		*OutputAddress = NULL;
 	
-	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
+	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 	return (MIPOOL_SPACE_HANDLE) NULL;
 }
 
@@ -145,14 +145,14 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 		// remove the 'flink' entry
 		RemoveHeadList(&Entry->ListEntry);
 		
-		MiSlabFree(Flink, sizeof(MIPOOL_ENTRY));
+		MiDeletePoolEntry(Flink);
 	}
 }
 
 void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 {
 	KIPL OldIpl;
-	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
+	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
 	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
@@ -168,14 +168,14 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	MmpTryConnectEntryWithItsFlink(Entry);
 	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
-	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
+	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 }
 
 void MiDumpPoolInfo()
 {
 #ifdef DEBUG
 	KIPL OldIpl;
-	KeAcquireTicketLock(&MmpPoolLock, &OldIpl);
+	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
 	PLIST_ENTRY CurrentEntry = MIP_START_ITER(&MmpPoolList);
 	
 	DbgPrint("MiDumpPoolInfo:");
@@ -205,7 +205,7 @@ void MiDumpPoolInfo()
 	}
 	
 	DbgPrint("MiDumpPoolInfo done");
-	KeReleaseTicketLock(&MmpPoolLock, OldIpl);
+	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 #endif
 }
 
