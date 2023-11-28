@@ -21,7 +21,7 @@ typedef struct AATREE_ENTRY_tag *PAATREE_ENTRY;
 typedef uintptr_t AATREE_LEVEL;
 typedef uintptr_t AATREE_KEY;
 
-typedef void (*PAATREE_TRAVERSAL_FUNCTION) (void* Context, PAATREE_ENTRY Entry);
+typedef bool (*PAATREE_TRAVERSAL_FUNCTION) (void* Context, PAATREE_ENTRY Entry);
 
 struct AATREE_ENTRY_tag
 {

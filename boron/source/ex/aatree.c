@@ -205,40 +205,61 @@ Rebalance:
 static void EiTraverseInOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
-	void* Context)
+	void* Context,
+	bool* Stop)
 {
 	if (!Root)
 		return;
-
-	EiTraverseInOrderAaTree(Root->Llink, Function, Context);
-	Function(Context, Root);
-	EiTraverseInOrderAaTree(Root->Rlink, Function, Context);
+	
+	if (*Stop) return;
+	
+	EiTraverseInOrderAaTree(Root->Llink, Function, Context, Stop);
+	if (*Stop) return;
+	
+	*Stop = Function(Context, Root);
+	if (*Stop) return;
+	
+	EiTraverseInOrderAaTree(Root->Rlink, Function, Context, Stop);
 }
 
 static void EiTraversePreOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
-	void* Context)
+	void* Context,
+	bool* Stop)
 {
 	if (!Root)
 		return;
 
-	Function(Context, Root);
-	EiTraversePreOrderAaTree(Root->Llink, Function, Context);
-	EiTraversePreOrderAaTree(Root->Rlink, Function, Context);
+	if (*Stop) return;
+	
+	*Stop = Function(Context, Root);
+	if (*Stop) return;
+	
+	EiTraversePreOrderAaTree(Root->Llink, Function, Context, Stop);
+	if (*Stop) return;
+	
+	EiTraversePreOrderAaTree(Root->Rlink, Function, Context, Stop);
 }
 
 static void EiTraversePostOrderAaTree(
 	PAATREE_ENTRY Root,
 	PAATREE_TRAVERSAL_FUNCTION Function,
-	void* Context)
+	void* Context,
+	bool* Stop)
 {
 	if (!Root)
 		return;
+	
+	if (*Stop) return;
 
-	EiTraversePostOrderAaTree(Root->Llink, Function, Context);
-	EiTraversePostOrderAaTree(Root->Rlink, Function, Context);
-	Function(Context, Root);
+	EiTraversePostOrderAaTree(Root->Llink, Function, Context, Stop);
+	if (*Stop) return;
+	
+	EiTraversePostOrderAaTree(Root->Rlink, Function, Context, Stop);
+	if (*Stop) return;
+	
+	*Stop = Function(Context, Root);
 }
 
 static PAATREE_ENTRY EiLookUpItemAaTree(PAATREE_ENTRY Root, AATREE_KEY Key)
@@ -348,7 +369,8 @@ void ExTraverseInOrderAaTree(
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
 {
-	EiTraverseInOrderAaTree(Tree->Root, Function, Context);
+	bool Stop = false;
+	EiTraverseInOrderAaTree(Tree->Root, Function, Context, &Stop);
 }
 
 void ExTraversePreOrderAaTree(
@@ -356,7 +378,8 @@ void ExTraversePreOrderAaTree(
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
 {
-	EiTraversePreOrderAaTree(Tree->Root, Function, Context);
+	bool Stop = false;
+	EiTraversePreOrderAaTree(Tree->Root, Function, Context, &Stop);
 }
 
 void ExTraversePostOrderAaTree(
@@ -364,5 +387,6 @@ void ExTraversePostOrderAaTree(
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context)
 {
-	EiTraversePostOrderAaTree(Tree->Root, Function, Context);
+	bool Stop = false;
+	EiTraversePostOrderAaTree(Tree->Root, Function, Context, &Stop);
 }

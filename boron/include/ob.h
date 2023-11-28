@@ -33,6 +33,8 @@ typedef enum OBJ_OPEN_REASON_tag
 }
 OBJ_OPEN_REASON;
 
+#define OBJ_LEVEL_DIRECTORY 1
+
 typedef struct OBJECT_ATTRIBUTES_tag
 {
 	void* RootDirectory;
@@ -40,6 +42,13 @@ typedef struct OBJECT_ATTRIBUTES_tag
 	OATTRIBUTES Attributes;
 }
 OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
+
+typedef struct OBJECT_DIRENT_tag
+{
+	const char* Name;
+	const char* TypeName;
+}
+OBJECT_DIRENT, *POBJECT_DIRENT;
 
 // The PointerCount and HandleCount fields are accessed using a global
 // spin lock, so they need to be located in non-paged pool. Therefore
@@ -97,7 +106,9 @@ OBJECT_DIRECTORY_ENTRY, *POBJECT_DIRECTORY_ENTRY;
 
 typedef struct OBJECT_DIRECTORY_tag
 {
-	AATREE DirectoryEntries;
+	KMUTEX Mutex;
+	
+	AATREE Tree;
 }
 OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
 
@@ -204,6 +215,7 @@ struct OBJECT_TYPE_tag
 #define OBH_FLAG_KERNEL_OBJECT    (1 << 1)
 #define OBH_FLAG_PERMANENT_OBJECT (1 << 2)
 
+#define OBJECT_GET_HEADER(Object) CONTAINING_RECORD(Object, OBJECT_HEADER, Body)
 
 #define OBJ_NAME_PATH_SEPARATOR ('/')
 
@@ -226,7 +238,6 @@ BSTATUS ObCreateDirectoryObject(
 	POBJECT_DIRECTORY* DirectoryOut,
 	POBJECT_ATTRIBUTES ObjectAttributes
 );
-
 
 // Initialization
 void ObInitializeFirstPhase();
