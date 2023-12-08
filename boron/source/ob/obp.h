@@ -10,17 +10,34 @@ Abstract:
 	and includes some header files that are usually included.
 	
 Author:
-	iProgramInCpp - 27 November 2023
+	iProgramInCpp - 7 December 2023
 ***/
 #pragma once
 
 #include <ob.h>
 #include <string.h>
 
-// Object types
-extern POBJECT_TYPE ObpTypeObjectType;
-extern POBJECT_TYPE ObpDirectoryObjectType;
-extern POBJECT_TYPE ObpSymLinkObjectType;
-// Root Directory Object
-// Type Directory Object
-// Root Directory Mutex
+// Default object types provided by the system.
+extern POBJECT_TYPE ObpObjectTypeType;
+extern POBJECT_TYPE ObpDirectoryType;
+extern POBJECT_TYPE ObpSymbolicLinkType;
+
+BSTATUS ObiAllocateObject(
+	POBJECT_TYPE Type,
+	const char* Name,
+	size_t BodySize,
+	bool NonPaged,
+	void* ParentDirectory,
+	void* ParseContext,
+	int Flags,
+	POBJECT_HEADER* OutObjectHeader
+);
+
+BSTATUS ObiCreateObjectType(
+	const char* TypeName,
+	POBJECT_TYPE_INFO TypeInfo,
+	POBJECT_TYPE* OutObjectType
+);
+
+// Actually private
+void ObpInitializeObjectTypeInfos();

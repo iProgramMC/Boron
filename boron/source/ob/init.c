@@ -10,34 +10,36 @@ Abstract:
 	object manager.
 	
 Author:
-	iProgramInCpp - 26 November 2023
+	iProgramInCpp - 7 December 2023
 ***/
 #include "obp.h"
 
+extern OBJECT_TYPE_INFO ObpObjectTypeTypeInfo;
+extern OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
+extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
+
+// for testing
+BSTATUS ObpDebugObjectType(void* Object);
+
 void ObInitializeFirstPhase()
 {
-	OBJECT_TYPE_INITIALIZER Initializer;
-	memset(&Initializer, 0, sizeof Initializer);
+	ObpInitializeObjectTypeInfos();
 	
-	Initializer.IsNonPagedPool = true;
-	// Create Type object type
-	Initializer.MaintainTypeList = true;
+	// Create the ObjectType type.
+	if (FAILED(ObiCreateObjectType("ObjectType", &ObpObjectTypeTypeInfo, &ObpObjectTypeType)))
+		KeCrash("could not create ObjectType object type");
 	
-	if (ObCreateObjectType("Type", &Initializer, &ObpTypeObjectType))
-		KeCrash("ObInitializeFirstPhase: could not create Type type object");
+	if (FAILED(ObiCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObpDirectoryType)))
+		KeCrash("could not create Directory object type");
 	
-	Initializer.MaintainTypeList = false;
+	if (FAILED(ObiCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType)))
+		KeCrash("could not create SymbolicLink object type");
 	
-	// Create Directory object type
-	if (ObCreateObjectType("Directory", &Initializer, &ObpDirectoryObjectType))
-		KeCrash("ObInitializeFirstPhase: could not create Directory type object");
-	
-	// Create Symbolic Link object type
-	if (ObCreateObjectType("SymbolicLink", &Initializer, &ObpSymLinkObjectType))
-		KeCrash("ObInitializeFirstPhase: could not create SymbolicLink type object");
+	ObpDebugObjectType(ObpObjectTypeType);
+	ObpDebugObjectType(ObpDirectoryType);
+	ObpDebugObjectType(ObpSymbolicLinkType);
 }
 
 void ObInitializeSecondPhase()
 {
-	// Create root directory.
 }

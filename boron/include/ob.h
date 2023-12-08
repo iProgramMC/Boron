@@ -10,56 +10,77 @@ Abstract:
 	the Boron object manager.
 	
 Author:
-	iProgramInCpp - 19 November 2023
+	iProgramInCpp - 7 December 2023
 ***/
 #pragma once
 
-#include <ex/aatree.h>
-#include <ps.h>
+#include <mm.h>
+#include <status.h>
 
-typedef int OATTRIBUTES;
+// Lets the object know a handle to it was opened.
+typedef BSTATUS(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
 
-typedef int ACCESS_MASK,  *PACCESS_MASK;
-typedef int ACCESS_STATE, *PACCESS_STATE;
+// Lets the object know a handle to it was closed.
+typedef BSTATUS(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 
-typedef struct OBJECT_TYPE_tag OBJECT_TYPE, *POBJECT_TYPE;
+// Lets the object know that it should tear down because the system will delete it.
+typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
 
-typedef enum OBJ_OPEN_REASON_tag
+// Parse a path using this object. TODO
+typedef BSTATUS(*OBJ_PARSE_FUNC) (void* Object); // TODO
+
+// Set security properties on this object. TODO
+typedef BSTATUS(*OBJ_SECURE_FUNC)(void* Object); // TODO
+
+// Print information about this object on the debug console.
+#ifdef DEBUG
+typedef BSTATUS(*OBJ_DEBUG_FUNC) (void* Object);
+#endif
+
+// Advance type definitions to structures.
+typedef struct _OBJECT_TYPE_INFO OBJECT_TYPE_INFO, *POBJECT_TYPE_INFO;
+typedef struct _OBJECT_TYPE OBJECT_TYPE, *POBJECT_TYPE;
+typedef struct _NONPAGED_OBJECT_HEADER NONPAGED_OBJECT_HEADER, *PNONPAGED_OBJECT_HEADER;
+typedef struct _OBJECT_HEADER OBJECT_HEADER, *POBJECT_HEADER;
+typedef struct _OBJECT_DIRECTORY OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
+
+struct _OBJECT_TYPE_INFO
 {
-	OBJ_OPEN_CREATE_HANDLE,
-	OBJ_OPEN_OPEN_HANDLE,
-	OBJ_OPEN_DUPLICATE_HANDLE,
-	OBJ_OPEN_INHERIT_HANDLE,
-}
-OBJ_OPEN_REASON;
-
-#define OBJ_LEVEL_DIRECTORY 1
-
-typedef struct OBJECT_ATTRIBUTES_tag
-{
-	void* RootDirectory;
-	const char* ObjectName;
-	OATTRIBUTES Attributes;
-}
-OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
-
-typedef struct OBJECT_DIRENT_tag
-{
-	const char* Name;
-	const char* TypeName;
-}
-OBJECT_DIRENT, *POBJECT_DIRENT;
-
-// The PointerCount and HandleCount fields are accessed using a global
-// spin lock, so they need to be located in non-paged pool. Therefore
-// we store them in a separate structure pointed to by a field in the
-// object header.
-
-typedef struct NONPAGED_OBJECT_HEADER_tag
-{
-	void* Object;
-	POBJECT_TYPE Type;
+	// Properties
+	int InvalidAttributes;
 	
+	int ValidAccessMask;
+	
+	bool NonPagedPool;
+	
+	// Virtual function table
+	OBJ_OPEN_FUNC   Open;
+	OBJ_CLOSE_FUNC  Close;
+	OBJ_DELETE_FUNC Delete;
+	OBJ_PARSE_FUNC  Parse;
+	OBJ_SECURE_FUNC Secure;
+#ifdef DEBUG
+	OBJ_DEBUG_FUNC  Debug;
+#endif
+};
+
+struct _OBJECT_TYPE
+{
+	OBJECT_TYPE_INFO TypeInfo;
+	
+	// List of object types that use this type.
+	// Each entry is a field inside OBJECT_HEADER.
+	LIST_ENTRY ObjectListHead;
+	
+	// Number of objects that use this type.
+	int TotalObjectCount;
+};
+
+struct _NONPAGED_OBJECT_HEADER
+{
+	POBJECT_TYPE ObjectType;
+	
+	// Put these in a union to save space.
 	union
 	{
 		struct
@@ -68,176 +89,65 @@ typedef struct NONPAGED_OBJECT_HEADER_tag
 			int HandleCount;
 		};
 		
-		// Specific to types - the entry within the type object's type list.
-		LIST_ENTRY Entry;
+		// Entry into the object type's list of objects. Valid if this is an object type.
+		LIST_ENTRY TypeListEntry;
 	};
-}
-NONPAGED_OBJECT_HEADER, *PNONPAGED_OBJECT_HEADER;
-
-typedef struct OBJECT_HEADER_tag
-{
-	int Flags;
 	
-	PEPROCESS ExclusiveProcess;
-	
-	PNONPAGED_OBJECT_HEADER NonPagedHeader;
-	
-	int Attributes;
-	
-	void* RootDirectory;
-	
-	void* ParseContext;
-	
-	const char* ObjectName;
-	
-	// The size of the body.
-	size_t Size;
-	
-	char Body[0];
-}
-OBJECT_HEADER, *POBJECT_HEADER;
-
-typedef struct OBJECT_DIRECTORY_ENTRY_tag
-{
-	AATREE_ENTRY Entry;
-	void* Object;
-}
-OBJECT_DIRECTORY_ENTRY, *POBJECT_DIRECTORY_ENTRY;
-
-typedef struct OBJECT_DIRECTORY_tag
-{
-	KMUTEX Mutex;
-	
-	AATREE Tree;
-}
-OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
-
-// TODO
-
-// ***** Function pointer definitions. *****
-
-// Called when a handle to the object is created.
-typedef void(*OBJ_OPEN_METHOD)(int OpenReason, PEPROCESS Process, void* Object, ACCESS_MASK GrantedAccess, int HandleCount);
-
-// Called when a handle to the object is deleted.
-typedef void(*OBJ_CLOSE_METHOD)(PEPROCESS Process, void* Object, ACCESS_MASK GrantedAccess, int HandleCount);
-
-// Called when the reference count of an object is decremented to zero, and the object is temporary.
-typedef void(*OBJ_DELETE_METHOD)(void* Object);
-
-typedef void(*OBJ_PARSE_METHOD)(
-	void* ParseObject,
-	POBJECT_TYPE ObjectType,
-	PACCESS_STATE AccessState,
-	KPROCESSOR_MODE AccessMode,
-	OATTRIBUTES Attributes,
-	const char** CompleteName,
-	const char** RemainingName,
-	void* Context,
-	void** Object
-);
-
-// TODO: OBJ_SECURE_METHOD
-
-#ifdef DEBUG
-// Dump information about the object to debugger.
-typedef void(*OBJ_DUMP_METHOD)(void* Object);
-#endif
-
-typedef struct OBJECT_TYPE_INITIALIZER_tag
-{
-	// Attributes that are forbidden for use in the object header with this type.
-	// An attempt to create such an object will result in an invalid parameter error.
-	int ForbiddenAttributes;
-	
-	// Whether to maintain handle count.
-	bool MaintainHandleCount;
-	
-	// Whether to maintain type list.  Specific to the type object type.
-	bool MaintainTypeList;
-	
-	// Whether objects of this type belong in non paged pool.
-	bool IsNonPagedPool;
-	
-	// ***** Function Pointers *****
-	OBJ_OPEN_METHOD Open;
-	OBJ_CLOSE_METHOD Close;
-	OBJ_PARSE_METHOD Parse;
-	//OBJ_SECURE_METHOD Secure;
-	OBJ_DELETE_METHOD Delete;
-	
-#ifdef DEBUG
-	OBJ_DUMP_METHOD Dump;
-#endif
-}
-OBJECT_TYPE_INITIALIZER, *POBJECT_TYPE_INITIALIZER;
-
-struct OBJECT_TYPE_tag
-{
-	// Name of the object type.
-	const char* Name;
-	
-	// List of subtypes.
-	LIST_ENTRY TypeList;
-	
-	// Object type initializer. Contains forbidden attributes, function pointers, etc.
-	OBJECT_TYPE_INITIALIZER Info;
-	
-	// Total number of objects of this type.
-	size_t TotalObjectCount;
-	
-	// Offset to dispatcher object.  If zero (the object header goes first), then
-	// can't be used as an argument to BrnWaitFor*Object(s).
-	size_t OffsetDispatchObject;
+	POBJECT_HEADER NormalHeader;
 };
 
-// ******* OATTRIBUTES Possible Flags *******
-// The open handle is to be inherited by child processes
-// whenever the calling process creates a new process.
-#define OBJ_INHERIT (1 << 0)
+struct _OBJECT_HEADER
+{
+	char* ObjectName;
+	
+	// Entry into the parent directory's list of entries.
+	// TODO: Replace with an AATREE entry
+	LIST_ENTRY DirectoryListEntry;
+	
+	// Pointer to the parent directory.
+	void* ParentDirectory;
+	
+	// Context for the parse function.
+	// This is an opaque pointer, that is, not used by the object system
+	// itself, but passed into calls to the type's Parse method.
+	void* ParseContext;
+	
+	// Object behavior flags.
+	int Flags;
+	
+	PNONPAGED_OBJECT_HEADER NonPagedObjectHeader;
+	
+	// The size of the body.
+	size_t BodySize;
+	
+	char Body[0];
+};
 
-// The object is to be accessed exclusively from within the creator processor.
-// Mutually exclusive with OBJ_INHERIT.
-#define OBJ_EXCLUSIVE (1 << 1)
+// Object is owned by kernel mode.
+#define OB_FLAG_KERNEL (1 << 0)
 
-// The object is to be created as a permanent object.
-#define OBJ_PERMANENT (1 << 2)
+// Object is permanent, i.e. cannot be deleted.
+#define OB_FLAG_PERMANENT (1 << 1)
 
-// Name lookup within the object should ignore case distinction.
-#define OBJ_CASE_INSENSITIVE (1 << 3)
+// Object is temporary, i.e. will be deleted when all references are removed.
+#define OB_FLAG_TEMPORARY (1 << 2)
 
-// Return a handle to a pre-existing object if an object by the same name
-// already exists. If creating, and the name doesn't exist, create the object.
-#define OBJ_OPENIF (1 << 4)
 
-// ******* Object Header Flags *******
-#define OBH_FLAG_NEW_OBJECT       (1 << 0)
-#define OBH_FLAG_KERNEL_OBJECT    (1 << 1)
-#define OBH_FLAG_PERMANENT_OBJECT (1 << 2)
+// This represents the body of an object directory.
+// When a child is added to a directory, the directory's pointer count is incremented by one.
+// This is to allow the directory to 'hang around' while its children are still around. They'll
+// just be linked to an orphan directory.
+struct _OBJECT_DIRECTORY
+{
+	// Head of the list of children.
+	// TODO: Replace with an AATREE
+	LIST_ENTRY ListHead;
+	
+	// Number of children.
+	int Count;
+};
 
-#define OBJECT_GET_HEADER(Object) CONTAINING_RECORD(Object, OBJECT_HEADER, Body)
-
-#define OBJ_NAME_PATH_SEPARATOR ('/')
-
-BSTATUS ObCreateObjectType(
-	const char* TypeName,
-	POBJECT_TYPE_INITIALIZER Initializer,
-	POBJECT_TYPE *ObjectType
-);
-
-BSTATUS ObCreateObject(
-	POBJECT_TYPE ObjectType,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	KPROCESSOR_MODE OwnershipMode,
-	void* ParseContext,
-	size_t ObjectBodySize,
-	void** Object
-);
-
-BSTATUS ObCreateDirectoryObject(
-	POBJECT_DIRECTORY* DirectoryOut,
-	POBJECT_ATTRIBUTES ObjectAttributes
-);
+#define OBJECT_GET_HEADER(PBody) CONTAINING_RECORD(PBody, OBJECT_HEADER, Body)
 
 // Initialization
 void ObInitializeFirstPhase();
