@@ -21,6 +21,9 @@ Author:
 #include <ke/dpc.h>
 #include <ke/thread.h>
 
+#define QUEUE_BIT(x) (1U << (x))
+typedef uint32_t QUEUE_MASK;
+
 enum
 {
 	PRIORITY_IDLE,
@@ -37,6 +40,10 @@ enum
 typedef struct
 {
 	LIST_ENTRY ThreadList;
+	
+	// Execution queue mask. If a bit is set, that means that a thread
+	// of the priority corresponding to that bit exists in the queue.
+	QUEUE_MASK ExecQueueMask;
 	
 	LIST_ENTRY ExecQueue[PRIORITY_COUNT];
 	

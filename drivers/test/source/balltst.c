@@ -17,7 +17,10 @@ Author:
 
 #define P(n) ((void*) (uintptr_t) (n))
 
-#define THREADCOUNT 64
+#define THREADCOUNT 4
+
+// Updates for each processor ID.
+int Updates[64];
 
 void PerformDelay(int Ms, PKDPC Dpc)
 {
@@ -169,9 +172,14 @@ NO_RETURN void BallTest()
 		if (FirstTick)
 			PerformDelay(1000, &DrvDpc);
 		
+		int CurrentPID = KeGetCurrentPRCB()->Id;
+		snprintf(Buffer, sizeof Buffer, "\x1B[2;%dH\x1B[92m%d\x1B[0m", 20 + 12 * CurrentPID, ++Updates[CurrentPID]);
+		HalDisplayString(Buffer);
+		
 		FirstTick = false;
 		
-		PerformDelay(200 + RNGRange(0, 400), &DrvDpc);//16 + (TickCounter != 0), &DrvDpc);
+		//PerformDelay(200 + RNGRange(0, 400), &DrvDpc);
+		PerformDelay(16 + (TickCounter != 0), &DrvDpc);
 		TickCounter++;
 		if (TickCounter > 3)
 			TickCounter = 0;

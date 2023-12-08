@@ -44,10 +44,15 @@ void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 		// Remove from the old place in its queue, and assign it to the new place in the queue.
 		RemoveEntryList(&Thread->EntryQueue);
 		
+		// TODO: Assert that the thread entry queue was actually part of that queue for debugging purposes
+		Scheduler->ExecQueueMask &= ~QUEUE_BIT(Thread->Priority);
+		
 		if (Thread->Priority > Priority)
 			InsertHeadList(&Scheduler->ExecQueue[Priority], &Thread->EntryQueue);
 		else
 			InsertTailList(&Scheduler->ExecQueue[Priority], &Thread->EntryQueue);
+		
+		Scheduler->ExecQueueMask |= QUEUE_BIT(Priority);
 	}
 	
 	Thread->Priority = Priority;
@@ -75,6 +80,8 @@ void KiReadyThread(PKTHREAD Thread)
 	
 	InsertTailList(&Scheduler->ThreadList,                  &Thread->EntryList);
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
+	
+	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
 }
 
 void KiUnwaitThread(PKTHREAD Thread, int Status)
@@ -107,6 +114,7 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
+	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
 }
 
 void KeSchedulerInitUP()
@@ -128,6 +136,8 @@ void KeSchedulerInit()
 	
 	Scheduler->CurrentThread = NULL;
 	
+	Scheduler->ExecQueueMask = 0;
+	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
 	KiInitializeThread(Thread, POOL_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL, KeGetSystemProcess());
@@ -148,8 +158,23 @@ NO_RETURN void KeSchedulerCommit()
 		KeWaitForNextInterrupt();
 }
 
-static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority)
+static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, bool OtherProcessor)
 {
+	// If this is another processor, perform the ExecQueueMask optimization.
+	if (OtherProcessor)
+	{
+		// If the mask doesn't have bits at positions MinPriority or higher,
+		// that means that this processor only contains lower priority threads,
+		// therefore we should try focusing on our own.
+		if (Sched->ExecQueueMask < QUEUE_BIT(MinPriority))
+			return NULL;
+		
+		// If we are trying to grab an idle thread from another processor, I'm sorry,
+		// but I cannot let that happen.  Although affinity should help us.
+		if (MinPriority == 0)
+			return NULL;
+	}
+	
 	for (int Priority = PRIORITY_COUNT - 1; Priority >= MinPriority; Priority--)
 	{
 		// Is the list empty?
@@ -157,7 +182,25 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority)
 			continue;
 		
 		// Pop off the thread.
-		return CONTAINING_RECORD(RemoveHeadList(&Sched->ExecQueue[Priority]), KTHREAD, EntryQueue);
+		PLIST_ENTRY ListEntry = Sched->ExecQueue[Priority].Flink;
+		PKTHREAD Thread = CONTAINING_RECORD(ListEntry, KTHREAD, EntryQueue);
+		
+		// Check if the thread's affinity mask contains this processor's ID.
+		if (~Thread->Affinity & (1ULL << KeGetCurrentPRCB()->Id))
+		{
+			// Nope, therefore this thread is a no-go.
+			// TODO: Check other threads within the queue?
+			return NULL;
+		}
+		
+		// Remove this thread from the queue.
+		RemoveEntryList(&Thread->EntryQueue);
+		
+		// If the list is empty, unset the relevant bit.
+		if (IsListEmpty(&Sched->ExecQueue[Priority]))
+			Sched->ExecQueueMask &= ~QUEUE_BIT(Priority);
+		
+		return Thread;
 	}
 	
 	// No thread with at least MinPriority priority was picked.
@@ -187,6 +230,8 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 	}
 }
 
+PKTHREAD KiGetNextThread(bool MayDowngrade);
+
 void KiEndThreadQuantum(PKREGISTERS Regs)
 {
 	KiAssertOwnDispatcherLock();
@@ -198,11 +243,7 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
-	int MinPriority = 0;
-	if (CurrentThread)
-		MinPriority = CurrentThread->Priority;
-	
-	PKTHREAD NextThread = KepPopNextThreadIfNeeded(Scheduler, MinPriority);
+	PKTHREAD NextThread = KiGetNextThread(false);
 	if (!NextThread)
 	{
 		// If we don't have any more threads that have at least the priority
@@ -222,6 +263,8 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		
 		// Emplace it back on the ready queue.
 		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
+		
+		Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
 		
 		// Save the registers
 		CurrentThread->State = Regs;
@@ -287,6 +330,91 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 		KeDeallocateThread(Thread);
 }
 
+// I dub this "work stealing", although I'm pretty sure I've heard this somewhere before.
+// If a processor doesn't have any more threads at the current priority level or higher,
+// it will try to pop threads off of another processor's queue.
+static int KepNextProcessorToStealWorkFrom;
+extern KPRCB** KeProcessorList;
+
+static int KepGetNextProcessorToStealWorkFrom()
+{
+	int Processor = KepNextProcessorToStealWorkFrom;
+	
+	if (++KepNextProcessorToStealWorkFrom == KeGetProcessorCount())
+		KepNextProcessorToStealWorkFrom = 0;
+	
+	return Processor;
+}
+
+static PKTHREAD KepTryStealThread(int MinPriority)
+{
+	// Try "stealing" one of another processor's higher priority threads.
+	//
+	// N.B. Since we are currently using a big scheduler lock instead of many smaller locks,
+	// there is essentially a guarantee that no one else will be messing with the execution
+	// queue while we are.
+	int ProcToSteal = KepGetNextProcessorToStealWorkFrom();
+	PKSCHEDULER TheirScheduler = &KeProcessorList[ProcToSteal]->Scheduler;
+	
+	PKTHREAD Thrd = KepPopNextThreadIfNeeded(TheirScheduler, MinPriority + 1, true);
+	
+	if (Thrd)
+		DbgPrint("Stole");
+	
+	return Thrd;
+}
+
+PKTHREAD KiGetNextThread(bool MayDowngrade)
+{
+	KiAssertOwnDispatcherLock();
+	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKTHREAD CurrentThread = Scheduler->CurrentThread;
+	
+	int MinPriority = 0;
+	if (CurrentThread)
+		MinPriority = CurrentThread->Priority;
+	
+	// The "trick" behind this function is that we REALLY don't want to downgrade priority.
+	
+	PKTHREAD NextThread = NULL;
+	
+	// Try to run a slightly higher priority thread.
+	NextThread = KepPopNextThreadIfNeeded(Scheduler, MinPriority + 1, false);
+	if (NextThread)
+		return NextThread;
+	
+	// No higher priority threads, try stealing another processor's
+	NextThread = KepTryStealThread(MinPriority + 1);
+	if (NextThread)
+		return NextThread;
+	
+	// Nope, try same priority threads.
+	NextThread = KepPopNextThreadIfNeeded(Scheduler, MinPriority, false);
+	if (NextThread)
+		return NextThread;
+	
+	// Nope, try stealing same priority threads from another processor.
+	NextThread = KepTryStealThread(MinPriority);
+	if (NextThread)
+		return NextThread;
+	
+	if (!MayDowngrade)
+		return NULL;
+	
+	// Nope, downgrade the priority.
+	NextThread = KepTryStealThread(1);
+	if (NextThread)
+		return NextThread;
+	
+	// Finally, run our idle thread(s).
+	NextThread = KepPopNextThreadIfNeeded(Scheduler, 0, false);
+	if (NextThread)
+		return NextThread;
+	
+	// No more threads to run!
+	return NULL;
+}
+
 void KiPerformYield(PKREGISTERS Regs)
 {
 	KiAssertOwnDispatcherLock();
@@ -299,19 +427,9 @@ void KiPerformYield(PKREGISTERS Regs)
 	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
 		return KiEndThreadQuantum(Regs);
 	
-	int MinPriority = 0;
-	if (CurrentThread)
-		MinPriority = CurrentThread->Priority;
-	
-	PKTHREAD NextThread = KepPopNextThreadIfNeeded(Scheduler, MinPriority);
+	PKTHREAD NextThread = KiGetNextThread(true);
 	if (!NextThread)
-	{
-		// Try again but with the minimum priority of zero.
-		NextThread = KepPopNextThreadIfNeeded(Scheduler, 0);
-		
-		if (!NextThread)
-			KeCrash("KiPerformYield: Nothing to run");
-	}
+		KeCrash("KiPerformYield: Nothing to run");
 	
 	Scheduler->NextThread = NextThread;
 	

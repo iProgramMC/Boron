@@ -89,4 +89,6 @@ void ObpRemoveReferenceFromObject(void* Object);
 // Check if a provided name is invalid.
 bool ObpCheckNameInvalid(const char* Name, int Flags);
 
+BSTATUS ObpDeleteObject(void* Object);
+
 #define OBP_CHECK_BACKSLASHES (1)
