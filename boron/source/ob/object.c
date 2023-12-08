@@ -26,16 +26,25 @@ BSTATUS ObiDebugObject(void* Object)
 }
 #endif
 
-void ObpAddReferenceToObject(void* Object)
+BSTATUS ObpDeleteObject(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	POBJECT_TYPE Type = Hdr->NonPagedObjectHeader->ObjectType;
 	
-	Hdr->NonPagedObjectHeader->PointerCount++;
-}
-
-void ObiDereferenceByPointerObject(void* Object)
-{
-	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	if (Type->TypeInfo.Delete)
+		Type->TypeInfo.Delete(Object);
 	
-	Hdr->NonPagedObjectHeader->PointerCount--;
+	PNONPAGED_OBJECT_HEADER NpHdr = Hdr->NonPagedObjectHeader;
+	
+	if (Type->TypeInfo.NonPagedPool)
+	{
+		MmFreePool(NpHdr);
+	}
+	else
+	{
+		MmFreePool(NpHdr);
+		MmFreePool(Hdr);
+	}
+	
+	return STATUS_SUCCESS;
 }

@@ -22,6 +22,8 @@ extern POBJECT_TYPE ObpObjectTypeType;
 extern POBJECT_TYPE ObpDirectoryType;
 extern POBJECT_TYPE ObpSymbolicLinkType;
 
+extern POBJECT_DIRECTORY ObpRootDirectory;
+
 BSTATUS ObiAllocateObject(
 	POBJECT_TYPE Type,
 	const char* Name,
@@ -39,6 +41,7 @@ BSTATUS ObiCreateObjectType(
 	POBJECT_TYPE* OutObjectType
 );
 
+// note: Doesn't lock the directory mutex, so caller must!
 BSTATUS ObiCreateObject(
 	void** OutObject,
 	POBJECT_DIRECTORY ParentDirectory,
@@ -78,7 +81,12 @@ void ObpEnterDirectoryMutex();
 void ObpExitDirectoryMutex();
 void ObpInitializeRootDirectory();
 
-// Reason why ObpAddReferenceToObject is private but ObiDereferenceByPointerObject
-// is internal is that ObpAddObjectToDirectory is ONLY meant to be called by APIs
-// that return a pointer to an object.
+// Note: this remove function doesn't actually remove the object -
+// it'll still hang around!
 void ObpAddReferenceToObject(void* Object);
+void ObpRemoveReferenceFromObject(void* Object);
+
+// Check if a provided name is invalid.
+bool ObpCheckNameInvalid(const char* Name, int Flags);
+
+#define OBP_CHECK_BACKSLASHES (1)

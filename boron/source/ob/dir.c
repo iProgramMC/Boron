@@ -159,5 +159,23 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER He
 {
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
-	ObiDereferenceByPointerObject(Directory);
+	
+	ObDereferenceObject(Directory);
 }
+
+bool ObpCheckNameInvalid(const char* Name, int Flags)
+{
+	while (*Name)
+	{
+		if (*Name < ' ' || *Name > '~')
+			return false;
+		
+		if ((Flags & OBP_CHECK_BACKSLASHES) && *Name == OB_PATH_SEPARATOR)
+			return false;
+		
+		Name++;
+	}
+	
+	return true;
+}
+

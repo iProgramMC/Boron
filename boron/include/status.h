@@ -19,24 +19,28 @@ typedef int BSTATUS, *PBSTATUS;
 enum
 {
 	STATUS_SUCCESS,             // Must ALWAYS be defined as zero!
+	
+	// Generic errors
 	STATUS_INVALID_PARAMETER,
 	STATUS_ACCESS_DENIED,
 	STATUS_INSUFFICIENT_MEMORY,
+	
+	// Wait for object(s) errors
 	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,
 	STATUS_TIMEOUT,
+	
+	// Probe errors
 	STATUS_FAULT,               // returned by MmProbeAddress when a bad page fault was triggered.
 	STATUS_NO_REMAP,            // returned by MmProbeAddress if remapping in kernel space failed.
-	STATUS_REPARSE,             // Parse succeeded, but start the parse over at CompleteName.
-	STATUS_OBJPATH_SYNTAX_BAD,  // Parse failed because of ill formed path name
-	STATUS_OBJPATH_NOT_FOUND,   // Parse failed because a path component was not found
-	STATUS_OBJNAME_NOT_FOUND,   // Parse failed because the final path component was not found
-	STATUS_OBJPATH_INVALID,     // If parse succeeded and matched an object, but there were more characters to parse.
-	STATUS_OBJNAME_INVALID,     // If the object's name is invalid
-	STATUS_REQUERY,             // Could not fit all directory entries in the directory. Requery to get them all.
-	STATUS_NAME_COLLISION,      // If there is already an object with the same name in the directory.
-	STATUS_OBJECT_ALREADY_ADDED,// If the object was already added to the directory.
 	
+	// Object errors
+	STATUS_NAME_INVALID,        // If the object's name is invalid
+	STATUS_NAME_COLLISION,      // If there is already an object with the same name in the directory.
+	STATUS_TYPE_MISMATCH,       // The object is not of that type
+	STATUS_OBJECT_UNOWNED,      // The object is owned by kernel mode but an attempt to access it from user mode was made
+	
+	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS
 };

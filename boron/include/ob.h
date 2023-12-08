@@ -150,6 +150,19 @@ struct _OBJECT_DIRECTORY
 
 #define OBJECT_GET_HEADER(PBody) CONTAINING_RECORD(PBody, OBJECT_HEADER, Body)
 
+#define OB_PATH_SEPARATOR ('\\')
+
+#define OB_MAX_PATH_LENGTH (256)
+
 // Initialization
 void ObInitializeFirstPhase();
 void ObInitializeSecondPhase();
+
+// Referencing
+BSTATUS ObReferenceObjectByPointer(
+	void* Object,
+	POBJECT_TYPE Type,
+	KPROCESSOR_MODE AccessMode
+);
+
+void ObDereferenceObject(void* Object);
