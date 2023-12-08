@@ -21,7 +21,7 @@ extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
 // for testing
 BSTATUS ObpDebugObjectType(void* Object);
 
-void ObInitializeFirstPhase()
+void ObpInitializeTypes()
 {
 	ObpInitializeObjectTypeInfos();
 	
@@ -35,9 +35,15 @@ void ObInitializeFirstPhase()
 	if (FAILED(ObiCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType)))
 		KeCrash("could not create SymbolicLink object type");
 	
-	ObpDebugObjectType(ObpObjectTypeType);
-	ObpDebugObjectType(ObpDirectoryType);
-	ObpDebugObjectType(ObpSymbolicLinkType);
+	ObiDebugObject(ObpObjectTypeType);
+	ObiDebugObject(ObpDirectoryType);
+	ObiDebugObject(ObpSymbolicLinkType);
+}
+
+void ObInitializeFirstPhase()
+{
+	ObpInitializeTypes();
+	ObpInitializeRootDirectory();
 }
 
 void ObInitializeSecondPhase()

@@ -39,5 +39,39 @@ BSTATUS ObiCreateObjectType(
 	POBJECT_TYPE* OutObjectType
 );
 
+BSTATUS ObiCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* Name,
+	int Flags,
+	bool NonPaged,
+	void* ParseContext,
+	size_t BodySize
+);
+
+BSTATUS ObiCreateDirectoryObject(
+	POBJECT_DIRECTORY* OutDirectory,
+	POBJECT_DIRECTORY ParentDirectory,
+	const char* Name,
+	int Flags
+);
+
+#ifdef DEBUG
+BSTATUS ObiDebugObject(void* Object);
+void ObpDebugRootDirectory();
+#endif
+
 // Actually private
 void ObpInitializeObjectTypeInfos();
+
+void ObpInitializeObjectTypeTypeInfo();
+void ObpInitializeDirectoryTypeInfo();
+void ObpInitializeSymbolicLinkTypeInfo();
+
+void ObpAddObjectToDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header);
+void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header);
+
+void ObpEnterDirectoryMutex();
+void ObpExitDirectoryMutex();
+void ObpInitializeRootDirectory();

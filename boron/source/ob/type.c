@@ -19,7 +19,6 @@ POBJECT_TYPE ObpDirectoryType;
 POBJECT_TYPE ObpSymbolicLinkType;
 
 OBJECT_TYPE_INFO ObpObjectTypeTypeInfo;
-OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
 OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
 
 // ObjectType methods
@@ -41,21 +40,23 @@ BSTATUS ObpDebugObjectType(void* Object)
 
 // Object type creation and initialization
 
+
+void ObpInitializeObjectTypeTypeInfo()
+{
+	POBJECT_TYPE_INFO O = &ObpObjectTypeTypeInfo;
+	
+	O->NonPagedPool = true;
+
+	#ifdef DEBUG
+	O->Debug = ObpDebugObjectType;
+	#endif
+}
+
 void ObpInitializeObjectTypeInfos()
 {
-	POBJECT_TYPE_INFO O;
-	O = &ObpObjectTypeTypeInfo;
-	
-	O->NonPagedPool = true;
-	O->Debug = ObpDebugObjectType;
-	
-	O = &ObpDirectoryTypeInfo;
-	O->NonPagedPool = true;
-	// TODO
-	
-	O = &ObpSymbolicLinkTypeInfo;
-	O->NonPagedPool = true;
-	// TODO
+	ObpInitializeObjectTypeTypeInfo();
+	ObpInitializeDirectoryTypeInfo();
+	//ObpInitializeSymbolicLinkTypeInfo();
 }
 
 BSTATUS ObiCreateObjectType(
@@ -78,7 +79,7 @@ BSTATUS ObiCreateObjectType(
 		&Hdr
 	);
 	
-	if (Status != STATUS_SUCCESS)
+	if (FAILED(Status))
 		return Status;
 	
 	POBJECT_TYPE NewType = (POBJECT_TYPE) Hdr->Body;

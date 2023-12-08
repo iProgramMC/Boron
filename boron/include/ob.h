@@ -14,6 +14,7 @@ Author:
 ***/
 #pragma once
 
+#include <ke.h>
 #include <mm.h>
 #include <status.h>
 

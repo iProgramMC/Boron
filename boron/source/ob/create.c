@@ -108,8 +108,11 @@ BSTATUS ObiAllocateObject(
 	
 	// N.B. If type is NULL, we are in init.
 	if (Type)
-	{
 		Type->TotalObjectCount++;
+	
+	if (ParentDirectory)
+	{
+		ObpAddObjectToDirectory(ParentDirectory, ObjectHeader);
 	}
 	
 	// We will have a pointer to this object, so set its pointer count to 1.
@@ -117,5 +120,37 @@ BSTATUS ObiAllocateObject(
 	NonPagedObjectHeader->HandleCount  = 0;
 	
 	*OutObjectHeader = ObjectHeader;
+	return STATUS_SUCCESS;
+}
+
+BSTATUS ObiCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	bool NonPaged,
+	void* ParseContext,
+	size_t BodySize)
+{
+	POBJECT_HEADER Hdr;
+	BSTATUS Status;
+	
+	// Allocate the object.
+	Status = ObiAllocateObject(
+		ObjectType,
+		ObjectName,
+		BodySize,
+		NonPaged,
+		ParentDirectory,
+		ParseContext,
+		Flags,
+		&Hdr
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	*OutObject = Hdr->Body;
 	return STATUS_SUCCESS;
 }
