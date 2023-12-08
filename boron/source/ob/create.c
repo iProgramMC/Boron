@@ -152,5 +152,6 @@ BSTATUS ObiCreateObject(
 		return Status;
 	
 	*OutObject = Hdr->Body;
+	
 	return STATUS_SUCCESS;
 }

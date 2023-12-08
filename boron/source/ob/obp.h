@@ -57,6 +57,8 @@ BSTATUS ObiCreateDirectoryObject(
 	int Flags
 );
 
+void ObiDereferenceByPointerObject(void* Object);
+
 #ifdef DEBUG
 BSTATUS ObiDebugObject(void* Object);
 void ObpDebugRootDirectory();
@@ -75,3 +77,8 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER He
 void ObpEnterDirectoryMutex();
 void ObpExitDirectoryMutex();
 void ObpInitializeRootDirectory();
+
+// Reason why ObpAddReferenceToObject is private but ObiDereferenceByPointerObject
+// is internal is that ObpAddObjectToDirectory is ONLY meant to be called by APIs
+// that return a pointer to an object.
+void ObpAddReferenceToObject(void* Object);

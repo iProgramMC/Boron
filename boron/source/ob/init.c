@@ -34,7 +34,10 @@ void ObpInitializeTypes()
 	
 	if (FAILED(ObiCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType)))
 		KeCrash("could not create SymbolicLink object type");
-	
+}
+
+void ObpDebugTypesAfterInit()
+{
 	ObiDebugObject(ObpObjectTypeType);
 	ObiDebugObject(ObpDirectoryType);
 	ObiDebugObject(ObpSymbolicLinkType);
@@ -44,6 +47,7 @@ void ObInitializeFirstPhase()
 {
 	ObpInitializeTypes();
 	ObpInitializeRootDirectory();
+	ObpDebugTypesAfterInit();
 }
 
 void ObInitializeSecondPhase()

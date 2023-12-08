@@ -26,3 +26,16 @@ BSTATUS ObiDebugObject(void* Object)
 }
 #endif
 
+void ObpAddReferenceToObject(void* Object)
+{
+	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	
+	Hdr->NonPagedObjectHeader->PointerCount++;
+}
+
+void ObiDereferenceByPointerObject(void* Object)
+{
+	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	
+	Hdr->NonPagedObjectHeader->PointerCount--;
+}

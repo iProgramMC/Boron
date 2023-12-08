@@ -152,12 +152,12 @@ void ObpAddObjectToDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header)
 {
 	InsertTailList(&Directory->ListHead, &Header->DirectoryListEntry);
 	Directory->Count++;
-	OBJECT_GET_HEADER(Directory)->NonPagedObjectHeader->PointerCount++;
+	ObpAddReferenceToObject(Directory);
 }
 
 void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header)
 {
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
-	OBJECT_GET_HEADER(Directory)->NonPagedObjectHeader->PointerCount--;
+	ObiDereferenceByPointerObject(Directory);
 }
