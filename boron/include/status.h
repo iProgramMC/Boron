@@ -39,6 +39,9 @@ enum
 	STATUS_NAME_COLLISION,      // If there is already an object with the same name in the directory.
 	STATUS_TYPE_MISMATCH,       // The object is not of that type
 	STATUS_OBJECT_UNOWNED,      // The object is owned by kernel mode but an attempt to access it from user mode was made
+	STATUS_NAME_NOT_FOUND,      // If the object name was not found
+	STATUS_UNSUPPORTED_FUNCTION,// If the object does not support performing that operation
+	STATUS_OBJPATH_INVALID,     // If the parse succeeded and matched an object, but there were more characters to parse
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

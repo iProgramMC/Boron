@@ -48,3 +48,65 @@ BSTATUS ObpDeleteObject(void* Object)
 	
 	return STATUS_SUCCESS;
 }
+
+BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject)
+{
+	*OutObject = NULL;
+	
+	if (*Name == '\0')
+		return STATUS_NAME_INVALID;
+	
+	bool UsingInitialParseObject = true;
+	
+	// Add reference to initial parse object.  This is so that
+	// we don't have to add a special case when decrementing the
+	// reference count to the parse object.
+	ObpAddReferenceToObject(ParseObject);
+	
+	while (*Name != '\0')
+	{
+		POBJECT_HEADER Hdr = OBJECT_GET_HEADER(ParseObject);
+		POBJECT_TYPE Type  = Hdr->NonPagedObjectHeader->ObjectType;
+		void* ParseContext = Hdr->ParseContext;
+		
+		if (!Type->TypeInfo.Parse)
+		{
+			ObDereferenceObject(ParseObject);
+			
+			// If using the initial parse object, the 'parse' isn't supported on that.
+			// If not, the parse isn't supported on a child, so we matched an object,
+			// but there were more characters to match.
+			
+			if (UsingInitialParseObject)
+				return STATUS_UNSUPPORTED_FUNCTION;
+			else
+				return STATUS_OBJPATH_INVALID;
+		}
+		
+		void* Object = NULL;
+		
+		BSTATUS Status = Type->TypeInfo.Parse(
+			ParseObject,
+			&Name,
+			ParseContext,
+			&Object
+		);
+		
+		if (FAILED(Status))
+		{
+			ObDereferenceObject(ParseObject);
+			return Status;
+		}
+		
+		*OutObject = Object;
+		
+		ObpAddReferenceToObject(Object);
+		ObDereferenceObject(ParseObject);
+		
+		ParseObject = Object;
+		
+		UsingInitialParseObject = false;
+	}
+	
+	return STATUS_SUCCESS;
+}

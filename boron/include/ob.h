@@ -28,7 +28,7 @@ typedef BSTATUS(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
 
 // Parse a path using this object. TODO
-typedef BSTATUS(*OBJ_PARSE_FUNC) (void* Object); // TODO
+typedef BSTATUS(*OBJ_PARSE_FUNC) (void* ParseObject, const char** Name, void* Context, void** Object);
 
 // Set security properties on this object. TODO
 typedef BSTATUS(*OBJ_SECURE_FUNC)(void* Object); // TODO
@@ -133,7 +133,6 @@ struct _OBJECT_HEADER
 // Object is temporary, i.e. will be deleted when all references are removed.
 #define OB_FLAG_TEMPORARY (1 << 2)
 
-
 // This represents the body of an object directory.
 // When a child is added to a directory, the directory's pointer count is incremented by one.
 // This is to allow the directory to 'hang around' while its children are still around. They'll
@@ -166,3 +165,5 @@ BSTATUS ObReferenceObjectByPointer(
 );
 
 void ObDereferenceObject(void* Object);
+
+BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject);

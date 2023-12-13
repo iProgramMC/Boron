@@ -33,7 +33,6 @@ void ObpExitDirectoryMutex()
 	KeReleaseMutex(&ObpDirectoryMutex);
 }
 
-
 void ObpInitializeRootDirectory()
 {
 	if (FAILED(ObiCreateDirectoryObject(
@@ -67,11 +66,102 @@ void ObpInitializeRootDirectory()
 #endif
 }
 
+// Matches a file name with the first segment of the path name,
+// up until a backslash ('\') character.
+// Returns 0 if not matched, >0 (length of path consumed) if matched.
+static size_t ObpMatchPathName(const char* FileName, const char* Path)
+{
+	const char* OriginalPath = Path;
+	
+	// While the file name and path are the same up to this point...
+	//
+	// N.B. If the file name reached the '\0' at this point, then either
+	// the Filename==Path condition or the Path!=0 condition are false.
+	while (*FileName == *Path && *Path != '\0' && *Path != OB_PATH_SEPARATOR)
+	{
+		FileName++;
+		Path++;
+	}
+	
+	// Check if the file name and path reached the end together:
+	if (*FileName == '\0' && (*Path == '\0' || *Path == OB_PATH_SEPARATOR))
+	{
+		return Path - OriginalPath + (*Path == OB_PATH_SEPARATOR);
+	}
+	
+	return 0;
+}
+
+BSTATUS ObpParseDirectory(
+	void* DirectoryV,
+	const char** Name,
+	void* Context UNUSED,
+	void** Object)
+{
+	POBJECT_DIRECTORY Directory = DirectoryV;
+	
+	const char* CompleteName = *Name;
+	
+	// If the first character in the name is a backslash, simply
+	// ignore it and request continuing the parse procedure. The
+	// path could have been malformed, something like this:
+	// \Something\\\AnotherThing
+	if (*CompleteName == OB_PATH_SEPARATOR)
+	{
+		*Name = CompleteName + 1;
+		*Object = ObpRootDirectory;
+		ObpAddReferenceToObject(ObpRootDirectory);
+		return STATUS_SUCCESS;
+	}
+	
+	PLIST_ENTRY Entry = Directory->ListHead.Flink;
+	while (Entry != &Directory->ListHead)
+	{
+		POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
+		
+		size_t MatchLength = ObpMatchPathName(Header->ObjectName, CompleteName);
+		if (MatchLength > 0)
+		{
+			// Match! Time to return this object.
+			*Object = Header->Body;
+			
+			// Add a reference of course
+			Header->NonPagedObjectHeader->PointerCount++;
+			
+			*Name = CompleteName + MatchLength;
+			
+			return STATUS_SUCCESS;
+		}
+		
+		Entry = Entry->Flink;
+	}
+	
+	return STATUS_NAME_NOT_FOUND;
+}
+
 #ifdef DEBUG
 void ObpDebugRootDirectory()
 {
 	ObiDebugObject(ObpRootDirectory);
 	ObiDebugObject(ObpObjectTypesDirectory);
+	
+	const char* Path = "\\ObjectTypes\\Directory";
+	void* MatchObject = ObpDirectoryType;
+	void* Object = NULL;
+	BSTATUS Status = ObiLookUpObject(ObpRootDirectory, Path, &Object);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Error, lookup failed on %s with status %d", Path, Status);
+	}
+	else if (Object != MatchObject)
+	{
+		DbgPrint("Error, object %p doesn't match matchobject %p", Object, MatchObject);
+	}
+	else
+	{
+		DbgPrint("Hey, lookup %s works!", Path);
+	}
 }
 #endif
 
@@ -114,6 +204,7 @@ void ObpInitializeDirectoryTypeInfo()
 	
 	#ifdef DEBUG
 	O->Debug = ObpDebugDirectory;
+	O->Parse = ObpParseDirectory;
 	#endif
 }
 

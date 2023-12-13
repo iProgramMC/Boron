@@ -36,8 +36,6 @@ BSTATUS ObpDebugObjectType(void* Object)
 	return STATUS_SUCCESS;
 }
 
-
-
 // Object type creation and initialization
 
 

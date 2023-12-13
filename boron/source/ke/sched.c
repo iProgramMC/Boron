@@ -356,12 +356,7 @@ static PKTHREAD KepTryStealThread(int MinPriority)
 	int ProcToSteal = KepGetNextProcessorToStealWorkFrom();
 	PKSCHEDULER TheirScheduler = &KeProcessorList[ProcToSteal]->Scheduler;
 	
-	PKTHREAD Thrd = KepPopNextThreadIfNeeded(TheirScheduler, MinPriority + 1, true);
-	
-	if (Thrd)
-		DbgPrint("Stole");
-	
-	return Thrd;
+	return KepPopNextThreadIfNeeded(TheirScheduler, MinPriority + 1, true);
 }
 
 PKTHREAD KiGetNextThread(bool MayDowngrade)
