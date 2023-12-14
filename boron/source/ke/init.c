@@ -30,4 +30,3 @@ NO_RETURN void KiSystemStartup(void)
 	LdrInit();
 	KeInitSMP(); // no return
 }
-

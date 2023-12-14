@@ -16,21 +16,13 @@ Author:
 
 OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
 
-// Directory structure mutex.
-KMUTEX ObpDirectoryMutex;
-
 // Pointer to root directory.
 POBJECT_DIRECTORY ObpRootDirectory;
 POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
-void ObpEnterDirectoryMutex()
+bool ObpInitializedRootDirectory()
 {
-	KeWaitForSingleObject(&ObpDirectoryMutex, false, TIMEOUT_INFINITE);
-}
-
-void ObpExitDirectoryMutex()
-{
-	KeReleaseMutex(&ObpDirectoryMutex);
+	return ObpRootDirectory != NULL;
 }
 
 void ObpInitializeRootDirectory()
@@ -93,12 +85,12 @@ static size_t ObpMatchPathName(const char* FileName, const char* Path)
 }
 
 BSTATUS ObpParseDirectory(
-	void* DirectoryV,
+	void* ParseObject,
 	const char** Name,
 	void* Context UNUSED,
 	void** Object)
 {
-	POBJECT_DIRECTORY Directory = DirectoryV;
+	POBJECT_DIRECTORY Directory = ParseObject;
 	
 	const char* CompleteName = *Name;
 	
@@ -109,8 +101,7 @@ BSTATUS ObpParseDirectory(
 	if (*CompleteName == OB_PATH_SEPARATOR)
 	{
 		*Name = CompleteName + 1;
-		*Object = ObpRootDirectory;
-		ObpAddReferenceToObject(ObpRootDirectory);
+		*Object = ParseObject;
 		return STATUS_SUCCESS;
 	}
 	
@@ -136,6 +127,7 @@ BSTATUS ObpParseDirectory(
 		Entry = Entry->Flink;
 	}
 	
+	*Object = NULL;
 	return STATUS_NAME_NOT_FOUND;
 }
 
@@ -251,7 +243,7 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER He
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
 	
-	ObDereferenceObject(Directory);
+	ObiDereferenceObject(Directory);
 }
 
 bool ObpCheckNameInvalid(const char* Name, int Flags)
@@ -270,3 +262,68 @@ bool ObpCheckNameInvalid(const char* Name, int Flags)
 	return true;
 }
 
+BSTATUS ObpCopyPathSegment(const char** PathName, char* SegmentOut)
+{
+	size_t Written = 0;
+	const char* Name = *PathName;
+	
+	while (*Name != '\0' && *Name != OB_PATH_SEPARATOR)
+	{
+		if (Written >= OB_MAX_PATH_LENGTH - 1)
+			return STATUS_NAME_INVALID;
+		
+		*SegmentOut = *Name;
+		SegmentOut++;
+		Name++;
+		Written++;
+	}
+	
+	// If we ended on a '\0', that means we don't have segments after this
+	if (*Name == '\0')
+		return STATUS_NO_SEGMENTS_AFTER_THIS;
+	
+	*PathName = Name + 1; // Also skip the backslash
+	*SegmentOut = '\0';
+	return STATUS_SUCCESS;
+}
+
+BSTATUS ObpNormalizeParentDirectoryAndName(
+	POBJECT_DIRECTORY* ParentDirectory,
+	const char** ObjectName)
+{
+	if (!ParentDirectory)
+	{
+		*ParentDirectory = ObpRootDirectory;
+		if (**ObjectName != OB_PATH_SEPARATOR)
+		{
+			// Relative path with no parent directory.
+			return STATUS_PATH_INVALID;
+		}
+	}
+	
+	char Segment[OB_MAX_PATH_LENGTH];
+	
+	BSTATUS Status;
+	while (SUCCEEDED(Status = ObpCopyPathSegment(ObjectName, Segment)))
+	{
+		DbgPrint("ObpNormalizeParentDirectoryAndName: %s, %s", Segment, *ObjectName);
+		
+		void* NewObject = NULL;
+		Status = ObiLookUpObject(*ParentDirectory, Segment, &NewObject);
+		
+		if (FAILED(Status))
+			return Status;
+		
+		// Ensure this is a directory.
+		if (OBJECT_GET_HEADER(NewObject)->NonPagedObjectHeader->ObjectType != ObpDirectoryType)
+			return STATUS_PATH_INVALID;
+		
+		// Advance.
+		*ParentDirectory = (POBJECT_DIRECTORY)NewObject;
+	}
+	
+	if (Status == STATUS_NO_SEGMENTS_AFTER_THIS)
+		Status =  STATUS_SUCCESS;
+	
+	return Status;
+}

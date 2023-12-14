@@ -14,6 +14,8 @@ Author:
 ***/
 #include "obp.h"
 
+extern POBJECT_DIRECTORY ObpRootDirectory;
+
 POBJECT_TYPE ObpObjectTypeType;
 POBJECT_TYPE ObpDirectoryType;
 POBJECT_TYPE ObpSymbolicLinkType;
@@ -71,7 +73,7 @@ BSTATUS ObiCreateObjectType(
 		TypeName,
 		sizeof(OBJECT_TYPE),
 		true,
-		NULL,
+		ObpRootDirectory,
 		NULL,
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT,
 		&Hdr

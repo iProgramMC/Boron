@@ -15,6 +15,19 @@ Author:
 ***/
 #include "obp.h"
 
+// Big mutex on the object manager.
+KMUTEX ObpObjectManagerMutex;
+
+void ObpEnterMutex()
+{
+	KeWaitForSingleObject(&ObpObjectManagerMutex, false, TIMEOUT_INFINITE);
+}
+
+void ObpLeaveMutex()
+{
+	KeReleaseMutex(&ObpObjectManagerMutex);
+}
+
 BSTATUS ObCreateObject(
 	void** OutObject,
 	POBJECT_DIRECTORY Parent,
@@ -26,38 +39,14 @@ BSTATUS ObCreateObject(
 	size_t BodySize)
 {
 	BSTATUS Status;
-	int CheckInvalid = 0;
 	
-	ObpEnterDirectoryMutex();
+	ObpEnterMutex();
 	
-	// If no parent directory was specified, treat the "Name" as a path.
-	if (!Parent)
+	if (ObpCheckNameInvalid(Name, 0))
 	{
-		/*Status = ObpResolveNameAsPath(&Name, &Parent);
-		if (FAILED(Status))
-		{
-			ObpExitDirectoryMutex();
-			return Status;
-		}*/
-		
-		// TODO
-		
-		Parent = ObpRootDirectory;
-		CheckInvalid |= OBP_CHECK_BACKSLASHES;
-	}
-	else
-	{
-		// If the parent directory is specified, then the name should not
-		// contain any backslashes.
-		CheckInvalid |= OBP_CHECK_BACKSLASHES;
-	}
-	
-	if (ObpCheckNameInvalid (Name, CheckInvalid))
-	{
-		ObpExitDirectoryMutex();
+		ObpLeaveMutex();
 		return STATUS_NAME_INVALID;
 	}
-	
 	
 	// Add the actual object itself:
 	Status = ObiCreateObject(
@@ -71,7 +60,7 @@ BSTATUS ObCreateObject(
 		BodySize
 	);
 	
-	ObpExitDirectoryMutex();
+	ObpLeaveMutex();
 	
 	return Status;
 }

@@ -71,7 +71,7 @@ BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject)
 		
 		if (!Type->TypeInfo.Parse)
 		{
-			ObDereferenceObject(ParseObject);
+			ObiDereferenceObject(ParseObject);
 			
 			// If using the initial parse object, the 'parse' isn't supported on that.
 			// If not, the parse isn't supported on a child, so we matched an object,
@@ -80,7 +80,7 @@ BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject)
 			if (UsingInitialParseObject)
 				return STATUS_UNSUPPORTED_FUNCTION;
 			else
-				return STATUS_OBJPATH_INVALID;
+				return STATUS_PATH_INVALID;
 		}
 		
 		void* Object = NULL;
@@ -94,14 +94,14 @@ BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject)
 		
 		if (FAILED(Status))
 		{
-			ObDereferenceObject(ParseObject);
+			ObiDereferenceObject(ParseObject);
 			return Status;
 		}
 		
 		*OutObject = Object;
 		
 		ObpAddReferenceToObject(Object);
-		ObDereferenceObject(ParseObject);
+		ObiDereferenceObject(ParseObject);
 		
 		ParseObject = Object;
 		

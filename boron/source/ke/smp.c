@@ -36,6 +36,8 @@ uint32_t KeGetBootstrapLapicId()
 	return KeBootstrapLapicId;
 }
 
+extern NO_RETURN void KiInitializePhase1(void* Context);
+
 extern size_t MmTotalAvailablePages;
 
 // An atomic write to this field causes the parked CPU to jump to the written address,

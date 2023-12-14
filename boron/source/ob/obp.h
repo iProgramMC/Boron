@@ -60,7 +60,14 @@ BSTATUS ObiCreateDirectoryObject(
 	int Flags
 );
 
-void ObiDereferenceByPointerObject(void* Object);
+// Referencing
+BSTATUS ObiReferenceObjectByPointer(
+	void* Object,
+	POBJECT_TYPE Type,
+	KPROCESSOR_MODE AccessMode
+);
+
+void ObiDereferenceObject(void* Object);
 
 #ifdef DEBUG
 BSTATUS ObiDebugObject(void* Object);
@@ -77,8 +84,8 @@ void ObpInitializeSymbolicLinkTypeInfo();
 void ObpAddObjectToDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header);
 void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header);
 
-void ObpEnterDirectoryMutex();
-void ObpExitDirectoryMutex();
+void ObpEnterMutex();
+void ObpLeaveMutex();
 void ObpInitializeRootDirectory();
 
 // Note: this remove function doesn't actually remove the object -
@@ -90,5 +97,9 @@ void ObpRemoveReferenceFromObject(void* Object);
 bool ObpCheckNameInvalid(const char* Name, int Flags);
 
 BSTATUS ObpDeleteObject(void* Object);
+
+BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject);
+
+bool ObpInitializedRootDirectory();
 
 #define OBP_CHECK_BACKSLASHES (1)

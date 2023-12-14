@@ -156,14 +156,3 @@ struct _OBJECT_DIRECTORY
 // Initialization
 void ObInitializeFirstPhase();
 void ObInitializeSecondPhase();
-
-// Referencing
-BSTATUS ObReferenceObjectByPointer(
-	void* Object,
-	POBJECT_TYPE Type,
-	KPROCESSOR_MODE AccessMode
-);
-
-void ObDereferenceObject(void* Object);
-
-BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject);

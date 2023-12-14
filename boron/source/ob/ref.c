@@ -28,7 +28,7 @@ void ObpRemoveReferenceFromObject(void* Object)
 	Hdr->NonPagedObjectHeader->PointerCount--;
 }
 
-BSTATUS ObReferenceObjectByPointer(
+BSTATUS ObiReferenceObjectByPointer(
 	void* Object,
 	POBJECT_TYPE Type,
 	KPROCESSOR_MODE AccessMode)
@@ -46,7 +46,7 @@ BSTATUS ObReferenceObjectByPointer(
 	return STATUS_SUCCESS;
 }
 
-void ObDereferenceObject(void* Object)
+void ObiDereferenceObject(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	

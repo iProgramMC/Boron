@@ -123,6 +123,11 @@ BSTATUS ObiAllocateObject(
 	return STATUS_SUCCESS;
 }
 
+BSTATUS ObpNormalizeParentDirectoryAndName(
+	POBJECT_DIRECTORY* ParentDirectory,
+	const char** ObjectName
+);
+
 BSTATUS ObiCreateObject(
 	void** OutObject,
 	POBJECT_DIRECTORY ParentDirectory,
@@ -135,6 +140,18 @@ BSTATUS ObiCreateObject(
 {
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
+	
+	if (ObpInitializedRootDirectory())
+	{
+		// Just trust it, it's the kernel itself after all
+		Status = ObpNormalizeParentDirectoryAndName(
+			&ParentDirectory,
+			&ObjectName
+		);
+		
+		if (FAILED(Status))
+			return Status;
+	}
 	
 	// Allocate the object.
 	Status = ObiAllocateObject(
