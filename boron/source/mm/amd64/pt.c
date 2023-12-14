@@ -19,6 +19,24 @@ Author:
 #include <ke.h>
 #include <arch/amd64.h>
 
+// start PML4 index will be 321. The PFN database's is 320
+#define MI_GLOBAL_AREA_START (321ULL)
+
+// for recursive paging, PML4 index will be 322 - 101000010b.
+#define MI_RECURSIVE_PAGING_START (322ULL)
+// Note: The PML4 itself will be accessible at the address:
+// 1111111111111111 101000010 101000010 101000010 101000010 000000000000
+// Which translates to 0xFFFFA150A8542000.
+
+#define MI_PML3_LOCATION ((uintptr_t)0xFFFFA150A8542000ULL)
+#define MI_PML2_LOCATION ((uintptr_t)0xFFFFA150A8400000ULL)
+#define MI_PML1_LOCATION ((uintptr_t)0xFFFFA10000000000ULL)
+
+PMMPTE MmGetPteLocation(uintptr_t Address)
+{
+	return (PMMPTE)(MI_PML1_LOCATION + ((Address & MM_PTE_ADDRESSMASK) >> 12));
+}
+
 // Creates a page mapping.
 HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 {
@@ -47,6 +65,9 @@ HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 	{
 		NewPageMappingAccess[i] = OldPageMappingAccess[i];
 	}
+	
+	// For recursive paging
+	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingAccess | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 	
 	MmUnlockKernelSpace(Ipl);
 	
@@ -542,9 +563,6 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 		MmpFreeVacantPMLs(Mapping, Address + i * PAGE_SIZE);
 	}
 }
-
-// start PML4 index will be 321. The PFN database's is 320
-#define MI_GLOBAL_AREA_START (321ULL)
 
 /***
 	Function description:
