@@ -140,7 +140,7 @@ void ObpDebugRootDirectory()
 	const char* Path = "\\ObjectTypes\\Directory";
 	void* MatchObject = ObpDirectoryType;
 	void* Object = NULL;
-	BSTATUS Status = ObiLookUpObject(ObpRootDirectory, Path, &Object);
+	BSTATUS Status = ObiLookUpObject(NULL, Path, &Object);
 	
 	if (FAILED(Status))
 	{
@@ -154,6 +154,35 @@ void ObpDebugRootDirectory()
 	{
 		DbgPrint("Hey, lookup %s works!", Path);
 	}
+	
+	// Try to create a new object
+	void* Obj = NULL;
+	Status = ObiCreateObject(&Obj, NULL, ObpSymbolicLinkType, "\\ObjectTypes\\MyTestObject", 0, true, NULL, 42);
+	if (FAILED(Status))
+	{
+		DbgPrint("Failed to create object: %d", Status);
+	}
+	else
+	{
+		DbgPrint("It worked! Obj: %p", Obj);
+		
+		// Try to look it up now
+		void* Obj2 = NULL;
+		Status = ObiLookUpObject(NULL, "\\ObjectTypes\\MyTestObject", &Obj2);
+		if (SUCCEEDED(Status))
+		{
+			DbgPrint("Lookup succeeded! %p was returned", Obj2);
+			
+			if (Obj != Obj2)
+				DbgPrint("Pointers are not the same!!");
+		}
+		else
+		{
+			DbgPrint("Lookup failed: %d", Status);
+		}
+	}
+	
+	ObiDebugObject(ObpObjectTypesDirectory);
 }
 #endif
 
@@ -291,7 +320,7 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 	POBJECT_DIRECTORY* ParentDirectory,
 	const char** ObjectName)
 {
-	if (!ParentDirectory)
+	if (!*ParentDirectory)
 	{
 		*ParentDirectory = ObpRootDirectory;
 		if (**ObjectName != OB_PATH_SEPARATOR)
@@ -299,6 +328,11 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 			// Relative path with no parent directory.
 			return STATUS_PATH_INVALID;
 		}
+		
+		// Skip the path separator.
+		(*ObjectName)++;
+		
+		DbgPrint("ObpNormalizeParentDirectoryAndName: No parent directory, obj name: %s", *ObjectName);
 	}
 	
 	char Segment[OB_MAX_PATH_LENGTH];
@@ -306,6 +340,10 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 	BSTATUS Status;
 	while (SUCCEEDED(Status = ObpCopyPathSegment(ObjectName, Segment)))
 	{
+		// Path probably contains neighboring \\ characters, skip
+		if (Segment[0] == 0)
+			continue;
+		
 		DbgPrint("ObpNormalizeParentDirectoryAndName: %s, %s", Segment, *ObjectName);
 		
 		void* NewObject = NULL;

@@ -49,12 +49,23 @@ BSTATUS ObpDeleteObject(void* Object)
 	return STATUS_SUCCESS;
 }
 
+extern POBJECT_DIRECTORY ObpRootDirectory;
+
 BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject)
 {
 	*OutObject = NULL;
 	
 	if (*Name == '\0')
 		return STATUS_NAME_INVALID;
+	
+	if (!ParseObject)
+	{
+		if (*Name != OB_PATH_SEPARATOR)
+			return STATUS_PATH_INVALID;
+		
+		ParseObject = ObpRootDirectory;
+		Name++;
+	}
 	
 	bool UsingInitialParseObject = true;
 	
