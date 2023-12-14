@@ -6,7 +6,7 @@
 # DEBUG flag
 DEBUG ?= yes
 DEBUG2 ?= no
-DWARF_SYMBOLS ?= yes
+DWARF_SYMBOLS ?= no
 
 # debug1: general debugging text, works all the time and keeps the
 #   kernel behaving how it should
