@@ -1,5 +1,7 @@
 Notes on the object manager:
 
 * Obp - Represents actually private definitions for the object manager
-* Obi - Represents internal versions of APIs that don't perform argument checking
-* Ob  - Represents the API that performs argument checking
+* Obi - Represents internal versions of APIs that don't perform argument
+        checking and don't lock the object manager API mutex
+* Ob  - Represents the API that performs argument checking and locks the
+        object manager API mutex

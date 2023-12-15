@@ -6,8 +6,10 @@ Module name:
 	ex.h
 	
 Abstract:
-	This module contains the implementation of the
-	executive's pool allocator.
+	This header file defines prototypes for routines from the
+	extended runtime library. The extended runtime library
+	contains routines that depend on the kernel, unlike Rtl
+	which is entirely freestanding.
 	
 Author:
 	iProgramInCpp - 27 September 2023
@@ -16,7 +18,5 @@ Author:
 #define BORON_EX_H
 
 #include <main.h>
-
-#include <ex/aatree.h>
 
 #endif//BORON_EX_H

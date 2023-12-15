@@ -17,7 +17,7 @@ Author:
 
 bool KiRemoveTimerTree(PKTIMER Timer)
 {
-	return ExRemoveItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	return RemoveItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
 }
 
 bool KiInsertTimerTree(PKTIMER Timer)
@@ -25,7 +25,7 @@ bool KiInsertTimerTree(PKTIMER Timer)
 	// XXX: What if the key is 32-bit for some reason? Should the key stay 64-bit instead?
 	Timer->EntryTree.Key = Timer->ExpiryTick;
 	
-	return ExInsertItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	return InsertItemAaTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
 }
 
 bool KiCancelTimer(PKTIMER Timer)
@@ -75,9 +75,9 @@ uint64_t KiGetNextTimerExpiryTick()
 	
 	uint64_t Expiry = 0;
 	
-	if (!ExIsEmptyAaTree(TimerTree))
+	if (!IsEmptyAaTree(TimerTree))
 	{
-		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		PAATREE_ENTRY Entry = GetFirstEntryAaTree(TimerTree);
 		
 		Expiry = CONTAINING_RECORD(Entry, KTIMER, EntryTree)->ExpiryTick;
 	}
@@ -93,9 +93,9 @@ uint64_t KiGetNextTimerExpiryItTick()
 	
 	uint64_t Expiry = 0;
 	
-	if (!ExIsEmptyAaTree(TimerTree))
+	if (!IsEmptyAaTree(TimerTree))
 	{
-		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		PAATREE_ENTRY Entry = GetFirstEntryAaTree(TimerTree);
 		
 		Expiry = CONTAINING_RECORD(Entry, KTIMER, EntryTree)->ExpiryTick;
 	}
@@ -121,9 +121,9 @@ void KiDispatchTimerObjects()
 	//DbgPrint("Tree Size %zu And Height %zu", TreeSize, TreeHeight);
 #endif
 	
-	while (!ExIsEmptyAaTree(TimerTree))
+	while (!IsEmptyAaTree(TimerTree))
 	{
-		PAATREE_ENTRY Entry = ExGetFirstEntryAaTree(TimerTree);
+		PAATREE_ENTRY Entry = GetFirstEntryAaTree(TimerTree);
 		
 		PKTIMER Timer = CONTAINING_RECORD(Entry, KTIMER, EntryTree);
 		
@@ -159,7 +159,7 @@ void KeInitializeTimer(PKTIMER Timer)
 	
 	Timer->IsEnqueued = false;
 	
-	ExInitializeAaTreeEntry(&Timer->EntryTree);
+	InitializeAaTreeEntry(&Timer->EntryTree);
 }
 
 bool KeCancelTimer(PKTIMER Timer)

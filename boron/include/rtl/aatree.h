@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ex/aatree.h
+	rtk/aatree.h
 	
 Abstract:
 	This header file provides definitions for the
@@ -38,43 +38,43 @@ typedef struct AATREE_tag
 }
 AATREE, *PAATREE;
 
-#define ExInitializeAaTree(t) \
+#define InitializeAaTree(t) \
 	((t)->Root = NULL)
 
-#define ExIsEmptyAaTree(t) \
+#define IsEmptyAaTree(t) \
 	((t)->Root == NULL)
 
-#define ExInitializeAaTreeEntry(t) \
+#define InitializeAaTreeEntry(t) \
 	((t)->Llink = (t)->Rlink = NULL, (t)->Key = 0, (t)->Level = 0)
 
 // Note: `Item` only has its key set up. Everything
 // else will be set up by the function.
 // Returns the new root, and whether the entry is now in the tree.
-bool ExInsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
+bool InsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
 
-bool ExRemoveItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
+bool RemoveItemAaTree(PAATREE Tree, PAATREE_ENTRY Item);
 
-PAATREE_ENTRY ExLookUpItemAaTree(PAATREE Tree, AATREE_KEY Key);
+PAATREE_ENTRY LookUpItemAaTree(PAATREE Tree, AATREE_KEY Key);
 
-PAATREE_ENTRY ExGetFirstEntryAaTree(PAATREE Tree);
+PAATREE_ENTRY GetFirstEntryAaTree(PAATREE Tree);
 
-PAATREE_ENTRY ExGetLastEntryAaTree(PAATREE Tree);
+PAATREE_ENTRY GetLastEntryAaTree(PAATREE Tree);
 
-size_t ExGetItemCountAaTree(PAATREE Tree);
+size_t GetItemCountAaTree(PAATREE Tree);
 
-size_t ExGetHeightAaTree(PAATREE Tree);
+size_t GetHeightAaTree(PAATREE Tree);
 
-void ExTraverseInOrderAaTree(
+void TraverseInOrderAaTree(
 	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
 
-void ExTraversePreOrderAaTree(
+void TraversePreOrderAaTree(
 	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
 
-void ExTraversePostOrderAaTree(
+void TraversePostOrderAaTree(
 	PAATREE Tree,
 	PAATREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
