@@ -131,6 +131,26 @@ BSTATUS ObpParseDirectory(
 	return STATUS_NAME_NOT_FOUND;
 }
 
+void ObpListDirectory(POBJECT_DIRECTORY Directory)
+{
+	DbgPrint("Listing of directory %s", OBJECT_GET_HEADER(Directory)->ObjectName);
+	
+	POBJECT_HEADER Entry = NULL;
+	while (true)
+	{
+		BSTATUS Status = ObpGetNextEntryDirectory(Directory, Entry, &Entry);
+		if (Status != STATUS_SUCCESS)
+		{
+			if (Status != STATUS_DIRECTORY_DONE)
+				DbgPrint("Error, status is %d", Status);
+			
+			break;
+		}
+		
+		DbgPrint("\t%-30s %s", Entry->ObjectName, Entry->NonPagedObjectHeader->ObjectType->TypeName);
+	}
+}
+
 #ifdef DEBUG
 void ObpDebugRootDirectory()
 {
@@ -183,6 +203,10 @@ void ObpDebugRootDirectory()
 	}
 	
 	ObiDebugObject(ObpObjectTypesDirectory);
+	
+	// try the other way of listing directories
+	ObpListDirectory(ObpRootDirectory);
+	ObpListDirectory(ObpObjectTypesDirectory);
 }
 #endif
 
@@ -364,4 +388,30 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 		Status =  STATUS_SUCCESS;
 	
 	return Status;
+}
+
+BSTATUS ObpGetNextEntryDirectory(
+	POBJECT_DIRECTORY Directory,
+	POBJECT_HEADER InEntry,
+	POBJECT_HEADER* OutEntry)
+{
+	if (InEntry == NULL)
+	{
+		// InEntry is null, that means they just started listing the directory.
+		if (IsListEmpty(&Directory->ListHead))
+			return STATUS_DIRECTORY_DONE;
+		
+		*OutEntry = CONTAINING_RECORD(Directory->ListHead.Flink, OBJECT_HEADER, DirectoryListEntry);
+		return STATUS_SUCCESS;
+	}
+	
+	PLIST_ENTRY Entry = &InEntry->DirectoryListEntry;
+	if (Entry->Flink == &Directory->ListHead)
+	{
+		// Directory listing has concluded
+		return STATUS_DIRECTORY_DONE;
+	}
+	
+	*OutEntry = CONTAINING_RECORD(Entry->Flink, OBJECT_HEADER, DirectoryListEntry);
+	return STATUS_SUCCESS;
 }

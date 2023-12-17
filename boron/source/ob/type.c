@@ -84,6 +84,8 @@ BSTATUS ObiCreateObjectType(
 	
 	POBJECT_TYPE NewType = (POBJECT_TYPE) Hdr->Body;
 	
+	NewType->TypeName = Hdr->ObjectName;
+	
 	// The first ever object type created MUST be the ObjectType object type.
 	if (!ObpObjectTypeType)
 	{

@@ -102,4 +102,11 @@ BSTATUS ObiLookUpObject(void* ParseObject, const char* Name, void** OutObject);
 
 bool ObpInitializedRootDirectory();
 
+// note: this interface WILL NOT be exposed to userspace, it will be implemented
+// at the API object handle level.
+BSTATUS ObpGetNextEntryDirectory(
+	POBJECT_DIRECTORY Directory,
+	POBJECT_HEADER InEntry,
+	POBJECT_HEADER* OutEntry);
+
 #define OBP_CHECK_BACKSLASHES (1)

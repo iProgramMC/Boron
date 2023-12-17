@@ -69,6 +69,9 @@ struct _OBJECT_TYPE
 {
 	OBJECT_TYPE_INFO TypeInfo;
 	
+	// Mirror of OBJECT_GET_HEADER(.)->ObjectName
+	const char* TypeName;
+	
 	// List of object types that use this type.
 	// Each entry is a field inside OBJECT_HEADER.
 	LIST_ENTRY ObjectListHead;

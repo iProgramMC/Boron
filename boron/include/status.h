@@ -42,6 +42,7 @@ enum
 	STATUS_NAME_NOT_FOUND,      // If the object name was not found
 	STATUS_UNSUPPORTED_FUNCTION,// If the object does not support performing that operation
 	STATUS_PATH_INVALID,        // If the parse succeeded and matched an object, but there were more characters to parse
+	STATUS_DIRECTORY_DONE,      // There are no more directory entries to list
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
