@@ -14,42 +14,12 @@ Author:
 ***/
 #include "obp.h"
 
-extern OBJECT_TYPE_INFO ObpObjectTypeTypeInfo;
-extern OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
-extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
-
-// for testing
-BSTATUS ObpDebugObjectType(void* Object);
-
-void ObpInitializeTypes()
-{
-	ObpInitializeObjectTypeInfos();
-	
-	// Create the ObjectType type.
-	if (FAILED(ObiCreateObjectType("ObjectType", &ObpObjectTypeTypeInfo, &ObpObjectTypeType)))
-		KeCrash("could not create ObjectType object type");
-	
-	if (FAILED(ObiCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObpDirectoryType)))
-		KeCrash("could not create Directory object type");
-	
-	if (FAILED(ObiCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType)))
-		KeCrash("could not create SymbolicLink object type");
-}
-
-void ObpDebugTypesAfterInit()
-{
-	ObiDebugObject(ObpObjectTypeType);
-	ObiDebugObject(ObpDirectoryType);
-	ObiDebugObject(ObpSymbolicLinkType);
-}
-
 void ObInitializeFirstPhase()
 {
-	ObpInitializeTypes();
-	ObpInitializeRootDirectory();
-	ObpDebugTypesAfterInit();
+	
 }
 
 void ObInitializeSecondPhase()
 {
+	
 }
