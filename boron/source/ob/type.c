@@ -6,7 +6,7 @@ Module name:
 	ob/type.c
 	
 Abstract:
-	This module implements the object type for the
+	This module implements the "object type" type for the
 	object manager.
 	
 Author:

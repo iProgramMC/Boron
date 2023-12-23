@@ -21,7 +21,7 @@ Author:
 #define OB_MUTEX_LEVEL_DIRECTORY    (2)
 #define OB_MUTEX_LEVEL_OBJECT_TYPES (3)
 
-// 
+// Private functions
 BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
 	const char* Name,
@@ -32,9 +32,26 @@ BSTATUS ObpAllocateObject(
 	POBJECT_HEADER* OutObjectHeader
 );
 
+BSTATUS ObpAddObjectToDirectory(
+	POBJECT_DIRECTORY Directory,
+	void* Object
+);
+
+// Adds 1 to the internal reference count of the object.
+void ObpReferenceObject(void* Object);
+
+// Takes a reference away from the internal ref count of the object.
+// If the reference count hits zero, the object will be deleted.
+void ObpDereferenceObject(void* Object);
+
+// Takes a reference away from the internal ref count of the object.
+// The object won't get deleted if the reference count hits zero.
+void ObpDereferenceObjectNoDelete(void* Object);
+
 // Initialization steps
 bool ObpInitializeBasicMutexes();
 bool ObpInitializeBasicTypes();
+bool ObpInitializeRootDirectory();
 
 // Mutexes
 void ObpEnterObjectTypeMutex();

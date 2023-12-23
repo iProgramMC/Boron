@@ -33,6 +33,9 @@ bool ObInitSystem()
 	if (!ObpInitializeBasicTypes())
 		return false;
 	
+	if (!ObpInitializeRootDirectory())
+		return false;
+	
 	DbgPrint("Object manager was initialized successfully!");
 	
 	return true;

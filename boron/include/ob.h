@@ -165,3 +165,21 @@ BSTATUS ObCreateObjectType(
 	POBJECT_TYPE_INFO TypeInfo,
 	POBJECT_TYPE* OutObjectType
 );
+
+BSTATUS ObCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	bool NonPaged,
+	void* ParseContext,
+	size_t BodySize
+);
+
+BSTATUS ObCreateDirectoryObject(
+	POBJECT_DIRECTORY* OutDirectory,
+	POBJECT_DIRECTORY ParentDirectory,
+	const char* Name,
+	int Flags
+);

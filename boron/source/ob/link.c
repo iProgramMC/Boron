@@ -3,11 +3,11 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ob/create.c
+	ob/link.c
 	
 Abstract:
-	This module implements create routines for the
-	object manager.
+	This module implements the symbolic link object type for
+	the object manager.
 	
 Author:
 	iProgramInCpp - 23 December 2023

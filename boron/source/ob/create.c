@@ -119,3 +119,66 @@ BSTATUS ObpAllocateObject(
 	*OutObjectHeader = ObjectHeader;
 	return STATUS_SUCCESS;
 }
+
+extern POBJECT_DIRECTORY ObpRootDirectory;
+
+BSTATUS ObCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	bool NonPaged,
+	void* ParseContext,
+	size_t BodySize)
+{
+	POBJECT_HEADER Hdr;
+	BSTATUS Status;
+	
+	if (!OutObject || !ObjectType || !ObjectName || !BodySize)
+		return STATUS_INVALID_PARAMETER;
+	
+	// If there is a root directory, then we should normalize the
+	// parent directory and name, so that:
+	// a) The name does not contain backslashes, and
+	// b) The parent directory is not NULL.
+	if (ObpRootDirectory)
+	{	
+		// Just roll with it for now and assume all's good
+		if (!ParentDirectory)
+			ParentDirectory = ObpRootDirectory;
+		
+		/*
+		TODO:
+		Status = ObpNormalizeParentDirectoryAndName(
+			&ParentDirectory,
+			&ObjectName
+		);
+		
+		if (FAILED(Status))
+			return Status;
+		*/
+	}
+	
+	// Allocate the object.
+	Status = ObpAllocateObject(
+		ObjectType,
+		ObjectName,
+		BodySize,
+		NonPaged,
+		ParseContext,
+		Flags,
+		&Hdr
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	*OutObject = Hdr->Body;
+	
+	// Note: This uses the root directory mutex, so it's all good.
+	if (ParentDirectory)
+		Status = ObpAddObjectToDirectory(ParentDirectory, Hdr->Body);
+	
+	return Status;
+}
