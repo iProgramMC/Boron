@@ -14,12 +14,26 @@ Author:
 ***/
 #include "obp.h"
 
-void ObInitializeFirstPhase()
+bool ObpInitializeBasicMutexes()
 {
+	extern KMUTEX ObpObjectTypeMutex;
+	extern KMUTEX ObpRootDirectoryMutex;
 	
+	KeInitializeMutex(&ObpObjectTypeMutex, OB_MUTEX_LEVEL_OBJECT_TYPES);
+	KeInitializeMutex(&ObpRootDirectoryMutex, OB_MUTEX_LEVEL_DIRECTORY);
+	
+	return true;
 }
 
-void ObInitializeSecondPhase()
+bool ObInitSystem()
 {
+	if (!ObpInitializeBasicMutexes())
+		return false;
 	
+	if (!ObpInitializeBasicTypes())
+		return false;
+	
+	DbgPrint("Object manager was initialized successfully!");
+	
+	return true;
 }

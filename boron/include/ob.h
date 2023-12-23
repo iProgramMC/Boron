@@ -157,5 +157,11 @@ struct _OBJECT_DIRECTORY
 #define OB_MAX_PATH_LENGTH (256)
 
 // Initialization
-void ObInitializeFirstPhase();
-void ObInitializeSecondPhase();
+bool ObInitSystem();
+
+// Kernel mode API
+BSTATUS ObCreateObjectType(
+	const char* TypeName,
+	POBJECT_TYPE_INFO TypeInfo,
+	POBJECT_TYPE* OutObjectType
+);
