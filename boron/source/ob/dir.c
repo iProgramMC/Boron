@@ -85,6 +85,81 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 	ObpLeaveRootDirectoryMutex();
 }
 
+// Performs a path lookup in the object namespace. It can either be
+// an absolute path lookup (from the root of the directory tree), or
+// a relative path lookup (from a pre-existing directory).
+//
+// Note that common links to parent directories do not work. Thus, an
+// object with the name of ".." is a totally valid object, one that does
+// not necessarily refer to the parent directory. In a future version,
+// there may be a ".." symbolic link that points to the parent directory.
+//
+// N.B. Once returned, the object has an extra reference.
+// When done with the object, you must dereference it.
+BSTATUS ObpLookUpObjectPath(
+	void* InitialParseObject,
+	const char* ObjectName,
+	POBJECT_TYPE ExpectedType,
+	int LoopCount,
+	void** OutObject)
+{
+	if (!ObjectName || !ExpectedType || !OutObject)
+		return STATUS_INVALID_PARAMETER;
+	
+	ObpEnterRootDirectoryMutex();
+	
+	// If there is no initial parse object, then the path name is absolute
+	// and we should start lookup from the root directory. However, we must
+	// check if the path is actually absolute; if not, the caller made a
+	// mistake.
+	if (!InitialParseObject)
+	{
+		InitialParseObject = ObpRootDirectory;
+		
+		if (*ObjectName != OB_PATH_SEPARATOR)
+		{
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
+		}
+		
+		// Skip the separator.
+		ObjectName++;
+		
+		// TODO
+	}
+	else
+	{
+		// There is an initial parse object.  Check if the path was actually
+		// meant to be absolute. IF yes, return STATUS_PATH_INVALID, as we
+		// cannot perform absolute path lookup from an object.
+		//
+		// N.B. We also check if the object name is empty. 
+		if (*ObjectName == OB_PATH_SEPARATOR ||
+			*ObjectName == '\0')
+		{
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
+		}
+	}
+	
+	ObpReferenceObject(InitialParseObject);
+	
+	char TemporarySpace[OB_MAX_PATH_LENGTH];
+	
+	void* CurrentObject = ObpRootDirectory;
+	
+	while (true)
+	{
+		// Get the object's type.
+		POBJECT_TYPE Type = OBJECT_GET_HEADER(CurrentObject)->NonPagedObjectHeader->ObjectType;
+		
+		// If the object is a directory:
+		if (Type == ObpDirectoryType)
+		{
+			// 
+		}
+	}
+}
 
 BSTATUS ObCreateDirectoryObject(
 	POBJECT_DIRECTORY* OutDirectory,

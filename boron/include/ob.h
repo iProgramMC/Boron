@@ -27,8 +27,8 @@ typedef BSTATUS(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 // Lets the object know that it should tear down because the system will delete it.
 typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
 
-// Parse a path using this object. TODO
-typedef BSTATUS(*OBJ_PARSE_FUNC) (void* ParseObject, const char** Name, void* Context, void** Object);
+// Parse a path using this object. Note: TemporarySpace MUST be OB_MAX_PATH_LENGTH in size!!
+typedef BSTATUS(*OBJ_PARSE_FUNC) (void* ParseObject, const char** Name, char* TemporarySpace, void* Context, void** Object);
 
 // Set security properties on this object. TODO
 typedef BSTATUS(*OBJ_SECURE_FUNC)(void* Object); // TODO
@@ -44,6 +44,7 @@ typedef struct _OBJECT_TYPE OBJECT_TYPE, *POBJECT_TYPE;
 typedef struct _NONPAGED_OBJECT_HEADER NONPAGED_OBJECT_HEADER, *PNONPAGED_OBJECT_HEADER;
 typedef struct _OBJECT_HEADER OBJECT_HEADER, *POBJECT_HEADER;
 typedef struct _OBJECT_DIRECTORY OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
+typedef struct _OBJECT_SYMLINK OBJECT_SYMLINK, *POBJECT_SYMLINK;
 
 struct _OBJECT_TYPE_INFO
 {
@@ -125,6 +126,14 @@ struct _OBJECT_HEADER
 	size_t BodySize;
 	
 	char Body[0];
+};
+
+struct _OBJECT_SYMLINK
+{
+	// The path of the object that this symbolic link links to.
+	// If NULL, the symbolic link is considered invalid and will
+	// throw errors when a lookup is attempted on it.
+	char* DestPath;
 };
 
 // Object is owned by kernel mode.
