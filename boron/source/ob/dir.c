@@ -85,6 +85,38 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 	ObpLeaveRootDirectoryMutex();
 }
 
+// Matches a file name with the first segment of the path name,
+// up until a backslash ('\') character.
+// Returns 0 if not matched, >0 (length of path consumed) if matched.
+//
+// A segment from a path name, also known as component of a path name,
+// is the name of a directory entry that is entered during path traversal.
+// For example, in the path name \ObjectTypes\Directory, ObjectTypes and
+// Directory are two separate segments of the path name.
+static size_t ObpMatchPathName(const char* FileName, const char* Path)
+{
+	const char* OriginalPath = Path;
+	
+	// While the file name and path are the same up to this point...
+	//
+	// N.B. If the file name reached the '\0' at this point, then either
+	// the Filename==Path condition or the Path!=0 condition are false.
+	while (*FileName == *Path && *Path != '\0' && *Path != OB_PATH_SEPARATOR)
+	{
+		FileName++;
+		Path++;
+	}
+	
+	// Check if the file name and path reached the end together:
+	if (*FileName == '\0' && (*Path == '\0' || *Path == OB_PATH_SEPARATOR))
+	{
+		return Path - OriginalPath + (*Path == OB_PATH_SEPARATOR);
+	}
+	
+	return 0;
+}
+
+
 // Performs a path lookup in the object namespace. It can either be
 // an absolute path lookup (from the root of the directory tree), or
 // a relative path lookup (from a pre-existing directory).
@@ -101,10 +133,14 @@ BSTATUS ObpLookUpObjectPath(
 	const char* ObjectName,
 	POBJECT_TYPE ExpectedType,
 	int LoopCount,
-	void** OutObject)
+	void** FoundObject)
 {
-	if (!ObjectName || !ExpectedType || !OutObject)
+	if (!ObjectName || !ExpectedType || !FoundObject)
 		return STATUS_INVALID_PARAMETER;
+	
+	if (OB_MAX_LOOP <= LoopCount)
+		// We can't risk it!
+		return STATUS_LOOP_TOO_DEEP;
 	
 	ObpEnterRootDirectoryMutex();
 	
@@ -124,8 +160,6 @@ BSTATUS ObpLookUpObjectPath(
 		
 		// Skip the separator.
 		ObjectName++;
-		
-		// TODO
 	}
 	else
 	{
@@ -140,23 +174,117 @@ BSTATUS ObpLookUpObjectPath(
 			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
 		}
+		
+		// Check if the parse object is actually a directory.
+		if (ObpGetObjectType(InitialParseObject) != ObpDirectoryType)
+		{
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
+		}
 	}
 	
 	ObpReferenceObject(InitialParseObject);
 	
 	char TemporarySpace[OB_MAX_PATH_LENGTH];
-	
-	void* CurrentObject = ObpRootDirectory;
+	void* CurrentObject = InitialParseObject;
+	const char* CurrentPath = ObjectName;
 	
 	while (true)
 	{
-		// Get the object's type.
-		POBJECT_TYPE Type = OBJECT_GET_HEADER(CurrentObject)->NonPagedObjectHeader->ObjectType;
-		
 		// If the object is a directory:
-		if (Type == ObpDirectoryType)
+		POBJECT_TYPE ObjectType = ObpGetObjectType(CurrentObject);
+		if (ObjectType == ObpDirectoryType)
 		{
-			// 
+			// Check if we have any more path to parse.
+			if (*CurrentPath == 0)
+			{
+				// Nope, so return success.
+				//
+				// N.B. The object is already referenced.
+				*FoundObject = CurrentObject;
+				return STATUS_SUCCESS;
+			}
+			
+			// We do, so browse the directory to find an entry with the same name
+			// as the current path segment.
+			POBJECT_DIRECTORY Directory = CurrentObject;
+			PLIST_ENTRY Entry = Directory->ListHead.Flink;
+			
+			bool FoundMatch = false;
+			
+			while (Entry != &Directory->ListHead)
+			{
+				POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
+				
+				size_t MatchLength = ObpMatchPathName(Header->ObjectName, CurrentPath);
+				if (MatchLength != 0)
+				{
+					// Match! Time to continue parsing through this object.
+					CurrentPath += MatchLength;
+					
+					ObpDereferenceObject(CurrentObject);
+					ObpReferenceObject(Header->Body);
+					CurrentObject = Header->Body;
+					FoundMatch = true;
+					break;
+				}
+				
+				// Didn't match, so continue.
+				Entry = Entry->Flink;
+			}
+			
+			if (!FoundMatch)
+			{
+				// No match! Inform caller about our failure.
+				//
+				// N.B. We added a reference to the object we were using!
+				ObpDereferenceObject(CurrentObject);
+				return STATUS_NAME_NOT_FOUND;
+			}
+		}
+		// If the object can be parsed, try to parse it!
+		else if (ObjectType->TypeInfo.Parse)
+		{
+			void* NewObject = NULL;
+			BSTATUS Status = ObjectType->TypeInfo.Parse(
+				CurrentObject,
+				&CurrentPath,
+				TemporarySpace,
+				OBJECT_GET_HEADER(CurrentObject)->ParseContext,
+				LoopCount + 1,
+				&NewObject
+			);
+			
+			if (FAILED(Status))
+			{
+				ObpDereferenceObject(CurrentObject);
+				return Status;
+			}
+			
+			ObpDereferenceObject(CurrentObject);
+			ObpDereferenceObject(NewObject);
+			CurrentObject = NewObject;
+		}
+		// The object can't be parsed, which means this is a dead end!
+		else if (*CurrentPath != '\0')
+		{
+			// There's still more path to be parsed!
+			// This means the path is like \ObjectTypes\Directory\CantFindMe.
+			// Obviously \ObjectTypes\Directory isn't a directory or symbolic link
+			// we can parse, so CantFindMe can't possible exist.
+			ObpDereferenceObject(CurrentObject);
+			return STATUS_PATH_INVALID;
+		}
+		// Ok, this is the object, let's check if its type matches.
+		else if (ExpectedType != NULL && ExpectedType != ObjectType)
+		{
+			ObpDereferenceObject(CurrentObject);
+			return STATUS_TYPE_MISMATCH;
+		}
+		else
+		{
+			*FoundObject = CurrentObject;
+			return STATUS_SUCCESS;
 		}
 	}
 }
@@ -290,6 +418,21 @@ bool ObpInitializeRootDirectory()
 	
 	ObpDebugDirectory(ObpRootDirectory);
 	ObpDebugDirectory(ObpObjectTypesDirectory);
+	
+	// Try looking up a certain path:
+	void* Obj = NULL;
+	BSTATUS Status = ObpLookUpObjectPath(
+		NULL,
+		"\\ObjectTypes\\Directory",
+		ObpObjectTypeType,
+		0,
+		&Obj
+	);
+	
+	if (FAILED(Status))
+		DbgPrint("Look Up Failed!  Error: %d", Status);
+	else
+		DbgPrint("Look Up Succeeded!  Ptr: %p  (ObpDirectoryType: %p)", Obj, ObpDirectoryType);
 	
 	return true;
 }
