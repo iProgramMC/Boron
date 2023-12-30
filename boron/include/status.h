@@ -44,6 +44,7 @@ enum
 	STATUS_PATH_INVALID,        // If the path is invalid, such as if parse succeeded and matched an object, but path wasn't consumed fully
 	STATUS_DIRECTORY_DONE,      // There are no more directory entries to list
 	STATUS_LOOP_TOO_DEEP,       // Symbolic link loop was too deep.
+	STATUS_UNASSIGNED_LINK,     // A symbolic link was unassigned.
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

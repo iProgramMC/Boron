@@ -135,7 +135,7 @@ BSTATUS ObpLookUpObjectPath(
 	int LoopCount,
 	void** FoundObject)
 {
-	if (!ObjectName || !ExpectedType || !FoundObject)
+	if (!ObjectName || !FoundObject)
 		return STATUS_INVALID_PARAMETER;
 	
 	if (OB_MAX_LOOP <= LoopCount)
@@ -185,7 +185,7 @@ BSTATUS ObpLookUpObjectPath(
 	
 	ObpReferenceObject(InitialParseObject);
 	
-	char TemporarySpace[OB_MAX_PATH_LENGTH];
+	//char TemporarySpace[OB_MAX_PATH_LENGTH];
 	void* CurrentObject = InitialParseObject;
 	const char* CurrentPath = ObjectName;
 	
@@ -249,7 +249,7 @@ BSTATUS ObpLookUpObjectPath(
 			BSTATUS Status = ObjectType->TypeInfo.Parse(
 				CurrentObject,
 				&CurrentPath,
-				TemporarySpace,
+				//TemporarySpace,
 				OBJECT_GET_HEADER(CurrentObject)->ParseContext,
 				LoopCount + 1,
 				&NewObject
@@ -391,6 +391,8 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 
 bool ObpInitializeRootDirectory()
 {
+	BSTATUS Status;
+	
 	if (FAILED(ObCreateDirectoryObject(
 		&ObpRootDirectory,
 		NULL,
@@ -416,14 +418,26 @@ bool ObpInitializeRootDirectory()
 	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
 	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
 	
-	ObpDebugDirectory(ObpRootDirectory);
-	ObpDebugDirectory(ObpObjectTypesDirectory);
+	// Try creating a symbolic link:
+	void *Symlink = NULL;
+	Status = ObCreateSymbolicLinkObject(
+		&Symlink,
+		"\\ObjectTypes",
+		"My Beautiful Symbolic Link",
+		OB_FLAG_KERNEL
+	);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Can't create symlink: %d", Status);
+		return false;
+	}
 	
 	// Try looking up a certain path:
 	void* Obj = NULL;
-	BSTATUS Status = ObpLookUpObjectPath(
+	Status = ObpLookUpObjectPath(
 		NULL,
-		"\\ObjectTypes\\Directory",
+		"\\My Beautiful Symbolic Link\\Directory",
 		ObpObjectTypeType,
 		0,
 		&Obj
@@ -433,6 +447,9 @@ bool ObpInitializeRootDirectory()
 		DbgPrint("Look Up Failed!  Error: %d", Status);
 	else
 		DbgPrint("Look Up Succeeded!  Ptr: %p  (ObpDirectoryType: %p)", Obj, ObpDirectoryType);
+	
+	ObpDebugDirectory(ObpRootDirectory);
+	ObpDebugDirectory(ObpObjectTypesDirectory);
 	
 	return true;
 }

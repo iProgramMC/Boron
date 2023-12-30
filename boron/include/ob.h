@@ -19,13 +19,13 @@ Author:
 #include <status.h>
 
 // Lets the object know a handle to it was opened.
-typedef BSTATUS(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
+typedef void(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
 
 // Lets the object know a handle to it was closed.
-typedef BSTATUS(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
+typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 
 // Lets the object know that it should tear down because the system will delete it.
-typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
+typedef void(*OBJ_DELETE_FUNC)(void* Object);
 
 // Parse a path using this object.
 //
@@ -38,7 +38,7 @@ typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
 typedef BSTATUS(*OBJ_PARSE_FUNC) (
 	void* ParseObject,
 	const char** Name,
-	char* TemporarySpace,
+	//char* TemporarySpace,
 	void* Context,
 	int LoopCount,
 	void** Object
@@ -204,5 +204,12 @@ BSTATUS ObCreateDirectoryObject(
 	POBJECT_DIRECTORY* OutDirectory,
 	POBJECT_DIRECTORY ParentDirectory,
 	const char* Name,
+	int Flags
+);
+
+BSTATUS ObCreateSymbolicLinkObject(
+	void** OutObject,
+	const char* LinkTarget,
+	const char* ObjectName,
 	int Flags
 );
