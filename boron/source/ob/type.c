@@ -6,74 +6,55 @@ Module name:
 	ob/type.c
 	
 Abstract:
-	This module implements the "ObjectType" object type. It
-	provides create type, .. functions.
+	This module implements the "object type" type for the
+	object manager.
 	
 Author:
-	iProgramInCpp - 7 December 2023
+	iProgramInCpp - 18 December 2023
 ***/
 #include "obp.h"
 
-extern POBJECT_DIRECTORY ObpRootDirectory;
+KMUTEX ObpObjectTypeMutex;
 
 POBJECT_TYPE ObpObjectTypeType;
 POBJECT_TYPE ObpDirectoryType;
 POBJECT_TYPE ObpSymbolicLinkType;
 
-OBJECT_TYPE_INFO ObpObjectTypeTypeInfo;
-OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
-
-// ObjectType methods
-BSTATUS ObpDebugObjectType(void* Object)
+void ObpEnterObjectTypeMutex()
 {
-	POBJECT_TYPE Type = Object;
-	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Type);
-	
-	DbgPrint(
-		"Object type - name '%s', total number of objects: %d",
-		Hdr->ObjectName,
-		Type->TotalObjectCount
-	);
-	
-	return STATUS_SUCCESS;
+	KeWaitForSingleObject(&ObpObjectTypeMutex, false, TIMEOUT_INFINITE);
 }
 
-// Object type creation and initialization
-
-
-void ObpInitializeObjectTypeTypeInfo()
+void ObpLeaveObjectTypeMutex()
 {
-	POBJECT_TYPE_INFO O = &ObpObjectTypeTypeInfo;
-	
-	O->NonPagedPool = true;
-
-	#ifdef DEBUG
-	O->Debug = ObpDebugObjectType;
-	#endif
+	KeReleaseMutex(&ObpObjectTypeMutex);
 }
 
-void ObpInitializeObjectTypeInfos()
-{
-	ObpInitializeObjectTypeTypeInfo();
-	ObpInitializeDirectoryTypeInfo();
-	//ObpInitializeSymbolicLinkTypeInfo();
-}
-
-BSTATUS ObiCreateObjectType(
+BSTATUS ObCreateObjectType(
 	const char* TypeName,
 	POBJECT_TYPE_INFO TypeInfo,
 	POBJECT_TYPE* OutObjectType)
 {
+	// Check if the type name has any invalid characters.
+	const char* TypeNameTemp = TypeName;
+	
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
+	
+	while (*TypeNameTemp)
+	{
+		if (*TypeNameTemp == '\\')
+			return STATUS_NAME_INVALID;
+		
+		TypeNameTemp++;
+	}
 
 	// Allocate the object.
-	Status = ObiAllocateObject(
+	Status = ObpAllocateObject(
 		ObpObjectTypeType,
 		TypeName,
 		sizeof(OBJECT_TYPE),
 		true,
-		ObpRootDirectory,
 		NULL,
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT,
 		&Hdr
@@ -86,6 +67,8 @@ BSTATUS ObiCreateObjectType(
 	
 	NewType->TypeName = Hdr->ObjectName;
 	
+	ObpEnterObjectTypeMutex();
+	
 	// The first ever object type created MUST be the ObjectType object type.
 	if (!ObpObjectTypeType)
 	{
@@ -97,6 +80,71 @@ BSTATUS ObiCreateObjectType(
 	
 	NewType->TypeInfo = *TypeInfo;
 	
+	// If we have an object types directory, add it there.
+	
+	ObpLeaveObjectTypeMutex();
+	
 	*OutObjectType = NewType;
 	return STATUS_SUCCESS;
+}
+
+#ifdef DEBUG
+// ObjectType methods
+BSTATUS ObpDebugObjectType(void* Object)
+{
+	POBJECT_TYPE Type = Object;
+	
+	DbgPrint(
+		"Object type - name '%s', total number of objects: %d",
+		Type->TypeName,
+		Type->TotalObjectCount
+	);
+	
+	return STATUS_SUCCESS;
+}
+#endif
+
+OBJECT_TYPE_INFO ObpObjectTypeTypeInfo =
+{
+	// InvalidAttributes
+	0,
+	// ValidAccessMask
+	0,
+	// NonPagedPool
+	true,
+	// Open
+	NULL,
+	// Close
+	NULL,
+	// Delete
+	NULL,
+	// Parse
+	NULL,
+	// Secure
+	NULL,
+#ifdef DEBUG
+	// Debug
+	ObpDebugObjectType,
+#endif
+};
+
+extern OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
+extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
+
+bool ObpInitializeBasicTypes()
+{
+	if (FAILED(ObCreateObjectType("Type", &ObpObjectTypeTypeInfo, &ObpObjectTypeType))) {
+		DbgPrint("Failed to create Type object type");
+		return false;
+	}
+	if (FAILED(ObCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObpDirectoryType))) {
+		DbgPrint("Failed to create Directory object type");
+		return false;
+	}
+	if (FAILED(ObCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType))) {
+		DbgPrint("Failed to create SymbolicLink object type");
+		return false;
+	}
+	
+	return true;
 }

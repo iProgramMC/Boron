@@ -40,6 +40,8 @@ extern NO_RETURN void KiInitializePhase1(void* Context);
 
 extern size_t MmTotalAvailablePages;
 
+NO_RETURN void ExpInitializeExecutive(void* Context);
+
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
@@ -62,8 +64,20 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	if (Prcb->IsBootstrap)
 	{
 		LdrInitializeDrivers();
-		ObInitializeFirstPhase();
-		ObInitializeSecondPhase();
+		
+		// Spawn a new thread on this CPU that performs initialization
+		// of the rest of the kernel.
+		PKTHREAD Thread = KeAllocateThread();
+		KeInitializeThread(
+			Thread,
+			POOL_NO_MEMORY_HANDLE,
+			ExpInitializeExecutive,
+			NULL,
+			KeGetSystemProcess()
+		);
+		KeSetPriorityThread(Thread, PRIORITY_NORMAL);
+		KeDetachThread(Thread);
+		KeReadyThread(Thread);
 	}
 	
 	KeSchedulerCommit();

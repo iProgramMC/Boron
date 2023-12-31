@@ -19,16 +19,30 @@ Author:
 #include <status.h>
 
 // Lets the object know a handle to it was opened.
-typedef BSTATUS(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
+typedef void(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
 
 // Lets the object know a handle to it was closed.
-typedef BSTATUS(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
+typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 
 // Lets the object know that it should tear down because the system will delete it.
-typedef BSTATUS(*OBJ_DELETE_FUNC)(void* Object);
+typedef void(*OBJ_DELETE_FUNC)(void* Object);
 
-// Parse a path using this object. TODO
-typedef BSTATUS(*OBJ_PARSE_FUNC) (void* ParseObject, const char** Name, void* Context, void** Object);
+// Parse a path using this object.
+//
+// N.B.:
+//  1. TemporarySpace MUST be OB_MAX_PATH_LENGTH in size!!
+//  2. In the implementation of the Parse method, if the Parse method performs a lookup
+//     using ObpLookUpObjectPath, then it MUST pass LoopCount into the LoopCount parameter!
+//     (I mean, you can always pass LoopCount + 1 if you're stubborn like that, but you will
+//     run out of loops twice as quickly if some guy decides they want to create a symlink loop)
+typedef BSTATUS(*OBJ_PARSE_FUNC) (
+	void* ParseObject,
+	const char** Name,
+	//char* TemporarySpace,
+	void* Context,
+	int LoopCount,
+	void** Object
+);
 
 // Set security properties on this object. TODO
 typedef BSTATUS(*OBJ_SECURE_FUNC)(void* Object); // TODO
@@ -44,6 +58,7 @@ typedef struct _OBJECT_TYPE OBJECT_TYPE, *POBJECT_TYPE;
 typedef struct _NONPAGED_OBJECT_HEADER NONPAGED_OBJECT_HEADER, *PNONPAGED_OBJECT_HEADER;
 typedef struct _OBJECT_HEADER OBJECT_HEADER, *POBJECT_HEADER;
 typedef struct _OBJECT_DIRECTORY OBJECT_DIRECTORY, *POBJECT_DIRECTORY;
+typedef struct _OBJECT_SYMLINK OBJECT_SYMLINK, *POBJECT_SYMLINK;
 
 struct _OBJECT_TYPE_INFO
 {
@@ -127,6 +142,14 @@ struct _OBJECT_HEADER
 	char Body[0];
 };
 
+struct _OBJECT_SYMLINK
+{
+	// The path of the object that this symbolic link links to.
+	// If NULL, the symbolic link is considered invalid and will
+	// throw errors when a lookup is attempted on it.
+	char* DestPath;
+};
+
 // Object is owned by kernel mode.
 #define OB_FLAG_KERNEL (1 << 0)
 
@@ -157,5 +180,36 @@ struct _OBJECT_DIRECTORY
 #define OB_MAX_PATH_LENGTH (256)
 
 // Initialization
-void ObInitializeFirstPhase();
-void ObInitializeSecondPhase();
+bool ObInitSystem();
+
+// Kernel mode API
+BSTATUS ObCreateObjectType(
+	const char* TypeName,
+	POBJECT_TYPE_INFO TypeInfo,
+	POBJECT_TYPE* OutObjectType
+);
+
+BSTATUS ObCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	bool NonPaged,
+	void* ParseContext,
+	size_t BodySize
+);
+
+BSTATUS ObCreateDirectoryObject(
+	POBJECT_DIRECTORY* OutDirectory,
+	POBJECT_DIRECTORY ParentDirectory,
+	const char* Name,
+	int Flags
+);
+
+BSTATUS ObCreateSymbolicLinkObject(
+	void** OutObject,
+	const char* LinkTarget,
+	const char* ObjectName,
+	int Flags
+);

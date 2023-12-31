@@ -54,7 +54,14 @@ bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
 	KiAssertOwnDispatcherLock();
 	
 	if (Header->Type == DISPATCH_MUTEX)
-		return Header->Signaled == 0;
+	{
+		if (Header->Signaled == 0)
+			return true;
+		
+		PKMUTEX Mutex = (PKMUTEX) Header;
+		
+		return Mutex->OwnerThread == KeGetCurrentThread();
+	}
 	
 	// default case
 	return Header->Signaled != 0;

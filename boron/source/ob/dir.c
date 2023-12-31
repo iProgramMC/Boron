@@ -6,61 +6,93 @@ Module name:
 	ob/dir.c
 	
 Abstract:
-	This module implements the "Directory" object type. It
-	provides create directory, .. functions
+	This module implements the directory object type for
+	the object manager.
 	
 Author:
-	iProgramInCpp - 8 December 2023
+	iProgramInCpp - 23 December 2023
 ***/
 #include "obp.h"
 
-OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
+extern POBJECT_TYPE ObpDirectoryType;
 
-// Pointer to root directory.
+KMUTEX ObpRootDirectoryMutex;
+
+void ObpEnterRootDirectoryMutex()
+{
+	KeWaitForSingleObject(&ObpRootDirectoryMutex, false, TIMEOUT_INFINITE);
+}
+
+void ObpLeaveRootDirectoryMutex()
+{
+	KeReleaseMutex(&ObpRootDirectoryMutex);
+}
+
 POBJECT_DIRECTORY ObpRootDirectory;
 POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
-bool ObpInitializedRootDirectory()
+BSTATUS ObpAddObjectToDirectory(
+	POBJECT_DIRECTORY Directory,
+	void* Object)
 {
-	return ObpRootDirectory != NULL;
+	ObpEnterRootDirectoryMutex();
+	
+	// Add it proper
+	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
+	Directory->Count++;
+	ObpReferenceObject(Directory);
+	
+	ObpLeaveRootDirectoryMutex();
+	
+	return STATUS_SUCCESS;
 }
 
-void ObpInitializeRootDirectory()
+void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 {
-	if (FAILED(ObiCreateDirectoryObject(
-		&ObpRootDirectory,
-		NULL,
-		"Root",
-		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
-	)))
-	{
-		KeCrash("cannot create root directory");
-	}
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	
-	// Create the object types directory.
-	if (FAILED(ObiCreateDirectoryObject(
-		&ObpObjectTypesDirectory,
-		ObpRootDirectory,
-		"ObjectTypes",
-		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
-	)))
-	{
-		KeCrash("cannot create ObjectTypes directory");
-	}
-	
-	// Add all object types created so far to the object types directory.
-	ObpAddObjectToDirectory(ObpObjectTypesDirectory, OBJECT_GET_HEADER(ObpObjectTypeType));
-	ObpAddObjectToDirectory(ObpObjectTypesDirectory, OBJECT_GET_HEADER(ObpDirectoryType));
-	ObpAddObjectToDirectory(ObpObjectTypesDirectory, OBJECT_GET_HEADER(ObpSymbolicLinkType));
+	ObpEnterRootDirectoryMutex();
 	
 #ifdef DEBUG
-	ObpDebugRootDirectory();
+	// Assert that this object actually belongs to the directory.
+	bool Ok = false;
+	PLIST_ENTRY Ent = Directory->ListHead.Flink;
+	while (Ent != &Directory->ListHead)
+	{
+		if (Ent == &Header->DirectoryListEntry)
+		{
+			Ok = true;
+			break;
+		}
+	}
+	
+	if (!Ok)
+	{
+		KeCrash(
+			"ObpRemoveObjectFromDirectory: Object %p (%s) isn't actually in directory %p (%s)",
+			Object,
+			Header->ObjectName,
+			Directory,
+			OBJECT_GET_HEADER(Directory)->ObjectName
+		);
+	}
 #endif
+	
+	RemoveEntryList(&Header->DirectoryListEntry);
+	Directory->Count--;
+	ObpDereferenceObject(Directory);
+	
+	ObpLeaveRootDirectoryMutex();
 }
 
 // Matches a file name with the first segment of the path name,
 // up until a backslash ('\') character.
 // Returns 0 if not matched, >0 (length of path consumed) if matched.
+//
+// A segment from a path name, also known as component of a path name,
+// is the name of a directory entry that is entered during path traversal.
+// For example, in the path name \ObjectTypes\Directory, ObjectTypes and
+// Directory are two separate segments of the path name.
 static size_t ObpMatchPathName(const char* FileName, const char* Path)
 {
 	const char* OriginalPath = Path;
@@ -84,131 +116,234 @@ static size_t ObpMatchPathName(const char* FileName, const char* Path)
 	return 0;
 }
 
-BSTATUS ObpParseDirectory(
-	void* ParseObject,
-	const char** Name,
-	void* Context UNUSED,
-	void** Object)
+
+// Performs a path lookup in the object namespace. It can either be
+// an absolute path lookup (from the root of the directory tree), or
+// a relative path lookup (from a pre-existing directory).
+//
+// Note that common links to parent directories do not work. Thus, an
+// object with the name of ".." is a totally valid object, one that does
+// not necessarily refer to the parent directory. In a future version,
+// there may be a ".." symbolic link that points to the parent directory.
+//
+// N.B. Once returned, the object has an extra reference.
+// When done with the object, you must dereference it.
+BSTATUS ObpLookUpObjectPath(
+	void* InitialParseObject,
+	const char* ObjectName,
+	POBJECT_TYPE ExpectedType,
+	int LoopCount,
+	void** FoundObject)
 {
-	POBJECT_DIRECTORY Directory = ParseObject;
+	if (!ObjectName || !FoundObject)
+		return STATUS_INVALID_PARAMETER;
 	
-	const char* CompleteName = *Name;
+	if (OB_MAX_LOOP <= LoopCount)
+		// We can't risk it!
+		return STATUS_LOOP_TOO_DEEP;
 	
-	// If the first character in the name is a backslash, simply
-	// ignore it and request continuing the parse procedure. The
-	// path could have been malformed, something like this:
-	// \Something\\\AnotherThing
-	if (*CompleteName == OB_PATH_SEPARATOR)
+	ObpEnterRootDirectoryMutex();
+	
+	// If there is no initial parse object, then the path name is absolute
+	// and we should start lookup from the root directory. However, we must
+	// check if the path is actually absolute; if not, the caller made a
+	// mistake.
+	if (!InitialParseObject)
 	{
-		*Name = CompleteName + 1;
-		*Object = ParseObject;
-		return STATUS_SUCCESS;
-	}
-	
-	PLIST_ENTRY Entry = Directory->ListHead.Flink;
-	while (Entry != &Directory->ListHead)
-	{
-		POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
+		InitialParseObject = ObpRootDirectory;
 		
-		size_t MatchLength = ObpMatchPathName(Header->ObjectName, CompleteName);
-		if (MatchLength > 0)
+		if (*ObjectName != OB_PATH_SEPARATOR)
 		{
-			// Match! Time to return this object.
-			*Object = Header->Body;
-			
-			// Add a reference of course
-			Header->NonPagedObjectHeader->PointerCount++;
-			
-			*Name = CompleteName + MatchLength;
-			
-			return STATUS_SUCCESS;
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
 		}
 		
-		Entry = Entry->Flink;
-	}
-	
-	*Object = NULL;
-	return STATUS_NAME_NOT_FOUND;
-}
-
-void ObpListDirectory(POBJECT_DIRECTORY Directory)
-{
-	DbgPrint("Listing of directory %s", OBJECT_GET_HEADER(Directory)->ObjectName);
-	
-	POBJECT_HEADER Entry = NULL;
-	while (true)
-	{
-		BSTATUS Status = ObpGetNextEntryDirectory(Directory, Entry, &Entry);
-		if (Status != STATUS_SUCCESS)
-		{
-			if (Status != STATUS_DIRECTORY_DONE)
-				DbgPrint("Error, status is %d", Status);
-			
-			break;
-		}
-		
-		DbgPrint("\t%-30s %s", Entry->ObjectName, Entry->NonPagedObjectHeader->ObjectType->TypeName);
-	}
-}
-
-#ifdef DEBUG
-void ObpDebugRootDirectory()
-{
-	ObiDebugObject(ObpRootDirectory);
-	ObiDebugObject(ObpObjectTypesDirectory);
-	
-	const char* Path = "\\ObjectTypes\\Directory";
-	void* MatchObject = ObpDirectoryType;
-	void* Object = NULL;
-	BSTATUS Status = ObiLookUpObject(NULL, Path, &Object);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("Error, lookup failed on %s with status %d", Path, Status);
-	}
-	else if (Object != MatchObject)
-	{
-		DbgPrint("Error, object %p doesn't match matchobject %p", Object, MatchObject);
+		// Skip the separator.
+		ObjectName++;
 	}
 	else
 	{
-		DbgPrint("Hey, lookup %s works!", Path);
+		// There is an initial parse object.  Check if the path was actually
+		// meant to be absolute. IF yes, return STATUS_PATH_INVALID, as we
+		// cannot perform absolute path lookup from an object.
+		//
+		// N.B. We also check if the object name is empty. 
+		if (*ObjectName == OB_PATH_SEPARATOR ||
+			*ObjectName == '\0')
+		{
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
+		}
+		
+		// Check if the parse object is actually a directory.
+		if (ObpGetObjectType(InitialParseObject) != ObpDirectoryType)
+		{
+			ObpLeaveRootDirectoryMutex();
+			return STATUS_PATH_INVALID;
+		}
 	}
 	
-	// Try to create a new object
-	void* Obj = NULL;
-	Status = ObiCreateObject(&Obj, NULL, ObpSymbolicLinkType, "\\ObjectTypes\\MyTestObject", 0, true, NULL, 42);
-	if (FAILED(Status))
+	ObpReferenceObject(InitialParseObject);
+	
+	//char TemporarySpace[OB_MAX_PATH_LENGTH];
+	void* CurrentObject = InitialParseObject;
+	const char* CurrentPath = ObjectName;
+	
+	int CurrDepth = 100; // XXX Completely arbitrary
+	
+	while (CurrDepth > 0)
 	{
-		DbgPrint("Failed to create object: %d", Status);
-	}
-	else
-	{
-		DbgPrint("It worked! Obj: %p", Obj);
-		
-		// Try to look it up now
-		void* Obj2 = NULL;
-		Status = ObiLookUpObject(NULL, "\\ObjectTypes\\MyTestObject", &Obj2);
-		if (SUCCEEDED(Status))
+		// If the object is a directory:
+		POBJECT_TYPE ObjectType = ObpGetObjectType(CurrentObject);
+		if (ObjectType == ObpDirectoryType)
 		{
-			DbgPrint("Lookup succeeded! %p was returned", Obj2);
+			// Check if we have any more path to parse.
+			if (*CurrentPath == 0)
+			{
+				// Nope, so return success.
+				//
+				// N.B. The object is already referenced.
+				*FoundObject = CurrentObject;
+				return STATUS_SUCCESS;
+			}
 			
-			if (Obj != Obj2)
-				DbgPrint("Pointers are not the same!!");
+			// We do, so browse the directory to find an entry with the same name
+			// as the current path segment.
+			POBJECT_DIRECTORY Directory = CurrentObject;
+			PLIST_ENTRY Entry = Directory->ListHead.Flink;
+			
+			bool FoundMatch = false;
+			
+			while (Entry != &Directory->ListHead)
+			{
+				POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
+				
+				size_t MatchLength = ObpMatchPathName(Header->ObjectName, CurrentPath);
+				if (MatchLength != 0)
+				{
+					// Match! Time to continue parsing through this object.
+					CurrentPath += MatchLength;
+					
+					ObpDereferenceObject(CurrentObject);
+					ObpReferenceObject(Header->Body);
+					CurrentObject = Header->Body;
+					FoundMatch = true;
+					break;
+				}
+				
+				// Didn't match, so continue.
+				Entry = Entry->Flink;
+			}
+			
+			if (!FoundMatch)
+			{
+				// No match! Inform caller about our failure.
+				//
+				// N.B. We added a reference to the object we were using!
+				ObpDereferenceObject(CurrentObject);
+				return STATUS_NAME_NOT_FOUND;
+			}
+			
+			CurrDepth--;
+		}
+		// If the object can be parsed, try to parse it!
+		else if (ObjectType->TypeInfo.Parse)
+		{
+			void* NewObject = NULL;
+			BSTATUS Status = ObjectType->TypeInfo.Parse(
+				CurrentObject,
+				&CurrentPath,
+				//TemporarySpace,
+				OBJECT_GET_HEADER(CurrentObject)->ParseContext,
+				LoopCount + 1,
+				&NewObject
+			);
+			
+			if (FAILED(Status))
+			{
+				ObpDereferenceObject(CurrentObject);
+				return Status;
+			}
+			
+			ObpDereferenceObject(CurrentObject);
+			ObpDereferenceObject(NewObject);
+			CurrentObject = NewObject;
+			
+			CurrDepth--;
+		}
+		// The object can't be parsed, which means this is a dead end!
+		else if (*CurrentPath != '\0')
+		{
+			// There's still more path to be parsed!
+			// This means the path is like \ObjectTypes\Directory\CantFindMe.
+			// Obviously \ObjectTypes\Directory isn't a directory or symbolic link
+			// we can parse, so CantFindMe can't possible exist.
+			ObpDereferenceObject(CurrentObject);
+			return STATUS_PATH_INVALID;
+		}
+		// Ok, this is the object, let's check if its type matches.
+		else if (ExpectedType != NULL && ExpectedType != ObjectType)
+		{
+			ObpDereferenceObject(CurrentObject);
+			return STATUS_TYPE_MISMATCH;
 		}
 		else
 		{
-			DbgPrint("Lookup failed: %d", Status);
+			*FoundObject = CurrentObject;
+			return STATUS_SUCCESS;
 		}
 	}
 	
-	ObiDebugObject(ObpObjectTypesDirectory);
+	// There shouldn't be another way to break out of this loop.
+	ASSERT(CurrDepth == 0);
 	
-	// try the other way of listing directories
-	ObpListDirectory(ObpRootDirectory);
-	ObpListDirectory(ObpObjectTypesDirectory);
+	return STATUS_PATH_TOO_DEEP;
 }
-#endif
+
+BSTATUS ObCreateDirectoryObject(
+	POBJECT_DIRECTORY* OutDirectory,
+	POBJECT_DIRECTORY ParentDirectory,
+	const char* Name,
+	int Flags)
+{
+	// Check parameters.
+	if (!OutDirectory || !Name)
+		return STATUS_INVALID_PARAMETER;
+	
+	POBJECT_DIRECTORY NewDir;
+	BSTATUS Status;
+	
+	// Acquire the directory mutex, lest we want to use an uninitialized dir.
+	// Note that we can enter a mutex more than once on the same thread.
+	ObpEnterRootDirectoryMutex();
+	
+	Status = ObCreateObject(
+		(void**) &NewDir,
+		ParentDirectory,
+		ObpDirectoryType,
+		Name,
+		Flags,
+		true,
+		NULL, // TODO
+		sizeof(OBJECT_DIRECTORY)
+	);
+	
+	if (FAILED(Status))
+	{
+		ObpLeaveRootDirectoryMutex();
+		return Status;
+	}
+	
+	// Initialize the directory object.
+	InitializeListHead(&NewDir->ListHead);
+	NewDir->Count = 0;
+	
+	// Leave the root directory mutex now.
+	ObpLeaveRootDirectoryMutex();
+	
+	*OutDirectory = NewDir;
+	return STATUS_SUCCESS;
+}
 
 #ifdef DEBUG
 BSTATUS ObpDebugDirectory(void* DirP)
@@ -241,177 +376,172 @@ BSTATUS ObpDebugDirectory(void* DirP)
 }
 #endif
 
-void ObpInitializeDirectoryTypeInfo()
+OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 {
-	POBJECT_TYPE_INFO O = &ObpDirectoryTypeInfo;
-	
-	O->NonPagedPool = true;
-	
-	#ifdef DEBUG
-	O->Debug = ObpDebugDirectory;
-	O->Parse = ObpParseDirectory;
-	#endif
-}
+	// InvalidAttributes
+	0,
+	// ValidAccessMask
+	0,
+	// NonPagedPool
+	true,
+	// Open
+	NULL,
+	// Close
+	NULL,
+	// Delete
+	NULL,
+	// Parse
+	NULL,
+	// Secure
+	NULL,
+#ifdef DEBUG
+	// Debug
+	ObpDebugDirectory,
+#endif
+};
 
-BSTATUS ObiCreateDirectoryObject(
-	POBJECT_DIRECTORY* OutDirectory,
-	POBJECT_DIRECTORY ParentDirectory,
-	const char* Name,
-	int Flags)
+bool ObpInitializeRootDirectory()
 {
-	POBJECT_DIRECTORY NewDir;
 	BSTATUS Status;
 	
-	Status = ObiCreateObject(
-		(void**) &NewDir,
-		ParentDirectory,
+	if (FAILED(ObCreateDirectoryObject(
+		&ObpRootDirectory,
+		NULL,
+		"Root",
+		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
+	)))
+		return false;
+	
+	// Create the object types directory.
+	if (FAILED(ObCreateDirectoryObject(
+		&ObpObjectTypesDirectory,
+		ObpRootDirectory,
+		"ObjectTypes",
+		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
+	)))
+		return false;
+	
+	extern POBJECT_TYPE ObpObjectTypeType;
+	extern POBJECT_TYPE ObpSymbolicLinkType;
+	
+	// Add all object types created so far to the object types directory.
+	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpObjectTypeType))) return false;
+	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
+	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
+	
+	// Try creating a symbolic link:
+	void *Symlink = NULL;
+	Status = ObCreateSymbolicLinkObject(
+		&Symlink,
+		"\\ObjectTypes",
+		"\\ObjectTypes\\My Beautiful Symbolic Link",
+		OB_FLAG_KERNEL
+	);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Can't create symlink: %d", Status);
+		return false;
+	}
+	
+	// Try looking up a certain path:
+	void* Obj = NULL;
+	Status = ObpLookUpObjectPath(
+		NULL,
+		"\\ObjectTypes\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\Directory",
+		ObpObjectTypeType,
+		0,
+		&Obj
+	);
+	
+	if (FAILED(Status))
+		DbgPrint("Look Up Failed!  Error: %d", Status);
+	else
+		DbgPrint("Look Up Succeeded!  Ptr: %p  (ObpDirectoryType: %p)", Obj, ObpDirectoryType);
+	
+	ObpDebugDirectory(ObpRootDirectory);
+	ObpDebugDirectory(ObpObjectTypesDirectory);
+	
+	return true;
+}
+
+BSTATUS ObpNormalizeParentDirectoryAndName(
+	POBJECT_DIRECTORY* ParentDirectory,
+	const char** Name)
+{
+	// If:
+	// - we don't have a pointer to the parent directory pointer
+	// - we don't have a pointer to a string
+	// - we don't have the string
+	// - we don't have anything within the string
+	// then we bail out because parameters are invalid.
+	if (!ParentDirectory || !Name || !*Name || !**Name)
+		return STATUS_INVALID_PARAMETER;
+	
+	if (*ParentDirectory == NULL)
+	{
+		if (**Name != OB_PATH_SEPARATOR)
+			return STATUS_INVALID_PARAMETER;
+		
+		*ParentDirectory = ObpRootDirectory;
+		(*Name)++;
+	}
+	
+	if (**Name == OB_PATH_SEPARATOR)
+		return STATUS_INVALID_PARAMETER;
+	
+	size_t PathLength = strlen(*Name);
+	if (PathLength >= OB_MAX_PATH_LENGTH - 1)
+		return STATUS_NAME_TOO_LONG;
+	
+	char PathWithoutName[OB_MAX_PATH_LENGTH];
+	const char *ActualName = *Name, *FinalName = NULL;
+	
+	size_t MinIndex = 0;
+	MinIndex--;
+	bool StartCopying = false;
+	PathWithoutName[PathLength] = 0;
+	for (size_t Index = PathLength - 1; Index != MinIndex; Index--)
+	{
+        if (StartCopying)
+		{
+			PathWithoutName[Index] = ActualName[Index];
+		}
+		else if (ActualName[Index] == OB_PATH_SEPARATOR)
+		{
+			StartCopying = true;
+			FinalName = ActualName + Index + 1;
+			PathWithoutName[Index] = 0;
+		}
+	}
+	
+	if (!StartCopying)
+	{
+		PathWithoutName[0] = 0;
+		FinalName = ActualName;
+	}
+	
+	if (*PathWithoutName == '\0')
+	{
+		// No path to lookup, just return the root directory and the final name.
+		*Name = FinalName;
+		return STATUS_SUCCESS;
+	}
+	
+	// Look up the containing directory.
+	void* ContainingDirectory = NULL;
+	BSTATUS Status = ObpLookUpObjectPath(
+		*ParentDirectory,
+		PathWithoutName,
 		ObpDirectoryType,
-		Name,
-		Flags,
-		true,
-		NULL, // TODO
-		sizeof(OBJECT_DIRECTORY)
+		0,
+		&ContainingDirectory
 	);
 	
 	if (FAILED(Status))
 		return Status;
 	
-	// Initialize the directory object.
-	InitializeListHead(&NewDir->ListHead);
-	NewDir->Count = 0;
-	
-	*OutDirectory = NewDir;
-	return STATUS_SUCCESS;
-}
-
-void ObpAddObjectToDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header)
-{
-	InsertTailList(&Directory->ListHead, &Header->DirectoryListEntry);
-	Directory->Count++;
-	ObpAddReferenceToObject(Directory);
-}
-
-void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, POBJECT_HEADER Header)
-{
-	RemoveEntryList(&Header->DirectoryListEntry);
-	Directory->Count--;
-	
-	ObiDereferenceObject(Directory);
-}
-
-bool ObpCheckNameInvalid(const char* Name, int Flags)
-{
-	while (*Name)
-	{
-		if (*Name < ' ' || *Name > '~')
-			return false;
-		
-		if ((Flags & OBP_CHECK_BACKSLASHES) && *Name == OB_PATH_SEPARATOR)
-			return false;
-		
-		Name++;
-	}
-	
-	return true;
-}
-
-BSTATUS ObpCopyPathSegment(const char** PathName, char* SegmentOut)
-{
-	size_t Written = 0;
-	const char* Name = *PathName;
-	
-	while (*Name != '\0' && *Name != OB_PATH_SEPARATOR)
-	{
-		if (Written >= OB_MAX_PATH_LENGTH - 1)
-			return STATUS_NAME_INVALID;
-		
-		*SegmentOut = *Name;
-		SegmentOut++;
-		Name++;
-		Written++;
-	}
-	
-	// If we ended on a '\0', that means we don't have segments after this
-	if (*Name == '\0')
-		return STATUS_NO_SEGMENTS_AFTER_THIS;
-	
-	*PathName = Name + 1; // Also skip the backslash
-	*SegmentOut = '\0';
-	return STATUS_SUCCESS;
-}
-
-BSTATUS ObpNormalizeParentDirectoryAndName(
-	POBJECT_DIRECTORY* ParentDirectory,
-	const char** ObjectName)
-{
-	if (!*ParentDirectory)
-	{
-		*ParentDirectory = ObpRootDirectory;
-		if (**ObjectName != OB_PATH_SEPARATOR)
-		{
-			// Relative path with no parent directory.
-			return STATUS_PATH_INVALID;
-		}
-		
-		// Skip the path separator.
-		(*ObjectName)++;
-		
-		DbgPrint("ObpNormalizeParentDirectoryAndName: No parent directory, obj name: %s", *ObjectName);
-	}
-	
-	char Segment[OB_MAX_PATH_LENGTH];
-	
-	BSTATUS Status;
-	while (SUCCEEDED(Status = ObpCopyPathSegment(ObjectName, Segment)))
-	{
-		// Path probably contains neighboring \\ characters, skip
-		if (Segment[0] == 0)
-			continue;
-		
-		DbgPrint("ObpNormalizeParentDirectoryAndName: %s, %s", Segment, *ObjectName);
-		
-		void* NewObject = NULL;
-		Status = ObiLookUpObject(*ParentDirectory, Segment, &NewObject);
-		
-		if (FAILED(Status))
-			return Status;
-		
-		// Ensure this is a directory.
-		if (OBJECT_GET_HEADER(NewObject)->NonPagedObjectHeader->ObjectType != ObpDirectoryType)
-			return STATUS_PATH_INVALID;
-		
-		// Advance.
-		*ParentDirectory = (POBJECT_DIRECTORY)NewObject;
-	}
-	
-	if (Status == STATUS_NO_SEGMENTS_AFTER_THIS)
-		Status =  STATUS_SUCCESS;
-	
-	return Status;
-}
-
-BSTATUS ObpGetNextEntryDirectory(
-	POBJECT_DIRECTORY Directory,
-	POBJECT_HEADER InEntry,
-	POBJECT_HEADER* OutEntry)
-{
-	if (InEntry == NULL)
-	{
-		// InEntry is null, that means they just started listing the directory.
-		if (IsListEmpty(&Directory->ListHead))
-			return STATUS_DIRECTORY_DONE;
-		
-		*OutEntry = CONTAINING_RECORD(Directory->ListHead.Flink, OBJECT_HEADER, DirectoryListEntry);
-		return STATUS_SUCCESS;
-	}
-	
-	PLIST_ENTRY Entry = &InEntry->DirectoryListEntry;
-	if (Entry->Flink == &Directory->ListHead)
-	{
-		// Directory listing has concluded
-		return STATUS_DIRECTORY_DONE;
-	}
-	
-	*OutEntry = CONTAINING_RECORD(Entry->Flink, OBJECT_HEADER, DirectoryListEntry);
+	*ParentDirectory = ContainingDirectory;
+	*Name = FinalName;
 	return STATUS_SUCCESS;
 }

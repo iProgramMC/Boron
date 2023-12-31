@@ -14,42 +14,29 @@ Author:
 ***/
 #include "obp.h"
 
-extern OBJECT_TYPE_INFO ObpObjectTypeTypeInfo;
-extern OBJECT_TYPE_INFO ObpDirectoryTypeInfo;
-extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
-
-// for testing
-BSTATUS ObpDebugObjectType(void* Object);
-
-void ObpInitializeTypes()
+bool ObpInitializeBasicMutexes()
 {
-	ObpInitializeObjectTypeInfos();
+	extern KMUTEX ObpObjectTypeMutex;
+	extern KMUTEX ObpRootDirectoryMutex;
 	
-	// Create the ObjectType type.
-	if (FAILED(ObiCreateObjectType("ObjectType", &ObpObjectTypeTypeInfo, &ObpObjectTypeType)))
-		KeCrash("could not create ObjectType object type");
+	KeInitializeMutex(&ObpObjectTypeMutex, OB_MUTEX_LEVEL_OBJECT_TYPES);
+	KeInitializeMutex(&ObpRootDirectoryMutex, OB_MUTEX_LEVEL_DIRECTORY);
 	
-	if (FAILED(ObiCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObpDirectoryType)))
-		KeCrash("could not create Directory object type");
-	
-	if (FAILED(ObiCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType)))
-		KeCrash("could not create SymbolicLink object type");
+	return true;
 }
 
-void ObpDebugTypesAfterInit()
+bool ObInitSystem()
 {
-	ObiDebugObject(ObpObjectTypeType);
-	ObiDebugObject(ObpDirectoryType);
-	ObiDebugObject(ObpSymbolicLinkType);
-}
-
-void ObInitializeFirstPhase()
-{
-	ObpInitializeTypes();
-	ObpInitializeRootDirectory();
-	ObpDebugTypesAfterInit();
-}
-
-void ObInitializeSecondPhase()
-{
+	if (!ObpInitializeBasicMutexes())
+		return false;
+	
+	if (!ObpInitializeBasicTypes())
+		return false;
+	
+	if (!ObpInitializeRootDirectory())
+		return false;
+	
+	DbgPrint("Object manager was initialized successfully!");
+	
+	return true;
 }

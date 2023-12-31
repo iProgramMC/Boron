@@ -202,7 +202,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	}
 	
 	// Get the offset.
-	ptrdiff_t Diff = PtrBytes - (uint8_t*)Item;
+	ptrdiff_t Diff = PtrBytes - (uint8_t*)Item->Data;
 	if (Diff % Container->ItemSize != 0)
 	{
 		DbgPrint("Error in MmpSlabContainerFree: Pointer %p was made up", Ptr);

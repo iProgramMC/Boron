@@ -3,24 +3,27 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ob/init.c
+	ob/create.c
 	
 Abstract:
-	This module implements the initialization code for the
+	This module implements create routines for the
 	object manager.
 	
 Author:
-	iProgramInCpp - 7 December 2023
+	iProgramInCpp - 18 December 2023
 ***/
 #include "obp.h"
 
 // Allocate and initialize an empty object.
-BSTATUS ObiAllocateObject(
+//
+// This ONLY allocates the object storage and initializes default properties for the object.
+// It is the responsibility of caller to add the object to a directory, and perform other
+// operations on the object.
+BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
 	const char* Name,
 	size_t BodySize,
 	bool NonPaged,
-	void* ParentDirectory,
 	void* ParseContext,
 	int Flags,
 	POBJECT_HEADER* OutObjectHeader)
@@ -97,7 +100,6 @@ BSTATUS ObiAllocateObject(
 	
 	// Initializes the object.
 	ObjectHeader->Flags = Flags;
-	ObjectHeader->ParentDirectory = ParentDirectory;
 	ObjectHeader->ParseContext    = ParseContext;
 	
 	// Set the referential fields to each other.
@@ -110,11 +112,6 @@ BSTATUS ObiAllocateObject(
 	if (Type)
 		Type->TotalObjectCount++;
 	
-	if (ParentDirectory)
-	{
-		ObpAddObjectToDirectory(ParentDirectory, ObjectHeader);
-	}
-	
 	// We will have a pointer to this object, so set its pointer count to 1.
 	NonPagedObjectHeader->PointerCount = 1;
 	NonPagedObjectHeader->HandleCount  = 0;
@@ -123,12 +120,9 @@ BSTATUS ObiAllocateObject(
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ObpNormalizeParentDirectoryAndName(
-	POBJECT_DIRECTORY* ParentDirectory,
-	const char** ObjectName
-);
+extern POBJECT_DIRECTORY ObpRootDirectory;
 
-BSTATUS ObiCreateObject(
+BSTATUS ObCreateObject(
 	void** OutObject,
 	POBJECT_DIRECTORY ParentDirectory,
 	POBJECT_TYPE ObjectType,
@@ -141,9 +135,16 @@ BSTATUS ObiCreateObject(
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
 	
-	if (ObpInitializedRootDirectory())
-	{
-		// Just trust it, it's the kernel itself after all
+	if (!OutObject || !ObjectType || !ObjectName || !BodySize)
+		return STATUS_INVALID_PARAMETER;
+	
+	// If there is a root directory, then we should normalize the
+	// parent directory and name, so that:
+	// a) The name does not contain backslashes, and
+	// b) The parent directory is not NULL.
+	if (ObpRootDirectory)
+	{	
+		// Just roll with it for now and assume all's good
 		Status = ObpNormalizeParentDirectoryAndName(
 			&ParentDirectory,
 			&ObjectName
@@ -154,12 +155,11 @@ BSTATUS ObiCreateObject(
 	}
 	
 	// Allocate the object.
-	Status = ObiAllocateObject(
+	Status = ObpAllocateObject(
 		ObjectType,
 		ObjectName,
 		BodySize,
 		NonPaged,
-		ParentDirectory,
 		ParseContext,
 		Flags,
 		&Hdr
@@ -170,5 +170,9 @@ BSTATUS ObiCreateObject(
 	
 	*OutObject = Hdr->Body;
 	
-	return STATUS_SUCCESS;
+	// Note: This uses the root directory mutex, so it's all good.
+	if (ParentDirectory)
+		Status = ObpAddObjectToDirectory(ParentDirectory, Hdr->Body);
+	
+	return Status;
 }
