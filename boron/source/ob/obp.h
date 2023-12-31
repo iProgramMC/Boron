@@ -39,6 +39,11 @@ BSTATUS ObpAddObjectToDirectory(
 	void* Object
 );
 
+BSTATUS ObpNormalizeParentDirectoryAndName(
+	POBJECT_DIRECTORY* ParentDirectory,
+	const char** Name
+);
+
 // Adds 1 to the internal reference count of the object.
 void ObpReferenceObject(void* Object);
 

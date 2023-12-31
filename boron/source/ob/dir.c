@@ -189,7 +189,9 @@ BSTATUS ObpLookUpObjectPath(
 	void* CurrentObject = InitialParseObject;
 	const char* CurrentPath = ObjectName;
 	
-	while (true)
+	int CurrDepth = 100; // XXX Completely arbitrary
+	
+	while (CurrDepth > 0)
 	{
 		// If the object is a directory:
 		POBJECT_TYPE ObjectType = ObpGetObjectType(CurrentObject);
@@ -241,6 +243,8 @@ BSTATUS ObpLookUpObjectPath(
 				ObpDereferenceObject(CurrentObject);
 				return STATUS_NAME_NOT_FOUND;
 			}
+			
+			CurrDepth--;
 		}
 		// If the object can be parsed, try to parse it!
 		else if (ObjectType->TypeInfo.Parse)
@@ -264,6 +268,8 @@ BSTATUS ObpLookUpObjectPath(
 			ObpDereferenceObject(CurrentObject);
 			ObpDereferenceObject(NewObject);
 			CurrentObject = NewObject;
+			
+			CurrDepth--;
 		}
 		// The object can't be parsed, which means this is a dead end!
 		else if (*CurrentPath != '\0')
@@ -287,6 +293,11 @@ BSTATUS ObpLookUpObjectPath(
 			return STATUS_SUCCESS;
 		}
 	}
+	
+	// There shouldn't be another way to break out of this loop.
+	ASSERT(CurrDepth == 0);
+	
+	return STATUS_PATH_TOO_DEEP;
 }
 
 BSTATUS ObCreateDirectoryObject(
@@ -423,7 +434,7 @@ bool ObpInitializeRootDirectory()
 	Status = ObCreateSymbolicLinkObject(
 		&Symlink,
 		"\\ObjectTypes",
-		"My Beautiful Symbolic Link",
+		"\\ObjectTypes\\My Beautiful Symbolic Link",
 		OB_FLAG_KERNEL
 	);
 	
@@ -437,7 +448,7 @@ bool ObpInitializeRootDirectory()
 	void* Obj = NULL;
 	Status = ObpLookUpObjectPath(
 		NULL,
-		"\\My Beautiful Symbolic Link\\Directory",
+		"\\ObjectTypes\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\Directory",
 		ObpObjectTypeType,
 		0,
 		&Obj
@@ -452,4 +463,85 @@ bool ObpInitializeRootDirectory()
 	ObpDebugDirectory(ObpObjectTypesDirectory);
 	
 	return true;
+}
+
+BSTATUS ObpNormalizeParentDirectoryAndName(
+	POBJECT_DIRECTORY* ParentDirectory,
+	const char** Name)
+{
+	// If:
+	// - we don't have a pointer to the parent directory pointer
+	// - we don't have a pointer to a string
+	// - we don't have the string
+	// - we don't have anything within the string
+	// then we bail out because parameters are invalid.
+	if (!ParentDirectory || !Name || !*Name || !**Name)
+		return STATUS_INVALID_PARAMETER;
+	
+	if (*ParentDirectory == NULL)
+	{
+		if (**Name != OB_PATH_SEPARATOR)
+			return STATUS_INVALID_PARAMETER;
+		
+		*ParentDirectory = ObpRootDirectory;
+		(*Name)++;
+	}
+	
+	if (**Name == OB_PATH_SEPARATOR)
+		return STATUS_INVALID_PARAMETER;
+	
+	size_t PathLength = strlen(*Name);
+	if (PathLength >= OB_MAX_PATH_LENGTH - 1)
+		return STATUS_NAME_TOO_LONG;
+	
+	char PathWithoutName[OB_MAX_PATH_LENGTH];
+	const char *ActualName = *Name, *FinalName = NULL;
+	
+	size_t MinIndex = 0;
+	MinIndex--;
+	bool StartCopying = false;
+	PathWithoutName[PathLength] = 0;
+	for (size_t Index = PathLength - 1; Index != MinIndex; Index--)
+	{
+        if (StartCopying)
+		{
+			PathWithoutName[Index] = ActualName[Index];
+		}
+		else if (ActualName[Index] == OB_PATH_SEPARATOR)
+		{
+			StartCopying = true;
+			FinalName = ActualName + Index + 1;
+			PathWithoutName[Index] = 0;
+		}
+	}
+	
+	if (!StartCopying)
+	{
+		PathWithoutName[0] = 0;
+		FinalName = ActualName;
+	}
+	
+	if (*PathWithoutName == '\0')
+	{
+		// No path to lookup, just return the root directory and the final name.
+		*Name = FinalName;
+		return STATUS_SUCCESS;
+	}
+	
+	// Look up the containing directory.
+	void* ContainingDirectory = NULL;
+	BSTATUS Status = ObpLookUpObjectPath(
+		*ParentDirectory,
+		PathWithoutName,
+		ObpDirectoryType,
+		0,
+		&ContainingDirectory
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	*ParentDirectory = ContainingDirectory;
+	*Name = FinalName;
+	return STATUS_SUCCESS;
 }

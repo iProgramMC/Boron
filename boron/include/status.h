@@ -45,6 +45,8 @@ enum
 	STATUS_DIRECTORY_DONE,      // There are no more directory entries to list
 	STATUS_LOOP_TOO_DEEP,       // Symbolic link loop was too deep.
 	STATUS_UNASSIGNED_LINK,     // A symbolic link was unassigned.
+	STATUS_PATH_TOO_DEEP,       // The path is too deep.
+	STATUS_NAME_TOO_LONG,       // The path or name is too long.
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

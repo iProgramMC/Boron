@@ -145,11 +145,6 @@ BSTATUS ObCreateObject(
 	if (ObpRootDirectory)
 	{	
 		// Just roll with it for now and assume all's good
-		if (!ParentDirectory)
-			ParentDirectory = ObpRootDirectory;
-		
-		/*
-		TODO:
 		Status = ObpNormalizeParentDirectoryAndName(
 			&ParentDirectory,
 			&ObjectName
@@ -157,7 +152,6 @@ BSTATUS ObCreateObject(
 		
 		if (FAILED(Status))
 			return Status;
-		*/
 	}
 	
 	// Allocate the object.
