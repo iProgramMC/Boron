@@ -18,6 +18,12 @@ Author:
 #include <limreq.h>
 #include "utils.h"
 
+// 2023... It was a year of giant changes for me. I'm sorry that I couldn't
+// get a fully stable demo (it seems to be reasonably stable on 4 cores but
+// cracks on 32 cores...), but yeah, it is what it is, I'll fix it in 2024.
+
+// For now, this is the last line of code of 2023.
+
 // ####### GRAPHICS BACKEND #######
 
 #define BACKGROUND_COLOR 0x09090F
