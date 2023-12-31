@@ -665,7 +665,7 @@ bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintp
 		CurrentPml1++;
 		DonePages++;
 		
-		if (CurrentPml1 == 0)
+		if (CurrentPml1 % (PAGE_SIZE / sizeof(MMPTE)) == 0)
 		{
 			// We have rolled over.
 			PtePtr = MmGetPTEPointer(Mapping, Address, true);

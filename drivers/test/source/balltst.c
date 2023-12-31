@@ -22,7 +22,7 @@ Author:
 // Updates for each processor ID.
 int Updates[64];
 
-void PerformDelay(int Ms, PKDPC Dpc)
+static void PerformDelay(int Ms, PKDPC Dpc)
 {
 	KTIMER Timer;
 	
