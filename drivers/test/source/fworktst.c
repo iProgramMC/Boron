@@ -323,7 +323,7 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 	
 	// Explode it!
 	// This spawns many, many threads! Cause why not, right?!
-	int PartCount = Rand() % 10 + 10;
+	int PartCount = Rand() % 100 + 100;
 	
 	for (int i = 0; i < PartCount; i++)
 	{
