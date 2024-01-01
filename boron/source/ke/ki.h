@@ -62,7 +62,7 @@ void KiAssertOwnDispatcherLock_(const char* FunctionName);
 
 void KiSwitchToAddressSpaceProcess(PKPROCESS Process);
 
-void KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+NO_DISCARD BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 void KiOnKillProcess(PKPROCESS Process);
 

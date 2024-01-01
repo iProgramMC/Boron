@@ -17,12 +17,18 @@ Author:
 
 void KeYieldCurrentThreadSub(); // trap.asm
 
-void KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
-	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
+	if (!Thread)
+		return STATUS_INVALID_PARAMETER;
 	
 	if (!KernelStack)
 		KernelStack = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, POOL_TAG("ThSt"));
+	
+	if (!KernelStack)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
 	
 	Thread->StartRoutine = StartRoutine;
 	Thread->StartContext = StartContext;
@@ -53,6 +59,8 @@ void KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
 	
 	// TODO: If the list was empty before, mark this as the main thread.
+	
+	return STATUS_SUCCESS;
 }
 
 PKTHREAD KeAllocateThread()
@@ -108,11 +116,13 @@ void KeYieldCurrentThread()
 	KeLowerIPL(Ipl);
 }
 
-void KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+BSTATUS KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
+	if (!Thread)
+		return STATUS_INVALID_PARAMETER;
+	
 	KIPL Ipl = KiLockDispatcher();
-	
-	KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
-	
+	BSTATUS Status = KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
 	KiUnlockDispatcher(Ipl);
+	return Status;
 }

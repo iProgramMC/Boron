@@ -68,13 +68,15 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
 		PKTHREAD Thread = KeAllocateThread();
-		KeInitializeThread(
-			Thread,
-			POOL_NO_MEMORY_HANDLE,
-			ExpInitializeExecutive,
-			NULL,
-			KeGetSystemProcess()
-		);
+		if (FAILED(KeInitializeThread(
+				Thread,
+				POOL_NO_MEMORY_HANDLE,
+				ExpInitializeExecutive,
+				NULL,
+				KeGetSystemProcess()
+			)))
+			KeCrash("cannot spawn executive initialization thread");
+		
 		KeSetPriorityThread(Thread, PRIORITY_NORMAL);
 		KeDetachThread(Thread);
 		KeReadyThread(Thread);
