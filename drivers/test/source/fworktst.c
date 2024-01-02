@@ -340,7 +340,8 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 
 void SpawnParticle(PFIREWORK_DATA Data)
 {
-	CreateThread(T_Particle, Data);
+	if (!CreateThread(T_Particle, Data))
+		MmFreePool(Data);
 }
 
 void SpawnExplodeable()
@@ -365,7 +366,7 @@ void PerformFireworksTest()
 	
 	while (true)
 	{
-		int SpawnCount = Rand() % 2 + 1;
+		int SpawnCount = Rand() % 2 + 10;
 		
 		for (int i = 0; i < SpawnCount; i++)
 		{

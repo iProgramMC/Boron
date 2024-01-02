@@ -4,13 +4,19 @@
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
 	PKTHREAD Thread = KeAllocateThread();
+	if (!Thread)
+		return NULL;
 	
-	KeInitializeThread(
+	if (FAILED(KeInitializeThread(
 		Thread,
 		POOL_NO_MEMORY_HANDLE,
 		StartRoutine,
 		Parameter,
-		KeGetSystemProcess());
+		KeGetSystemProcess())))
+	{
+		KeDeallocateThread(Thread);
+		return NULL;
+	}
 	
 	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
 	
