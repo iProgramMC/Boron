@@ -63,6 +63,12 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	// This entry manages the area directly after the PoolEntry does.
 	PMIPOOL_ENTRY NewEntry = MiCreatePoolEntry();
 	
+	// TODO: Debug the firework test driver. When removing this, it doesn't throw up a nice
+	// page fault, but rather hits some weird code which sets the stack pointer to 0x000000017FFFFFFF
+	// and triple faults the kernel.
+	if (!NewEntry)
+		return 0;
+	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
 	InsertHeadList(&PoolEntry->ListEntry, &NewEntry->ListEntry);

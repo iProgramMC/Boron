@@ -366,13 +366,13 @@ void PerformFireworksTest()
 	
 	while (true)
 	{
-		int SpawnCount = Rand() % 2 + 10;
+		int SpawnCount = Rand() % 2 + 1;
 		
 		for (int i = 0; i < SpawnCount; i++)
 		{
 			SpawnExplodeable();
 		}
 		
-		PerformDelay(1000 + Rand() % 1000);
+		PerformDelay(2000 + Rand() % 2000);
 	}
 }
