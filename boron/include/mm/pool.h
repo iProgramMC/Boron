@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ex.h
+	mm/pool.h
 	
 Abstract:
 	This header file defines the pool allocator's API.

@@ -16,7 +16,6 @@ Author:
 #define BORON_KE_SCHED_H
 
 #include <arch.h>
-#include <ex.h>
 
 #include <ke/dpc.h>
 #include <ke/thread.h>

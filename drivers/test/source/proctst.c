@@ -68,13 +68,13 @@ void PerformProcessTest()
 	);
 	
 	// Process initialized, spin up a thread.
-	KeInitializeThread(
+	ASSERT(SUCCEEDED(KeInitializeThread(
 		&Thrd,
 		POOL_NO_MEMORY_HANDLE,
 		ProcessTestRoutine,
 		NULL,
 		&Proc
-	);
+	)));
 	
 	// Initialize an unsignaled event.
 	KeInitializeEvent(

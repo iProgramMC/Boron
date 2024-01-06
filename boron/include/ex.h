@@ -18,5 +18,6 @@ Author:
 #define BORON_EX_H
 
 #include <main.h>
+#include <ex/handtab.h>
 
 #endif//BORON_EX_H

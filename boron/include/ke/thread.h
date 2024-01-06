@@ -17,7 +17,6 @@ Author:
 
 #include <rtl/list.h>
 #include <arch.h>
-#include <ex.h>
 #include <ke/dispatch.h>
 
 #define MAXIMUM_WAIT_BLOCKS (64)
