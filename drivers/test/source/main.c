@@ -1,3 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023-2024 iProgramInCpp
+
+Module name:
+	main.c
+	
+Abstract:
+	This module implements the main function of the test
+	driver.
+	
+Author:
+	iProgramInCpp - 20 October 2023
+***/
 #include "utils.h"
 #include "tests.h"
 
@@ -29,7 +43,8 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformProcessTest();
 	//PerformMutexTest();
 	//PerformBallTest();
-	PerformFireworksTest();
+	//PerformFireworksTest();
+	PerformHandleTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

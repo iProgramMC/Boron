@@ -58,5 +58,8 @@ enum
 #endif
 };
 
+#define STATUS_WAIT(n) (STATUS_RANGE_WAIT + (n))
+#define STATUS_ABANDONED_WAIT(n) (STATUS_RANGE_ABANDONED_WAIT + (n))
+
 #define SUCCEEDED(x) ((x) == STATUS_SUCCESS)
 #define FAILED(x)    ((x) != STATUS_SUCCESS)
