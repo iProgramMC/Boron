@@ -39,3 +39,14 @@ void KeSetEvent(PKEVENT Event);
 void KeResetEvent(PKEVENT Event);
 
 void KePulseEvent(PKEVENT Event);
+
+#ifdef KERNEL
+// Don't use.
+//
+// This API is supposed to be called at IPL_DPC and above. Doing so at a lower
+// IPL could cause a crash in debug mode, or a potentially invalid thread pointer
+// in release mode.
+//
+// Good thing that this API is only used in the rwlock implementation.
+PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event);
+#endif

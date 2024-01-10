@@ -44,7 +44,6 @@ typedef bool(*EX_KILL_HANDLE_ROUTINE)(void* Pointer, void* Context);
 // ExCreateHandle will return HANDLE_NONE.
 void* ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel);
 
-
 // Acquires the handle table's mutex.
 void ExLockHandleTable(void* HandleTable);
 

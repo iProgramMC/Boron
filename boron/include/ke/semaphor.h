@@ -25,6 +25,7 @@ typedef struct KSEMAPHORE_tag
 KSEMAPHORE, *PKSEMAPHORE;
 
 #define ASSERT_SEMAPHORE(Semaphore) ASSERT((Semaphore)->Header.Type == DISPATCH_SEMAPHORE)
+#define SEMAPHORE_LIMIT_NONE (0x7FFFFFFE)
 
 void KeInitializeSemaphore(PKSEMAPHORE Semaphore, int Count, int Limit);
 

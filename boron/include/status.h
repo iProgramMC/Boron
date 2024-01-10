@@ -28,7 +28,8 @@ enum
 	// Wait for object(s) errors
 	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,
-	STATUS_TIMEOUT,
+	STATUS_TIMEOUT,             // Timeout or would block
+	STATUS_KILLED,              // Thread was killed
 	
 	// Probe errors
 	STATUS_FAULT,               // returned by MmProbeAddress when a bad page fault was triggered.

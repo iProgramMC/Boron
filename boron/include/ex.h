@@ -19,5 +19,6 @@ Author:
 
 #include <main.h>
 #include <ex/handtab.h>
+#include <ex/process.h>
 
 #endif//BORON_EX_H

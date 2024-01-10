@@ -22,6 +22,20 @@ void KiSetEvent(PKEVENT Event)
 	KiWaitTest(&Event->Header);
 }
 
+PKTHREAD KiSetEventAndGetWaiter(PKEVENT Event)
+{
+#ifdef DEBUG
+	if (Event->Type != EVENT_SYNCHRONIZATION)
+		KeCrash("KiSetEventAndGetWaiter: Cannot call this interface on a notification event!");
+#endif
+	
+	KiAssertOwnDispatcherLock();
+	
+	Event->Header.Signaled = true;
+	
+	return KiWaitTestAndGetWaiter(&Event->Header);
+}
+
 void KiResetEvent(PKEVENT Event)
 {
 	// NOTE: We don't assert that we own the dispatcher
@@ -79,4 +93,18 @@ void KePulseEvent(PKEVENT Event)
 	KiResetEvent(Event);
 	
 	KiUnlockDispatcher(Ipl);
+}
+
+// NOTE: This API is to be called at IPL_DPC.
+// Since this API is only used in the rwlock implementation, and it holds
+// the rwlock's spinlock, which raises IPL to DPC-level, it's fine to use.
+PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event)
+{
+	KIPL Ipl = KiLockDispatcher();
+	ASSERT(Ipl == KeGetIPL());
+	
+	PKTHREAD Result = KiSetEventAndGetWaiter(Event);
+	KiUnlockDispatcher(Ipl);
+	
+	return Result;
 }

@@ -1,8 +1,7 @@
 # The Boron Operating System
 
-#### EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL EXPERIMENTAL
-
-Boron is a 64-bit operating system designed with SMP in mind. It borrows heavily from Windows NT but does not aim to be a total clone.
+Boron is a 64-bit operating system designed with SMP in mind. It borrows heavily from Windows NT,
+but does not aim to be a total clone.
 
 Note! Boron is currently not even in a minimally usable state. Don't expect it to do anything.
 
@@ -13,7 +12,8 @@ The project is wholly licensed under the three clause BSD license, **except the 
 
 Currently this uses Limine v4.x. An upgrade is planned.
 
-### Why the name Boron?
+### Why the codename Boron?
+(Note: The name is probably temporary, not sure, but this is what it's called right now)
 
 * It's short, with only two syllables
 * It's new (as far as I can tell)

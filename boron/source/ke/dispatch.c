@@ -368,7 +368,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	return true;
 }
 
-void KiWaitTest(PKDISPATCH_HEADER Object)
+PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -382,6 +382,8 @@ void KiWaitTest(PKDISPATCH_HEADER Object)
 	PLIST_ENTRY CurrentEntry = Object->WaitBlockList.Flink;
 	PLIST_ENTRY Head = &Object->WaitBlockList;
 	
+	PKTHREAD Result = NULL;
+	
 	while (CurrentEntry != Head)
 	{
 		PLIST_ENTRY Entry = CurrentEntry;
@@ -393,6 +395,11 @@ void KiWaitTest(PKDISPATCH_HEADER Object)
 		if (!KiSatisfyWaitBlock(WaitBlock))
 			continue;
 		
+		// N.B. There is an interface regarding events that returns the thread
+		// that was woken up by the object.  This only works for synchronization
+		// events and mutexes, since only one thread will get through at a time.
+		Result = WaitBlock->Thread;
+		
 		// If we could satisfy the wait block, the list was modified. However,
 		// only "Entry" was removed. So our linked list kept its cohesion and
 		// we can continue looping.
@@ -400,8 +407,16 @@ void KiWaitTest(PKDISPATCH_HEADER Object)
 		
 		// If the object is a mutex and at least one object was satisfied, stop.
 		if (KepSatisfiedEnough(Object, SatisfiedCount))
-			return;
+			return Result;
 	}
+	
+	return Result;
+}
+
+void KiWaitTest(PKDISPATCH_HEADER Object)
+{
+	// Simply do the same thing as above, but drop the waiter.
+	(void) KiWaitTestAndGetWaiter(Object);
 }
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)

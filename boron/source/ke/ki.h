@@ -50,6 +50,7 @@ void KiUnlockDispatcher(KIPL OldIpl);
 bool KiIsObjectSignaled(PKDISPATCH_HEADER Header);
 
 // Alert waiting threads about a freshly signaled object.
+PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object);
 void KiWaitTest(PKDISPATCH_HEADER Object);
 
 // Define KiAssertOwnDispatcherLock

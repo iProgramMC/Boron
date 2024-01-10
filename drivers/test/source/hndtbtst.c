@@ -21,7 +21,7 @@ bool OnKillHandle(void* HandleToKill, void* Context)
 
 void PerformHandleTest()
 {
-	void* HanTab = ExCreateHandleTable(4, 0, 1);
+	void* HanTab = ExCreateHandleTable(4, 4, 1);
 	if (!HanTab)
 		KeCrash("Error, handle table must exist to perform the test");
 	
