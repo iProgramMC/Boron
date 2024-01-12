@@ -18,6 +18,13 @@ Author:
 
 #define EX_RWLOCK_WAIT_TIMEOUT 300 /* Milliseconds */
 
+//#define DEBUG_RWLOCK
+#ifdef DEBUG_RWLOCK
+#define DbgPrintA(...) DbgPrint(__VA_ARGS__)
+#else
+#define DbgPrintA(...)
+#endif
+
 PEX_RW_LOCK_OWNER ExFindOwnerRwLock(PEX_RW_LOCK Lock, PKTHREAD Thread, KIPL Ipl);
 
 BSTATUS ExWaitOnRwLock(PEX_RW_LOCK Lock, void* EventObject);
@@ -59,7 +66,7 @@ void ExDeinitializeRwLock(PEX_RW_LOCK Lock)
 BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
-	DbgPrint("CurrentThread %p acquiring lock exclusive", CurrentThread);
+	DbgPrintA("CurrentThread %p acquiring lock exclusive", CurrentThread);
 	
 	KIPL Ipl;
 	KeAcquireSpinLock(&Lock->GuardLock, &Ipl);
@@ -73,7 +80,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		// Won't initialize the list entry because it's not part of a list.
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-		DbgPrint("EXCL(%p): Acquired via heldcount==0 case", CurrentThread);
+		DbgPrintA("EXCL(%p): Acquired via heldcount==0 case", CurrentThread);
 		return STATUS_SUCCESS;
 	}
 	
@@ -85,7 +92,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 			Lock->HeldCount += 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-			DbgPrint("EXCL(%p): Acquired via exclusive recursive case", CurrentThread);
+			DbgPrintA("EXCL(%p): Acquired via exclusive recursive case", CurrentThread);
 			return STATUS_SUCCESS;
 		}
 	}
@@ -94,7 +101,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		// HeldCount is not zero, and lock isn't acquired exclusively,
 		// return because the lock couldn't be acquired without blocking
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-		DbgPrint("EXCL(%p): Timeout by dontblock", CurrentThread);
+		DbgPrintA("EXCL(%p): Timeout by dontblock", CurrentThread);
 		return STATUS_TIMEOUT;
 	}
 	
@@ -106,7 +113,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 	Lock->ExclusiveWaiterCount++;
 	KeReleaseSpinLock(&Lock->GuardLock, Ipl);
 	
-	DbgPrint("EXCL(%p): Waiting on lock", CurrentThread);
+	DbgPrintA("EXCL(%p): Waiting on lock", CurrentThread);
 	BSTATUS Status = ExWaitOnRwLock(Lock, &Lock->ExclusiveSyncEvent);
 	
 #ifdef DEBUG
@@ -121,7 +128,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		// TODO: Check if the thread was killed and release if so.
 	}
 	
-	DbgPrint("EXCL(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
+	DbgPrintA("EXCL(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
 	
 	return Status;
 }
@@ -139,7 +146,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, bool CanStarve)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
-	DbgPrint("CurrentThread %p acquiring lock shared", CurrentThread);
+	DbgPrintA("CurrentThread %p acquiring lock shared", CurrentThread);
 	
 	while (true)
 	{
@@ -154,7 +161,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 			Lock->HeldCount = 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-			DbgPrint("SHRD(%p): Acquired via heldcount==0 case", CurrentThread);
+			DbgPrintA("SHRD(%p): Acquired via heldcount==0 case", CurrentThread);
 			return STATUS_SUCCESS;
 		}
 		
@@ -172,7 +179,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Lock->ExclusiveOwner.Locked++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Acquired via rescursive locking case", CurrentThread);
+				DbgPrintA("SHRD(%p): Acquired via rescursive locking case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			
@@ -182,7 +189,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 			{
 				// Try again!
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Release spinlock because owner not found", CurrentThread);
+				DbgPrintA("SHRD(%p): Release spinlock because owner not found", CurrentThread);
 				continue;
 			}
 		}
@@ -194,7 +201,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 			{
 				// Try again!
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Release spinlock because owner not found 2", CurrentThread);
+				DbgPrintA("SHRD(%p): Release spinlock because owner not found 2", CurrentThread);
 				continue;
 			}
 			
@@ -205,11 +212,11 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Owner->Locked++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Acquired via recursively locking case", CurrentThread);
+				DbgPrintA("SHRD(%p): Acquired via recursively locking case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			
-			DbgPrint("SHRD(%p): Exclusive waiters: %d", CurrentThread, Lock->ExclusiveWaiterCount);
+			DbgPrintA("SHRD(%p): Exclusive waiters: %d", CurrentThread, Lock->ExclusiveWaiterCount);
 			if (CanStarve || Lock->ExclusiveWaiterCount == 0)
 			{
 				// Yoink!
@@ -218,13 +225,13 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Lock->HeldCount++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Acquired via exclusivewaitercount==0 case", CurrentThread);
+				DbgPrintA("SHRD(%p): Acquired via exclusivewaitercount==0 case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			else if (DontBlock)
 			{
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-				DbgPrint("SHRD(%p): Timeout in dontblock", CurrentThread);
+				DbgPrintA("SHRD(%p): Timeout in dontblock", CurrentThread);
 				return STATUS_TIMEOUT;
 			}
 		}
@@ -239,12 +246,12 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 		Lock->SharedWaiterCount++;
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-		DbgPrint("SHRD(%p): Releasing spinlock because about to wait", CurrentThread);
+		DbgPrintA("SHRD(%p): Releasing spinlock because about to wait", CurrentThread);
 		break;
 	}
 	
 	// Wait!
-	DbgPrint("SHRD(%p): Waiting on lock", CurrentThread);
+	DbgPrintA("SHRD(%p): Waiting on lock", CurrentThread);
 	BSTATUS Status = ExWaitOnRwLock(Lock, &Lock->SharedSemaphore);
 	
 #ifdef DEBUG
@@ -257,7 +264,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 		// TODO: Check if the thread was killed and release if so.
 	}
 	
-	DbgPrint("SHRD(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
+	DbgPrintA("SHRD(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
 	
 	return Status;
 }

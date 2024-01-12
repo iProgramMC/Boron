@@ -22,7 +22,7 @@ Author:
 #define SchedDebug2(...) DbgPrint(__VA_ARGS__)
 #endif
 
-#define SCHED_DISABLE_WORKSTEALING
+//#define SCHED_DISABLE_WORKSTEALING
 
 LIST_ENTRY KiGlobalThreadList;
 KSPIN_LOCK KiGlobalThreadListLock;

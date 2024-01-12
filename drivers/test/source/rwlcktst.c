@@ -28,9 +28,9 @@ void ExclusiveRoutine(UNUSED void* Ptr)
 {
 	while (true)
 	{
-		DbgPrint("Exclusively Acquiring Lock...");
+		//DbgPrint("Exclusively Acquiring Lock...");
 		ExAcquireExclusiveRwLock(&RWLock, false, false);
-		DbgPrint("Exclusively Acquired Lock...");
+		//DbgPrint("Exclusively Acquired Lock...");
 		
 		SomeVariable++;
 		LogMsg("ExclusiveRoutine: SomeVariable is now %d, waiting a sec.", SomeVariable);
@@ -41,9 +41,9 @@ void ExclusiveRoutine(UNUSED void* Ptr)
 		KeSetTimer(&Timer, 1000, NULL);
 		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
 		
-		DbgPrint("Exclusively Releasing Lock...");
+		//DbgPrint("Exclusively Releasing Lock...");
 		ExReleaseRwLock(&RWLock);
-		DbgPrint("Exclusively Released Lock...");
+		//DbgPrint("Exclusively Released Lock...");
 	}
 }
 
@@ -54,21 +54,21 @@ void ReaderRoutine(void* Ptr)
 	
 	while (true)
 	{
-		DbgPrint("Thread %d Acquiring Lock...", Something);
+		//DbgPrint("Thread %d Acquiring Lock...", Something);
 		ExAcquireSharedRwLock(&RWLock, false, false, false);
 		
-		DbgPrint("Thread %d Acquired Lock...", Something);
+		//DbgPrint("Thread %d Acquired Lock...", Something);
 		LogMsg("Thread %d: Value is %d", Something, SomeVariable);
 		
-		DbgPrint("Thread %d Releasing Lock...", Something);
+		//DbgPrint("Thread %d Releasing Lock...", Something);
 		ExReleaseRwLock(&RWLock);
-		DbgPrint("Thread %d Released Lock...", Something);
+		//DbgPrint("Thread %d Released Lock...", Something);
 		
 		// wait a sec
-		KTIMER Timer;
-		KeInitializeTimer(&Timer);
-		KeSetTimer(&Timer, 200, NULL);
-		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+		//KTIMER Timer;
+		//KeInitializeTimer(&Timer);
+		//KeSetTimer(&Timer, 200, NULL);
+		//KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
 	}
 }
 
@@ -85,11 +85,11 @@ void PerformRwlockTest()
 	
 	ExInitializeRwLock(&RWLock);
 	
-	PKTHREAD Excl = CreateThread(ExclusiveRoutine, NULL);
 	PKTHREAD Rdr1 = CreateThread(ReaderRoutine, P(1));
 	PKTHREAD Rdr2 = CreateThread(ReaderRoutine, P(2));
 	PKTHREAD Rdr3 = CreateThread(ReaderRoutine, P(3));
 	PKTHREAD Rdr4 = CreateThread(ReaderRoutine, P(4));
+	PKTHREAD Excl = CreateThread(ExclusiveRoutine, NULL);
 	
 	DbgPrint("Excl: %p", Excl);
 	DbgPrint("Rdr1: %p", Rdr1);
