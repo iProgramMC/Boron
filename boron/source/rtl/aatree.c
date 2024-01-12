@@ -58,8 +58,11 @@ static PAATREE_ENTRY RtlpSplitAaTree(PAATREE_ENTRY Root)
 	return Temp;
 }
 
-static PAATREE_ENTRY RtlpInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted)
+static PAATREE_ENTRY RtlpInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted, int Depth)
 {
+	if (Depth > 10)
+		KeCrash("RtlpInsertItemAaTree: Depth exceeded");
+	
 	// Optimistically assume the item will be inserted.
 	*Inserted = true;
 
@@ -73,12 +76,12 @@ static PAATREE_ENTRY RtlpInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item
 	else if (Item->Key < Root->Key)
 	{
 		// Perform insertion recursively in the Llink entry.
-		Root->Llink = RtlpInsertItemAaTree(Root->Llink, Item, Inserted);
+		Root->Llink = RtlpInsertItemAaTree(Root->Llink, Item, Inserted, Depth + 1);
 	}
 	else if (Item->Key > Root->Key)
 	{
 		// Perform insertion recursively in the Llink entry.
-		Root->Rlink = RtlpInsertItemAaTree(Root->Rlink, Item, Inserted);
+		Root->Rlink = RtlpInsertItemAaTree(Root->Rlink, Item, Inserted, Depth + 1);
 	}
 	else
 	{
@@ -326,7 +329,7 @@ static PAATREE_ENTRY RtlpGetLastEntryAaTree(PAATREE_ENTRY Root)
 bool InsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item)
 {
 	bool Inserted = false;
-	Tree->Root = RtlpInsertItemAaTree(Tree->Root, Item, &Inserted);
+	Tree->Root = RtlpInsertItemAaTree(Tree->Root, Item, &Inserted, 0);
 	return Inserted;
 }
 

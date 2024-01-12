@@ -74,7 +74,7 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object, PKTHREAD Thread)
 	switch (Object->Type)
 	{
 		case DISPATCH_SEMAPHORE:
-			Object->Signaled++;
+			Object->Signaled--;
 			break;
 		
 		case DISPATCH_MUTEX: {
@@ -314,7 +314,13 @@ int KeWaitForMultipleObjects(
 
 int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS)
 {
-	return KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL);
+	int Status = KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL);
+	
+	// Instead of returning wait range, like multiple objects would, return success.
+	if (Status == STATUS_WAIT(0))
+		Status = STATUS_SUCCESS;
+	
+	return Status;
 }
 
 bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)

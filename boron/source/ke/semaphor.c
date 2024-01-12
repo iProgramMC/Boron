@@ -26,8 +26,8 @@ void KiReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment)
 	// Increment the signaled state of the object.
 	Semaphore->Header.Signaled += Adjustment;
 	
-	if (Semaphore->Header.Signaled > Semaphore->Limit)
-		KeCrash("KiReleaseSemaphore: exceeded semaphore limit");
+	if (Semaphore->Header.Signaled < 0)
+		KeCrash("KiReleaseSemaphore: overflow");
 	
 	// Assert that we are signaled.
 	// A signal state of less than zero is a bug.

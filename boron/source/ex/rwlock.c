@@ -29,12 +29,23 @@ void ExInitializeRwLock(PEX_RW_LOCK Lock)
 	KeInitializeSemaphore(&Lock->SharedSemaphore, 0, SEMAPHORE_LIMIT_NONE);
 	
 	memset(&Lock->ExclusiveOwner, 0, sizeof(EX_RW_LOCK_OWNER));
-	memset(&Lock->SharedOwnerPreall, 0, sizeof(EX_RW_LOCK_OWNER));
-	InitializeListHead(&Lock->SharedOwners);
+	memset(&Lock->SharedOwner, 0, sizeof(EX_RW_LOCK_OWNER));
+	
+	Lock->OwnerTable = NULL;
+	Lock->OwnerTableSize = 0;
 	Lock->SharedOwnerCount = 0;
 	Lock->SharedWaiterCount = 0;
 	Lock->ExclusiveWaiterCount = 0;
 	Lock->HeldCount = 0;
+}
+
+void ExDeinitializeRwLock(PEX_RW_LOCK Lock)
+{
+	if (Lock->OwnerTable)
+		MmFreePool(Lock->OwnerTable);
+	
+	Lock->OwnerTable = NULL;
+	Lock->OwnerTableSize = 0;
 }
 
 // Returns:
@@ -48,6 +59,7 @@ void ExInitializeRwLock(PEX_RW_LOCK Lock)
 BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
+	DbgPrint("CurrentThread %p acquiring lock exclusive", CurrentThread);
 	
 	KIPL Ipl;
 	KeAcquireSpinLock(&Lock->GuardLock, &Ipl);
@@ -61,6 +73,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		// Won't initialize the list entry because it's not part of a list.
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+		DbgPrint("EXCL(%p): Acquired via heldcount==0 case", CurrentThread);
 		return STATUS_SUCCESS;
 	}
 	
@@ -72,6 +85,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 			Lock->HeldCount += 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+			DbgPrint("EXCL(%p): Acquired via exclusive recursive case", CurrentThread);
 			return STATUS_SUCCESS;
 		}
 	}
@@ -79,6 +93,8 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 	{
 		// HeldCount is not zero, and lock isn't acquired exclusively,
 		// return because the lock couldn't be acquired without blocking
+		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+		DbgPrint("EXCL(%p): Timeout by dontblock", CurrentThread);
 		return STATUS_TIMEOUT;
 	}
 	
@@ -90,11 +106,12 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 	Lock->ExclusiveWaiterCount++;
 	KeReleaseSpinLock(&Lock->GuardLock, Ipl);
 	
+	DbgPrint("EXCL(%p): Waiting on lock", CurrentThread);
 	BSTATUS Status = ExWaitOnRwLock(Lock, &Lock->ExclusiveSyncEvent);
 	
 #ifdef DEBUG
 	if (Status)
-		KeCrash("ExAcquireExclusiveRwLock: ExWaitOnRwLock failed!");
+		KeCrash("ExAcquireExclusiveRwLock: ExWaitOnRwLock failed! %d", Status);
 #endif
 	
 	Lock->ExclusiveOwner.OwnerThread = CurrentThread;
@@ -103,6 +120,8 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 	{
 		// TODO: Check if the thread was killed and release if so.
 	}
+	
+	DbgPrint("EXCL(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
 	
 	return Status;
 }
@@ -120,6 +139,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, bool CanStarve)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
+	DbgPrint("CurrentThread %p acquiring lock shared", CurrentThread);
 	
 	while (true)
 	{
@@ -129,11 +149,12 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 		if (Lock->HeldCount == 0)
 		{
 			// No shared owners, so use the preallocated one.
-			Lock->SharedOwnerPreall.Locked = true;
-			Lock->SharedOwnerPreall.OwnerThread = CurrentThread;
-			InsertTailList(&Lock->SharedOwners, &Lock->SharedOwnerPreall.Entry);
+			Lock->SharedOwner.Locked = true;
+			Lock->SharedOwner.OwnerThread = CurrentThread;
+			Lock->HeldCount = 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+			DbgPrint("SHRD(%p): Acquired via heldcount==0 case", CurrentThread);
 			return STATUS_SUCCESS;
 		}
 		
@@ -151,6 +172,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Lock->ExclusiveOwner.Locked++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Acquired via rescursive locking case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			
@@ -160,6 +182,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 			{
 				// Try again!
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Release spinlock because owner not found", CurrentThread);
 				continue;
 			}
 		}
@@ -171,6 +194,7 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 			{
 				// Try again!
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Release spinlock because owner not found 2", CurrentThread);
 				continue;
 			}
 			
@@ -181,9 +205,11 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Owner->Locked++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Acquired via recursively locking case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			
+			DbgPrint("SHRD(%p): Exclusive waiters: %d", CurrentThread, Lock->ExclusiveWaiterCount);
 			if (CanStarve || Lock->ExclusiveWaiterCount == 0)
 			{
 				// Yoink!
@@ -192,11 +218,13 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 				Lock->HeldCount++;
 				
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Acquired via exclusivewaitercount==0 case", CurrentThread);
 				return STATUS_SUCCESS;
 			}
 			else if (DontBlock)
 			{
 				KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+				DbgPrint("SHRD(%p): Timeout in dontblock", CurrentThread);
 				return STATUS_TIMEOUT;
 			}
 		}
@@ -211,21 +239,25 @@ BSTATUS ExAcquireSharedRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable, 
 		Lock->SharedWaiterCount++;
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+		DbgPrint("SHRD(%p): Releasing spinlock because about to wait", CurrentThread);
 		break;
 	}
 	
 	// Wait!
+	DbgPrint("SHRD(%p): Waiting on lock", CurrentThread);
 	BSTATUS Status = ExWaitOnRwLock(Lock, &Lock->SharedSemaphore);
 	
 #ifdef DEBUG
 	if (Status)
-		KeCrash("ExAcquireExclusiveShared: ExWaitOnRwLock failed!");
+		KeCrash("ExAcquireSharedRwLock: ExWaitOnRwLock failed! %d", Status);
 #endif
 	
 	if (Alertable)
 	{
 		// TODO: Check if the thread was killed and release if so.
 	}
+	
+	DbgPrint("SHRD(%p): Rwlock acquired, heldcount: %d", CurrentThread, Lock->HeldCount);
 	
 	return Status;
 }
@@ -275,11 +307,16 @@ void ExDemoteToSharedRwLock(PEX_RW_LOCK Lock)
 
 BSTATUS ExWaitOnRwLock(UNUSED PEX_RW_LOCK Lock, void* EventObject)
 {
+#ifdef DEBUG
+	if (Lock->GuardLock.Locked)
+		KeCrash("ExWaitOnRwLock: Rwlock's spinlock is locked for some reason");
+#endif
+
 	while (true)
 	{
 		BSTATUS Status = KeWaitForSingleObject(EventObject, false, EX_RWLOCK_WAIT_TIMEOUT);
 		
-		if (Status == STATUS_TIMEOUT)
+		if (Status != STATUS_TIMEOUT)
 			return Status;
 		
 		// Try to boost priority of other owners to get them out of this lock:
@@ -302,30 +339,67 @@ PEX_RW_LOCK_OWNER ExFindOwnerRwLock(PEX_RW_LOCK Lock, PKTHREAD Thread, KIPL Ipl)
 			return &Lock->ExclusiveOwner;
 	}
 	
-	PLIST_ENTRY Entry = Lock->SharedOwners.Flink;
-	while (Entry != &Lock->SharedOwners)
+	int OldSize = Lock->OwnerTableSize;
+	PEX_RW_LOCK_OWNER Table = Lock->OwnerTable;
+	
+	PEX_RW_LOCK_OWNER FreeEntry = NULL;
+	
+	if (Lock->SharedOwner.OwnerThread == NULL)
+		FreeEntry = &Lock->SharedOwner;
+	
+	for (int i = 0; i < OldSize; i++)
 	{
-		PEX_RW_LOCK_OWNER Owner = CONTAINING_RECORD(Entry, EX_RW_LOCK_OWNER, Entry);
+		if (Table[i].OwnerThread == Thread)
+			return &Table[i];
 		
-		if (Owner->OwnerThread == Thread)
-			return Owner;
-		
-		Entry = Entry->Flink;
+		if (!FreeEntry && Table[i].OwnerThread == NULL)
+			FreeEntry = &Table[i];
 	}
 	
-	KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+	// Didn't find a pre-existing entry.
+	if (FreeEntry)
+		return FreeEntry;
 	
-	// Add a new one.
-	PEX_RW_LOCK_OWNER Owner = MmAllocatePool(POOL_NONPAGED, sizeof(EX_RW_LOCK_OWNER));
-	Owner->Locked = 0;
-	Owner->OwnerThread = NULL;
+	// Need to expand the table.
+	int NewSize = OldSize + 4;
 	
-	KIPL NIpl;
-	KeAcquireSpinLock(&Lock->GuardLock, &NIpl);
-	ASSERT(NIpl == Ipl);
+	// TODO: This allocation shouldn't fail.  Let the allocator
+	// know about that directly instead of forcing.
+	PEX_RW_LOCK_OWNER NewTable;
 	
-	InsertTailList(&Lock->SharedOwners, &Owner->Entry);
-	return Owner;
+	do
+	{
+		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+		
+		NewTable = MmAllocatePool(POOL_NONPAGED, sizeof(EX_RW_LOCK_OWNER) * NewSize);
+		
+		KeAcquireSpinLock(&Lock->GuardLock, &Ipl);
+		
+		// If someone expanded it already:
+		if (Lock->OwnerTableSize > OldSize)
+		{
+			// Free what we did, if we did anything, and retry.
+			if (NewTable)
+				MmFreePool(NewTable);
+			
+			return NULL;
+		}
+	}
+	while (!NewTable);
+	
+	// Allocated something, and no one expanded it already.
+	memcpy(NewTable, Lock->OwnerTable, sizeof(EX_RW_LOCK_OWNER) * OldSize);
+	memset(NewTable + OldSize, 0, sizeof(EX_RW_LOCK_OWNER) * (NewSize - OldSize));
+	
+	FreeEntry = &NewTable[OldSize];
+	
+	if (Lock->OwnerTable)
+		MmFreePool(Lock->OwnerTable);
+	
+	Lock->OwnerTable = NewTable;
+	Lock->OwnerTableSize = NewSize;
+	
+	return FreeEntry;
 }
 
 void ExReleaseRwLock(PEX_RW_LOCK Lock)
@@ -343,23 +417,32 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 		Exclusive = true;
 		Owner = &Lock->ExclusiveOwner;
 	}
+	else if (Lock->SharedOwner.OwnerThread == CurrentThread)
+	{
+		Exclusive = false;
+		Owner = &Lock->SharedOwner;
+	}
 	else
 	{
-		PLIST_ENTRY Entry = Lock->SharedOwners.Flink;
-		while (Entry != &Lock->SharedOwners && Owner)
+		Exclusive = false;
+		
+		PEX_RW_LOCK_OWNER Table = Lock->OwnerTable;
+		int TableSize = Lock->OwnerTableSize;
+		for (int i = 0; i < TableSize; i++)
 		{
-			PEX_RW_LOCK_OWNER TempOwner = CONTAINING_RECORD(Entry, EX_RW_LOCK_OWNER, Entry);
-			
-			if (TempOwner->OwnerThread == CurrentThread)
-				Owner = TempOwner;
-			
-			Entry = Entry->Flink;
+			if (Table[i].OwnerThread == CurrentThread)
+			{
+				Owner = &Table[i];
+				break;
+			}
 		}
 	}
 	
 #ifdef DEBUG
-	if (Owner)
-		KeCrash("ExReleaseRwLock: Rwlock not held by thread");
+	if (!Owner)
+		KeCrash("ExReleaseRwLock: Rwlock not held by thread %p", CurrentThread);
+	if (Owner->Locked == 0)
+		KeCrash("ExReleaseRwLock: Rwlock not held by thread %p (?!?)", CurrentThread);
 #endif
 	
 	Owner->Locked--;
@@ -373,12 +456,10 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 	// Actually released.
 #ifdef DEBUG
 	if (Lock->HeldCount == 0)
-		KeCrash("ExReleaseRwLock: HeldCount is equal to zero");
+		KeCrash("ExReleaseRwLock: HeldCount is equal to zero. Thread %p", CurrentThread);
 #endif
 	
-	// Remove the owner list item from the list.
-	RemoveEntryList(&Owner->Entry);
-	MmFreePool(Owner);
+	Owner->OwnerThread = NULL;
 	
 	Lock->HeldCount--;
 	
@@ -399,6 +480,7 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 			if (Lock->ExclusiveWaiterCount)
 			{
 				// There is a waiter!  Pass over the lock.
+				Lock->HeldCount = 1;
 				Lock->ExclusiveWaiterCount--;
 				
 				PKTHREAD WaitThrd = KeSetEventAndGetWaiter(&Lock->ExclusiveSyncEvent);

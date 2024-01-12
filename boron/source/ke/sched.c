@@ -22,6 +22,8 @@ Author:
 #define SchedDebug2(...) DbgPrint(__VA_ARGS__)
 #endif
 
+#define SCHED_DISABLE_WORKSTEALING
+
 LIST_ENTRY KiGlobalThreadList;
 KSPIN_LOCK KiGlobalThreadListLock;
 
@@ -163,6 +165,7 @@ NO_RETURN void KeSchedulerCommit()
 static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, bool OtherProcessor)
 {
 	// If this is another processor, perform the ExecQueueMask optimization.
+#ifndef SCHED_DISABLE_WORKSTEALING
 	if (OtherProcessor)
 	{
 		// If the mask doesn't have bits at positions MinPriority or higher,
@@ -176,6 +179,10 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, boo
 		if (MinPriority == 0)
 			return NULL;
 	}
+#else
+	if (OtherProcessor)
+		return NULL;
+#endif
 	
 	for (int Priority = PRIORITY_COUNT - 1; Priority >= MinPriority; Priority--)
 	{
