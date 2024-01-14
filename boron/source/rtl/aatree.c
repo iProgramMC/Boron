@@ -240,13 +240,15 @@ static PAATREE_ENTRY RtlpRemoveItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item
 Rebalance:
 	Root = RtlpDecreaseLevelAaTree(Root);
 	Root = RtlpSkewAaTree(Root);
-	Root->Rlink = RtlpSkewAaTree(Root->Rlink);
+	
+	PAATREE_ENTRY M = Root->Rlink;
+	Root->Rlink = RtlpSkewAaTree(M);
 
-	if (Root->Rlink)
-		Root->Rlink->Rlink = RtlpSkewAaTree(Root->Rlink->Rlink);
+	if (M && M->Rlink)
+		Root->Rlink->Rlink = RtlpSkewAaTree(M->Rlink);
 
 	Root = RtlpSplitAaTree(Root);
-	Root->Rlink = RtlpSplitAaTree(Root->Rlink);
+	Root->Rlink = RtlpSplitAaTree(M);
 	return Root;
 }
 
