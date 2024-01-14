@@ -4,10 +4,10 @@
 
 Module name:
 	rtl/aatree.h
-	
+
 Abstract:
 	This module implements the AA binary search tree.
-	
+
 Author:
 	iProgramInCpp - 21 November 2023
 ***/
@@ -60,9 +60,6 @@ static PAATREE_ENTRY RtlpSplitAaTree(PAATREE_ENTRY Root)
 
 static PAATREE_ENTRY RtlpInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Inserted, int Depth)
 {
-	if (Depth > 10)
-		KeCrash("RtlpInsertItemAaTree: Depth exceeded");
-	
 	// Optimistically assume the item will be inserted.
 	*Inserted = true;
 
@@ -85,7 +82,7 @@ static PAATREE_ENTRY RtlpInsertItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item
 	}
 	else
 	{
-		// Item with the same key already Rtlists.
+		// Item with the same key already exists.
 		*Inserted = false;
 	}
 
@@ -147,6 +144,39 @@ static PAATREE_ENTRY RtlpSuccessorAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY** SuL
 	return Successor;
 }
 
+static PAATREE_ENTRY RtlpPredecessorAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY** SuLink)
+{
+	if (!Root->Llink)
+		return NULL;
+
+	PAATREE_ENTRY Predecessor = Root->Llink;
+	*SuLink = &Root->Llink;
+
+	while (Predecessor->Rlink)
+	{
+		*SuLink = &Predecessor->Rlink;
+		Predecessor = Predecessor->Rlink;
+	}
+
+	return Predecessor;
+}
+
+static inline ALWAYS_INLINE
+void SwapLinks(PAATREE_ENTRY* Link1, PAATREE_ENTRY* Link2)
+{
+	PAATREE_ENTRY Temp = *Link1;
+	*Link1 = *Link2;
+	*Link2 = Temp;
+}
+
+static inline ALWAYS_INLINE
+void SwapKeys(AATREE_KEY* Link1, AATREE_KEY* Link2)
+{
+	AATREE_KEY Temp = *Link1;
+	*Link1 = *Link2;
+	*Link2 = Temp;
+}
+
 static PAATREE_ENTRY RtlpRemoveItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item, bool* Removed)
 {
 	if (!Root)
@@ -158,6 +188,7 @@ static PAATREE_ENTRY RtlpRemoveItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item
 			Root->Llink = RtlpRemoveItemAaTree(Root->Llink, Item, Removed);
 		else
 			Root->Rlink = RtlpRemoveItemAaTree(Root->Rlink, Item, Removed);
+
 		goto Rebalance;
 	}
 
@@ -177,21 +208,35 @@ static PAATREE_ENTRY RtlpRemoveItemAaTree(PAATREE_ENTRY Root, PAATREE_ENTRY Item
 	}
 
 	PAATREE_ENTRY* SuLink;
-	PAATREE_ENTRY Successor = RtlpSuccessorAaTree(Root, &SuLink);
+	if (Root->Llink == NULL)
+	{
+		PAATREE_ENTRY Successor = RtlpSuccessorAaTree(Root, &SuLink);
 
-	Successor->Llink = Root->Llink;
-	Successor->Rlink = Root->Rlink;
+		*SuLink = Root;
 
-#ifdef DEBUG
-	Root->Llink = Root->Rlink = NULL;
-#endif
+		SwapLinks(&Root->Llink, &Successor->Llink);
+		SwapLinks(&Root->Rlink, &Successor->Rlink);
 
-	*SuLink = NULL;
+		bool bRemoved = false;
+		Successor->Llink = RtlpRemoveItemAaTree(Successor->Llink, Root, &bRemoved);
 
-	Root = Successor;
-	
-	*Removed = true;
-	
+		Root = Successor;
+	}
+	else
+	{
+		PAATREE_ENTRY Predecessor = RtlpPredecessorAaTree(Root, &SuLink);
+
+		*SuLink = Root;
+
+		SwapLinks(&Root->Llink, &Predecessor->Llink);
+		SwapLinks(&Root->Rlink, &Predecessor->Rlink);
+
+		bool bRemoved = false;
+		Predecessor->Llink = RtlpRemoveItemAaTree(Predecessor->Llink, Root, &bRemoved);
+
+		Root = Predecessor;
+	}
+
 Rebalance:
 	Root = RtlpDecreaseLevelAaTree(Root);
 	Root = RtlpSkewAaTree(Root);
@@ -213,15 +258,15 @@ static void RtlpTraverseInOrderAaTree(
 {
 	if (!Root)
 		return;
-	
+
 	if (*Stop) return;
-	
+
 	RtlpTraverseInOrderAaTree(Root->Llink, Function, Context, Stop);
 	if (*Stop) return;
-	
+
 	*Stop = Function(Context, Root);
 	if (*Stop) return;
-	
+
 	RtlpTraverseInOrderAaTree(Root->Rlink, Function, Context, Stop);
 }
 
@@ -235,13 +280,13 @@ static void RtlpTraversePreOrderAaTree(
 		return;
 
 	if (*Stop) return;
-	
+
 	*Stop = Function(Context, Root);
 	if (*Stop) return;
-	
+
 	RtlpTraversePreOrderAaTree(Root->Llink, Function, Context, Stop);
 	if (*Stop) return;
-	
+
 	RtlpTraversePreOrderAaTree(Root->Rlink, Function, Context, Stop);
 }
 
@@ -253,15 +298,15 @@ static void RtlpTraversePostOrderAaTree(
 {
 	if (!Root)
 		return;
-	
+
 	if (*Stop) return;
 
 	RtlpTraversePostOrderAaTree(Root->Llink, Function, Context, Stop);
 	if (*Stop) return;
-	
+
 	RtlpTraversePostOrderAaTree(Root->Rlink, Function, Context, Stop);
 	if (*Stop) return;
-	
+
 	*Stop = Function(Context, Root);
 }
 
@@ -291,13 +336,13 @@ size_t RtlpGetHeightAaTree(PAATREE_ENTRY Root)
 {
 	if (!Root)
 		return 0;
-	
+
 	size_t Max = RtlpGetHeightAaTree(Root->Llink);
 	size_t RLS = RtlpGetHeightAaTree(Root->Rlink);
-	
+
 	if (Max < RLS)
 		Max = RLS;
-	
+
 	return Max + 1;
 }
 
@@ -323,7 +368,7 @@ static PAATREE_ENTRY RtlpGetLastEntryAaTree(PAATREE_ENTRY Root)
 	return Root;
 }
 
-// ------- Rtlposed API -------
+// ------- Exposed API -------
 
 // WRITE
 bool InsertItemAaTree(PAATREE Tree, PAATREE_ENTRY Item)
