@@ -146,11 +146,11 @@ static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
 		
 		// A mutex must only be satisfied at most once.
 		case DISPATCH_MUTEX:
-			return Object->Signaled == 0;
+			return Object->Signaled != 0;
 		
 		// A semaphore can only be acquired if it's signaled.
 		case DISPATCH_SEMAPHORE:
-			return Object->Signaled != 0;
+			return Object->Signaled == 0;
 		
 		// An event depends on its subtype.
 		case DISPATCH_EVENT: {
