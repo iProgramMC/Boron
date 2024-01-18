@@ -61,6 +61,6 @@ void DbgPrint(const char* msg, ...);
 #include <ke/crash.h>
 
 #include <rtl/list.h>
-#include <rtl/aatree.h>
+#include <rtl/avltree.h>
 
 #endif//NS64_MAIN_H
