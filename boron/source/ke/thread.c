@@ -33,7 +33,6 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	Thread->StartRoutine = StartRoutine;
 	Thread->StartContext = StartContext;
 	
-	// N.B.  Need to subtract page size from the kernel stack size because of guard rail page.
 	Thread->Stack.Top    = MmGetAddressFromBigHandle(KernelStack);
 	Thread->Stack.Size   = MmGetSizeFromBigHandle(KernelStack) * PAGE_SIZE;
 	Thread->Stack.Handle = KernelStack;
