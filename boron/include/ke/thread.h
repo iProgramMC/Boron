@@ -91,6 +91,8 @@ struct KTHREAD_tag
 	
 	uint64_t QuantumUntil;
 	
+	int LastProcessor;
+	
 	KAFFINITY Affinity;
 	
 	KDPC WaitDpc;
@@ -110,6 +112,10 @@ struct KTHREAD_tag
 	// we also don't want other threads' invalid page faults to jump to
 	// the alternative exit.
 	bool Probing;
+	
+	// Whether or not to "steal" this thread on another processor. Used
+	// when exiting a wait.
+	bool DontSteal;
 };
 
 // Creates an empty, uninitialized, thread object.

@@ -334,7 +334,6 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	{
 		// Waiting for any object, so acquire the object and wake the thread.
 		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
-		KiCancelTimer(&Thread->WaitTimer);
 		KiUnwaitThread(Thread, STATUS_RANGE_WAIT + Index);
 		return true;
 	}
@@ -366,9 +365,6 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
 		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
 	}
-	
-	// Dequeue the timeout timer here.
-	KiCancelTimer(&Thread->WaitTimer);
 	
 	KiUnwaitThread(Thread, STATUS_SUCCESS);
 	return true;

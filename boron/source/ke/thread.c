@@ -55,6 +55,9 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	// Mark thread as initialized.
 	Thread->Status = KTHREAD_STATUS_INITIALIZED;
 	
+	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
+	Thread->DontSteal = false;
+	
 	// Add thread to process' thread list.
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
 	

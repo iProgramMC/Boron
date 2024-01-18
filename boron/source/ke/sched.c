@@ -24,6 +24,9 @@ Author:
 
 //#define SCHED_DISABLE_WORKSTEALING
 
+static int KepNextProcessorToStealWorkFrom;
+extern KPRCB** KeProcessorList;
+
 LIST_ENTRY KiGlobalThreadList;
 KSPIN_LOCK KiGlobalThreadListLock;
 
@@ -84,6 +87,8 @@ void KiReadyThread(PKTHREAD Thread)
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
+	
+	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
 }
 
 void KiUnwaitThread(PKTHREAD Thread, int Status)
@@ -98,7 +103,7 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	if (Thread->Status == KTHREAD_STATUS_READY)
 		return;
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = &KeProcessorList[Thread->LastProcessor]->Scheduler;
 	
 	Thread->Status = KTHREAD_STATUS_READY;
 	
@@ -113,6 +118,7 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	Thread->WaitBlockArray = NULL;
 	
 	Thread->WaitStatus = Status;
+	Thread->DontSteal = true;
 	
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
@@ -202,6 +208,13 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, boo
 			return NULL;
 		}
 		
+		// Check if the thread isn't ready to be stolen yet.
+		if (Thread->DontSteal && OtherProcessor)
+		{
+			// Nope, therefore this thread is a no-go.
+			return NULL;
+		}
+		
 		// Remove this thread from the queue.
 		RemoveEntryList(&Thread->EntryQueue);
 		
@@ -275,8 +288,11 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		
 		Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
 		
-		// Save the registers
+		// Save the registers.
 		CurrentThread->State = Regs;
+		
+		// Set the last processor ID of the thread.
+		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
 	}
 	
 	// Unload the current thread.
@@ -342,9 +358,6 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 // I dub this "work stealing", although I'm pretty sure I've heard this somewhere before.
 // If a processor doesn't have any more threads at the current priority level or higher,
 // it will try to pop threads off of another processor's queue.
-static int KepNextProcessorToStealWorkFrom;
-extern KPRCB** KeProcessorList;
-
 static int KepGetNextProcessorToStealWorkFrom()
 {
 	int Processor = KepNextProcessorToStealWorkFrom;
@@ -505,6 +518,12 @@ PKREGISTERS KiSwitchToNextThread()
 	
 	// Mark the thread as running.
 	Thread->Status = KTHREAD_STATUS_RUNNING;
+	
+	// The time we weren't allowed to be stolen is up.
+	Thread->DontSteal = false;
+	
+	// If there is a wait timer that we had set up, cancel it.
+	KiCancelTimer(&Thread->WaitTimer);
 	
 	// Assign a quantum to the thread.
 	KiAssignDefaultQuantum(Thread);
