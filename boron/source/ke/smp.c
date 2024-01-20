@@ -149,8 +149,10 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 
 int KeGetVersionNumber()
 {
-	return 2;
+	return 3;
 }
+
+void PsInitSystemProcess();
 
 NO_RETURN void KeInitSMP()
 {
@@ -220,11 +222,7 @@ NO_RETURN void KeInitSMP()
 	HalInitSystemUP();
 	
 	// Initialize system process.
-	KeInitializeProcess(
-		KeGetSystemProcess(),
-		PRIORITY_NORMAL,
-		AFFINITY_ALL
-	);
+	PsInitSystemProcess();
 	
 	// First phase of initialization
 	//ObInitializeFirstPhase();

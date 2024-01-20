@@ -21,3 +21,18 @@ PEPROCESS PsGetSystemProcess()
 	return &PsSystemProcess;
 }
 
+void PsInitSystemProcess()
+{
+	KeInitializeProcess(
+		&PsSystemProcess.Pcb,
+		PRIORITY_NORMAL,
+		AFFINITY_ALL
+	);
+	
+	// Initialize the address lock.
+	ExInitializeRwLock(&PsSystemProcess.AddressLock);
+	
+	// Initialize the handle table.
+	// TODO: Defaults chosen arbitrarily.
+	PsSystemProcess.HandleTable = ExCreateHandleTable(16, 16, 1);
+}

@@ -14,14 +14,9 @@ Author:
 ***/
 #pragma once
 
-#include <ke/process.h>
-
-typedef struct EPROCESS_tag
-{
-	KPROCESS Pcb;
-	
-	// TODO
-}
-EPROCESS, *PEPROCESS;
+#include <ex/rwlock.h>
+#include <ex/process.h>
 
 PEPROCESS PsGetSystemProcess();
+
+void PsInitSystemProcess();

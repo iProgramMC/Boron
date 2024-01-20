@@ -15,7 +15,4 @@ Author:
 #pragma once
 
 #include <ke.h>
-
-#include "ps/process.h"
-#include "ps/thread.h"
-
+#include <ex.h>

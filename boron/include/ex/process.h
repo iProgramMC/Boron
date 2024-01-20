@@ -20,6 +20,12 @@ typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 struct EPROCESS_tag
 {
 	// The kernel side process.
-	KPROCESS Process;
+	KPROCESS Pcb;
+	
+	// Rwlock that guards the address space of the process.
+	EX_RW_LOCK AddressLock;
+	
+	// Handle table.
+	void* HandleTable;
 };
 
