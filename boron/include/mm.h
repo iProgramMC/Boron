@@ -21,6 +21,7 @@ PageMapLevel;
 #include <mm/pool.h>
 #include <mm/pt.h>
 #include <mm/probe.h>
+#include <mm/mdl.h>
 
 // Initialize the allocators.
 void MmInitAllocators();

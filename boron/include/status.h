@@ -24,19 +24,20 @@ enum
 	STATUS_INVALID_PARAMETER,
 	STATUS_ACCESS_DENIED,
 	STATUS_INSUFFICIENT_MEMORY,
+	STATUS_UNIMPLEMENTED,
 	
 	// Wait for object(s) errors
-	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.
+	STATUS_WAITING = 1000,       // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,
 	STATUS_TIMEOUT,             // Timeout or would block
 	STATUS_KILLED,              // Thread was killed
 	
 	// Probe errors
-	STATUS_FAULT,               // returned by MmProbeAddress when a bad page fault was triggered.
+	STATUS_FAULT = 2000,        // returned by MmProbeAddress when a bad page fault was triggered.
 	STATUS_NO_REMAP,            // returned by MmProbeAddress if remapping in kernel space failed.
 	
 	// Object errors
-	STATUS_NAME_INVALID,        // If the object's name is invalid
+	STATUS_NAME_INVALID = 3000, // If the object's name is invalid
 	STATUS_NAME_COLLISION,      // If there is already an object with the same name in the directory.
 	STATUS_TYPE_MISMATCH,       // The object is not of the expected type
 	STATUS_OBJECT_UNOWNED,      // The object is owned by kernel mode but an attempt to access it from user mode was made

@@ -18,7 +18,7 @@ Author:
 #include <main.h>
 
 // Page frame item in the page frame database.
-// Keep this a power of 2, please.
+// Keep this structure's size a power of 2, please.
 // Currently this only reserves 0.7% of physical memory.  Not bad
 typedef struct
 {
@@ -43,6 +43,8 @@ typedef struct
 	uint64_t qword3;
 }
 MMPFN, *PMMPFN;
+
+#define PFN_FLAG_CAPTURED (1 << 0)
 
 enum MMPFN_TYPE_tag
 {

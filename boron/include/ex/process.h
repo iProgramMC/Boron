@@ -29,3 +29,4 @@ struct EPROCESS_tag
 	void* HandleTable;
 };
 
+#define PsGetCurrentProcess() ((PEPROCESS)KeGetCurrentProcess())

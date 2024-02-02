@@ -36,7 +36,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	MmMapAnonPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE | MM_PTE_SUPERVISOR, true);
 	
 	// Probe the memory.
-	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
+	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true);
 	
 	LogMsg("Status In Process: %d (before signalling event)", Status);
 	
@@ -44,14 +44,14 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	KePulseEvent(&Evnt);
 	
 	// Probe the memory again.
-	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
+	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true);
 	LogMsg("Status In Process: %d (after signalling event)", Status);
 	
 	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE);
 	
 	// Unmap the memory.
 	MmUnmapPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
-	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
+	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true);
 	LogMsg("Status In Process: %d (after unmapping memory)", Status);
 	
 	// Probe the memory again.
@@ -94,7 +94,7 @@ void PerformProcessTest()
 	);
 	
 	// Probe the memory.
-	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, false, NULL);
+	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true);
 	
 	// Should be non zero.
 	LogMsg("Status In System : %d", Status);

@@ -112,4 +112,14 @@ global MmProbeAddressSubEarlyReturn
 MmProbeAddressSubEarlyReturn:
 	ret
 
+; int MmSafeCopySub(void* Address, void* Source, size_t Length);
+global MmSafeCopySub
+MmSafeCopySub:
+	cld               ; we don't want the copy the other way
+	mov rcx, rdx      ; set the count register
+	rep movsb         ; repeats "move single byte" RCX times
+	xor rax, rax      ; return zero for no error
+	ret
+	
+
 section .bss

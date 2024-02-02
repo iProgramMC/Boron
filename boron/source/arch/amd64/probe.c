@@ -23,19 +23,11 @@ Author:
 // Defined in arch/amd64/misc.asm
 int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 
-// TODO: Implement the atomic way to probe and remap the address
-// in kernel space so the user can't take it away from us.
-
 // This is the front-end for the probing code. The actual probing
 // is performed in assembly, because it's impossible to predict what
 // kind of stack layout the C version would use. (It could differ
 // depending on compiler version, for example.)
-int MmProbeAddress(
-	void* Address,
-	size_t Length,
-	bool ProbeWrite,
-	bool Remap,
-	UNUSED void** RemappedOut)
+BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
 {
 #ifdef DEBUG
 	// Some of the parameters are just not valid for now.
@@ -73,11 +65,27 @@ int MmProbeAddress(
 	}
 	
 	KeGetCurrentThread()->Probing = false;
+	return STATUS_SUCCESS;
+}
+
+// Defined in arch/amd64/misc.asm
+int MmSafeCopySub(void* Address, void* Source, size_t Length);
+
+BSTATUS MmSafeCopy(void* Address, void* Source, size_t Length)
+{
+	// Let the page fault handler know we are probing.
+	KeGetCurrentThread()->Probing = true;
 	
-	// Remap if needed.
-	if (!Remap)
-		return Code;
+	// This is just a regular old memcpy.  Nothing different about it,
+	// other than the return value.  It's a five instruction marvel.
+	int Code = MmSafeCopySub(Address, Source, Length);
 	
-	// TODO
-	return STATUS_NO_REMAP;
+	// If it returned through a path different than usual (i.e. it was
+	// detoured through MmProbeAddressSubEarlyReturn), then it's going
+	// to return STATUS_FAULT, which we'll mirror when returning.
+	
+	// No longer probing.
+	KeGetCurrentThread()->Probing = false;
+	
+	return Code;
 }
