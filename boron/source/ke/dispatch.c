@@ -49,7 +49,7 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type)
 	InitializeListHead(&Object->WaitBlockList);
 }
 
-bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
+bool KiIsObjectSignaled(PKDISPATCH_HEADER Header, PKTHREAD Thread)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -60,7 +60,7 @@ bool KiIsObjectSignaled(PKDISPATCH_HEADER Header)
 		
 		PKMUTEX Mutex = (PKMUTEX) Header;
 		
-		return Mutex->OwnerThread == KeGetCurrentThread();
+		return Mutex->OwnerThread == Thread;
 	}
 	
 	// default case
@@ -86,7 +86,7 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object, PKTHREAD Thread)
 			
 			if (Mutex->OwnerThread != NULL && Mutex->OwnerThread != Thread)
 				// Shouldn't be able to see this, by the way.
-				KeCrash("KiAcquireObject: cannot acquire mutex already owned by someone else");
+				KeCrash("KiAcquireObject: cannot acquire mutex %p already owned by someone else", Mutex);
 			
 			Mutex->OwnerThread = Thread;
 			
@@ -237,7 +237,7 @@ int KeWaitForMultipleObjects(
 		WaitBlock->Object = Object;
 		WaitBlock->Thread = Thread;
 		
-		bool IsSignaled = KiIsObjectSignaled(Object);
+		bool IsSignaled = KiIsObjectSignaled(Object, Thread);
 		if (IsSignaled && WaitType == WAIT_TYPE_ANY)
 		{
 			Satisfied = true;
@@ -348,7 +348,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	for (int i = 0; i < Thread->WaitCount; i++)
 	{
 		PKWAIT_BLOCK WaitBlock = &Thread->WaitBlockArray[i];
-		if (!KiIsObjectSignaled(WaitBlock->Object))
+		if (!KiIsObjectSignaled(WaitBlock->Object, WaitBlock->Thread))
 		{
 			Acquirable = false;
 			break;
@@ -374,7 +374,7 @@ PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object)
 {
 	KiAssertOwnDispatcherLock();
 	
-	ASSERT(KiIsObjectSignaled(Object));
+	ASSERT(KiIsObjectSignaled(Object, KeGetCurrentThread()));
 	
 	// TODO: Currently, nothing uses the satisfied counter. I'm not sure of its
 	// reliability - it's proven not to be reliable when I was adding mutexes,

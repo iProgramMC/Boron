@@ -47,7 +47,7 @@ NO_DISCARD KIPL KiLockDispatcher();
 void KiUnlockDispatcher(KIPL OldIpl);
 
 // Check if an object is signaled.
-bool KiIsObjectSignaled(PKDISPATCH_HEADER Header);
+bool KiIsObjectSignaled(PKDISPATCH_HEADER Header, PKTHREAD Thread);
 
 // Alert waiting threads about a freshly signaled object.
 PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object);
