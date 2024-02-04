@@ -31,7 +31,7 @@ void ExLockHandleTable(void* TableV)
 	UNUSED BSTATUS Stat =
 	KeWaitForSingleObject(&Table->Mutex, false, TIMEOUT_INFINITE);
 	
-	ASSERT(Stat == STATUS_WAIT(0));
+	ASSERT(Stat == STATUS_SUCCESS);
 }
 
 void ExUnlockHandleTable(void* TableV)

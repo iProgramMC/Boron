@@ -41,11 +41,11 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
 	//PerformProcessTest();
-	PerformMutexTest();
+	//PerformMutexTest();
 	//PerformBallTest();
 	//PerformFireworksTest();
 	//PerformHandleTest();
-	//PerformRwlockTest();
+	PerformRwlockTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

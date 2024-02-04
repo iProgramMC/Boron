@@ -17,7 +17,7 @@ Author:
 
 #define P(n) ((void*) (uintptr_t) (n))
 
-#define THREADCOUNT 4
+#define THREADCOUNT 64
 
 // Updates for each processor ID.
 int Updates[64];
@@ -56,7 +56,7 @@ NO_RETURN void TestThread2()
 
 void BallTestDpc(PKDPC Dpc, void* Context, UNUSED void* SysAux1, UNUSED void* SysAux2)
 {
-	DbgPrint("Hello from DPC %p, %p", Dpc, Context);
+	//DbgPrint("Hello from DPC %p, %p", Dpc, Context);
 }
 
 const int LimitLeft   = 4;
