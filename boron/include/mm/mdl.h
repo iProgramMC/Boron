@@ -31,9 +31,9 @@ typedef struct _MDL
 	uint32_t Available;      // Padding
 	size_t ByteCount;        // Direct size from MmCaptureMdl
 	uintptr_t MappedStartVA; // The beginning of the virtual address where this MDL was captured from
-	int* Pages;              // List of page frame numbers
-	size_t NumberPages;      // Size of the page frame number list
 	PEPROCESS Process;       // Process these pages belong to
+	size_t NumberPages;      // Size of the page frame number list
+	int Pages[];
 }
 MDL, *PMDL;
 
@@ -41,4 +41,4 @@ MDL, *PMDL;
 
 // Initializes and captures an MDL from a virtual address.
 // The virtual address must be located in the user half.
-BSTATUS MmCaptureMdl(PMDL Mdl, uintptr_t VirtualAddress, size_t Size);
+BSTATUS MmCaptureMdl(PMDL* Mdl, uintptr_t VirtualAddress, size_t Size);
