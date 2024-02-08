@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	proctst.c
+	rwlcktst.c
 	
 Abstract:
 	This module implements the rwlock test for the test driver.

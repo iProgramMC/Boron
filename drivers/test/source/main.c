@@ -45,7 +45,8 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformBallTest();
 	//PerformFireworksTest();
 	//PerformHandleTest();
-	PerformRwlockTest();
+	//PerformRwlockTest();
+	PerformMdlTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread();

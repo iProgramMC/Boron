@@ -33,12 +33,16 @@ int MmPhysPageToPFN(uintptr_t physAddr);
 // Converts a page frame number (PFN) to a physical page.
 uintptr_t MmPFNToPhysPage(int pfn);
 
-// this returns a PFN, use MmPFNToPhysPage to convert it to
+// This returns a PFN, use MmPFNToPhysPage to convert it to
 // a physical address, and MmGetHHDMOffsetAddr to address into it directly
 int MmAllocatePhysicalPage();
 
-// this expects a PFN. Use MmPhysPageToPFN if you have a physically
-// addressed page to free.
+// Adds a reference to a PFN.
+void MmPageAddReference(int Pfn);
+
+// This expects a PFN. Use MmPhysPageToPFN if you have a physically
+// addressed page to free. Lowers the reference counter of the physical page.
+// When zero, the page is freed from physical memory and can be used again.
 void MmFreePhysicalPage(int pfn);
 
 // Same as MmAllocatePhysicalPage, but returns an HHDM based address.

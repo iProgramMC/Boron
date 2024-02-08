@@ -17,9 +17,7 @@ Author:
 #include <mm/pfn.h>
 #include <status.h>
 
-// 4 MB. If you need a larger MDL try using several.
-// I/O requests are probably going to be split up anyway.
-// Conveniently the list of PFNs will always occupy only one page.
+// XXX: This is completely arbitrary.
 #define MDL_MAX_SIZE (4*1024*1024)
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
@@ -36,8 +34,6 @@ typedef struct _MDL
 	int Pages[];
 }
 MDL, *PMDL;
-
-#define MDL_FIELD_INITIALIZED 
 
 // Initializes and captures an MDL from a virtual address.
 // The virtual address must be located in the user half.

@@ -15,6 +15,8 @@ Author:
 #include <mm.h>
 #include <ke.h>
 
+// TODO: Can't allow recursive page fault in kernel space. Need to fix that!
+
 // Returns: Whether the page fault was fixed or not
 int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {

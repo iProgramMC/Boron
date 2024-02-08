@@ -43,3 +43,8 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite);
 // Performs a memory copy in a safe way. Returns an error code if
 // copying was interrupted by an invalid page fault.
 BSTATUS MmSafeCopy(void* Address, void* Source, size_t Length);
+
+// Check if the specified address range can be used at all. For example, on AMD64,
+// the area between 0x0000800000000000 and 0xFFFF7FFFFFFFFFFF is considered
+// noncanonical, and any attempt to access it will actually throw a #GP, not a #PF.
+bool MmIsAddressRangeValid(uintptr_t Address, size_t Size);

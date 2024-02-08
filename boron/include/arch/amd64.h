@@ -14,6 +14,7 @@ void KeSetMSR(uint32_t msr, uint64_t value);
 // Note! Most of these are going to be present everywhere we'll port to.
 
 #define MM_KERNEL_SPACE_BASE (0xFFFF800000000000)
+#define MM_USER_SPACE_END    (0x00007FFFFFFFFFFF)
 
 // memory layout:
 // hhdm base - FFFF'8000'0000'0000 - FFFF'80FF'FFFF'FFFF (usually. Could be different, but it'd better not be!)

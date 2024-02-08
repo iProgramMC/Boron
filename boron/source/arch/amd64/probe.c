@@ -20,6 +20,40 @@ Author:
 #include <mm.h>
 #include <ke.h>
 
+// NOTE: On AMD64, we *have* to do this. Accesses to non-canonical addresses return
+// a general protection fault, instead of a page fault. We aren't set up to handle
+// probing using those, not that we'd want to anyway.
+
+bool MmIsAddressCanonical(uintptr_t Address)
+{
+	int64_t AddressSigned = (int64_t) Address;
+	int64_t SignExt = AddressSigned >> 47;
+	
+	// The logic is that we convert the address to a signed integer which we then
+	// shift right by 47 bits, smearing the upper 47 bits with the 63rd bit of the
+	// old value. Thus, if the address is canonical, this is either 0xFFFF..FFFF or
+	// 0x0000..0000.  If it's anything else, the upper 16 bits of the address don't
+	// match the upper 17th, which means the address is non-canonical.
+	
+	return (~SignExt == 0) || (SignExt == 0);
+}
+
+bool MmIsAddressRangeValid(uintptr_t Address, size_t Size)
+{
+	uintptr_t AddressEnd = Address + Size;
+	if (AddressEnd < Address)
+		return false;
+	
+	// Don't really think it should be valid
+	if (Size == 0)
+		return false;
+	
+	// If the upper 17 bits aren't identical, then the address crosses over into
+	// non-canonical space. Since the addresses are unsigned, the upper bit won't
+	// get "smeared" - not like that matters anyway :)
+	return (Address >> 17) == (AddressEnd >> 17);
+}
+
 // Defined in arch/amd64/misc.asm
 int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 
@@ -31,9 +65,12 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
 {
 #ifdef DEBUG
 	// Some of the parameters are just not valid for now.
-	if (Length % 8)
+	if (Length % sizeof(uintptr_t))
 		KeCrash("MmProbeAddress: Length %zu not aligned to 8 bytes");
 #endif
+	
+	if (!MmIsAddressRangeValid((uintptr_t)Address, Length))
+		return STATUS_INVALID_PARAMETER;
 
 	const uintptr_t MaxPtr     = (uintptr_t) ~0ULL; // 0b1111...1111
 	const uintptr_t HalfMaxPtr = MaxPtr >> 1;       // 0b0111...1111

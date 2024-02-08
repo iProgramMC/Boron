@@ -379,6 +379,7 @@ static int MmpAllocateFromFreeList(int* First, int* Last)
 	MMPFN *pPF = MmGetPageFrameFromPFN(*First);
 	
 	pPF->Type = PF_TYPE_USED;
+	pPF->RefCount = 1;
 	MmpRemovePfnFromList(First, Last, *First);
 	
 	return currPFN;
@@ -411,8 +412,20 @@ void MmFreePhysicalPage(int pfn)
 #endif
 	
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
-	MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
-	MmGetPageFrameFromPFN(pfn)->Type = PF_TYPE_FREE;
+	
+	PMMPFN PageFrame = MmGetPageFrameFromPFN(pfn);
+	
+	ASSERT(PageFrame->Type == PF_TYPE_USED);
+	
+	int RefCount = --PageFrame->RefCount;
+	ASSERT(RefCount >= 0);
+	
+	if (RefCount <= 0)
+	{
+		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+		PageFrame->Type = PF_TYPE_FREE;
+	}
+	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
@@ -478,4 +491,19 @@ void* MmAllocatePhysicalPageHHDM()
 void MmFreePhysicalPageHHDM(void* page)
 {
 	return MmFreePhysicalPage(MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(page)));
+}
+
+void MmPageAddReference(int Pfn)
+{
+	PMMPFN PageFrame = MmGetPageFrameFromPFN(Pfn);
+	
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	ASSERT(PageFrame);
+	ASSERT(PageFrame->Type == PF_TYPE_USED);
+	
+	PageFrame->RefCount++;
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
