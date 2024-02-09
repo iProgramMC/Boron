@@ -27,7 +27,7 @@ typedef int POOL_TYPE;
 // Redundant, could just pass 0
 #define POOL_PAGED (0)
 
-typedef uint64_t BIG_MEMORY_HANDLE;
+typedef uintptr_t BIG_MEMORY_HANDLE;
 
 #define POOL_TAG(x) *((int*)x)
 

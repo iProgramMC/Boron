@@ -34,7 +34,7 @@ enum
 	
 	// Probe errors
 	STATUS_FAULT = 2000,        // returned by MmProbeAddress when a bad page fault was triggered.
-	STATUS_NO_REMAP,            // returned by MmProbeAddress if remapping in kernel space failed.
+	STATUS_NO_REMAP,            // returned by MmProbeAddress if remapping in kernel space failed, or by MmMapMDL if the MDL is already mapped
 	
 	// Object errors
 	STATUS_NAME_INVALID = 3000, // If the object's name is invalid

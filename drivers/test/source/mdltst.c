@@ -54,5 +54,16 @@ void PerformMdlTest()
 		DbgPrint("* Pages[%d] = %d (%p)", i, Pfn, (uintptr_t)Pfn << 12);
 	}
 	
+	LogMsg("Mapping it into system memory now.");
+	
+	uintptr_t MapAddress = 0;
+	Status = MmMapMDL(Mdl, &MapAddress, MM_PTE_READWRITE | MM_PTE_SUPERVISOR);
+	
+	if (Status != STATUS_SUCCESS)
+		KeCrash("Mdl test: MapMDL returned %d", Status);
+	
+	// Try accessing that address.
+	LogMsg("Addr: %p", MapAddress);
+	
 	LogMsg("Note: MDL is leaked for now.");
 }

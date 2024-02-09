@@ -15,6 +15,75 @@ Author:
 #include <ex.h>
 #include <ps.h>
 
+void MmFreeMDL(PMDL Mdl)
+{
+	// The MDL is not mapped into kernel space.
+	ASSERT(!Mdl->MappedStartVA);
+	
+	for (size_t i = 0; i < Mdl->NumberPages; i++)
+	{
+		MmFreePhysicalPage(Mdl->Pages[i]);
+	}
+	
+	MmFreePool(Mdl);
+}
+
+BSTATUS MmMapMDL(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions)
+{
+	if (Mdl->MappedStartVA || Mdl->MapHandle)
+		return STATUS_NO_REMAP;
+	
+	void* AddressV = NULL;
+	uintptr_t MapAddress = 0;
+	
+	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
+		POOL_FLAG_CALLER_CONTROLLED,
+		Mdl->NumberPages,
+		&AddressV,
+		POOL_TAG("MdlM")
+	);
+	
+	MapAddress = (uintptr_t) AddressV;
+	
+	// If the handle couldn't be obtained, we don't have enough
+	// pool memory space, because the request was for a caller
+	// controlled region.
+	if (!Handle)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	uintptr_t Address = MapAddress;
+	size_t Index = 0;
+	
+	HPAGEMAP PageMap = MmGetCurrentPageMap();
+	
+	for (; Index < Mdl->NumberPages; Address += PAGE_SIZE, Index++)
+	{
+		// Add a reference to the page.
+		MmPageAddReference(Mdl->Pages[Index]);
+		
+		if (!MmMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions))
+		{
+			// Unmap everything mapped so far.
+			MmUnmapPages(PageMap, MapAddress, Index);
+			
+			// Unreference that page.
+			MmFreePhysicalPage(Mdl->Pages[Index]);
+			
+			// Free the handle.
+			MmFreePoolBig(Handle);
+			
+			return STATUS_INSUFFICIENT_MEMORY;
+		}
+	}
+	
+	Mdl->MappedStartVA = MapAddress;
+	Mdl->MapHandle     = Handle;
+	
+	*OutAddress = MapAddress;
+	
+	return STATUS_SUCCESS;
+}
+
 BSTATUS MmCaptureMdl(PMDL* MdlOut, uintptr_t VirtualAddress, size_t Size)
 {	
 	// Figure out the number of pages to reserve the MDL for:
@@ -22,7 +91,6 @@ BSTATUS MmCaptureMdl(PMDL* MdlOut, uintptr_t VirtualAddress, size_t Size)
 	uintptr_t EndPage   = (VirtualAddress + Size + 0xFFF) & ~0xFFF;
 	size_t NumPages = (EndPage - StartPage) / PAGE_SIZE;
 	BSTATUS FailureReason = STATUS_SUCCESS;
-	uintptr_t LastSuccessAddress = 0;
 	
 	if (Size >= MDL_MAX_SIZE)
 		return STATUS_INVALID_PARAMETER;
@@ -43,11 +111,15 @@ BSTATUS MmCaptureMdl(PMDL* MdlOut, uintptr_t VirtualAddress, size_t Size)
 	Mdl->Flags         = 0;
 	Mdl->Available     = 0; // pad
 	Mdl->ByteCount     = Size;
-	Mdl->MappedStartVA = VirtualAddress & ~0xFFF;
+	Mdl->SourceStartVA = VirtualAddress & ~0xFFF;
+	Mdl->MappedStartVA = 0;
+	Mdl->MapHandle     = POOL_NO_MEMORY_HANDLE;
 	Mdl->Process       = PsGetCurrentProcess();
 	Mdl->NumberPages   = NumPages;
 	
 	HPAGEMAP PageMap = MmGetCurrentPageMap();
+	
+	// TODO: Ensure proper failure if the whole buffer doesn't fit in system memory!
 	
 	int Index = 0;
 	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
@@ -103,26 +175,12 @@ BSTATUS MmCaptureMdl(PMDL* MdlOut, uintptr_t VirtualAddress, size_t Size)
 		// Register it in the MDL.
 		Mdl->Pages[Index] = Pfn;
 		Index++;
-		
-		LastSuccessAddress = Address;
 	}
 	
 	if (FailureReason)
 	{
-		// Roll back any performed pinning:
-		int Index = 0;
-		for (uintptr_t Address = StartPage; Address < LastSuccessAddress; Address += PAGE_SIZE)
-		{
-			int Pfn = Mdl->Pages[Index];
-			Index++;
-			
-			// Free the reference to the physical page.  This will not expunge
-			// the PFN from physical memory, because we added a reference to it
-			// above.
-			MmFreePhysicalPage(Pfn);
-		}
-		
-		MmFreePool(Mdl);
+		Mdl->NumberPages = Index;
+		MmFreeMDL(Mdl);
 		return FailureReason;
 	}
 	
