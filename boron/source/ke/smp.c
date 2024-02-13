@@ -42,6 +42,8 @@ extern size_t MmTotalAvailablePages;
 
 NO_RETURN void ExpInitializeExecutive(void* Context);
 
+void MmSwitchKernelSpaceLock();
+
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
@@ -81,6 +83,9 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 		KeDetachThread(Thread);
 		KeReadyThread(Thread);
 	}
+	
+	// Perform switch to Rwlock for kernel space. This can wait a small amount of time.
+	MmSwitchKernelSpaceLock();
 	
 	KeSchedulerCommit();
 }

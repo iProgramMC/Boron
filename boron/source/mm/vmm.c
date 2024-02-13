@@ -15,8 +15,84 @@ Author:
 ***/
 
 #include "mi.h"
+#include <ke.h>
+#include <ex.h>
 
-static KSPIN_LOCK MmpKernelSpaceLock;
+static KIPL MmpKernelSpaceSpinLockIpl;
+static KSPIN_LOCK MmpKernelSpaceSpinLock;
+static EX_RW_LOCK MmpKernelSpaceRwLock;
+
+// spinlock version used during init
+static void MmpLockKernelSpace_Spin()
+{
+	KeAcquireSpinLock(&MmpKernelSpaceSpinLock, &MmpKernelSpaceSpinLockIpl);
+}
+static void MmpUnlockKernelSpace_Spin()
+{
+	KeReleaseSpinLock(&MmpKernelSpaceSpinLock, MmpKernelSpaceSpinLockIpl);
+}
+// rwlock version
+static void MmpLockKernelSpaceShared_Rw()
+{
+	BSTATUS Status = ExAcquireSharedRwLock(&MmpKernelSpaceRwLock, false, false, false);
+	ASSERT(Status == STATUS_SUCCESS);
+}
+static void MmpLockKernelSpaceExclusive_Rw()
+{
+	BSTATUS Status = ExAcquireSharedRwLock(&MmpKernelSpaceRwLock, false, false, false);
+	ASSERT(Status == STATUS_SUCCESS);
+}
+static void MmpUnlockKernelSpace_Rw()
+{
+	ExReleaseRwLock(&MmpKernelSpaceRwLock);
+}
+
+static void(*MmpLockKernelSpaceSharedFunc)()    = MmpLockKernelSpace_Spin;
+static void(*MmpLockKernelSpaceExclusiveFunc)() = MmpLockKernelSpace_Spin;
+static void(*MmpUnlockKernelSpaceFunc)()        = MmpUnlockKernelSpace_Spin;
+
+void MmLockKernelSpaceShared()
+{
+	MmpLockKernelSpaceSharedFunc();
+}
+
+void MmLockKernelSpaceExclusive()
+{
+	MmpLockKernelSpaceExclusiveFunc();
+}
+
+void MmUnlockKernelSpace()
+{
+	MmpUnlockKernelSpaceFunc();
+}
+
+static int MmSyncLockSwitch;
+
+// Called from ExpInitializeExecutive.
+void MmSwitchKernelSpaceLock()
+{
+	extern int KeProcessorCount;
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	
+	// Wait until all processors end up here
+	AtAddFetch(MmSyncLockSwitch, 1);
+	while (AtLoad(MmSyncLockSwitch) < KeProcessorCount)
+		KeSpinningHint(); 
+	
+	// All processors are here, if we're the bootstrap processor, perform the switch!!
+	if (Prcb->IsBootstrap)
+	{
+		ExInitializeRwLock(&MmpKernelSpaceRwLock);
+		MmpLockKernelSpaceSharedFunc    = MmpLockKernelSpaceShared_Rw;
+		MmpLockKernelSpaceExclusiveFunc = MmpLockKernelSpaceExclusive_Rw;
+		MmpUnlockKernelSpaceFunc        = MmpUnlockKernelSpace_Rw;
+	}
+	
+	// Done, now sync again
+	AtAddFetch(MmSyncLockSwitch, -1);
+	while (AtLoad(MmSyncLockSwitch) > 0)
+		KeSpinningHint();
+}
 
 // forces all cores to issue a TLB shootdown (invalidate the address from the
 // TLB - with invlpg on amd64 for instance)
@@ -39,14 +115,38 @@ void MmInitAllocators()
 	MiInitSlabs();
 }
 
-KIPL MmLockKernelSpace()
+void MmLockSpaceShared(uintptr_t DecidingAddress)
 {
-	KIPL ReturnIpl;
-	KeAcquireSpinLock(&MmpKernelSpaceLock, &ReturnIpl);
-	return ReturnIpl;
+	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
+	{
+		MmLockKernelSpaceShared();
+	}
+	else
+	{
+		PEX_RW_LOCK Lock = &PsGetCurrentProcess()->AddressLock;
+		BSTATUS Status = ExAcquireSharedRwLock(Lock, false, false, false);
+		ASSERT(Status == STATUS_SUCCESS);
+	}
 }
 
-void MmUnlockKernelSpace(KIPL OldIpl)
+void MmLockSpaceExclusive(uintptr_t DecidingAddress)
 {
-	KeReleaseSpinLock(&MmpKernelSpaceLock, OldIpl);
+	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
+	{
+		MmLockKernelSpaceExclusive();
+	}
+	else
+	{
+		PEX_RW_LOCK Lock = &PsGetCurrentProcess()->AddressLock;
+		BSTATUS Status = ExAcquireExclusiveRwLock(Lock, false, false);
+		ASSERT(Status == STATUS_SUCCESS);
+	}
+}
+
+void MmUnlockSpace(uintptr_t DecidingAddress)
+{
+	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
+		MmUnlockKernelSpace();
+	else
+		ExReleaseRwLock(&PsGetCurrentProcess()->AddressLock);
 }

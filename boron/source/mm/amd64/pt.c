@@ -59,7 +59,7 @@ HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 	}
 	
 	// Lock the kernel space's lock to not get any surprises.
-	KIPL Ipl = MmLockKernelSpace();
+	MmLockKernelSpaceShared();
 	
 	for (int i = 256; i < 512; i++)
 	{
@@ -69,7 +69,7 @@ HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
 	// For recursive paging
 	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingAccess | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 	
-	MmUnlockKernelSpace(Ipl);
+	MmUnlockKernelSpace();
 	
 	return (HPAGEMAP) NewPageMappingResult;
 }

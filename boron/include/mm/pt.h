@@ -35,10 +35,17 @@ enum
 // Ideally the address space of a process will be managed by some other structure.
 
 // Acquires the lock that guards the kernel's half of the address space.
-KIPL MmLockKernelSpace();
+void MmLockKernelSpaceShared();
+void MmLockKernelSpaceExclusive();
 
 // Releases the lock that guards the kernel's half of the address space.
-void MmUnlockKernelSpace(KIPL);
+void MmUnlockKernelSpace();
+
+// Locks either the user space lock or the kernel space lock, depending on the address.
+// Pass 0 to lock the user space lock.
+void MmLockSpaceShared(uintptr_t DecidingAddress);
+void MmLockSpaceExclusive(uintptr_t DecidingAddress);
+void MmUnlockSpace(uintptr_t DecidingAddress);
 
 // Gets the current page mapping.
 HPAGEMAP MmGetCurrentPageMap();

@@ -45,7 +45,7 @@ BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** Outp
 		if (PoolFlags & POOL_FLAG_NON_PAGED)
 			NonPaged = true;
 		
-		KIPL Ipl = MmLockKernelSpace();
+		MmLockKernelSpaceExclusive();
 		
 		// Map the memory in!  This will affect ALL page maps
 		if (!MmMapAnonPages(
@@ -55,12 +55,12 @@ BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** Outp
 			MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL,
 			NonPaged))
 		{
-			MmUnlockKernelSpace(Ipl);
+			MmUnlockKernelSpace();
 			MiFreePoolSpace((MIPOOL_SPACE_HANDLE) OutHandle);
 			return (BIG_MEMORY_HANDLE) 0;
 		}
 		
-		MmUnlockKernelSpace(Ipl);
+		MmUnlockKernelSpace();
 	}
 	
 	return OutHandle;
@@ -72,14 +72,14 @@ void MmFreePoolBig(BIG_MEMORY_HANDLE Handle)
 	
 	if (~PoolFlags & POOL_FLAG_CALLER_CONTROLLED)
 	{
-		KIPL Ipl = MmLockKernelSpace();
+		MmLockKernelSpaceExclusive();
 		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MmUnmapPages(MmGetCurrentPageMap(),
 					 (uintptr_t)MmGetAddressFromBigHandle(Handle),
 					 MmGetSizeFromBigHandle(Handle));
 		
-		MmUnlockKernelSpace(Ipl);
+		MmUnlockKernelSpace();
 	}
 	
 	// Then release its pool space handle
