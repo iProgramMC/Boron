@@ -20,6 +20,12 @@ Author:
 // XXX: This is completely arbitrary.
 #define MDL_MAX_SIZE (4*1024*1024)
 
+// If set, the MDL's Pages[] array has been allocated.
+#define MDL_FLAG_CAPTURED (1 << 0)
+
+// If set, the MDL is mapped into kernel memory.
+#define MDL_FLAG_MAPPED (1 << 1)
+
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
 typedef struct _MDL
@@ -37,16 +43,17 @@ typedef struct _MDL
 }
 MDL, *PMDL;
 
-// Initializes and captures an MDL from a virtual address.
-// The virtual address must be located in the user half.
-BSTATUS MmCaptureMdl(PMDL* Mdl, uintptr_t VirtualAddress, size_t Size);
+// Allocates an MDL structure.
+PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);
 
-// Deallocates an MDL and releases reference to all pages.
-// The MDL must not be mapped into kernel memory.
-void MmFreeMDL(PMDL Mdl);
+// Probes the given virtual address and tries to pin all the buffer's pages.
+BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl);
+
+// Unpins the buffer's pages and releases the reference to them.
+void MmUnpinPagesMdl(PMDL Mdl);
 
 // Maps an MDL into pool space. Use MmUnmapMDL to unmap the MDL.
-BSTATUS MmMapMDL(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions);
+BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions);
 
 // Unmaps an MDL from pool space.
-BSTATUS MmUnmapMDL(PMDL Mdl);
+void MmUnmapPinnedPagesMdl(PMDL Mdl);

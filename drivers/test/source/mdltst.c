@@ -32,8 +32,12 @@ void PerformMdlTest()
 		KeCrash("Mdl test: Cannot map anon pages!");
 	
 	// mapped, now create the MDL
-	PMDL Mdl;
-	BSTATUS Status = MmCaptureMdl(&Mdl, FixedAddr, FixedSize);
+	PMDL Mdl = MmAllocateMdl(FixedAddr, FixedSize);
+	
+	if (!Mdl)
+		KeCrash("Mdl test: could not allocate MDL");
+	
+	BSTATUS Status = MmProbeAndPinPagesMdl(Mdl);
 	
 	if (Status != STATUS_SUCCESS)
 		KeCrash("Mdl test: CaptureMDL returned %d", Status);
@@ -57,7 +61,7 @@ void PerformMdlTest()
 	LogMsg("Mapping it into system memory now.");
 	
 	uintptr_t MapAddress = 0;
-	Status = MmMapMDL(Mdl, &MapAddress, MM_PTE_READWRITE | MM_PTE_SUPERVISOR);
+	Status = MmMapPinnedPagesMdl(Mdl, &MapAddress, MM_PTE_READWRITE | MM_PTE_SUPERVISOR);
 	
 	if (Status != STATUS_SUCCESS)
 		KeCrash("Mdl test: MapMDL returned %d", Status);
