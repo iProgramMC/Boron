@@ -23,6 +23,12 @@ extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
 size_t MmTotalAvailablePages;
+size_t MmTotalFreePages;
+
+size_t MmGetTotalFreePages()
+{
+	return MmTotalFreePages;
+}
 
 uint8_t* MmGetHHDMBase()
 {
@@ -315,7 +321,7 @@ void MiInitPMM()
 	
 	DbgPrint("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
 	
-	MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
+	MmTotalFreePages = MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
 }
 
 // TODO: Add locking
@@ -382,6 +388,8 @@ static int MmpAllocateFromFreeList(int* First, int* Last)
 	pPF->RefCount = 1;
 	MmpRemovePfnFromList(First, Last, *First);
 	
+	MmTotalFreePages--;
+	
 	return currPFN;
 }
 
@@ -424,6 +432,7 @@ void MmFreePhysicalPage(int pfn)
 	{
 		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 		PageFrame->Type = PF_TYPE_FREE;
+		MmTotalFreePages++;
 	}
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);

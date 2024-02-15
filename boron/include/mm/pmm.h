@@ -52,4 +52,7 @@ void* MmAllocatePhysicalPageHHDM();
 // instead of a PFN.
 void MmFreePhysicalPageHHDM(void* page);
 
+// Gets the total amount of free pages.
+size_t MmGetTotalFreePages();
+
 #endif//BORON_MM_PMM_H

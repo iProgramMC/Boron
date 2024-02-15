@@ -13,11 +13,22 @@ Author:
 	iProgramInCpp - 8 February 2024
 ***/
 #include <mm.h>
+#include <string.h>
 #include "utils.h"
 #include "tests.h"
 
 void PerformMdlTest()
 {
+	// allow it to run to prevent the initialization thread from interfering with our page count
+	
+	/*
+	LogMsg("Wait 2 sec!");
+	KTIMER Timer;
+	KeInitializeTimer(&Timer);
+	KeSetTimer(&Timer, 2000, NULL);
+	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+	*/
+	
 	HPAGEMAP PageMap = MmGetCurrentPageMap();
 	uintptr_t FixedAddr = 0x40000000;
 	size_t FixedSize = 0x10000;
@@ -30,6 +41,10 @@ void PerformMdlTest()
 		false
 		))
 		KeCrash("Mdl test: Cannot map anon pages!");
+	
+	memset((void*) FixedAddr, 0x5A, FixedSize);
+	
+	LogMsg("Memory Pages Available Now: %zu", MmGetTotalFreePages());
 	
 	// mapped, now create the MDL
 	PMDL Mdl = MmAllocateMdl(FixedAddr, FixedSize);
@@ -73,6 +88,13 @@ void PerformMdlTest()
 	LogMsg("Read in from fixedaddr: %08x", *((uint32_t*) FixedAddr));
 	
 	MmFreeMdl(Mdl);
+	
+	LogMsg("Memory Pages Available Now: %zu", MmGetTotalFreePages());
+	
+	MmUnmapPages(PageMap, FixedAddr, FixedSize);
+	
+	// note: the variation of 3 pages is actually normal at this point
+	// the pages are allocated during the initial mapping
 	
 	// Try again!
 	//LogMsg("Trying again:");
