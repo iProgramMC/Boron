@@ -57,3 +57,6 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissio
 
 // Unmaps an MDL from pool space.
 void MmUnmapPinnedPagesMdl(PMDL Mdl);
+
+// Deallocates the MDL structure, unmaps the MDL, and unpins the buffer.
+void MmFreeMdl(PMDL Mdl);

@@ -82,7 +82,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 				// TODO
 				DbgPrint("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
 				
-					MmUnlockSpace(FaultAddress);
+				MmUnlockSpace(FaultAddress);
 				
 				return FAULT_OUTOFMEMORY;
 			}

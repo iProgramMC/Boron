@@ -15,13 +15,21 @@ Author:
 #include <ex.h>
 #include <ps.h>
 
-void MmUnpinPagesMdl(PMDL Mdl)
+void MmUnmapPinnedPagesMdl(PMDL Mdl)
 {
-	if (~Mdl->Flags & MDL_FLAG_CAPTURED)
+	if (!Mdl->MappedStartVA)
 		return;
 	
-	// The MDL is not mapped into kernel space.
-	ASSERT(!Mdl->MappedStartVA);
+	MmUnmapPages(Mdl->Process->Pcb.PageMap, Mdl->MappedStartVA, Mdl->NumberPages);
+	Mdl->Flags &= ~MDL_FLAG_MAPPED;
+}
+
+void MmUnpinPagesMdl(PMDL Mdl)
+{
+	MmUnmapPinnedPagesMdl(Mdl);
+	
+	if (~Mdl->Flags & MDL_FLAG_CAPTURED)
+		return;
 	
 	for (size_t i = 0; i < Mdl->NumberPages; i++)
 		MmFreePhysicalPage(Mdl->Pages[i]);
@@ -34,15 +42,6 @@ void MmFreeMdl(PMDL Mdl)
 	MmUnmapPinnedPagesMdl(Mdl);
 	MmUnpinPagesMdl(Mdl);
 	MmFreePool(Mdl);
-}
-
-void MmUnmapPinnedPagesMdl(PMDL Mdl)
-{
-	if (!Mdl->MappedStartVA)
-		return;
-	
-	MmUnmapPages(Mdl->Process->Pcb.PageMap, Mdl->MappedStartVA, Mdl->NumberPages);
-	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
 
 BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions)

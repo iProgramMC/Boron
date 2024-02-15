@@ -68,6 +68,13 @@ void PerformMdlTest()
 	
 	// Try accessing that address.
 	LogMsg("Addr: %p", MapAddress);
+	*((uint32_t*) MapAddress) = 0x5A5A5A5A;
 	
-	LogMsg("Note: MDL is leaked for now.");
+	LogMsg("Read in from fixedaddr: %08x", *((uint32_t*) FixedAddr));
+	
+	MmFreeMdl(Mdl);
+	
+	// Try again!
+	//LogMsg("Trying again:");
+	//*((uint32_t*)MapAddress) = 0x42424242;
 }
