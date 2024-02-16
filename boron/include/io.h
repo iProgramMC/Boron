@@ -17,5 +17,10 @@ Author:
 #include <main.h>
 #include <ob.h>
 
+#include <io/devobj.h>
+#include <io/drvobj.h>
+#include <io/fileobj.h>
+#include <io/irp.h>
+
 bool IoInitSystem();
 
