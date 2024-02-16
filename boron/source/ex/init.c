@@ -14,6 +14,7 @@ Author:
 ***/
 #include <ke.h>
 #include <ob.h>
+#include <io.h>
 
 // This routine initializes the executive layer, that is, the part
 // of the kernel that's implemented on top of the kernel core.
@@ -21,6 +22,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 {
 	if (!ObInitSystem())
 		KeCrash("Could not initialize object manager");
+	
+	if (!IoInitSystem())
+		KeCrash("Could not initialize I/O manager");
 	
 	KeTerminateThread();
 }
