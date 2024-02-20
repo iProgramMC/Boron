@@ -555,13 +555,19 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 
 void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 {
-	// TODO: Setup driver object here
+	PDRIVER_OBJECT Driver = &Dll->DriverObject;
 	
-	int Result = Dll->EntryPoint(&Dll->DriverObject);
+	// Initialize the driver object with basic details.
+	// The driver itself will fill in the rest.
+	memset(Driver, 0, sizeof * Driver);
+	Driver->DriverName = Dll->Name;
+	InitializeListHead(&Driver->DeviceList);
+	Driver->DriverEntry = Dll->EntryPoint;
+	
+	BSTATUS Result = Dll->EntryPoint(Driver);
 	if (Result != 0)
-	{
+		// XXX: Maybe should be an error instead?
 		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
-	}
 }
 
 void LdrInitializeHal()
