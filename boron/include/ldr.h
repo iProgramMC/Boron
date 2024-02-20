@@ -16,10 +16,11 @@ Author:
 #define NS64_LDR_H
 
 #include <main.h>
+#include <io.h>
 
 typedef struct limine_file LIMINE_FILE, *PLIMINE_FILE;
 
-typedef int(*PDLL_ENTRY_POINT)();
+typedef int(*PDLL_ENTRY_POINT)(PDRIVER_OBJECT DriverObject);
 
 typedef struct
 {
@@ -31,6 +32,7 @@ typedef struct
 	const char*      StringTable;
 	void*            SymbolTable;
 	size_t           SymbolTableSize;
+	DRIVER_OBJECT    DriverObject;
 }
 LOADED_DLL, *PLOADED_DLL;
 

@@ -60,8 +60,10 @@ void HalInitSystemMP()
 	HalCalibrateApic();
 }
 
-int DriverEntry()
+BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
+	// Note! The HAL's driver object is kind of useless, it doesn't do anything actually.
+	
 	HalpVfTable.EndOfInterrupt = HalEndOfInterrupt;
 	HalpVfTable.RequestInterruptInTicks = HalRequestInterruptInTicks;
 	HalpVfTable.RequestIpi = HalRequestIpi;
@@ -81,6 +83,6 @@ int DriverEntry()
 	HalSetVftable(&HalpVfTable);
 	
 	// And return, that's all we need.
-	return 0;
+	return STATUS_SUCCESS;
 }
 

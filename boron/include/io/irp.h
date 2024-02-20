@@ -74,8 +74,10 @@ enum
 
 typedef struct _IRP
 {
+	uint8_t  FunctionID;
+	uint8_t  Avl0;
+	uint16_t Avl1;
 	uint32_t Flags;
-	uint32_t Available;
 	
 	// Mode that requested this operation.
 	KPROCESSOR_MODE ModeRequestor;

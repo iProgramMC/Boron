@@ -52,9 +52,13 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	KeTerminateThread();
 }
 
-int DriverEntry()
+BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
-	KeDetachThread(CreateThread(DriverTestThread, NULL));
+	PKTHREAD Thread = CreateThread(DriverTestThread, NULL);
 	
-	return 0;
+	if (!Thread)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	KeDetachThread(Thread);
+	return STATUS_SUCCESS;
 }

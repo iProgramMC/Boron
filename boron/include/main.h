@@ -63,4 +63,12 @@ void DbgPrint(const char* msg, ...);
 #include <rtl/list.h>
 #include <rtl/avltree.h>
 
+#ifdef IS_DRIVER
+
+// Force the driver entry prototype.
+typedef struct _DRIVER_OBJECT DRIVER_OBJECT, *PDRIVER_OBJECT;
+BSTATUS DriverEntry(PDRIVER_OBJECT Object);
+
+#endif
+
 #endif//NS64_MAIN_H
