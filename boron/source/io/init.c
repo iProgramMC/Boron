@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 15 February 2024
 ***/
 #include <io.h>
+#include <ldr.h>
 
 POBJECT_DIRECTORY IopDevicesDirectory;
 
@@ -42,6 +43,9 @@ bool IoInitSystem()
 	extern POBJECT_DIRECTORY ObpRootDirectory;
 	extern BSTATUS ObpDebugDirectory(void* DirP);
 	ObpDebugDirectory(ObpRootDirectory);
+	
+	// Initialize all drivers.
+	LdrInitializeDrivers();
 	
 	return true;
 }

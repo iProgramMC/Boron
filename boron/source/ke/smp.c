@@ -65,8 +65,6 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	if (Prcb->IsBootstrap)
 	{
-		LdrInitializeDrivers();
-		
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
 		PKTHREAD Thread = KeAllocateThread();
