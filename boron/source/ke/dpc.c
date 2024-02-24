@@ -12,22 +12,14 @@ Abstract:
 Author:
 	iProgramInCpp - 3 October 2023
 ***/
-#include <ke.h>
+#include "ki.h"
 #include <arch.h>
 #include <hal.h>
-#include "ki.h"
 
 extern int KiVectorDpcIpi;
-extern int KiVectorApcIpi;
-
 void KeIssueSoftwareInterrupt()
 {
 	HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
-}
-
-void KeIssueSoftwareInterruptApcLevel()
-{
-	HalRequestIpi(0, HAL_IPI_SELF, KiVectorApcIpi);
 }
 
 void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)
@@ -127,7 +119,7 @@ void KiDispatchDpcs()
 		Dpc->Routine(Dpc,
 		             Dpc->DeferredContext,
 		             Dpc->SystemArgument1,
-					 Dpc->SystemArgument2);
+		             Dpc->SystemArgument2);
 		
 		// Note! Consider the Dpc object's pointer invalid from now on.
 		// I know this is redundant, but better safe than sorry.

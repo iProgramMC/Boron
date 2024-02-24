@@ -57,6 +57,8 @@ struct KTHREAD_tag
 	LIST_ENTRY EntryQueue;     // Entry into the CPU local dispatcher ready queue
 	LIST_ENTRY EntryProc;      // Entry into the parent process' list of threads
 	
+	KPROCESSOR_MODE Mode;
+	
 	int ThreadId;
 	
 	int Priority;
@@ -85,6 +87,8 @@ struct KTHREAD_tag
 	
 	int WaitStatus;
 	
+	KPROCESSOR_MODE WaitMode;
+	
 	PKTHREAD_START StartRoutine;
 	
 	void* StartContext;
@@ -106,8 +110,6 @@ struct KTHREAD_tag
 	
 	PKPROCESS AttachedProcess;
 	
-	KPROCESSOR_MODE Mode;
-	
 	// Whether the thread is in MmProbeAddress.  This value is preserved
 	// because we don't want to disable interrupts during the probe, but
 	// we also don't want other threads' invalid page faults to jump to
@@ -119,11 +121,13 @@ struct KTHREAD_tag
 	bool DontSteal;
 	
 	// APC queues.
-	LIST_ENTRY ApcQueue[APC_QUEUE_COUNT];
+	LIST_ENTRY UserApcQueue;
+	LIST_ENTRY KernelApcQueue;
 	
-	// Whether or not we are executing different types of APCs. This
-	// prevents multiple APCs of the same type from executing at the same time.
-	bool ApcRunning[APC_QUEUE_COUNT];
+	// How many APCs are in progress right now.
+	int ApcInProgress;
+	
+	int ApcDisableCount;
 };
 
 // Creates an empty, uninitialized, thread object.

@@ -17,28 +17,22 @@ Author:
 typedef struct _KAPC KAPC, *PKAPC;
 typedef struct KTHREAD_tag KTHREAD, *PKTHREAD;
 
-// Pointer to routine to be executed in kernel mode, at IPL_APC.
-typedef void(*PKAPC_KERNEL_ROUTINE)(PKAPC Apc);
-
 // Pointer to routine to be executed in the specified context.
 typedef void(*PKAPC_NORMAL_ROUTINE)(void* Context, void* SystemArgument1, void* SystemArgument2);
 
-enum
-{
-	APC_QUEUE_USER,
-	APC_QUEUE_KERNEL,
-	APC_QUEUE_SPECIAL,
-	APC_QUEUE_COUNT
-};
+// Pointer to routine to be executed in kernel mode, at IPL_APC.
+typedef void(*PKAPC_KERNEL_ROUTINE)(
+	PKAPC Apc,
+	PKAPC_NORMAL_ROUTINE* InOutNormalRoutine,
+	void** InOutNormalContext,
+	void** InOutSystemArgument1,
+	void** InOutSystemArgument2
+);
 
 struct _KAPC
 {
 	// The thread the APC belongs to.
 	PKTHREAD Thread;
-	
-	// The queue number that the APC will be enqueued/dequeued from.
-	// One of APC_QUEUE_USER, APC_QUEUE_KERNEL, or APC_QUEUE_SPECIAL.
-	int Tier;
 	
 	// A special APC can break into thread execution any time the thread is running
 	// at normal IPL. Normal APCs can only break into thread execution while it is
@@ -46,7 +40,8 @@ struct _KAPC
 	//
 	// During execution of special APCs, kernel services are available, but not all
 	// system services may be available.
-	bool Special;
+	//
+	// A special APC is a kernel-mode APC that lacks a normal routine.
 	
 	// Routine to be executed in kernel mode at IPL APC.
 	PKAPC_KERNEL_ROUTINE KernelRoutine;

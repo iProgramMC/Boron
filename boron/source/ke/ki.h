@@ -53,6 +53,10 @@ bool KiIsObjectSignaled(PKDISPATCH_HEADER Header, PKTHREAD Thread);
 PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object);
 void KiWaitTest(PKDISPATCH_HEADER Object);
 
+void KeIssueSoftwareInterruptApcLevel();
+
+void KiDispatchApcQueue();
+
 // Define KiAssertOwnDispatcherLock
 #ifdef DEBUG
 void KiAssertOwnDispatcherLock_(const char* FunctionName);

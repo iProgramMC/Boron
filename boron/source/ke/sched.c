@@ -536,6 +536,9 @@ PKREGISTERS KiSwitchToNextThread()
 	if (MmGetCurrentPageMap() != DestProcess->PageMap)
 		KiSwitchToAddressSpaceProcess(DestProcess);
 	
+	if (!IsListEmpty(&Thread->KernelApcQueue))
+		KeIssueSoftwareInterruptApcLevel();
+	
 	return Thread->State;
 }
 

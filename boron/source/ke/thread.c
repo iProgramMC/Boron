@@ -28,6 +28,8 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	if (!KernelStack)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
+	memset (Thread, 0, sizeof *Thread);
+	
 	KeInitializeDispatchHeader(&Thread->Header, DISPATCH_THREAD);
 	
 	Thread->StartRoutine = StartRoutine;
@@ -36,6 +38,8 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	Thread->Stack.Top    = MmGetAddressFromBigHandle(KernelStack);
 	Thread->Stack.Size   = MmGetSizeFromBigHandle(KernelStack) * PAGE_SIZE;
 	Thread->Stack.Handle = KernelStack;
+	
+	Thread->Mode = MODE_KERNEL;
 	
 	KiSetupRegistersThread(Thread);
 	
@@ -63,12 +67,11 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
 	
 	// TODO: If the list was empty before, mark this as the main thread.
+	InitializeListHead(&Thread->UserApcQueue);
+	InitializeListHead(&Thread->KernelApcQueue);
 	
-	for (int i = 0; i < APC_QUEUE_COUNT; i++)
-	{
-		Thread->ApcRunning[i] = 0;
-		InitializeListHead(&Thread->ApcQueue[i]);
-	}
+	Thread->ApcDisableCount = 0;
+	Thread->ApcInProgress = 0;
 	
 	return STATUS_SUCCESS;
 }
