@@ -57,11 +57,18 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	
 	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
 	Thread->DontSteal = false;
+	Thread->Probing = false;
 	
 	// Add thread to process' thread list.
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
 	
 	// TODO: If the list was empty before, mark this as the main thread.
+	
+	for (int i = 0; i < APC_QUEUE_COUNT; i++)
+	{
+		Thread->ApcRunning[i] = 0;
+		InitializeListHead(&Thread->ApcQueue[i]);
+	}
 	
 	return STATUS_SUCCESS;
 }

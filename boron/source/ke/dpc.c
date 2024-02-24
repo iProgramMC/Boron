@@ -18,10 +18,16 @@ Author:
 #include "ki.h"
 
 extern int KiVectorDpcIpi;
+extern int KiVectorApcIpi;
 
 void KeIssueSoftwareInterrupt()
 {
 	HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
+}
+
+void KeIssueSoftwareInterruptApcLevel()
+{
+	HalRequestIpi(0, HAL_IPI_SELF, KiVectorApcIpi);
 }
 
 void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)

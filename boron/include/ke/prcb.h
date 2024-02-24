@@ -82,17 +82,15 @@ uint32_t KeGetBootstrapLapicId();
 enum
 {
 	PENDING_YIELD = (1 << 0),
-	PENDING_APCS  = (1 << 1),
+	//PENDING_APCS  = (1 << 1),
 	PENDING_DPCS  = (1 << 2),
 };
 
 int KeGetPendingEvents();
-
 void KeClearPendingEvents();
-
 void KeSetPendingEvent(int PendingEvent);
-
 void KeIssueSoftwareInterrupt();
+void KeIssueSoftwareInterruptApcLevel();
 
 static_assert(sizeof(KPRCB) <= 4096, "struct KPRCB should be smaller or equal to the page size, for objective reasons");
 

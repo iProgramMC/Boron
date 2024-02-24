@@ -89,5 +89,7 @@ typedef struct _IRP
 	
 	// An event that gets signaled when the IRP is completed.
 	KEVENT CompletionEvent;
+	
+	// TODO: APC
 }
 IRP, *PIRP;

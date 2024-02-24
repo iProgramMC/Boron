@@ -18,8 +18,10 @@ Author:
 
 int KiVectorCrash,
     KiVectorTlbShootdown,
-    KiVectorDpcIpi;
+    KiVectorDpcIpi,
+	KiVectorApcIpi;
 
+// Used by drivers.  The kernel uses the values directly.
 int KeGetSystemInterruptVector(int Number)
 {
 	switch (Number)
@@ -29,6 +31,7 @@ int KeGetSystemInterruptVector(int Number)
 		case KGSIV_CRASH:         return KiVectorCrash;
 		case KGSIV_TLB_SHOOTDOWN: return KiVectorTlbShootdown;
 		case KGSIV_DPC_IPI:       return KiVectorDpcIpi;
+		case KGSIV_APC_IPI:       return KiVectorApcIpi;
 	}
 }
 
@@ -42,8 +45,10 @@ void KeInitArchUP()
 	KiVectorCrash        = KeAllocateInterruptVector(IPL_NOINTS);
 	KiVectorTlbShootdown = KeAllocateInterruptVector(IPL_NOINTS);
 	KiVectorDpcIpi       = KeAllocateInterruptVector(IPL_DPC);
+	KiVectorApcIpi       = KeAllocateInterruptVector(IPL_APC);
 	
 	KeRegisterInterrupt(KiVectorDpcIpi,       KiHandleDpcIpi);
+	KeRegisterInterrupt(KiVectorApcIpi,       KiHandleApcIpi);
 	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpi);
 	KeRegisterInterrupt(KiVectorCrash,        KiHandleCrashIpi);
 }

@@ -155,6 +155,15 @@ PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
 	return Regs;
 }
 
+PKREGISTERS KiDispatchApcInterrupt(PKREGISTERS Regs);
+
+PKREGISTERS KiHandleApcIpi(PKREGISTERS Regs)
+{
+	PKREGISTERS New = KiDispatchApcInterrupt(Regs);
+	HalEndOfInterrupt();
+	return New;
+}
+
 PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs)
 {
 	PKREGISTERS New = KiHandleSoftIpi(Regs);

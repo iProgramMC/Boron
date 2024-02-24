@@ -230,6 +230,11 @@ KeExitUsingFullFrame:
 KeExitYield:
 	ret
 
+global KiExitFromApcDispatch
+KiExitFromApcDispatch:
+	pop rax
+	jmp KiPopFullFrame
+
 ; Arguments:
 ; rdi - Register state as in KREGISTERS
 ; global KeJumpContext

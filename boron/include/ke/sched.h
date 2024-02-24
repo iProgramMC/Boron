@@ -18,6 +18,7 @@ Author:
 #include <arch.h>
 
 #include <ke/dpc.h>
+#include <ke/apc.h>
 #include <ke/thread.h>
 
 #define QUEUE_BIT(x) (1U << (x))

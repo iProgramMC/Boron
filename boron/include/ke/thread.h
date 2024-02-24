@@ -101,6 +101,7 @@ struct KTHREAD_tag
 	
 	KDPC DeleteDpc;
 	
+	// List of owned mutexes.
 	LIST_ENTRY MutexList;
 	
 	PKPROCESS AttachedProcess;
@@ -116,6 +117,13 @@ struct KTHREAD_tag
 	// Whether or not to "steal" this thread on another processor. Used
 	// when exiting a wait.
 	bool DontSteal;
+	
+	// APC queues.
+	LIST_ENTRY ApcQueue[APC_QUEUE_COUNT];
+	
+	// Whether or not we are executing different types of APCs. This
+	// prevents multiple APCs of the same type from executing at the same time.
+	bool ApcRunning[APC_QUEUE_COUNT];
 };
 
 // Creates an empty, uninitialized, thread object.

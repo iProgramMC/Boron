@@ -445,3 +445,45 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	
 	return Regs;
 }
+
+void KiDispatchSpecialApc(PKAPC Apc)
+{
+	// Just run it, no special prep needed I think
+	Apc->KernelRoutine(Apc);
+}
+
+static void KepDispatchNormalApcs()
+{
+	LogMsg("Hello from KepDispatchNormalApcs!  Returning...");
+}
+
+extern void KiExitFromApcDispatch();
+
+PKREGISTERS KiDispatchApcInterrupt(PKREGISTERS Regs)
+{
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	// Dispatch special APCs.
+	Thread->ApcRunning[APC_QUEUE_SPECIAL] = true;
+	
+	while (!IsListEmpty(&Thread->ApcQueue[APC_QUEUE_SPECIAL]))
+	{
+		PKAPC Apc = CONTAINING_RECORD(Thread->ApcQueue[APC_QUEUE_SPECIAL].Flink, KAPC, ListEntry);
+		RemoveEntryList(&Apc->ListEntry);
+		
+		KiDispatchSpecialApc(Apc);
+	}
+	
+	Thread->ApcRunning[APC_QUEUE_SPECIAL] = false;
+	
+	// When returning, if there are any normal APCs enqueued,
+	// modify the context to jump into the normal APC dispatcher.
+	
+	if (!IsListEmpty(&Thread->ApcQueue[APC_QUEUE_KERNEL]) && !Thread->ApcRunning[APC_QUEUE_KERNEL])
+	{
+		//Thread->ApcRunning[APC_QUEUE_KERNEL] = true;
+		// TODO
+	}
+	
+	return Regs;
+}

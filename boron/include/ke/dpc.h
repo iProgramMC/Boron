@@ -58,7 +58,9 @@ void KeSetImportantDpc(PKDPC Dpc, bool Important);
 // longer held within the queue.
 void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2);
 
+#ifdef KERNEL
 // Dispatch DPCs. Don't use if you're not the self IPI handler!
 void KiDispatchDpcs();
+#endif
 
 #endif // BORON_KE_DPC_H

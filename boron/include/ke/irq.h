@@ -29,13 +29,15 @@ void KeSetInterruptIPL(int Vector, KIPL Ipl);
 extern
 int KiVectorCrash,
     KiVectorTlbShootdown,
-    KiVectorDpcIpi;
+    KiVectorDpcIpi,
+    KiVectorApcIpi;
 
 #else
 
 #define KiVectorCrash        (KeGetSystemInterruptVector(KGSIV_CRASH))
 #define KiVectorTlbShootdown (KeGetSystemInterruptVector(KGSIV_TLB_SHOOTDOWN))
 #define KiVectorDpcIpi       (KeGetSystemInterruptVector(KGSIV_DPC_IPI))
+#define KiVectorApcIpi       (KeGetSystemInterruptVector(KGSIV_APC_IPI))
 
 #endif
 
@@ -48,6 +50,7 @@ enum
 	KGSIV_CRASH,
 	KGSIV_TLB_SHOOTDOWN,
 	KGSIV_DPC_IPI,
+	KGSIV_APC_IPI,
 };
 
 int KeGetSystemInterruptVector(int Number);
