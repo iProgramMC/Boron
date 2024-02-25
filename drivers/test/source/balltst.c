@@ -51,7 +51,7 @@ NO_RETURN void TestThread2()
 	}
 	
 	LogMsg("\x1B[1;40H\x1B[33mDone.\x1B[0m");
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 
 void BallTestDpc(PKDPC Dpc, void* Context, UNUSED void* SysAux1, UNUSED void* SysAux2)

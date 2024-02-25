@@ -48,7 +48,8 @@ void KeInitializeApc(
 bool KeInsertQueueApc(
 	PKAPC Apc,
 	void* SystemArgument1,
-	void* SystemArgument2)
+	void* SystemArgument2,
+	KPRIORITY Increment)
 {
 	// If the APC was already inserted:
 	if (Apc->Enqueued)
@@ -74,7 +75,7 @@ bool KeInsertQueueApc(
 		{
 			// A user mode APC is deliverable when the thread waits user-mode
 			// alertable, and when the subject thread uses KeTestAlertThread.
-			KiUnwaitThread(Thread, STATUS_ALERTED);
+			KiUnwaitThread(Thread, STATUS_ALERTED, Increment);
 		}
 		
 		KiUnlockDispatcher(Ipl);
@@ -95,7 +96,7 @@ bool KeInsertQueueApc(
 	{
 		if (!Apc->NormalRoutine || (Thread->ApcDisableCount == 0 && !Thread->ApcInProgress))
 		{
-			KiUnwaitThread(Thread, STATUS_ALERTED);
+			KiUnwaitThread(Thread, STATUS_ALERTED, Increment);
 		}
 	}
 	

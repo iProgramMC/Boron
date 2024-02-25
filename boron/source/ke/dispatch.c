@@ -194,7 +194,8 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	// Cancel the thread's wait with a TIMEOUT status.
 	// KiUnwaitThread removes the thread's wait blocks from all objects
 	// it's waiting for and wakes it up.
-	KiUnwaitThread(Thread, STATUS_TIMEOUT);
+	// The thread's priority will not be boosted on timeout.
+	KiUnwaitThread(Thread, STATUS_TIMEOUT, 0);
 }
 
 // TODO: Add WaitMode parameter.
@@ -330,7 +331,7 @@ int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS)
 	return Status;
 }
 
-bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
+bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock, KPRIORITY Increment)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -341,7 +342,7 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 	{
 		// Waiting for any object, so acquire the object and wake the thread.
 		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
-		KiUnwaitThread(Thread, STATUS_RANGE_WAIT + Index);
+		KiUnwaitThread(Thread, STATUS_RANGE_WAIT + Index, Increment);
 		return true;
 	}
 	
@@ -373,11 +374,11 @@ bool KiSatisfyWaitBlock(PKWAIT_BLOCK WaitBlock)
 		KiAcquireObject(WaitBlock->Object, WaitBlock->Thread);
 	}
 	
-	KiUnwaitThread(Thread, STATUS_SUCCESS);
+	KiUnwaitThread(Thread, STATUS_SUCCESS, Increment);
 	return true;
 }
 
-PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object)
+PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object, KPRIORITY Increment)
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -401,7 +402,7 @@ PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object)
 		PKWAIT_BLOCK WaitBlock = CONTAINING_RECORD(Entry, KWAIT_BLOCK, Entry);
 		
 		// If we couldn't satisfy the wait block, skip over it and use the next one.
-		if (!KiSatisfyWaitBlock(WaitBlock))
+		if (!KiSatisfyWaitBlock(WaitBlock, Increment))
 			continue;
 		
 		// N.B. There is an interface regarding events that returns the thread
@@ -422,10 +423,10 @@ PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object)
 	return Result;
 }
 
-void KiWaitTest(PKDISPATCH_HEADER Object)
+void KiWaitTest(PKDISPATCH_HEADER Object, KPRIORITY Increment)
 {
 	// Simply do the same thing as above, but drop the waiter.
-	(void) KiWaitTestAndGetWaiter(Object);
+	(void) KiWaitTestAndGetWaiter(Object, Increment);
 }
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)

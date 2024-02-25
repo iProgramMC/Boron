@@ -61,6 +61,8 @@ void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 	}
 	
 	Thread->Priority = Priority;
+	Thread->BasePriority = Priority;
+	Thread->PriorityBoost = 0;
 }
 
 static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
@@ -91,11 +93,22 @@ void KiReadyThread(PKTHREAD Thread)
 	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
 }
 
-void KiUnwaitThread(PKTHREAD Thread, int Status)
+KPRIORITY KiAdjustPriorityBoost(KPRIORITY BasePriority, KPRIORITY PriorityBoost)
 {
-	// this has chances to fail if WE (the current processor)
-	// don't own it, but another processor does. However, it's
-	// still good as a debug check.
+	KPRIORITY NewPriority = BasePriority + PriorityBoost;
+	
+	// XXX I know this sucks... but yeah.
+	if (BasePriority == PRIORITY_IDLE) NewPriority = PRIORITY_IDLE;
+	else if (NewPriority > PRIORITY_REALTIME_MAX && PRIORITY_REALTIME_MAX >= BasePriority && BasePriority >= PRIORITY_REALTIME) NewPriority = PRIORITY_REALTIME_MAX;
+	else if (NewPriority > PRIORITY_HIGH_MAX     && PRIORITY_HIGH_MAX     >= BasePriority && BasePriority >= PRIORITY_HIGH)     NewPriority = PRIORITY_HIGH_MAX;
+	else if (NewPriority > PRIORITY_NORMAL_MAX   && PRIORITY_NORMAL_MAX   >= BasePriority && BasePriority >= PRIORITY_NORMAL)   NewPriority = PRIORITY_NORMAL_MAX;
+	else if (NewPriority > PRIORITY_LOW_MAX      && PRIORITY_LOW_MAX      >= BasePriority && BasePriority >= PRIORITY_LOW)      NewPriority = PRIORITY_LOW_MAX;
+	
+	return NewPriority - BasePriority;
+}
+
+void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
+{
 	KiAssertOwnDispatcherLock();
 	
 	// If the thread is already ready, then it's also already a part of
@@ -106,6 +119,12 @@ void KiUnwaitThread(PKTHREAD Thread, int Status)
 	PKSCHEDULER Scheduler = &KeProcessorList[Thread->LastProcessor]->Scheduler;
 	
 	Thread->Status = KTHREAD_STATUS_READY;
+	
+	// Adjust the priority boost so that it cannot escape its priority class.
+	Increment = KiAdjustPriorityBoost(Thread->Priority, Increment);
+	
+	Thread->PriorityBoost = Increment;
+	Thread->Priority = Thread->BasePriority + Increment;
 	
 	// Remove ourselves from all the objects' wait block lists
 	for (int i = 0; i < Thread->WaitCount; i++)
@@ -293,6 +312,10 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		
 		// Set the last processor ID of the thread.
 		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
+		
+		// Remove the priority boost.
+		CurrentThread->Priority = CurrentThread->BasePriority;
+		CurrentThread->PriorityBoost = 0;
 	}
 	
 	// Unload the current thread.
@@ -340,7 +363,7 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	//
 	// Therefore we DO NOT wait-test a thread UNTIL it is ready.
 	Thread->Header.Signaled = true;
-	KiWaitTest(&Thread->Header);
+	KiWaitTest(&Thread->Header, Thread->IncrementTerminated);
 	
 	// TODO: If the main thread died, send a kernel APC to all other threads to also terminate.
 	
@@ -443,6 +466,10 @@ void KiPerformYield(PKREGISTERS Regs)
 	// ended forcefully and we should place it back on the execution queue.
 	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
 		return KiEndThreadQuantum(Regs);
+	
+	// Remove any priority boost this thread might have.
+	CurrentThread->Priority = CurrentThread->BasePriority;
+	CurrentThread->PriorityBoost = 0;
 	
 	PKTHREAD NextThread = KiGetNextThread(true);
 	if (!NextThread)
@@ -589,7 +616,7 @@ void KeReadyThread(PKTHREAD Thread)
 	KiUnlockDispatcher(OldIpl);
 }
 
-NO_RETURN void KeTerminateThread()
+NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 {
 	KIPL Ipl = KiLockDispatcher();
 	
@@ -597,6 +624,8 @@ NO_RETURN void KeTerminateThread()
 	
 	// Mark the thread as terminated.
 	Thread->Status = KTHREAD_STATUS_TERMINATED;
+	
+	Thread->IncrementTerminated = Increment;
 	
 	// Further cleanup will be performed in a DPC.
 	

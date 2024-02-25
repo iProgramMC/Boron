@@ -34,7 +34,7 @@ PKREGISTERS KiSwitchToNextThread();
 
 PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
 
-void KiUnwaitThread(PKTHREAD Thread, int Status);
+void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment);
 
 uint64_t KiGetNextTimerExpiryTick();
 
@@ -50,14 +50,17 @@ void KiUnlockDispatcher(KIPL OldIpl);
 bool KiIsObjectSignaled(PKDISPATCH_HEADER Header, PKTHREAD Thread);
 
 // Alert waiting threads about a freshly signaled object.
-PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object);
-void KiWaitTest(PKDISPATCH_HEADER Object);
+PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object, KPRIORITY Increment);
+void KiWaitTest(PKDISPATCH_HEADER Object, KPRIORITY Increment);
 
 void KeIssueSoftwareInterruptApcLevel();
 
 void KiDispatchApcQueue();
 
 // Define KiAssertOwnDispatcherLock
+// Note: this has chances to fail if the current processor
+// doesn't own it, but another processor does. However, it's
+// still good as a debug check.
 #ifdef DEBUG
 void KiAssertOwnDispatcherLock_(const char* FunctionName);
 #define KiAssertOwnDispatcherLock() KiAssertOwnDispatcherLock_(__func__)

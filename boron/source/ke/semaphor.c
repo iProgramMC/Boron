@@ -18,7 +18,7 @@ Author:
 ***/
 #include "ki.h"
 
-void KiReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment)
+void KiReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment)
 {
 	ASSERT(Adjustment > 0);
 	KiAssertOwnDispatcherLock();
@@ -34,7 +34,7 @@ void KiReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment)
 	ASSERT(Semaphore->Header.Signaled > 0);
 	
 	// Signal the object - maybe we'll wake something up.
-	KiWaitTest(&Semaphore->Header);
+	KiWaitTest(&Semaphore->Header, Increment);
 }
 
 // -------- Exposed API --------
@@ -55,10 +55,10 @@ int KeReadStateSemaphore(PKSEMAPHORE Semaphore)
 	return AtLoad(Semaphore->Header.Signaled);
 }
 
-void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment)
+void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment)
 {
 	ASSERT_SEMAPHORE(Semaphore);
 	KIPL Ipl = KiLockDispatcher();
-	KiReleaseSemaphore(Semaphore, Adjustment);
+	KiReleaseSemaphore(Semaphore, Adjustment, Increment);
 	KiUnlockDispatcher(Ipl);
 }

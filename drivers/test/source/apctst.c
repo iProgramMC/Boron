@@ -54,7 +54,7 @@ void PerformApcTest()
 	LogMsg("Initializing APC...");
 	KeInitializeApc(&Apc, &Thread, ApcSpecialRoutine, ApcNormalRoutine, NULL, MODE_KERNEL);
 	LogMsg("Enqueuing APC...");
-	KeInsertQueueApc(&Apc, NULL, NULL);
+	KeInsertQueueApc(&Apc, NULL, NULL, 0);
 	
 	LogMsg("Done, should execute now.  Waiting 100 sec...");
 	PerformDelay(100000);

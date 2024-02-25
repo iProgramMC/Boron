@@ -34,11 +34,11 @@ void KeInitializeEvent(PKEVENT Event, int EventType, bool State);
 
 bool KeReadStateEvent(PKEVENT Event);
 
-void KeSetEvent(PKEVENT Event);
+void KeSetEvent(PKEVENT Event, KPRIORITY Increment);
 
 void KeResetEvent(PKEVENT Event);
 
-void KePulseEvent(PKEVENT Event);
+void KePulseEvent(PKEVENT Event, KPRIORITY Increment);
 
 #ifdef KERNEL
 // Don't use.
@@ -48,5 +48,5 @@ void KePulseEvent(PKEVENT Event);
 // in release mode.
 //
 // Good thing that this API is only used in the rwlock implementation.
-PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event);
+PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event, KPRIORITY Increment);
 #endif

@@ -272,7 +272,7 @@ NO_RETURN void T_Particle(void* Parameter)
 	}
 	
 	// Done!
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 
 NO_RETURN void T_Explodeable(UNUSED void* Parameter)
@@ -335,7 +335,7 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 		SpawnParticle(DataClone);
 	}
 	
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 
 void SpawnParticle(PFIREWORK_DATA Data)

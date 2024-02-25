@@ -13,16 +13,16 @@ Author:
 ***/
 #include "ki.h"
 
-void KiSetEvent(PKEVENT Event)
+void KiSetEvent(PKEVENT Event, KPRIORITY Increment)
 {
 	KiAssertOwnDispatcherLock();
 	
 	Event->Header.Signaled = true;
 	
-	KiWaitTest(&Event->Header);
+	KiWaitTest(&Event->Header, Increment);
 }
 
-PKTHREAD KiSetEventAndGetWaiter(PKEVENT Event)
+PKTHREAD KiSetEventAndGetWaiter(PKEVENT Event, KPRIORITY Increment)
 {
 #ifdef DEBUG
 	if (Event->Type != EVENT_SYNCHRONIZATION)
@@ -33,7 +33,7 @@ PKTHREAD KiSetEventAndGetWaiter(PKEVENT Event)
 	
 	Event->Header.Signaled = true;
 	
-	return KiWaitTestAndGetWaiter(&Event->Header);
+	return KiWaitTestAndGetWaiter(&Event->Header, Increment);
 }
 
 void KiResetEvent(PKEVENT Event)
@@ -67,11 +67,11 @@ bool KeReadStateEvent(PKEVENT Event)
 	return AtLoad(Event->Header.Signaled);
 }
 
-void KeSetEvent(PKEVENT Event)
+void KeSetEvent(PKEVENT Event, KPRIORITY Increment)
 {
 	KIPL Ipl = KiLockDispatcher();
 	
-	KiSetEvent(Event);
+	KiSetEvent(Event, Increment);
 	
 	KiUnlockDispatcher(Ipl);
 }
@@ -85,11 +85,11 @@ void KeResetEvent(PKEVENT Event)
 	KiUnlockDispatcher(Ipl);
 }
 
-void KePulseEvent(PKEVENT Event)
+void KePulseEvent(PKEVENT Event, KPRIORITY Increment)
 {
 	KIPL Ipl = KiLockDispatcher();
 	
-	KiSetEvent(Event);
+	KiSetEvent(Event, Increment);
 	KiResetEvent(Event);
 	
 	KiUnlockDispatcher(Ipl);
@@ -98,12 +98,12 @@ void KePulseEvent(PKEVENT Event)
 // NOTE: This API is to be called at IPL_DPC.
 // Since this API is only used in the rwlock implementation, and it holds
 // the rwlock's spinlock, which raises IPL to DPC-level, it's fine to use.
-PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event)
+PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event, KPRIORITY Increment)
 {
 	KIPL Ipl = KiLockDispatcher();
 	ASSERT(Ipl == KeGetIPL());
 	
-	PKTHREAD Result = KiSetEventAndGetWaiter(Event);
+	PKTHREAD Result = KiSetEventAndGetWaiter(Event, Increment);
 	KiUnlockDispatcher(Ipl);
 	
 	return Result;

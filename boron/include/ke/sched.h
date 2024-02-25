@@ -26,15 +26,26 @@ typedef uint32_t QUEUE_MASK;
 
 enum
 {
-	PRIORITY_IDLE,
-	PRIORITY_BGWORKER,
-	PRIORITY_XLOW,
-	PRIORITY_LOW,
-	PRIORITY_NORMAL,
-	PRIORITY_HIGH,
-	PRIORITY_XHIGH,
-	PRIORITY_REALTIME,
-	PRIORITY_COUNT,
+	// The idle priority class has just one spot.
+	PRIORITY_IDLE = 0,
+	
+	// The low priority class has 7 spots.
+	PRIORITY_LOW = 1,
+	PRIORITY_LOW_MAX = 7,
+	
+	// The normal priority class has 12 spots.
+	PRIORITY_NORMAL = 8,
+	PRIORITY_NORMAL_MAX = 19,
+	
+	// The high priority class has 7 spots.
+	PRIORITY_HIGH = 20,
+	PRIORITY_HIGH_MAX = 26,
+	
+	// The realtime priority class has 5 spots.
+	PRIORITY_REALTIME = 27,
+	PRIORITY_REALTIME_MAX = 31,
+	
+	PRIORITY_COUNT = 32,
 };
 
 typedef struct

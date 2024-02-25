@@ -61,7 +61,9 @@ struct KTHREAD_tag
 	
 	int ThreadId;
 	
-	int Priority;
+	KPRIORITY Priority; // base priority + priority boost
+	KPRIORITY BasePriority;
+	KPRIORITY PriorityBoost; // boosts for exactly one quantum
 	
 	bool Detached;
 	
@@ -128,6 +130,9 @@ struct KTHREAD_tag
 	int ApcInProgress;
 	
 	int ApcDisableCount;
+	
+	// Priority increment after thread is terminated.
+	KPRIORITY IncrementTerminated;
 };
 
 // Creates an empty, uninitialized, thread object.
@@ -159,6 +164,6 @@ void KeYieldCurrentThread();
 void KeWakeUpThread(PKTHREAD Thread);
 
 // Terminate the current thread.
-NO_RETURN void KeTerminateThread();
+NO_RETURN void KeTerminateThread(KPRIORITY Increment);
 
 #endif//BORON_KE_THREAD_H

@@ -75,5 +75,6 @@ void KeInitializeApc(
 bool KeInsertQueueApc(
 	PKAPC Apc,
 	void* SystemArgument1,
-	void* SystemArgument2
+	void* SystemArgument2,
+	KPRIORITY Increment
 );

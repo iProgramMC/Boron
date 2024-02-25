@@ -37,7 +37,7 @@ void KiOnKillProcess(PKPROCESS Process)
 	// Signal all threads that are waiting on this process.
 	// Here it's simpler because this IS where the process is killed!
 	Process->Header.Signaled = true;
-	KiWaitTest(&Process->Header);
+	KiWaitTest(&Process->Header, 0);
 	
 	if (Process->Detached)
 		KeDeallocateProcess(Process);

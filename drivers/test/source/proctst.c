@@ -41,7 +41,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	LogMsg("Status In Process: %d (before signalling event)", Status);
 	
 	// Signal the event.
-	KePulseEvent(&Evnt);
+	KePulseEvent(&Evnt, 0);
 	
 	// Probe the memory again.
 	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true);
@@ -56,7 +56,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	
 	// Probe the memory again.
 	
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 
 void PerformProcessTest()
@@ -100,7 +100,7 @@ void PerformProcessTest()
 	LogMsg("Status In System : %d", Status);
 	
 	// Signal the event.
-	KePulseEvent(&Evnt);
+	KePulseEvent(&Evnt, 0);
 	
 	// Wait for the thread to go away.
 	KeWaitForSingleObject(&Thrd, false, TIMEOUT_INFINITE);

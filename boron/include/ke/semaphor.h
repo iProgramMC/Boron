@@ -33,4 +33,4 @@ void KeInitializeSemaphore(PKSEMAPHORE Semaphore, int Count, int Limit);
 // If zero, the semaphore is not signaled.
 int KeReadStateSemaphore(PKSEMAPHORE Semaphore);
 
-void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment);
+void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment);

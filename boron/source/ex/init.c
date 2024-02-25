@@ -26,6 +26,6 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!IoInitSystem())
 		KeCrash("Could not initialize I/O manager");
 	
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 

@@ -18,7 +18,7 @@ Author:
 #include <limreq.h>
 #include <arch.h>
 
-#include <ke/affinity.h>
+#include <ke/types.h>
 #include <ke/mode.h>
 #include <ke/ipl.h>
 #include <ke/locks.h>

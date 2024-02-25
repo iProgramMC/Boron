@@ -48,7 +48,7 @@ NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 		KeReleaseMutex(&TestMutex2);
 	}
 	
-	KeTerminateThread();
+	KeTerminateThread(0);
 }
 
 void PerformMutexTest()

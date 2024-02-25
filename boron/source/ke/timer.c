@@ -13,6 +13,8 @@ Author:
 ***/
 #include "ki.h"
 
+#define TIMER_EXPIRE_INCREMENT 2 /* Increment when a timer expires */
+
 // XXX: A tree is better in theory, but is it really in practice?
 
 bool KiRemoveTimerTree(PKTIMER Timer)
@@ -135,7 +137,7 @@ void KiDispatchTimerObjects()
 			KeEnqueueDpc(Timer->Dpc, NULL, NULL);
 		
 		Timer->Header.Signaled = true;
-		KiWaitTest(&Timer->Header);
+		KiWaitTest(&Timer->Header, TIMER_EXPIRE_INCREMENT);
 		
 		Timer->IsEnqueued = false;
 		

@@ -1,3 +1,4 @@
+
 /***
 	The Boron Operating System
 	Copyright (C) 2024 iProgramInCpp
@@ -17,6 +18,9 @@ Author:
 #include "exp.h"
 
 #define EX_RWLOCK_WAIT_TIMEOUT 300 /* Milliseconds */
+
+#define PASS_OVER_INCREMENT   2 /* Increment when rwlock is passed over to exclusive waiter */
+#define PASS_SHARED_INCREMENT 1 /* Increment when rwlock is passed over to shared waiters */
 
 //#define DEBUG_RWLOCK
 #ifdef DEBUG_RWLOCK
@@ -304,7 +308,7 @@ void ExDemoteToSharedRwLock(PEX_RW_LOCK Lock)
 			Lock->HeldCount += Waiters;
 			Lock->SharedWaiterCount = 0;
 			
-			KeReleaseSemaphore(&Lock->SharedSemaphore, Waiters);
+			KeReleaseSemaphore(&Lock->SharedSemaphore, Waiters, PASS_SHARED_INCREMENT);
 		}
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
@@ -490,7 +494,7 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 				Lock->HeldCount = 1;
 				Lock->ExclusiveWaiterCount--;
 				
-				PKTHREAD WaitThrd = KeSetEventAndGetWaiter(&Lock->ExclusiveSyncEvent);
+				PKTHREAD WaitThrd = KeSetEventAndGetWaiter(&Lock->ExclusiveSyncEvent, PASS_OVER_INCREMENT);
 				
 				Lock->ExclusiveOwner.Locked = 1;
 				Lock->ExclusiveOwner.OwnerThread = WaitThrd;
@@ -507,7 +511,7 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 			Lock->SharedWaiterCount = 0;
 			Lock->HeldCount = Waiters;
 			
-			KeReleaseSemaphore(&Lock->SharedSemaphore, Waiters);
+			KeReleaseSemaphore(&Lock->SharedSemaphore, Waiters, PASS_SHARED_INCREMENT);
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
 			return;
