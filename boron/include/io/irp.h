@@ -72,11 +72,29 @@ enum
 	IRP_FUN_COUNT
 };
 
+#define IRP_FLAG_SYNCHRONOUS   (1 << 0)
+
+typedef struct _IO_STACK_LOCATION
+{
+	uint8_t IrpFunction;
+	uint8_t Flags;
+	uint16_t Available;
+}
+IO_STACK_LOCATION, *PIO_STACK_LOCATION;
+
+typedef struct _IO_STATUS_BLOCK
+{
+	uintptr_t Information;
+	union
+	{
+		void* Pointer;
+		BSTATUS Status;
+	};
+}
+IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
+
 typedef struct _IRP
 {
-	uint8_t  FunctionID;
-	uint8_t  Avl0;
-	uint16_t Avl1;
 	uint32_t Flags;
 	
 	// Mode that requested this operation.
@@ -89,7 +107,12 @@ typedef struct _IRP
 	
 	// An event that gets signaled when the IRP is completed.
 	KEVENT CompletionEvent;
+	// An APC that gets issued when the IRP is completed.
+	KAPC CompletionApc;
 	
-	// TODO: APC
+	// IRP stack locations.
+	int CurrentLocation;
+	int StackSize;
+	IO_STACK_LOCATION Stack[];
 }
 IRP, *PIRP;

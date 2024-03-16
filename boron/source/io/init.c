@@ -12,32 +12,17 @@ Abstract:
 Author:
 	iProgramInCpp - 15 February 2024
 ***/
-#include <io.h>
-#include <ldr.h>
-
-POBJECT_DIRECTORY IopDevicesDirectory;
-
-bool IopInitializeDevicesDir()
-{
-	BSTATUS Status = ObCreateDirectoryObject(
-		&IopDevicesDirectory,
-		NULL,
-		"\\Devices",
-		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
-	);
-	
-	if (FAILED(Status))
-		return false;
-	
-	// The devices directory is now created.
-	// N.B.  Keep a permanent reference to it at all times, will be useful.
-	
-	return true;
-}
+#include "iop.h"
 
 bool IoInitSystem()
 {
 	if (!IopInitializeDevicesDir())
+		return false;
+	
+	if (!IopInitializeDeviceType())
+		return false;
+	
+	if (!IopInitializeDriverType())
 		return false;
 	
 	extern POBJECT_DIRECTORY ObpRootDirectory;
