@@ -6,5 +6,6 @@
 #include <ldr.h>
 
 bool IopInitializeDevicesDir();
+bool IopInitializeDriversDir();
 bool IopInitializeDeviceType();
 bool IopInitializeDriverType();

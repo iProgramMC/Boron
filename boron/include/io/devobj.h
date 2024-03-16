@@ -28,3 +28,5 @@ struct _DEVICE_OBJECT
 	size_t ExtensionSize;
 	char Extension[];
 };
+
+//BSTATUS IoCreate

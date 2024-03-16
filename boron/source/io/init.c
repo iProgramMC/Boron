@@ -19,6 +19,9 @@ bool IoInitSystem()
 	if (!IopInitializeDevicesDir())
 		return false;
 	
+	if (!IopInitializeDriversDir())
+		return false;
+	
 	if (!IopInitializeDeviceType())
 		return false;
 	
