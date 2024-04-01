@@ -1,9 +1,33 @@
-// Boron - interrupts
+/***
+	The Boron Operating System
+	Copyright (C) 2024 iProgramInCpp
+
+Module name:
+	ke/irq.h
+	
+Abstract:
+	This header file defines the kernel internal interrupt
+	interface.  Device drivers should use the interface
+	defined in ke/int.h.
+	
+Author:
+	iProgramInCpp - 28 October 2023
+***/
 #ifndef NS64_KE_IRQ_H
 #define NS64_KE_IRQ_H
 
 #include <ke/ipl.h>
 #include <arch.h>
+
+//
+// WARNING!
+//
+// These programming interfaces are NOT to be used for drivers.  They are only designed
+// for the kernel and the HAL. Use the interrupt object interface (ke/int.h) in order to
+// use interrupts in your device driver.
+//
+
+#if defined KERNEL || defined IS_HAL
 
 // Note! The interrupt handler doesn't ACTUALLY deal in KREGISTERS
 // pointers. It just so happens that what we pass in as parameter
@@ -54,5 +78,7 @@ enum
 };
 
 int KeGetSystemInterruptVector(int Number);
+
+#endif
 
 #endif//NS64_KE_IRQ_H

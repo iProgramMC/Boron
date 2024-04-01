@@ -22,4 +22,5 @@ void PerformHandleTest(void);
 void PerformRwlockTest(void);
 void PerformMdlTest(void);
 void PerformApcTest(void);
+void PerformIntTest(void);
 

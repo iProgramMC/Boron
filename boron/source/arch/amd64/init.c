@@ -51,6 +51,8 @@ void KeInitArchUP()
 	KeRegisterInterrupt(KiVectorApcIpi,       KiHandleApcIpi);
 	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpi);
 	KeRegisterInterrupt(KiVectorCrash,        KiHandleCrashIpi);
+	
+	KiInitializeInterruptSystem();
 }
 
 void KeInitArchMP()

@@ -26,6 +26,7 @@ Author:
 #include <ke/atomics.h>
 #include <ke/stats.h>
 #include <ke/irq.h>
+#include <ke/int.h>
 #include <ke/dbg.h>
 #include <ke/ver.h>
 #include <ke/smp.h>

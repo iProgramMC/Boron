@@ -190,6 +190,7 @@ PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
 extern void* const KiTrapList[];     // traplist.asm
 extern int8_t      KiTrapIplList[];  // trap.asm
 extern void*       KiTrapCallList[]; // trap.asm
+static KSPIN_LOCK  KiTrapLock;
 
 static int KepIplVectors[IPL_COUNT];
 
@@ -242,7 +243,10 @@ int KeAllocateInterruptVector(KIPL Ipl)
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
 {
+	KIPL Ipl;
+	KeAcquireSpinLock(&KiTrapLock, &Ipl);
 	KiTrapCallList[Vector] = Handler;
+	KeReleaseSpinLock(&KiTrapLock, Ipl);
 }
 
 void KeSetInterruptIPL(int Vector, KIPL Ipl)

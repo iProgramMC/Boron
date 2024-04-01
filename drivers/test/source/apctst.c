@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2024 iProgramInCpp
 
 Module name:
 	apctst.c
@@ -9,7 +9,7 @@ Abstract:
 	This module implements the APC test for the test driver.
 	
 Author:
-	iProgramInCpp - 19 November 2023
+	iProgramInCpp - 24 February 2024
 ***/
 #include "utils.h"
 #include <ke.h>

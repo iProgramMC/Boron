@@ -25,3 +25,5 @@ PKREGISTERS KiHandleApcIpi(PKREGISTERS Regs);
 PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs);
 PKREGISTERS KiHandleCrashIpi(PKREGISTERS Regs);
 PKREGISTERS KiHandleTlbShootdownIpi(PKREGISTERS Regs);
+
+void KiInitializeInterruptSystem();
