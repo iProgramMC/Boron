@@ -19,6 +19,9 @@ Author:
 #include <ke/ipl.h>
 #include <arch.h>
 
+// Allocate an interrupt vector for the specified IPL.
+int KeAllocateInterruptVector(KIPL Ipl);
+
 //
 // WARNING!
 //
@@ -41,7 +44,6 @@ typedef PKREGISTERS(*PKINTERRUPT_HANDLER)(PKREGISTERS);
 
 // Note - This API is to be used during single processor initialization (UP-Init) only.
 // Behavior is not defined during MP-Init initialization.
-int KeAllocateInterruptVector(KIPL Ipl);
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler);
 

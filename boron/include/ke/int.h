@@ -14,6 +14,9 @@ Author:
 ***/
 #pragma once
 
+// N.B. Currently this supports hardware interrupts only.  If needed,
+// I will introduce software interrupt objects at a later date.
+
 typedef struct _KINTERRUPT KINTERRUPT, *PKINTERRUPT;
 
 typedef void(*PKSERVICE_ROUTINE)(PKINTERRUPT Interrupt, void* Context);

@@ -36,9 +36,11 @@ define DEFAULT_VAR =
 endef
 
 DEFINES = -DIS_DRIVER
+OPT = -O2
 
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
+	OPT = -g -O0
 endif
 
 ifeq ($(DEBUG2), yes)
@@ -55,10 +57,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
+CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -O2 -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
+CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)

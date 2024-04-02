@@ -18,6 +18,7 @@ Author:
 #include "acpi.h"
 #include "apic.h"
 #include "hpet.h"
+#include "ioapic.h"
 
 void HalEndOfInterrupt();
 void HalRequestInterruptInTicks(uint64_t Ticks);
@@ -77,6 +78,7 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	HalpVfTable.GetTickCount = HalGetTickCount;
 	HalpVfTable.GetTickFrequency = HalGetTickFrequency;
 	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks;
+	HalpVfTable.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect;
 	HalpVfTable.Flags = HAL_VFTABLE_LOADED;
 	
 	// Hook the HAL's functions.

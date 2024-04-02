@@ -11,8 +11,7 @@ Abstract:
 Author:
 	iProgramInCpp - 7 September 2023
 ***/
-#include <main.h>
-#include "pio.h"
+#include <arch.h>
 
 uint8_t KePortReadByte(uint16_t portNo)
 {

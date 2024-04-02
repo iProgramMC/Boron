@@ -17,7 +17,6 @@ Author:
 #include <arch.h>
 #include <mm.h>
 #include <string.h>
-#include "pio.h"
 #include "../../ke/ki.h"
 
 void KeWaitForNextInterrupt()

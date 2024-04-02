@@ -16,6 +16,7 @@ Author:
 	iProgramInCpp - 31 March 2024
 ***/
 #include <ke.h>
+#include <hal.h>
 #include "archi.h"
 
 extern int8_t KiTrapIplList[];  // trap.asm
@@ -52,6 +53,9 @@ static PKREGISTERS KiInterruptDispatch(PKREGISTERS Regs)
 	}
 	
 	KeReleaseSpinLock(&InterruptList->Lock, Ipl);
+	
+	// Acknowledge the interrupt.
+	HalEndOfInterrupt();
 	
 	// No change in registers.
 	return Regs;

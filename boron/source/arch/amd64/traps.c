@@ -224,7 +224,7 @@ void KiSetupIdt()
 // NOTE: This works fine on AMD64 because we can reprogram the IOAPIC
 // to give us whichever interrupt number we want.
 
-int KeAllocateInterruptVector(KIPL Ipl)
+static int KiAllocateInterruptVector(KIPL Ipl)
 {
 	if (Ipl < 0 || Ipl > IPL_NOINTS)
 		return -1;
@@ -239,6 +239,16 @@ int KeAllocateInterruptVector(KIPL Ipl)
 	// Set the IPL that we expect to run at
 	KiTrapIplList[Vector] = Ipl;
 	return Vector;
+}
+
+int KeAllocateInterruptVector(KIPL Ipl)
+{
+	static KSPIN_LOCK Lock;
+	KIPL Unused;
+	KeAcquireSpinLock(&Lock, &Unused);
+	int Result = KiAllocateInterruptVector(Ipl);
+	KeReleaseSpinLock(&Lock, Unused);
+	return Result;
 }
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)

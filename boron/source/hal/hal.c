@@ -1,12 +1,13 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2023-2024 iProgramInCpp
 
 Module name:
 	hal/hal.c
 	
 Abstract:
-	This module contains the troll.
+	This module contains the implementation of
+	the HAL dispatch functions.
 	
 Author:
 	iProgramInCpp - 26 October 2023
@@ -92,6 +93,11 @@ uint64_t HalGetTickFrequency()
 uint64_t HalGetIntTimerDeltaTicks()
 {
 	return HalpVftable.GetIntTimerDeltaTicks();
+}
+
+void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status)
+{
+	return HalpVftable.IoApicSetIrqRedirect(Vector, Irq, LapicId, Status);
 }
 
 NO_RETURN void HalProcessorCrashed()

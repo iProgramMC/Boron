@@ -28,5 +28,4 @@ typedef void* HALCB_PTR;
 
 PKHALCB KeGetCurrentHalCB();
 
-
 #endif//BORON_HAL_DATA_H

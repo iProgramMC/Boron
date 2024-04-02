@@ -10,7 +10,6 @@
 #include <hal/data.h>
 #include <hal/init.h>
 
-
 #define HAL_IPI_BROADCAST (1 << 0)
 #define HAL_IPI_SELF      (1 << 1)
 
@@ -29,6 +28,7 @@ uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
+void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
 
 #ifdef IS_HAL
 void HalSetVftable(PHAL_VFTABLE Table);
