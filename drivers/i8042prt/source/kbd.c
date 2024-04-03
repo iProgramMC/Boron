@@ -12,83 +12,59 @@ Abstract:
 Author:
 	iProgramInCpp - 2 April 2024
 ***/
+#include <string.h>
 #include "i8042.h"
 
 static KINTERRUPT KbdInterrupt;
 static KSPIN_LOCK KbdInterruptLock;
 static KDPC KbdDpc;
-static bool KbdDpcEnqueued;
 
-static uint8_t KbdBuffer[4096];
-static int KbdTail, KbdHead;
-static bool KbdHaveData;
+static uint8_t  KbdBufferInt[4096];
+static uint8_t  KbdBuffer[4096];
+static uint16_t KbdPendingReads;
 
-static uint8_t KbdDpcBuffer[4096];
-static int KbdDpcCount;
-
-// Only the interrupt handler should interact with this.
-static bool AddToBuffer(uint8_t data)
-{
-	int NewHead = (KbdHead + 1) % sizeof KbdBuffer;
-	if (NewHead == KbdTail)
-	{
-		// Oops, head and tail crashed into each other.  Drop this byte
-		return false;
-	}
-	
-	KbdBuffer[KbdHead] = data;
-	KbdHaveData = true;
-	
-	// Advance head.
-	KbdHead = NewHead;
-	return true;
-}
-
-// Only the synchronize routine should interact with this.
-static int GetFromBuffer()
-{
-	if (KbdHead == KbdTail)
-		return -1;
-	
-	uint8_t Byte = KbdBuffer[KbdTail];
-	
-	// Advance tail.
-	KbdTail = (KbdTail + 1) % sizeof KbdBuffer;
-	
-	// If the tail is on top of the head, then there is no more data.
-	if (KbdHead == KbdTail)
-		KbdHaveData = false;
-	
-	return (int)Byte;
-}
-
-// Note: This also allows another DPC to be fired.
-// The DPC routine doesn't use the DPC object anyway, so it's fine.
+// Fetches the bytes read from the keyboard controller.
 static int KbdFetchBuffer(UNUSED void* Context)
 {
-	KbdDpcCount = 0;
-	int Byte;
-	while ((Byte = GetFromBuffer()) >= 0)
-		KbdDpcBuffer[KbdDpcCount++] = (uint8_t)Byte;
+	// Fetch the amount of key codes and reset it to zero.
+	int Result = KbdPendingReads;
+	KbdPendingReads = 0;
 	
-	KbdDpcEnqueued = false;
-	return KbdDpcCount;
+	// Copy the buffer over.
+#ifdef SECURE
+	memcpy(KbdBuffer, KbdBufferInt, sizeof KbdBufferInt);
+	memset(KbdBufferInt, 0, sizeof KbdBufferInt);
+#else
+	memcpy(KbdBuffer, KbdBufferInt, Result);
+#endif
+	
+	// Return the amount of key codes that have been received.
+	return Result;
 }
 
+// N.B.  This DPC can only run on the same processor as the interrupt source.
 static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* SysArg1, UNUSED void* SysArg2)
 {
-	// Fetch the bytes from the buffer safely into KbdDpcBuffer.
+	// Fetch the bytes that have been read from the keyboard controller.
+	//
+	// Perform this operation at the IPL of the keyboard interrupt
+	// to ensure atomicity with it, and to ensure that no keyboard
+	// inputs are being missed.
 	int Count = KeSynchronizeExecution(&KbdInterrupt, 0, KbdFetchBuffer, NULL);
 	
 	for (int i = 0; i < Count; i++)
 	{
-		uint8_t Code = KbdDpcBuffer[i];
+		uint8_t Code = KbdBuffer[i];
 		
 		// Print all key codes obtained
 		DbgPrint("Got key code (%d): %02x", i, Code);
 		
 		// TODO: Add them into the IO device's buffer here...
 	}
+	
+#ifdef SECURE
+	memset(KbdBuffer, 0, sizeof KbdBuffer);
+#endif
 }
 
 static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
@@ -98,18 +74,26 @@ static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
 	if (~Status & I8042_STATUS_OUTPUT_FULL)
 		return;
 	
-	uint8_t Data = KePortReadByte(I8042_PORT_DATA);
-	if (!AddToBuffer(Data))
+	uint8_t Code = KePortReadByte(I8042_PORT_DATA);
+	
+	if (KbdPendingReads >= sizeof KbdBufferInt)
+		// Key codes haven't been read fast enough!  Simply return as
+		// there isn't really anything we can do to solve this.
 		return;
 	
-	if (KbdDpcEnqueued)
+	// Add the code to the buffer.
+	KbdBufferInt[KbdPendingReads] = Code;
+	KbdPendingReads++;
+	
+	// If there were no pending reads before this interrupt,
+	// enqueue the keyboard DPC.
+	if (KbdPendingReads != 1)
 		return;
 	
 	// Initialize and enqueue the DPC now.
 	KeInitializeDpc(&KbdDpc, KbdDpcRoutine, Context);
 	KeSetImportantDpc(&KbdDpc, true);
 	KeEnqueueDpc(&KbdDpc, NULL, NULL);
-	KbdDpcEnqueued = true;
 }
 
 void KbdInitialize(int Vector, KIPL Ipl)

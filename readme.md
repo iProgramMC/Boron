@@ -41,7 +41,7 @@ Currently, the OS's source is structured into the following:
 
 * `drivers/` - The actual drivers themselves.
 
-Kernel DLL exports will use the prefix `Bn`. I know this isn't the chemical symbol for boron (that being B),
+Kernel DLL exports will use the prefix `Brn`. I know this isn't the chemical symbol for boron (that being B),
 but it is what it is.
 
 #### Basic features
@@ -68,7 +68,7 @@ all present related to it.
 	* [x] Scheduler
 	* [x] DPCs (deferred procedure calls)
 	* [x] Interrupt dispatching
-	* [ ] APCs
+	* [x] APCs
 	* [ ] User mode programs
 
 * [x] Memory manager
@@ -79,12 +79,12 @@ all present related to it.
 	* [ ] Swap out page tables
 	* [ ] Swap out kernel code
 
-* [ ] Object manager
-	* [ ] Object creation
-	* [ ] Object deletion
-	* [ ] Object lookup
+* [x] Object manager
+	* [x] Object creation
+	* [x] Object deletion
+	* [x] Object lookup
 
-* [ ] I/O manager
+* [x] I/O manager
 	* [ ] I/O Request Packet (IRP)
 	* [ ] Instant completion of IRPs
 	* [ ] Asynchronous completion of IRPs
@@ -93,6 +93,9 @@ all present related to it.
 	* [ ] ...
 
 * [ ] Cache manager (later)
+	* [ ] ...
+
+* [ ] Security subsystem (later)
 	* [ ] ...
 
 * [ ] User space

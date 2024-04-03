@@ -1,9 +1,6 @@
-# Boron kernel makefile
+# The Boron Operating System - Makefile
 
-# TODO: Have a root makefile which tackles making the image, which depends
-# on another makefile which makes the kernel itself!
-
-# DEBUG flag
+# DEBUG flags
 DEBUG ?= yes
 DEBUG2 ?= no
 

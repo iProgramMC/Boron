@@ -1,8 +1,5 @@
 # Boron kernel makefile
 
-# TODO: Have a root makefile which tackles making the image, which depends
-# on another makefile which makes the kernel itself!
-
 # DEBUG flag
 DEBUG ?= yes
 DEBUG2 ?= no
@@ -15,6 +12,11 @@ DWARF_SYMBOLS ?= no
 #   careful because you might get jumbled output on SMP since the
 #   debug console won't lock. The advantage is that you'll be able
 #   to log basically anywhere
+
+# SECURE flag.
+# The SECURE flag enables additional security features if desired.
+# Currently the only application is clearing the input buffers with zero once read.
+SECURE ?= no
 
 BUILD_DIR = build
 SRC_DIR = source
@@ -50,6 +52,10 @@ endif
 
 ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
+endif
+
+ifeq ($(SECURE), yes)
+	DEFINES += -DSECURE
 endif
 
 # Note: DWARF symbols aren't really reliable on -O2, so best to use no optimization
