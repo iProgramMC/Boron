@@ -13,12 +13,10 @@ Author:
 ***/
 #include "iop.h"
 
-POBJECT_DIRECTORY IopDevicesDirectory;
-
 bool IopInitializeDevicesDir()
 {
 	BSTATUS Status = ObCreateDirectoryObject(
-		&IopDevicesDirectory,
+		&IoDevicesDir,
 		NULL,
 		"\\Devices",
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT

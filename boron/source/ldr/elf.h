@@ -16,11 +16,6 @@ Author:
 
 #include <main.h>
 
-// @WORK: For other platforms
-#if defined TARGET_AMD64
-#define IS_64_BIT
-#endif
-
 typedef NO_RETURN void(*ELF_ENTRY_POINT)();
 
 enum
@@ -185,13 +180,8 @@ typedef struct ELF_DYNAMIC_ITEM_tag
 	
 	union
 	{
-	#ifdef IS_64_BIT
-		long long int Value;
-	#else
-		int           Value;
-	#endif
-		
-		uintptr_t     Pointer;
+		intptr_t  Value;
+		uintptr_t Pointer;
 	};
 }
 PACKED

@@ -28,6 +28,7 @@ Author:
 #define NO_DISCARD    __attribute__((warn_unused_result))
 #include <rtl/ansi.h>
 #include <rtl/assert.h>
+#include <rtl/check64.h>
 
 #include <status.h>
 

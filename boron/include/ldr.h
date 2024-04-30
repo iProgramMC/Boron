@@ -32,7 +32,7 @@ typedef struct
 	const char*      StringTable;
 	void*            SymbolTable;
 	size_t           SymbolTableSize;
-	DRIVER_OBJECT    DriverObject;
+	PDRIVER_OBJECT   DriverObject;
 }
 LOADED_DLL, *PLOADED_DLL;
 

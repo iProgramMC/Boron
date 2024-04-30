@@ -31,6 +31,8 @@ extern uintptr_t MiAllocatePageFromMemMap();
 LOADED_DLL KeLoadedDLLs[256];
 int        KeLoadedDLLCount = 0;
 
+static DRIVER_OBJECT LdrpHalReservedDriverObject;
+
 // Note! BaseOffset - The offset at which the ELF was loaded.  It's equal to VirtualAddr - AddressOfLowestPHDR
 static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, uintptr_t BaseVirtAddr)
 {
@@ -553,17 +555,73 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 	return LoadedDll->StringTable + NameOffset;
 }
 
-void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
+static size_t LdrpGetBareNameLength(const char* Name)
 {
-	PDRIVER_OBJECT Driver = &Dll->DriverObject;
+	size_t Length = strlen(Name);
+	size_t LengthCopy = Length;
+	
+	for (; Length != 0; Length--)
+	{
+		if (strcmp(Name + Length, ".sys") == 0)
+			return Length;
+	}
+	
+	// Just don't do it.
+	return LengthCopy;
+}
+
+static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
+{
+	// Create a driver object.
+	BSTATUS Status;
+	void* ObjectPtr = NULL;
+	
+	// The first DLL to be loaded is the HAL. Therefore, check if this
+	// matches with KeLoadedDLLs[0].
+	if (Dll == &KeLoadedDLLs[0])
+	{
+		// Yes, this is the HAL.
+		ObjectPtr = &LdrpHalReservedDriverObject;
+	}
+	else
+	{
+		// Use the object manager to create a driver object.
+		
+		// Take off the ".sys" from the driver's name.
+		char DriverName[16];
+		size_t Length = LdrpGetBareNameLength(Dll->Name) + 1;
+		if (Length > 16)
+			Length = 16;
+		
+		strncpy(DriverName, Dll->Name, Length);
+		
+		DbgPrint("Creating driver object at \\Drivers\\%s", DriverName);
+		Status = ObCreateObject(
+			&ObjectPtr,
+			IoDriversDir,
+			IoDriverType,
+			DriverName,
+			OB_FLAG_KERNEL | OB_FLAG_PERMANENT, // <-- TODO: Unloadable drivers
+			true,
+			NULL,
+			sizeof(DRIVER_OBJECT)
+		);
+		
+		if (FAILED(Status))
+			KeCrash("Could not create driver object at \\Drivers\\%s: error %d", DriverName, Status);
+	}
+	
+	PDRIVER_OBJECT Driver = ObjectPtr;
+	Dll->DriverObject = Driver;
 	
 	// Initialize the driver object with basic details.
 	// The driver itself will fill in the rest.
 	memset(Driver, 0, sizeof * Driver);
 	Driver->DriverName = Dll->Name;
-	InitializeListHead(&Driver->DeviceList);
 	Driver->DriverEntry = Dll->EntryPoint;
+	InitializeListHead(&Driver->DeviceList);
 	
+	// Call the entry point now.
 	BSTATUS Result = Dll->EntryPoint(Driver);
 	if (Result != 0)
 		// XXX: Maybe should be an error instead?

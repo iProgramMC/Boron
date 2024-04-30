@@ -1,3 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2023-2024 iProgramInCpp
+
+Module name:
+	rtl/symdefs.h
+	
+Abstract:
+	This header file contains the structure definitions for the
+	symbol table for Boron.
+	
+Author:
+	iProgramInCpp - 20 October 2023
+***/
 #ifndef BORON_RTL_SYMDEFS_H
 #define BORON_RTL_SYMDEFS_H
 

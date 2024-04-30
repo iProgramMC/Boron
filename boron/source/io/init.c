@@ -15,7 +15,22 @@ Author:
 #include "iop.h"
 #include <string.h>
 
-POBJECT_TYPE IopDriverType, IopDeviceType, IopFileType;
+POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType;
+POBJECT_DIRECTORY IoDriversDir;
+POBJECT_DIRECTORY IoDevicesDir;
+
+void* IoGetBuiltInData(int Number)
+{
+	switch (Number)
+	{
+		case __IO_DRIVER_TYPE: return IoDriverType;
+		case __IO_DEVICE_TYPE: return IoDeviceType;
+		case __IO_FILE_TYPE:   return IoFileType;
+		case __IO_DRIVERS_DIR: return IoDriversDir;
+		case __IO_DEVICES_DIR: return IoDevicesDir;
+		default:               return NULL;
+	}
+}
 
 bool IopInitializeObjectTypes()
 {
@@ -28,7 +43,7 @@ bool IopInitializeObjectTypes()
 	
 	// Initialize the Driver object type.
 	Info.Delete = IopDeleteDriver;
-	Status = ObCreateObjectType("Driver", &Info, &IopDriverType);
+	Status = ObCreateObjectType("Driver", &Info, &IoDriverType);
 	
 	if (FAILED(Status))
 	{
@@ -38,7 +53,7 @@ bool IopInitializeObjectTypes()
 	
 	// Initialize the Device object type.
 	Info.Delete = IopDeleteDevice;
-	Status = ObCreateObjectType("Device", &Info, &IopDeviceType);
+	Status = ObCreateObjectType("Device", &Info, &IoDeviceType);
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create Device type.");
@@ -50,7 +65,7 @@ bool IopInitializeObjectTypes()
 	Info.Delete = IopDeleteFile;
 	Info.Close = IopCloseFile;
 	Info.Parse = IopParseFile;
-	Status = ObCreateObjectType("File", &Info, &IopFileType);
+	Status = ObCreateObjectType("File", &Info, &IoFileType);
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create File type.");
@@ -72,12 +87,18 @@ bool IoInitSystem()
 	if (!IopInitializeObjectTypes())
 		return false;
 	
+	// TEST: This is test code. Remove soon!
 	extern POBJECT_DIRECTORY ObpRootDirectory;
 	extern BSTATUS ObpDebugDirectory(void* DirP);
+	DbgPrint("Dumping root directory:");
 	ObpDebugDirectory(ObpRootDirectory);
 	
 	// Initialize all drivers.
 	LdrInitializeDrivers();
+	
+	// TEST: This is test code. Remove soon!
+	DbgPrint("Dumping drivers directory:");
+	ObpDebugDirectory(IoDriversDir);
 	
 	return true;
 }

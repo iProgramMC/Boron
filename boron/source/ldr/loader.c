@@ -13,8 +13,14 @@ Author:
 ***/
 #include "ldri.h"
 
-static const char* LdrpHalPath = "halx86.sys";
 static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
+
+// TODO: Perhaps we could define it from the command line? Something like /HAL=<halfile>
+#ifdef TARGET_AMD64
+static const char* LdrpHalPath = "halx86.sys";
+#else
+#error Define your HAL path here.
+#endif
 
 uintptr_t LdrAllocateRange(size_t Size)
 {

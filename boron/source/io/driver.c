@@ -13,12 +13,10 @@ Author:
 ***/
 #include "iop.h"
 
-POBJECT_DIRECTORY IopDriversDirectory;
-
 bool IopInitializeDriversDir()
 {
 	BSTATUS Status = ObCreateDirectoryObject(
-		&IopDriversDirectory,
+		&IoDriversDir,
 		NULL,
 		"\\Drivers",
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
