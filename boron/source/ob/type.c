@@ -88,8 +88,8 @@ BSTATUS ObCreateObjectType(
 	return STATUS_SUCCESS;
 }
 
-#ifdef DEBUG
 // ObjectType methods
+#ifdef DEBUG
 BSTATUS ObpDebugObjectType(void* Object)
 {
 	POBJECT_TYPE Type = Object;
@@ -112,6 +112,8 @@ OBJECT_TYPE_INFO ObpObjectTypeTypeInfo =
 	0,
 	// NonPagedPool
 	true,
+	// MaintainHandleCount
+	false,
 	// Open
 	NULL,
 	// Close

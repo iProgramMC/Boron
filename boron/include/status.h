@@ -24,10 +24,10 @@ enum
 	STATUS_INVALID_PARAMETER,
 	STATUS_ACCESS_DENIED,
 	STATUS_INSUFFICIENT_MEMORY,
-	STATUS_UNIMPLEMENTED,
+	STATUS_UNIMPLEMENTED,       // N.B. Ideally you'd only see this when using an incomplete version of the system.
 	
 	// Wait for object(s) errors
-	STATUS_WAITING = 1000,       // these 3 are returned by the KeWaitFor*Object(s) functions.
+	STATUS_WAITING = 1000,      // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,
 	STATUS_TIMEOUT,             // Timeout or would block
 	STATUS_KILLED,              // Thread was killed

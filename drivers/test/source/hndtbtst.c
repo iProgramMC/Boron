@@ -13,7 +13,7 @@ Author:
 ***/
 #include <ex.h>
 
-bool OnKillHandle(void* HandleToKill, void* Context)
+bool OnKillHandle(void* HandleToKill, UNUSED void* Context)
 {
 	LogMsg("Killing handle with pointer: %p", HandleToKill);
 	return true;

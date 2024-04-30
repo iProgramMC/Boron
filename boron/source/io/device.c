@@ -14,8 +14,6 @@ Author:
 #include "iop.h"
 
 POBJECT_DIRECTORY IopDevicesDirectory;
-POBJECT_TYPE IopDeviceType;
-OBJECT_TYPE_INFO IopDeviceTypeInfo;
 
 bool IopInitializeDevicesDir()
 {
@@ -38,21 +36,8 @@ bool IopInitializeDevicesDir()
 	return true;
 }
 
-bool IopInitializeDeviceType()
+void IopDeleteDevice(void* Object)
 {
-	// TODO: Initialize IopDeviceTypeInfo
-	
-	BSTATUS Status = ObCreateObjectType(
-		"Device",
-		&IopDeviceTypeInfo,
-		&IopDeviceType
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("IO: Failed to create Device type");
-		return false;
-	}
-	
-	return true;
+	// TODO
+	DbgPrint("UNIMPLEMENTED: IopDeleteDevice(%p)", Object);
 }

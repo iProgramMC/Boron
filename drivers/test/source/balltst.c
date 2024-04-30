@@ -54,7 +54,7 @@ NO_RETURN void TestThread2()
 	KeTerminateThread(0);
 }
 
-void BallTestDpc(PKDPC Dpc, void* Context, UNUSED void* SysAux1, UNUSED void* SysAux2)
+void BallTestDpc(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* SysAux1, UNUSED void* SysAux2)
 {
 	//DbgPrint("Hello from DPC %p, %p", Dpc, Context);
 }

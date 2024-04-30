@@ -74,6 +74,8 @@ OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo =
 	0,
 	// NonPagedPool
 	true,
+	// MaintainHandleCount
+	false,
 	// Open
 	NULL,
 	// Close

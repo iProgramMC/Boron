@@ -384,6 +384,8 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 	0,
 	// NonPagedPool
 	true,
+	// MaintainHandleCount
+	false,
 	// Open
 	NULL,
 	// Close

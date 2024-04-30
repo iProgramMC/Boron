@@ -55,11 +55,11 @@ BSTATUS InitializeDevice()
 	
 	WriteConfig(Config);
 	
-	// Enable the ports
+	// Enable the ports.
 	SendByte(I8042_PORT_CMD, I8042_CMD_ENABLE_PORT_1);
 	if (Config & I8042_CONFIG_DISABLE_2)
 		//SendByte(I8042_PORT_CMD, I8042_CMD_ENABLE_PORT_2);
-		;
+		(void) 0;
 	
 	// Allocate an interrupt for the keyboard.
 	KIPL IplKbd, IplMou;

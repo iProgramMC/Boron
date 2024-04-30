@@ -14,8 +14,6 @@ Author:
 #include "iop.h"
 
 POBJECT_DIRECTORY IopDriversDirectory;
-POBJECT_TYPE IopDriverType;
-OBJECT_TYPE_INFO IopDriverTypeInfo;
 
 bool IopInitializeDriversDir()
 {
@@ -38,21 +36,8 @@ bool IopInitializeDriversDir()
 	return true;
 }
 
-bool IopInitializeDriverType()
+void IopDeleteDriver(void* Object)
 {
-	// TODO: Initialize IopDriverTypeInfo
-	
-	BSTATUS Status = ObCreateObjectType(
-		"Driver",
-		&IopDriverTypeInfo,
-		&IopDriverType
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("IO: Failed to create Driver type");
-		return false;
-	}
-	
-	return true;
+	// TODO
+	DbgPrint("UNIMPLEMENTED: IopDeleteDriver(%p)", Object);
 }

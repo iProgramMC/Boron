@@ -69,6 +69,8 @@ struct _OBJECT_TYPE_INFO
 	
 	bool NonPagedPool;
 	
+	bool MaintainHandleCount;
+	
 	// Virtual function table
 	OBJ_OPEN_FUNC   Open;
 	OBJ_CLOSE_FUNC  Close;
