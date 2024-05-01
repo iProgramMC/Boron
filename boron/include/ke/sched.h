@@ -50,8 +50,6 @@ enum
 
 typedef struct
 {
-	LIST_ENTRY ThreadList;
-	
 	// Execution queue mask. If a bit is set, that means that a thread
 	// of the priority corresponding to that bit exists in the queue.
 	QUEUE_MASK ExecQueueMask;

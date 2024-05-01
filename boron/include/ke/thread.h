@@ -53,7 +53,6 @@ struct KTHREAD_tag
 	KDISPATCH_HEADER Header;
 	
 	LIST_ENTRY EntryGlobal;    // Entry into global thread list
-	LIST_ENTRY EntryList;      // Entry into CPU local scheduler's thread list
 	LIST_ENTRY EntryQueue;     // Entry into the CPU local dispatcher ready queue
 	LIST_ENTRY EntryProc;      // Entry into the parent process' list of threads
 	

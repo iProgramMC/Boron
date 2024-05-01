@@ -85,7 +85,6 @@ void KiReadyThread(PKTHREAD Thread)
 	InsertTailList(&KiGlobalThreadList, &Thread->EntryGlobal);
 	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
 	
-	InsertTailList(&Scheduler->ThreadList,                  &Thread->EntryList);
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
@@ -155,7 +154,6 @@ void KeSchedulerInit()
 	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
-	InitializeListHead(&Scheduler->ThreadList);
 	InitializeAvlTree(&Scheduler->TimerTree);
 	
 	for (int i = 0; i < PRIORITY_COUNT; i++)
@@ -339,9 +337,6 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl);
 	RemoveEntryList(&Thread->EntryGlobal);
 	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
-	
-	// Remove the thread from the local list of threads.
-	RemoveEntryList(&Thread->EntryList);
 	
 	// Remove the thread from the parent process' list of threads.
 	RemoveEntryList(&Thread->EntryProc);
