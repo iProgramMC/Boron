@@ -61,6 +61,6 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	if (!Thread)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	KeDetachThread(Thread);
+	KeDetachThread(Thread, NULL);
 	return STATUS_SUCCESS;
 }

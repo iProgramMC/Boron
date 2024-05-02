@@ -78,7 +78,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 			KeCrash("cannot spawn executive initialization thread");
 		
 		KeSetPriorityThread(Thread, PRIORITY_NORMAL);
-		KeDetachThread(Thread);
+		KeDetachThread(Thread, NULL);
 		KeReadyThread(Thread);
 	}
 	

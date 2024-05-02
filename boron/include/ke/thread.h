@@ -28,6 +28,8 @@ Author:
 
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
 
+typedef void(*PKTHREAD_TERMINATE_METHOD)(PKTHREAD Thread);
+
 typedef struct KTHREAD_tag KTHREAD, *PKTHREAD;
 
 enum
@@ -132,6 +134,11 @@ struct KTHREAD_tag
 	
 	// Priority increment after thread is terminated.
 	KPRIORITY IncrementTerminated;
+	
+	// Method called when the thread terminates, in detached mode.
+	// The method is called at IPL_DPC with the dispatcher database
+	// locked.
+	PKTHREAD_TERMINATE_METHOD TerminateMethod;
 };
 
 // Creates an empty, uninitialized, thread object.
@@ -144,10 +151,19 @@ void KeDeallocateThread(PKTHREAD Thread);
 // Reads the state of a thread.
 int KeReadStateThread(PKTHREAD Thread);
 
-// Detaches a thread. This involves automatic cleanup through KeDeallocateThread.
-// Don't call if the thread instance wasn't allocated with KeAllocateThread.
-// After the call, treat Thread as an invalid pointer and throw it away.
-void KeDetachThread(PKTHREAD Thread);
+// Detaches a child thread from the managing thread. This involves automatic cleanup
+// through the terminate method specified in the respective function parameter.
+//
+// Notes:
+// - If TerminateMethod is NULL, then the thread will use KeDeallocateThread as the
+//   terminate method.  In that case, you must NOT use a pointer to a thread which
+//   wasn't allocated using KeAllocateThread.  Thus, you should ideally discard the
+//   pointer as soon as this function finishes, or as soon as you call KeReadyThread,
+//   whichever comes last.
+//
+// - The thread pointer is only guaranteed to be accessible (with the rigorous dis-
+//   patcher database locking of course) until `TerminateMethod' is called.
+void KeDetachThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod);
 
 // Initializes the thread object.
 NO_DISCARD BSTATUS KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);

@@ -6,7 +6,7 @@ Module name:
 	ke/process.h
 	
 Abstract:
-	This header file defines the kernel thread object
+	This header file defines the kernel process object
 	and its manipulation functions.
 	
 Author:
@@ -18,6 +18,8 @@ Author:
 #include <mm.h>
 
 typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
+
+typedef void(*PKPROCESS_TERMINATE_METHOD)(PKPROCESS Process);
 
 struct KPROCESS_tag
 {
@@ -41,6 +43,11 @@ struct KPROCESS_tag
 	
 	// Whether the process was detached or not.
 	bool Detached;
+	
+	// Method called when the process terminates, in detached mode.
+	// The method is called at IPL_DPC with the dispatcher database
+	// locked.
+	PKPROCESS_TERMINATE_METHOD TerminateMethod;
 };
 
 // Allocate an uninitialized process instance.  Use when you want to detach the process.
@@ -61,14 +68,18 @@ void KeAttachToProcess(PKPROCESS Process);
 // Detach from the attached process' address space.
 void KeDetachFromProcess();
 
-// Detach the child process from the current process' execution.
-// * Must only be performed on processes allocated with KeAllocateProcess.
+// Detaches a child process from the managing process. This involves automatic cleanup
+// through the terminate method specified in the respective function parameter.
 //
-// * It will be cleaned up by the system once it terminates,
-//   instead of having to wait on it to clean it up.
+// Notes:
+// - If TerminateMethod is NULL, then the process will use KeDeallocateProcess as the
+//   terminate method.  In that case, you must NOT use a pointer to a process which
+//   wasn't allocated using KeAllocateThread.  Thus, you should ideally discard the
+//   pointer as soon as this function finishes.
 //
-// * After the call, treat the passed pointer as invalid and throw it away ASAP.
-void KeDetachProcess(PKPROCESS Process);
+// - The process pointer is only guaranteed to be accessible (with the rigorous dis-
+//   patcher database locking of course) until `TerminateMethod' is called.
+void KeDetachProcess(PKPROCESS Process, PKPROCESS_TERMINATE_METHOD TerminateMethod);
 
 // Return the current process.
 PKPROCESS KeGetCurrentProcess();

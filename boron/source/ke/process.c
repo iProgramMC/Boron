@@ -40,7 +40,7 @@ void KiOnKillProcess(PKPROCESS Process)
 	KiWaitTest(&Process->Header, 0);
 	
 	if (Process->Detached)
-		KeDeallocateProcess(Process);
+		Process->TerminateMethod(Process);
 }
 
 // ------- Exposed API -------
@@ -110,12 +110,19 @@ void KeDetachFromProcess()
 	KiSwitchToAddressSpaceProcess(Thread->Process);
 }
 
-void KeDetachProcess(PKPROCESS Process)
+void KeDetachProcess(PKPROCESS Process, PKPROCESS_TERMINATE_METHOD TerminateMethod)
 {
 	KIPL Ipl = KiLockDispatcher();
 	
 	ASSERT(!Process->Detached);
 	Process->Detached = true;
+	
+	// TODO: Handle already terminated process
+	
+	if (!TerminateMethod)
+		TerminateMethod = KeDeallocateProcess;
+	
+	Process->TerminateMethod = TerminateMethod;
 	
 	KiUnlockDispatcher(Ipl);
 }

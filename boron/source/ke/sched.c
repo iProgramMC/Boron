@@ -370,7 +370,7 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	
 	// If the thread is detached, deallocate it.
 	if (Thread->Detached)
-		KeDeallocateThread(Thread);
+		Thread->TerminateMethod(Thread);
 }
 
 // I dub this "work stealing", although I'm pretty sure I've heard this somewhere before.
