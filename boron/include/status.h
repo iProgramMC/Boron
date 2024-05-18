@@ -50,6 +50,11 @@ enum
 	STATUS_PATH_TOO_DEEP,       // The path is too deep.
 	STATUS_NAME_TOO_LONG,       // The path or name is too long.
 	
+	// Handle table errors
+	STATUS_TABLE_NOT_EMPTY,     // The handle table is not empty.
+	STATUS_DELETE_CANCELED,     // The handle delete operation was canceled.
+	STATUS_TOO_MANY_HANDLES,    // Too many handles have been opened.
+	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS

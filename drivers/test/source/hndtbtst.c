@@ -21,8 +21,8 @@ bool OnKillHandle(void* HandleToKill, UNUSED void* Context)
 
 void PerformHandleTest()
 {
-	void* HanTab = ExCreateHandleTable(4, 4, 1);
-	if (!HanTab)
+	void* HanTab;
+	if (FAILED(ExCreateHandleTable(4, 0, 1, &HanTab)))
 		KeCrash("Error, handle table must exist to perform the test");
 	
 	void *Ptr1, *Ptr2, *Ptr3, *Ptr4, *Ptr5;
@@ -40,11 +40,13 @@ void PerformHandleTest()
 	
 	// Add each pointer in the handle table.
 	// N.B. The first four allocations must succeed, and the 5th one may fail
-	HANDLE Hand1 = ExCreateHandle(HanTab, Ptr1);
-	HANDLE Hand2 = ExCreateHandle(HanTab, Ptr2);
-	HANDLE Hand3 = ExCreateHandle(HanTab, Ptr3);
-	HANDLE Hand4 = ExCreateHandle(HanTab, Ptr4);
-	HANDLE Hand5 = ExCreateHandle(HanTab, Ptr5);
+	HANDLE Hand1 = 0, Hand2 = 0, Hand3 = 0, Hand4 = 0, Hand5 = 0;
+	
+	(void) ExCreateHandle(HanTab, Ptr1, &Hand1);
+	(void) ExCreateHandle(HanTab, Ptr2, &Hand2);
+	(void) ExCreateHandle(HanTab, Ptr3, &Hand3);
+	(void) ExCreateHandle(HanTab, Ptr4, &Hand4);
+	(void) ExCreateHandle(HanTab, Ptr5, &Hand5);
 	
 	if (!Hand1 || !Hand2 || !Hand3 || !Hand4)
 		LogMsg("One of the handles is missing");
@@ -61,19 +63,19 @@ void PerformHandleTest()
 	LogMsg("Handle 5: %p", Hand5);
 	
 	// Try killing the fifth handle:
-	if (ExDeleteHandle(HanTab, Hand5, OnKillHandle, NULL))
+	if (SUCCEEDED(ExDeleteHandle(HanTab, Hand5, OnKillHandle, NULL)))
 		LogMsg("Deleting handle 5 succeeded");
 	else
 		LogMsg("Deleting handle 5 failed.");
 	
 	// Try killing the third handle:
-	if (ExDeleteHandle(HanTab, Hand3, OnKillHandle, NULL))
+	if (SUCCEEDED(ExDeleteHandle(HanTab, Hand3, OnKillHandle, NULL)))
 		LogMsg("Deleting handle 3 succeeded");
 	else
 		LogMsg("Deleting handle 3 failed.");
 	
 	// Kill the handle table.
-	if (ExKillHandleTable(HanTab, OnKillHandle, NULL))
+	if (SUCCEEDED(ExKillHandleTable(HanTab, OnKillHandle, NULL)))
 		LogMsg("Handle table was destroyed");
 	else
 		LogMsg("Handle table could not be destroyed");

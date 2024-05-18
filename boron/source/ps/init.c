@@ -34,5 +34,8 @@ void PsInitSystemProcess()
 	
 	// Initialize the handle table.
 	// TODO: Defaults chosen arbitrarily.
-	PsSystemProcess.HandleTable = ExCreateHandleTable(16, 16, 1);
+	if (FAILED(ExCreateHandleTable(16, 16, 1, &PsSystemProcess.HandleTable)))
+	{
+		KeCrash("Ps: Could not create handle table for System process");
+	}
 }

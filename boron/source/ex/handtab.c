@@ -40,12 +40,12 @@ void ExUnlockHandleTable(void* TableV)
 	KeReleaseMutex(&Table->Mutex);
 }
 
-void* ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel)
+BSTATUS ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel, void** OutTable)
 {
 	PEHANDLE_TABLE Table = MmAllocatePool(POOL_NONPAGED, sizeof(EHANDLE_TABLE));
 	
 	if (Table == NULL)
-		return NULL;
+		return STATUS_INSUFFICIENT_MEMORY;
 	
 	KeInitializeMutex(&Table->Mutex, MutexLevel);
 	
@@ -63,7 +63,7 @@ void* ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel)
 		if (Table->HandleMap == NULL)
 		{
 			MmFreePool(Table);
-			return NULL;
+			return STATUS_INSUFFICIENT_MEMORY;
 		}
 		
 		for (size_t i = 0; i < InitialSize; i++)
@@ -72,7 +72,8 @@ void* ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel)
 		}
 	}
 	
-	return Table;
+	*OutTable = Table;
+	return STATUS_SUCCESS;
 }
 
 static void ExpDeleteHandleTable(void* TableV)
@@ -85,6 +86,14 @@ static void ExpDeleteHandleTable(void* TableV)
 		MmFreePool(Table->HandleMap);
 	
 	MmFreePool(Table);
+}
+
+static bool ExpCheckHandleCorrectness(HANDLE Handle)
+{
+	// A handle is invalid if:
+	// - It is HANDLE_NONE, or
+	// - It isn't aligned to 4.  This is an arbitrary requirement, but it may help catch invalid handles.
+	return Handle != HANDLE_NONE && (Handle & 0x3) == 0;
 }
 
 bool ExIsEmptyHandleTable(void* TableV)
@@ -100,16 +109,22 @@ bool ExIsEmptyHandleTable(void* TableV)
 	return true;
 }
 
-bool ExDeleteHandleTable(void* Table)
+BSTATUS ExDeleteHandleTable(void* Table)
 {
-	if (ExIsEmptyHandleTable(Table))
-		return false;
+	ExLockHandleTable(Table);
 	
+	if (ExIsEmptyHandleTable(Table))
+	{
+		ExUnlockHandleTable(Table);
+		return STATUS_TABLE_NOT_EMPTY;
+	}
+	
+	ExUnlockHandleTable(Table);
 	ExpDeleteHandleTable(Table);
-	return true;
+	return STATUS_SUCCESS;
 }
 
-bool ExKillHandleTable(void* TableV, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
+BSTATUS ExKillHandleTable(void* TableV, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
 {
 	ExLockHandleTable(TableV);
 	
@@ -122,7 +137,7 @@ bool ExKillHandleTable(void* TableV, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, v
 			// Delete the handle.
 			if (!KillHandleRoutine(Table->HandleMap[i].Pointer, Context))
 				// TODO: Handle table may have been partially deleted!
-				return false;
+				return STATUS_DELETE_CANCELED;
 			
 			Table->HandleMap[i].Pointer = NULL;
 		}
@@ -131,14 +146,16 @@ bool ExKillHandleTable(void* TableV, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, v
 	// Now delete the handle table itself.
 	ExUnlockHandleTable(TableV);
 	ExpDeleteHandleTable(TableV);
-	return true;
+	return STATUS_SUCCESS;
 }
 
-HANDLE ExCreateHandle(void* TableV, void* Pointer)
+BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 {
 	if (!Pointer)
-		// You can't use a NULL pointer in a handle!
-		return HANDLE_NONE;
+	{
+		// You can't use a NULL pointer in a handle.
+		return STATUS_INVALID_PARAMETER;
+	}
 	
 	PEHANDLE_TABLE Table = TableV;
 	ExLockHandleTable(Table);
@@ -152,7 +169,8 @@ HANDLE ExCreateHandle(void* TableV, void* Pointer)
 			// We found a spot!
 			Table->HandleMap[i].Pointer = Pointer;
 			ExUnlockHandleTable(Table);
-			return INDEX_TO_HANDLE(i);
+			*OutHandle = INDEX_TO_HANDLE(i);
+			return STATUS_SUCCESS;
 		}
 	}
 	
@@ -162,7 +180,7 @@ HANDLE ExCreateHandle(void* TableV, void* Pointer)
 	if (!Table->GrowBy)
 	{
 		ExUnlockHandleTable(Table);
-		return HANDLE_NONE;
+		return STATUS_TOO_MANY_HANDLES;
 	}
 	
 	PEHANDLE_ITEM NewHandleMap = MmAllocatePool(POOL_NONPAGED, sizeof(EHANDLE_ITEM) * (Table->Capacity + Table->GrowBy));
@@ -170,7 +188,7 @@ HANDLE ExCreateHandle(void* TableV, void* Pointer)
 	{
 		// Error, can't expand! Out of memory!!
 		ExUnlockHandleTable(Table);
-		return HANDLE_NONE;
+		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
 	// Initialize the newly allocated area with zero.
@@ -191,46 +209,39 @@ HANDLE ExCreateHandle(void* TableV, void* Pointer)
 	Table->HandleMap[NewIndex].Pointer = Pointer;
 	ExUnlockHandleTable(Table);
 	
-	return INDEX_TO_HANDLE(NewIndex);
+	*OutHandle = INDEX_TO_HANDLE(NewIndex);
+	return STATUS_SUCCESS;
 }
 
-void* ExGetPointerFromHandle(void* TableV, HANDLE Handle)
+BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
 {
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle))
+		return STATUS_INVALID_PARAMETER;
+	
 	PEHANDLE_TABLE Table = TableV;
 	ExLockHandleTable(Table);
-	
-	// Check if the handle is valid in the first place.
-	if (Handle == HANDLE_NONE)
-		// A null handle was passed.
-		return NULL;
-	
-	if (Handle & 0x3)
-		// Not aligned to 4. Arbitrary requirement but
-		// may help catch invalid handle usage.
-		return NULL;
 	
 	Handle = HANDLE_TO_INDEX(Handle);
 	
 	if (Handle >= Table->Capacity)
+	{
 		// Handle index is bigger than the table's size.
-		return NULL;
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_PARAMETER;
+	}
 	
 	// Just return the pointer, if it's NULL, that means that it's
 	// already allocated and we were going to return NULL anyway.
-	return Table->HandleMap[Handle].Pointer;
+	*OutObject = Table->HandleMap[Handle].Pointer;
+	return STATUS_SUCCESS;
 }
 
-bool ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
+BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
 {
-	// Check if the handle is valid in the first place.
-	if (Handle == HANDLE_NONE)
-		// A null handle was passed.
-		return false;
-	
-	if (Handle & 0x3)
-		// Not aligned to 4. Arbitrary requirement but
-		// may help catch invalid handle usage.
-		return false;
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle))
+		return STATUS_INVALID_PARAMETER;
 	
 	Handle = HANDLE_TO_INDEX(Handle);
 	
@@ -241,7 +252,7 @@ bool ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHand
 	{
 		// Handle index is bigger than the table's size.
 		ExUnlockHandleTable(Table);
-		return false;
+		return STATUS_INVALID_PARAMETER;
 	}
 	
 	// Try to delete the handle.
@@ -249,10 +260,10 @@ bool ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHand
 	{
 		// Nope, couldn't delete it.
 		ExUnlockHandleTable(Table);
-		return false;
+		return STATUS_DELETE_CANCELED;
 	}
 	
 	Table->HandleMap[Handle].Pointer = NULL;
 	ExUnlockHandleTable(Table);
-	return true;
+	return STATUS_SUCCESS;
 }
