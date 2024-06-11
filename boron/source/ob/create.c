@@ -23,7 +23,6 @@ BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
 	const char* Name,
 	size_t BodySize,
-	bool NonPaged,
 	void* ParseContext,
 	int Flags,
 	POBJECT_HEADER* OutObjectHeader)
@@ -35,7 +34,7 @@ BSTATUS ObpAllocateObject(
 	// Allocates the object itself.
 	
 	// If totally non paged:
-	if (NonPaged)
+	if (Flags & OB_FLAG_NONPAGED)
 	{
 		// It'll look as follows:
 		// [NonPaged Object Header]
@@ -100,7 +99,7 @@ BSTATUS ObpAllocateObject(
 	
 	// Initializes the object.
 	ObjectHeader->Flags = Flags;
-	ObjectHeader->ParseContext    = ParseContext;
+	ObjectHeader->ParseContext = ParseContext;
 	
 	// Set the referential fields to each other.
 	ObjectHeader->NonPagedObjectHeader = NonPagedObjectHeader;
@@ -128,7 +127,6 @@ BSTATUS ObCreateObject(
 	POBJECT_TYPE ObjectType,
 	const char* ObjectName,
 	int Flags,
-	bool NonPaged,
 	void* ParseContext,
 	size_t BodySize)
 {
@@ -138,20 +136,23 @@ BSTATUS ObCreateObject(
 	if (!OutObject || !ObjectType || !ObjectName || !BodySize)
 		return STATUS_INVALID_PARAMETER;
 	
-	// If there is a root directory, then we should normalize the
-	// parent directory and name, so that:
-	// a) The name does not contain backslashes, and
-	// b) The parent directory is not NULL.
-	if (ObpRootDirectory)
+	if (~Flags & OB_FLAG_NO_DIRECTORY)
 	{	
-		// Just roll with it for now and assume all's good
-		Status = ObpNormalizeParentDirectoryAndName(
-			&ParentDirectory,
-			&ObjectName
-		);
-		
-		if (FAILED(Status))
-			return Status;
+		// If there is a root directory, then we should normalize the
+		// parent directory and name, so that:
+		// a) The name does not contain backslashes, and
+		// b) The parent directory is not NULL.
+		if (ObpRootDirectory)
+		{	
+			// Just roll with it for now and assume all's good
+			Status = ObpNormalizeParentDirectoryAndName(
+				&ParentDirectory,
+				&ObjectName
+			);
+			
+			if (FAILED(Status))
+				return Status;
+		}
 	}
 	
 	// Allocate the object.
@@ -159,7 +160,6 @@ BSTATUS ObCreateObject(
 		ObjectType,
 		ObjectName,
 		BodySize,
-		NonPaged,
 		ParseContext,
 		Flags,
 		&Hdr
@@ -170,9 +170,13 @@ BSTATUS ObCreateObject(
 	
 	*OutObject = Hdr->Body;
 	
-	// Note: This uses the root directory mutex, so it's all good.
-	if (ParentDirectory)
-		Status = ObpAddObjectToDirectory(ParentDirectory, Hdr->Body);
+	// If the caller did not request this object to be added to a directory,
+	// and ParentDirectory exists, add it to ParentDirectory.
+	if ((~Flags & OB_FLAG_NO_DIRECTORY) && ParentDirectory)
+	{
+		// N.B. ObLinkObject uses the root directory mutex.
+		Status = ObLinkObject(ParentDirectory, Hdr->Body);
+	}
 	
 	return Status;
 }

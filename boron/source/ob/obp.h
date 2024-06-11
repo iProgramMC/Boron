@@ -23,20 +23,16 @@ Author:
 
 #define OB_MAX_LOOP (16) // Completely arbitrary
 
+extern KMUTEX ObpRootDirectoryMutex;
+
 // Private functions
 BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
 	const char* Name,
 	size_t BodySize,
-	bool NonPaged,
 	void* ParseContext,
 	int Flags,
 	POBJECT_HEADER* OutObjectHeader
-);
-
-BSTATUS ObpAddObjectToDirectory(
-	POBJECT_DIRECTORY Directory,
-	void* Object
 );
 
 BSTATUS ObpNormalizeParentDirectoryAndName(
@@ -45,15 +41,11 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 );
 
 // Adds 1 to the internal reference count of the object.
-void ObpReferenceObject(void* Object);
+void ObReferenceByPointerObject(void* Object);
 
 // Takes a reference away from the internal ref count of the object.
 // If the reference count hits zero, the object will be deleted.
-void ObpDereferenceObject(void* Object);
-
-// Takes a reference away from the internal ref count of the object.
-// The object won't get deleted if the reference count hits zero.
-void ObpDereferenceObjectNoDelete(void* Object);
+void ObDereferenceByPointerObject(void* Object);
 
 // Gets a pointer to the type of this object.
 static inline ALWAYS_INLINE

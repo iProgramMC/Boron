@@ -25,7 +25,7 @@ struct EPROCESS_tag
 	// Rwlock that guards the address space of the process.
 	EX_RW_LOCK AddressLock;
 	
-	// Handle table.
+	// Object handle table.  This handle table manages objects opened by the process.
 	void* HandleTable;
 };
 

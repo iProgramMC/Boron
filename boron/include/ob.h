@@ -126,7 +126,7 @@ struct _OBJECT_HEADER
 	LIST_ENTRY DirectoryListEntry;
 	
 	// Pointer to the parent directory.
-	void* ParentDirectory;
+	POBJECT_DIRECTORY ParentDirectory;
 	
 	// Context for the parse function.
 	// This is an opaque pointer, that is, not used by the object system
@@ -153,13 +153,16 @@ struct _OBJECT_SYMLINK
 };
 
 // Object is owned by kernel mode.
-#define OB_FLAG_KERNEL (1 << 0)
+#define OB_FLAG_KERNEL    (1 << 0)
 
 // Object is permanent, i.e. cannot be deleted.
 #define OB_FLAG_PERMANENT (1 << 1)
 
-// Object is temporary, i.e. will be deleted when all references are removed.
-#define OB_FLAG_TEMPORARY (1 << 2)
+// Object is allocated in non-paged memory.
+#define OB_FLAG_NONPAGED  (1 << 2)
+
+// The object, when created, isn't associated with a directory.
+#define OB_FLAG_NO_DIRECTORY (1 << 3)
 
 // This represents the body of an object directory.
 // When a child is added to a directory, the directory's pointer count is incremented by one.
@@ -181,27 +184,30 @@ struct _OBJECT_DIRECTORY
 
 #define OB_MAX_PATH_LENGTH (256)
 
-// Initialization
+// ========== Initialization ==========
 bool ObInitSystem();
 
-// Kernel mode API
+// ========== Kernel mode API ==========
+
+// Creates an object type.
 BSTATUS ObCreateObjectType(
 	const char* TypeName,
 	POBJECT_TYPE_INFO TypeInfo,
 	POBJECT_TYPE* OutObjectType
 );
 
+// Creates an object of a certain type.
 BSTATUS ObCreateObject(
 	void** OutObject,
 	POBJECT_DIRECTORY ParentDirectory,
 	POBJECT_TYPE ObjectType,
 	const char* ObjectName,
 	int Flags,
-	bool NonPaged,
 	void* ParseContext,
 	size_t BodySize
 );
 
+// Creates a directory object.
 BSTATUS ObCreateDirectoryObject(
 	POBJECT_DIRECTORY* OutDirectory,
 	POBJECT_DIRECTORY ParentDirectory,
@@ -209,9 +215,16 @@ BSTATUS ObCreateDirectoryObject(
 	int Flags
 );
 
+// Creates a symbolic link object.
 BSTATUS ObCreateSymbolicLinkObject(
 	void** OutObject,
 	const char* LinkTarget,
 	const char* ObjectName,
 	int Flags
 );
+
+// Links an object to a directory.
+BSTATUS ObLinkObject(POBJECT_DIRECTORY Directory, void* Object);
+
+// Unlinks an object from its parent directory.
+BSTATUS ObUnlinkObject(void* Object);

@@ -119,7 +119,8 @@ BSTATUS ObCreateSymbolicLinkObject(
 	}
 	
 	// That's all we wanted to do, just check for the object's existence.
-	ObpDereferenceObject(Object);
+	ObDereferenceByPointerObject(Object);
+	Object = NULL;
 	
 	ObpEnterRootDirectoryMutex();
 	
@@ -129,8 +130,7 @@ BSTATUS ObCreateSymbolicLinkObject(
 		NULL, // ParentDirectory
 		ObpSymbolicLinkType,
 		ObjectName,
-		Flags,
-		false, // NonPaged
+		Flags | OB_FLAG_NONPAGED, // <--- TODO: Right now, everything related to object directories is nonpaged.
 		NULL,
 		sizeof(OBJECT_SYMLINK)
 	);

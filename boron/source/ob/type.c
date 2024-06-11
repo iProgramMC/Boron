@@ -54,9 +54,8 @@ BSTATUS ObCreateObjectType(
 		ObpObjectTypeType,
 		TypeName,
 		sizeof(OBJECT_TYPE),
-		true,
 		NULL,
-		OB_FLAG_KERNEL | OB_FLAG_PERMANENT,
+		OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT,
 		&Hdr
 	);
 	

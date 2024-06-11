@@ -49,6 +49,8 @@ enum
 	STATUS_UNASSIGNED_LINK,     // A symbolic link was unassigned.
 	STATUS_PATH_TOO_DEEP,       // The path is too deep.
 	STATUS_NAME_TOO_LONG,       // The path or name is too long.
+	STATUS_NOT_LINKED,          // The object is not linked to a directory.
+	STATUS_ALREADY_LINKED,      // The object is already linked to a directory.
 	
 	// Handle table errors
 	STATUS_TABLE_NOT_EMPTY,     // The handle table is not empty.

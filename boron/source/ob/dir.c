@@ -31,7 +31,7 @@ void ObpLeaveRootDirectoryMutex()
 POBJECT_DIRECTORY ObpRootDirectory;
 POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
-BSTATUS ObpAddObjectToDirectory(
+BSTATUS ObLinkObject(
 	POBJECT_DIRECTORY Directory,
 	void* Object)
 {
@@ -40,18 +40,20 @@ BSTATUS ObpAddObjectToDirectory(
 	// Add it proper
 	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
 	Directory->Count++;
-	ObpReferenceObject(Directory);
+	ObReferenceByPointerObject(Directory);
+	
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	Header->ParentDirectory = Directory;
 	
 	ObpLeaveRootDirectoryMutex();
 	
 	return STATUS_SUCCESS;
 }
 
-void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
+// Same as ObpRemoveObjectFromDirectory, but with the root directory mutex entered
+void ObpRemoveObjectFromDirectoryLocked(POBJECT_DIRECTORY Directory, void* Object)
 {
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
-	
-	ObpEnterRootDirectoryMutex();
 	
 #ifdef DEBUG
 	// Assert that this object actually belongs to the directory.
@@ -80,8 +82,13 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 	
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
-	ObpDereferenceObject(Directory);
-	
+	ObDereferenceByPointerObject(Directory);
+}
+
+void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
+{
+	ObpEnterRootDirectoryMutex();
+	ObpRemoveObjectFromDirectoryLocked (Directory, Object);
 	ObpLeaveRootDirectoryMutex();
 }
 
@@ -183,7 +190,7 @@ BSTATUS ObpLookUpObjectPath(
 		}
 	}
 	
-	ObpReferenceObject(InitialParseObject);
+	ObReferenceByPointerObject(InitialParseObject);
 	
 	//char TemporarySpace[OB_MAX_PATH_LENGTH];
 	void* CurrentObject = InitialParseObject;
@@ -224,8 +231,8 @@ BSTATUS ObpLookUpObjectPath(
 					// Match! Time to continue parsing through this object.
 					CurrentPath += MatchLength;
 					
-					ObpDereferenceObject(CurrentObject);
-					ObpReferenceObject(Header->Body);
+					ObReferenceByPointerObject(Header->Body);
+					ObDereferenceByPointerObject(CurrentObject);
 					CurrentObject = Header->Body;
 					FoundMatch = true;
 					break;
@@ -240,7 +247,7 @@ BSTATUS ObpLookUpObjectPath(
 				// No match! Inform caller about our failure.
 				//
 				// N.B. We added a reference to the object we were using!
-				ObpDereferenceObject(CurrentObject);
+				ObDereferenceByPointerObject(CurrentObject);
 				return STATUS_NAME_NOT_FOUND;
 			}
 			
@@ -261,12 +268,12 @@ BSTATUS ObpLookUpObjectPath(
 			
 			if (FAILED(Status))
 			{
-				ObpDereferenceObject(CurrentObject);
+				ObDereferenceByPointerObject(CurrentObject);
 				return Status;
 			}
 			
-			ObpDereferenceObject(CurrentObject);
-			ObpDereferenceObject(NewObject);
+			ObDereferenceByPointerObject(CurrentObject);
+			ObDereferenceByPointerObject(NewObject);
 			CurrentObject = NewObject;
 			
 			CurrDepth--;
@@ -278,13 +285,13 @@ BSTATUS ObpLookUpObjectPath(
 			// This means the path is like \ObjectTypes\Directory\CantFindMe.
 			// Obviously \ObjectTypes\Directory isn't a directory or symbolic link
 			// we can parse, so CantFindMe can't possible exist.
-			ObpDereferenceObject(CurrentObject);
+			ObDereferenceByPointerObject(CurrentObject);
 			return STATUS_PATH_INVALID;
 		}
 		// Ok, this is the object, let's check if its type matches.
 		else if (ExpectedType != NULL && ExpectedType != ObjectType)
 		{
-			ObpDereferenceObject(CurrentObject);
+			ObDereferenceByPointerObject(CurrentObject);
 			return STATUS_TYPE_MISMATCH;
 		}
 		else
@@ -322,8 +329,7 @@ BSTATUS ObCreateDirectoryObject(
 		ParentDirectory,
 		ObpDirectoryType,
 		Name,
-		Flags,
-		true,
+		Flags | OB_FLAG_NONPAGED,
 		NULL, // TODO
 		sizeof(OBJECT_DIRECTORY)
 	);
@@ -427,9 +433,9 @@ bool ObpInitializeRootDirectory()
 	extern POBJECT_TYPE ObpSymbolicLinkType;
 	
 	// Add all object types created so far to the object types directory.
-	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpObjectTypeType))) return false;
-	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
-	if (FAILED(ObpAddObjectToDirectory(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpObjectTypeType))) return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
 	
 	// Try creating a symbolic link:
 	void *Symlink = NULL;
@@ -545,5 +551,21 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 	
 	*ParentDirectory = ContainingDirectory;
 	*Name = FinalName;
+	return STATUS_SUCCESS;
+}
+
+BSTATUS ObUnlinkObject(void* Object)
+{
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	
+	ObpEnterRootDirectoryMutex();
+	if (!Header->ParentDirectory)
+	{
+		ObpLeaveRootDirectoryMutex();
+		return STATUS_NOT_LINKED;
+	}
+	
+	ObpRemoveObjectFromDirectoryLocked(Header->ParentDirectory, Object);
+	ObpLeaveRootDirectoryMutex();
 	return STATUS_SUCCESS;
 }

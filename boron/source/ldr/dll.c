@@ -601,8 +601,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 			IoDriversDir,
 			IoDriverType,
 			DriverName,
-			OB_FLAG_KERNEL | OB_FLAG_PERMANENT, // <-- TODO: Unloadable drivers
-			true,
+			OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT, // <-- TODO: Unloadable drivers
 			NULL,
 			sizeof(DRIVER_OBJECT)
 		);
