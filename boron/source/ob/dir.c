@@ -15,6 +15,7 @@ Author:
 #include "obp.h"
 
 extern POBJECT_TYPE ObpDirectoryType;
+extern POBJECT_TYPE ObpSymbolicLinkType;
 
 KMUTEX ObpRootDirectoryMutex;
 
@@ -40,7 +41,7 @@ BSTATUS ObLinkObject(
 	// Add it proper
 	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
 	Directory->Count++;
-	ObReferenceByPointerObject(Directory);
+	ObReferenceObjectByPointer(Directory);
 	
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	Header->ParentDirectory = Directory;
@@ -82,7 +83,7 @@ void ObpRemoveObjectFromDirectoryLocked(POBJECT_DIRECTORY Directory, void* Objec
 	
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
-	ObDereferenceByPointerObject(Directory);
+	ObDereferenceObject(Directory);
 }
 
 void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
@@ -135,11 +136,14 @@ static size_t ObpMatchPathName(const char* FileName, const char* Path)
 //
 // N.B. Once returned, the object has an extra reference.
 // When done with the object, you must dereference it.
+//
+// N.B. The only open flag checked is "OB_OPEN_SYMLINK".
 BSTATUS ObpLookUpObjectPath(
 	void* InitialParseObject,
 	const char* ObjectName,
 	POBJECT_TYPE ExpectedType,
 	int LoopCount,
+	int OpenFlags,
 	void** FoundObject)
 {
 	if (!ObjectName || !FoundObject)
@@ -190,7 +194,7 @@ BSTATUS ObpLookUpObjectPath(
 		}
 	}
 	
-	ObReferenceByPointerObject(InitialParseObject);
+	ObReferenceObjectByPointer(InitialParseObject);
 	
 	//char TemporarySpace[OB_MAX_PATH_LENGTH];
 	void* CurrentObject = InitialParseObject;
@@ -211,6 +215,7 @@ BSTATUS ObpLookUpObjectPath(
 				//
 				// N.B. The object is already referenced.
 				*FoundObject = CurrentObject;
+				ObpLeaveRootDirectoryMutex();
 				return STATUS_SUCCESS;
 			}
 			
@@ -231,8 +236,8 @@ BSTATUS ObpLookUpObjectPath(
 					// Match! Time to continue parsing through this object.
 					CurrentPath += MatchLength;
 					
-					ObReferenceByPointerObject(Header->Body);
-					ObDereferenceByPointerObject(CurrentObject);
+					ObReferenceObjectByPointer(Header->Body);
+					ObDereferenceObject(CurrentObject);
 					CurrentObject = Header->Body;
 					FoundMatch = true;
 					break;
@@ -247,14 +252,27 @@ BSTATUS ObpLookUpObjectPath(
 				// No match! Inform caller about our failure.
 				//
 				// N.B. We added a reference to the object we were using!
-				ObDereferenceByPointerObject(CurrentObject);
+				ObDereferenceObject(CurrentObject);
+				ObpLeaveRootDirectoryMutex();
 				return STATUS_NAME_NOT_FOUND;
 			}
 			
 			CurrDepth--;
+			continue;
 		}
+		
+		if (ObjectType == ObpSymbolicLinkType)
+		{
+			// Check if this is the last path component, and if the OB_OPEN_SYMLINK flag was specified.
+			if (*CurrentPath == 0 && (OpenFlags & OB_OPEN_SYMLINK))
+			{
+				DbgPrint("Finish parsing because OB_OPEN_SYMLINK was specified");
+				goto TerminateParsing;
+			}
+		}
+		
 		// If the object can be parsed, try to parse it!
-		else if (ObjectType->TypeInfo.Parse)
+		if (ObjectType->TypeInfo.Parse)
 		{
 			void* NewObject = NULL;
 			BSTATUS Status = ObjectType->TypeInfo.Parse(
@@ -268,37 +286,43 @@ BSTATUS ObpLookUpObjectPath(
 			
 			if (FAILED(Status))
 			{
-				ObDereferenceByPointerObject(CurrentObject);
+				ObDereferenceObject(CurrentObject);
+				ObpLeaveRootDirectoryMutex();
 				return Status;
 			}
 			
-			ObDereferenceByPointerObject(CurrentObject);
-			ObDereferenceByPointerObject(NewObject);
+			ObDereferenceObject(CurrentObject);
+			ObDereferenceObject(NewObject);
 			CurrentObject = NewObject;
 			
 			CurrDepth--;
+			continue;
 		}
+		
 		// The object can't be parsed, which means this is a dead end!
-		else if (*CurrentPath != '\0')
+		if (*CurrentPath != '\0')
 		{
 			// There's still more path to be parsed!
 			// This means the path is like \ObjectTypes\Directory\CantFindMe.
 			// Obviously \ObjectTypes\Directory isn't a directory or symbolic link
-			// we can parse, so CantFindMe can't possible exist.
-			ObDereferenceByPointerObject(CurrentObject);
+			// we can parse, so CantFindMe can't possibly exist.
+			ObDereferenceObject(CurrentObject);
+			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
 		}
+		
+	TerminateParsing:
 		// Ok, this is the object, let's check if its type matches.
-		else if (ExpectedType != NULL && ExpectedType != ObjectType)
+		if (ExpectedType != NULL && ExpectedType != ObjectType)
 		{
-			ObDereferenceByPointerObject(CurrentObject);
+			ObDereferenceObject(CurrentObject);
+			ObpLeaveRootDirectoryMutex();
 			return STATUS_TYPE_MISMATCH;
 		}
-		else
-		{
-			*FoundObject = CurrentObject;
-			return STATUS_SUCCESS;
-		}
+		
+		*FoundObject = CurrentObject;
+		ObpLeaveRootDirectoryMutex();
+		return STATUS_SUCCESS;
 	}
 	
 	// There shouldn't be another way to break out of this loop.
@@ -409,9 +433,7 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 };
 
 bool ObpInitializeRootDirectory()
-{
-	BSTATUS Status;
-	
+{	
 	if (FAILED(ObCreateDirectoryObject(
 		&ObpRootDirectory,
 		NULL,
@@ -436,36 +458,6 @@ bool ObpInitializeRootDirectory()
 	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpObjectTypeType))) return false;
 	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
 	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
-	
-	// Try creating a symbolic link:
-	void *Symlink = NULL;
-	Status = ObCreateSymbolicLinkObject(
-		&Symlink,
-		"\\ObjectTypes",
-		"\\ObjectTypes\\My Beautiful Symbolic Link",
-		OB_FLAG_KERNEL
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("Can't create symlink: %d", Status);
-		return false;
-	}
-	
-	// Try looking up a certain path:
-	void* Obj = NULL;
-	Status = ObpLookUpObjectPath(
-		NULL,
-		"\\ObjectTypes\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\My Beautiful Symbolic Link\\Directory",
-		ObpObjectTypeType,
-		0,
-		&Obj
-	);
-	
-	if (FAILED(Status))
-		DbgPrint("Look Up Failed!  Error: %d", Status);
-	else
-		DbgPrint("Look Up Succeeded!  Ptr: %p  (ObpDirectoryType: %p)", Obj, ObpDirectoryType);
 	
 	ObpDebugDirectory(ObpRootDirectory);
 	ObpDebugDirectory(ObpObjectTypesDirectory);
@@ -542,6 +534,7 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 		*ParentDirectory,
 		PathWithoutName,
 		ObpDirectoryType,
+		0,
 		0,
 		&ContainingDirectory
 	);

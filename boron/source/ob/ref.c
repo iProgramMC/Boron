@@ -43,13 +43,13 @@ void ObpDeleteObject(void* Object)
 	}
 }
 
-void ObReferenceByPointerObject(void* Object)
+void ObReferenceObjectByPointer(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	AtAddFetch(Hdr->NonPagedObjectHeader->PointerCount, 1);
 }
 
-void ObDereferenceByPointerObject(void* Object)
+void ObDereferenceObject(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
@@ -65,11 +65,11 @@ void ObDereferenceByPointerObject(void* Object)
 		// Object is permanent, therefore it shouldn't be deleted.
 		return;
 	
-	DbgPrint("ObDereferenceByPointerObject: object %p lost its final reference TODO", Object);
+	DbgPrint("ObDereferenceObject: object %p lost its final reference TODO", Object);
 	if (KeGetIPL() > IPL_NORMAL)
 	{
 		// Enqueue this object for deletion. TODO
-		DbgPrint("ObDereferenceByPointerObject: Object %p lost its final reference at IPL %d! TODO", Object, KeGetIPL());
+		DbgPrint("ObDereferenceObject: Object %p lost its final reference at IPL %d! TODO", Object, KeGetIPL());
 		return;
 	}
 	

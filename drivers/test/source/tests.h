@@ -20,6 +20,7 @@ void PerformProcessTest(void);
 void PerformFireworksTest(void);
 void PerformHandleTest(void);
 void PerformRwlockTest(void);
+void PerformObjectTest(void);
 void PerformMdlTest(void);
 void PerformApcTest(void);
 void PerformIntTest(void);

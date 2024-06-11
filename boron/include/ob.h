@@ -17,9 +17,19 @@ Author:
 #include <ke.h>
 #include <mm.h>
 #include <status.h>
+#include <ex.h>
+
+typedef enum _OB_OPEN_REASON
+{
+	OB_CREATE_HANDLE,
+	OB_OPEN_HANDLE,
+	OB_DUPLICATE_HANDLE,
+	OB_INHERIT_HANDLE,
+}
+OB_OPEN_REASON;
 
 // Lets the object know a handle to it was opened.
-typedef void(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount);
+typedef void(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount, OB_OPEN_REASON OpenReason);
 
 // Lets the object know a handle to it was closed.
 typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
@@ -152,17 +162,18 @@ struct _OBJECT_SYMLINK
 	char* DestPath;
 };
 
-// Object is owned by kernel mode.
-#define OB_FLAG_KERNEL    (1 << 0)
-
-// Object is permanent, i.e. cannot be deleted.
-#define OB_FLAG_PERMANENT (1 << 1)
-
-// Object is allocated in non-paged memory.
-#define OB_FLAG_NONPAGED  (1 << 2)
-
-// The object, when created, isn't associated with a directory.
-#define OB_FLAG_NO_DIRECTORY (1 << 3)
+// Object creation flags:
+enum
+{
+	// Object is owned by kernel mode.
+	OB_FLAG_KERNEL    = (1 << 0),
+	// Object is permanent, i.e. cannot be deleted.
+	OB_FLAG_PERMANENT = (1 << 1),
+	// Object is allocated in non-paged memory.
+	OB_FLAG_NONPAGED  = (1 << 2),
+	// The object, when created, isn't associated with a directory.
+	OB_FLAG_NO_DIRECTORY = (1 << 3),
+};
 
 // This represents the body of an object directory.
 // When a child is added to a directory, the directory's pointer count is incremented by one.
@@ -183,6 +194,18 @@ struct _OBJECT_DIRECTORY
 #define OB_PATH_SEPARATOR ('\\')
 
 #define OB_MAX_PATH_LENGTH (256)
+
+// Object open flags:
+enum
+{
+	// Handle may be inherited by child processes.
+	OB_OPEN_INHERIT   = (1 << 0),
+	// No other process can open this handle while the current process maintains a handle.
+	OB_OPEN_EXCLUSIVE = (1 << 1),
+	// If the final path component is a symbolic link, open the symbolic link object itself
+	// instead of its referenced object (the latter is the default behavior)
+	OB_OPEN_SYMLINK   = (1 << 2),
+};
 
 // ========== Initialization ==========
 bool ObInitSystem();
@@ -223,8 +246,45 @@ BSTATUS ObCreateSymbolicLinkObject(
 	int Flags
 );
 
+// Adds 1 to the internal reference count of the object.
+void ObReferenceObjectByPointer(void* Object);
+
+// Takes a reference away from the internal ref count of the object.
+// If the reference count hits zero, the object will be deleted.
+void ObDereferenceObject(void* Object);
+
 // Links an object to a directory.
 BSTATUS ObLinkObject(POBJECT_DIRECTORY Directory, void* Object);
 
 // Unlinks an object from its parent directory.
 BSTATUS ObUnlinkObject(void* Object);
+
+// Inserts an object into the current process' handle table.
+BSTATUS ObInsertObject(void* Object, PHANDLE OutHandle);
+
+// Opens an object by name.
+//
+// N.B. Specifying HANDLE_NONE to RootDirectory means that the lookup is absolute.
+BSTATUS ObOpenObjectByName(
+	const char* Path,
+	HANDLE RootDirectory,
+	int OpenFlags,
+	POBJECT_TYPE ExpectedType,
+	PHANDLE OutHandle
+);
+
+// References an object by handle and returns its pointer.
+// The caller must call ObDereferenceObject when done with the returned object.
+BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject);
+
+// References an object by name and returns its pointer.
+// The caller must call ObDereferenceObject when done with the returned object.
+//
+// N.B. Specifying NULL for InitialParseObject means that the lookup is absolute.
+BSTATUS ObReferenceObjectByName(
+	const char* Path,
+	void* InitialParseObject,
+	int OpenFlags,
+	POBJECT_TYPE ExpectedType,
+	void** OutObject
+);

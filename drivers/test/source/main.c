@@ -44,8 +44,9 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformMutexTest();
 	//PerformBallTest();
 	//PerformFireworksTest();
-	PerformHandleTest();
+	//PerformHandleTest();
 	//PerformRwlockTest();
+	PerformObjectTest();
 	//PerformMdlTest();
 	//PerformApcTest();
 	PerformIntTest();

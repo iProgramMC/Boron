@@ -34,6 +34,7 @@ BSTATUS ObpParseSymbolicLink(
 		SymbolicLink->DestPath,
 		NULL,
 		LoopCount,
+		0,
 		OutObject
 	);
 	
@@ -109,7 +110,8 @@ BSTATUS ObCreateSymbolicLinkObject(
 		LinkTarget, // ObjectName
 		NULL,       // ExpectedType
 		0,          // LoopCount
-		&Object
+		0,          // OpenFlags
+		&Object     // FoundObject
 	);
 	
 	if (FAILED(Status))
@@ -119,7 +121,7 @@ BSTATUS ObCreateSymbolicLinkObject(
 	}
 	
 	// That's all we wanted to do, just check for the object's existence.
-	ObDereferenceByPointerObject(Object);
+	ObDereferenceObject(Object);
 	Object = NULL;
 	
 	ObpEnterRootDirectoryMutex();
