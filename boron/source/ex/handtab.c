@@ -217,7 +217,7 @@ BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
 {
 	// Check if the handle is valid.
 	if (!ExpCheckHandleCorrectness(Handle))
-		return STATUS_INVALID_PARAMETER;
+		return STATUS_INVALID_HANDLE;
 	
 	PEHANDLE_TABLE Table = TableV;
 	ExLockHandleTable(Table);
@@ -228,7 +228,7 @@ BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
 	{
 		// Handle index is bigger than the table's size.
 		ExUnlockHandleTable(Table);
-		return STATUS_INVALID_PARAMETER;
+		return STATUS_INVALID_HANDLE;
 	}
 	
 	// Just return the pointer, if it's NULL, that means that it's
@@ -241,7 +241,7 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 {
 	// Check if the handle is valid.
 	if (!ExpCheckHandleCorrectness(Handle))
-		return STATUS_INVALID_PARAMETER;
+		return STATUS_INVALID_HANDLE;
 	
 	Handle = HANDLE_TO_INDEX(Handle);
 	
@@ -252,7 +252,7 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 	{
 		// Handle index is bigger than the table's size.
 		ExUnlockHandleTable(Table);
-		return STATUS_INVALID_PARAMETER;
+		return STATUS_INVALID_HANDLE;
 	}
 	
 	// Try to delete the handle.

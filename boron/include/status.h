@@ -51,6 +51,7 @@ enum
 	STATUS_NAME_TOO_LONG,       // The path or name is too long.
 	STATUS_NOT_LINKED,          // The object is not linked to a directory.
 	STATUS_ALREADY_LINKED,      // The object is already linked to a directory.
+	STATUS_INVALID_HANDLE,      // The handle is invalid.
 	
 	// Handle table errors
 	STATUS_TABLE_NOT_EMPTY,     // The handle table is not empty.
