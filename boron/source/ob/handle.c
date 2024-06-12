@@ -39,6 +39,30 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject)
 	return STATUS_SUCCESS;
 }
 
+bool ObpCloseHandle(void* Object, UNUSED void* Context)
+{
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	POBJECT_TYPE Type = Header->NonPagedObjectHeader->ObjectType;
+	
+	OBJ_CLOSE_FUNC CloseMethod = Type->TypeInfo.Close;
+	
+	int HandleCount = 0;
+	if (Type->TypeInfo.MaintainHandleCount)
+		HandleCount = AtFetchAdd(Header->NonPagedObjectHeader->HandleCount, -1);
+	
+	if (CloseMethod)
+		CloseMethod(Object, HandleCount);
+	
+	ObDereferenceObject(Object);
+	return true;
+}
+
+BSTATUS ObClose(HANDLE Handle)
+{
+	PEPROCESS Process = PsGetCurrentProcess();
+	return ExDeleteHandle(Process->HandleTable, Handle, ObpCloseHandle, NULL);
+}
+
 BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReason)
 {
 	BSTATUS Status;

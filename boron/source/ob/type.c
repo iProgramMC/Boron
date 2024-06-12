@@ -20,6 +20,8 @@ POBJECT_TYPE ObpObjectTypeType;
 POBJECT_TYPE ObpDirectoryType;
 POBJECT_TYPE ObpSymbolicLinkType;
 
+extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
+
 void ObpEnterObjectTypeMutex()
 {
 	KeWaitForSingleObject(&ObpObjectTypeMutex, false, TIMEOUT_INFINITE);
@@ -79,9 +81,11 @@ BSTATUS ObCreateObjectType(
 	
 	NewType->TypeInfo = *TypeInfo;
 	
-	// If we have an object types directory, add it there.
-	
 	ObpLeaveObjectTypeMutex();
+	
+	// If we have an object types directory, add it there.
+	if (ObpObjectTypesDirectory)
+		ObLinkObject(ObpObjectTypesDirectory, NewType);
 	
 	*OutObjectType = NewType;
 	return STATUS_SUCCESS;

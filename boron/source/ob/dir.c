@@ -328,6 +328,7 @@ BSTATUS ObpLookUpObjectPath(
 	// There shouldn't be another way to break out of this loop.
 	ASSERT(CurrDepth == 0);
 	
+	ObpLeaveRootDirectoryMutex();
 	return STATUS_PATH_TOO_DEEP;
 }
 

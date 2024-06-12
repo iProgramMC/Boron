@@ -111,18 +111,14 @@ struct _NONPAGED_OBJECT_HEADER
 {
 	POBJECT_TYPE ObjectType;
 	
-	// Put these in a union to save space.
-	union
-	{
-		struct
-		{
-			int PointerCount;
-			int HandleCount;
-		};
-		
-		// Entry into the object type's list of objects. Valid if this is an object type.
-		LIST_ENTRY TypeListEntry;
-	};
+	int PointerCount;
+	int HandleCount;
+	
+	// Entry into the object type's list of objects. Valid if this is an object type.
+	//
+	// NOTE: If there are any fields that aren't valid or used at all if this isn't an
+	// object type, put them in a union to save space.
+	LIST_ENTRY TypeListEntry;
 	
 	POBJECT_HEADER NormalHeader;
 };
@@ -288,3 +284,6 @@ BSTATUS ObReferenceObjectByName(
 	POBJECT_TYPE ExpectedType,
 	void** OutObject
 );
+
+// Closes a handle.
+BSTATUS ObClose(HANDLE Handle);

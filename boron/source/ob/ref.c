@@ -26,8 +26,15 @@ void ObpDeleteObject(void* Object)
 	
 	// Invoke the object type's delete function.
 	OBJ_DELETE_FUNC DeleteMethod = Hdr->NonPagedObjectHeader->ObjectType->TypeInfo.Delete;
+	DbgPrint("Delete Method: %p", DeleteMethod);
 	if (DeleteMethod)
 		DeleteMethod(Object);
+	
+	if (Hdr->ObjectName)
+	{
+		MmFreePool (Hdr->ObjectName);
+		Hdr->ObjectName = NULL;
+	}
 	
 	// Free the memory that this object occupied.
 	if (Hdr->Flags & OB_FLAG_NONPAGED)
