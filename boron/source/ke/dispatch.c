@@ -82,7 +82,7 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object, PKTHREAD Thread)
 			PKMUTEX Mutex = (PKMUTEX) Object;
 			
 			// Acquire the object.
-			Object->Signaled++;
+			int OldSignaled = AtFetchAdd(Object->Signaled, 1);
 			
 			if (Mutex->OwnerThread != NULL && Mutex->OwnerThread != Thread)
 				// Shouldn't be able to see this, by the way.
@@ -104,7 +104,10 @@ static void KiAcquireObject(PKDISPATCH_HEADER Object, PKTHREAD Thread)
 		#endif
 			
 			// Insert this mutex at the top of the mutex list.
-			InsertHeadList(&Thread->MutexList, &Mutex->MutexListEntry);
+			if (OldSignaled == MUTEX_SIGNALED)
+			{
+				InsertHeadList(&Thread->MutexList, &Mutex->MutexListEntry);
+			}
 			
 			// In effect, this means that the mutex list is always ordered
 			// descending, based on level.
