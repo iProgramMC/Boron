@@ -16,6 +16,8 @@
 
 ### Restrictions
 
+* To indent code, use tabs, not spaces. An exception can be seen in the [Alignment](#alignment) section below.
+
 * Lines shouldn't stretch for more than 125 characters. This is a soft limit that's usually respected.
 
 * File names are all lowercase, and abide by the 8.3 restriction. (8 characters for the file name and 3 characters for
@@ -42,6 +44,27 @@ DbgPrint("Some values: %d %d %d",
 
 These two statements will look the same only if you prefer a tab width of 4.
 
+If needed, you may mix up spaces (for alignment) and tabs (for indenting), for example:
+```c
+void PrintValues(int Value1, int Value2, int Value3)
+{
+	DbgPrint("Some values: %d %d %d",
+	         Value1,
+	         Value2,
+	         Value3);
+}
+```
+Incorrect, for the same reason as the previous incorrect alignment:
+```c
+void PrintValues(int Value1, int Value2, int Value3)
+{
+	DbgPrint("Some values: %d %d %d",
+			 Value1,
+			 Value2,
+			 Value3);
+}
+```
+
 ### Function names
 
 * Function names are written in Pascal case.
@@ -64,7 +87,8 @@ However, sometimes there is not enough space on one line. In that case, split th
 return_type MyFunction(
 	arg1,
 	arg2,
-	arg3);```
+	arg3);
+```
 where the opening parenthesis is on the line containing the function name, but the closing one is on the line containing
 the last argument.
 

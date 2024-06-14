@@ -39,3 +39,10 @@ void IopDeleteDevice(void* Object)
 	// TODO
 	DbgPrint("UNIMPLEMENTED: IopDeleteDevice(%p)", Object);
 }
+
+BSTATUS IopParseDevice(void* Object, UNUSED const char** Name, UNUSED void* Context, UNUSED int LoopCount, UNUSED void** OutObject)
+{
+	// TODO
+	DbgPrint("UNIMPLEMENTED: IopParseFile(%p)", Object);
+	return STATUS_UNIMPLEMENTED;
+}

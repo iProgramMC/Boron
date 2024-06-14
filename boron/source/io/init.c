@@ -53,6 +53,7 @@ bool IopInitializeObjectTypes()
 	
 	// Initialize the Device object type.
 	Info.Delete = IopDeleteDevice;
+	Info.Parse = IopParseDevice;
 	Status = ObCreateObjectType("Device", &Info, &IoDeviceType);
 	if (FAILED(Status))
 	{
