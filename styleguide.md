@@ -109,6 +109,7 @@ MyFunction(
 	arg2,
 	arg3
 );
+```
 
 And especially don't split the declaration if it isn't warranted. So something like this is totally OK: ```c
 void KeWaitForMultipleObjects(
