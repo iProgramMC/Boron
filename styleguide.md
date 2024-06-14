@@ -111,7 +111,8 @@ MyFunction(
 );
 ```
 
-And especially don't split the declaration if it isn't warranted. So something like this is totally OK: ```c
+And especially don't split the declaration if it isn't warranted. So something like this is totally OK:
+```c
 void KeWaitForMultipleObjects(
 	int Count,
 	void* Objects[],
@@ -188,11 +189,10 @@ The Boron kernel is currently structured in the following namespaces:
 * `Ke` - Kernel core and architecture specifics  (ex: `KeGetCurrentPRCB`)
 * `Mm` - Memory manager (ex: `MmAllocatePhysicalPage`)
 * `Hal` - Hardware abstraction layer (currently baked into the kernel) (ex: `HalMPInit`)
-
-[Soon]
 * `Ex` - Executive services (ex: `ExAllocatePool`)
+* `Ob` - Object management system (ex: `ObReferenceObjectByName`)
 * `Io` - I/O manager (ex: `IoAllocateIrp`)
-* `Bn` - System calls/native interfaces (ex: `BnCreateFile`)
+* `Brn` - System calls/native interfaces (ex: `BrnCreateFile`)
 
 Sometimes one doesn't need to expose a function to the rest of the system. In that case, the prefix should be mutated to
 mark this.
@@ -220,7 +220,7 @@ Author:
 ***/
 ```
 
-Functions may (soon, must) have a standardized description that looks something like this:
+Functions may have a standardized description that looks something like this:
 ```
 /***
 	Function description:
@@ -239,3 +239,5 @@ Functions may (soon, must) have a standardized description that looks something 
 		[Example] KepExampleLock held for entire duration.
 ***/
 ```
+The above rule is deprecated however, and will not be taken into account in the future.  A different way of documenting
+IPL, resources and functionality of a procedure may be created.
