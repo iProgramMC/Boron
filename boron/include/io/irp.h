@@ -72,47 +72,102 @@ enum
 	IRP_FUN_COUNT
 };
 
-#define IRP_FLAG_SYNCHRONOUS   (1 << 0)
-
-typedef struct _IO_STACK_LOCATION
-{
-	uint8_t IrpFunction;
-	uint8_t Flags;
-	uint16_t Available;
-}
-IO_STACK_LOCATION, *PIO_STACK_LOCATION;
-
 typedef struct _IO_STATUS_BLOCK
 {
+	BSTATUS Status;
 	uintptr_t Information;
-	union
-	{
-		void* Pointer;
-		BSTATUS Status;
-	};
 }
 IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
+
+#define IRP_FLAG_ASYNCHRONOUS     (1 << 0) // IRP is dispatched asynchronously
+#define IRP_FLAG_ZONE_ORIGINATED  (1 << 1) // IRP came from a pre-allocated zone
+#define IRP_FLAG_FREE_ON_COMPLETE (1 << 2) // IRP should be freed when completed
+#define IRP_FLAG_FREE_MDL         (1 << 3) // Unpin and free the MDL when the IRP is completed
+#define IRP_FLAG_COMPLETED        (1 << 4) // IRP was completed
+#define IRP_FLAG_CANCELLED        (1 << 5) // IRP was cancelled
+#define IRP_FLAG_PENDING          (1 << 6) // IRP is currently pending completion
+
+typedef BSTATUS(*IO_COMPLETION_ROUTINE)(PDEVICE_OBJECT Device, PIRP Irp, void* Context);
+
+typedef struct _IO_STACK_FRAME
+{
+	IO_COMPLETION_ROUTINE CompletionRoutine;
+	
+	// The code of the function executed by this IRP stack frame.
+	uint8_t Function;
+	
+	// The location of this stack frame within the parent IRP.
+	uint8_t StackIndex;
+	
+	uint32_t Flags;
+	
+	// Driver-specific. Passed into the CompletionRoutine, if it exists.
+	void* Context;
+	
+	// The file control block affected by this IRP.
+	PFCB FileControlBlock;
+	
+	// The offset and length of the I/O transfer.
+	uint64_t Offset;
+	uint64_t Length;
+	
+	// The offset from the virtual base of the MDL where the transfer should be performed.
+	uintptr_t MdlOffset;
+}
+IO_STACK_FRAME, *PIO_STACK_FRAME;
 
 typedef struct _IRP
 {
 	uint32_t Flags;
 	
-	// Mode that requested this operation.
 	KPROCESSOR_MODE ModeRequestor;
 	
-	// Buffer associated with the IRP.  This is the
-	// source/destination buffer that the IRP uses
-	// to transfer data.
+	int AssociatedIrpCount;
+	PIRP AssociatedIrp;
+	PIRP ParentIrp;
+	
+	IO_STATUS_BLOCK StatusBlock;
+	
+	PKEVENT CompletionEvent;
+	
+	PKAPC CompletionApc;
+	
+	// Buffer associated with the IRP.  This is the source/destination buffer
+	// that the IRP uses to transfer data.
+	// If IRP_FLAG_FREE_MDL is specified, this MDL is unmapped, unpinned, and
+	// freed when this IRP is completed.
 	PMDL Mdl;
 	
-	// An event that gets signaled when the IRP is completed.
-	KEVENT CompletionEvent;
-	// An APC that gets issued when the IRP is completed.
-	KAPC CompletionApc;
+	uint8_t CurrentFrameIndex;
+	uint8_t StackSize;
 	
-	// IRP stack locations.
-	int CurrentLocation;
-	int StackSize;
-	IO_STACK_LOCATION Stack[];
+	// If ModeRequestor == MODE_USER, then this points to a file object that
+	// was referenced when this IRP was created. When the IRP is freed, this
+	// pointer is dereferenced.
+	void* FileObject;
+	
+	// Used in synchronous mode.  Determines how long to wait for the IRP to
+	// finish.
+	int Timeout;
+	
+	// This IRP was allocated with an appendage whose size in bytes is
+	// sizeof(IO_STACK_FRAME) * StackSize.
+	IO_STACK_FRAME Stack[];
 }
 IRP, *PIRP;
+
+// TODO: Also add support for completion ports eventually
+
+// Gets the current IRP stack frame.
+PIO_STACK_FRAME IoGetCurrentIrpStackFrame(PIRP Irp);
+
+// Gets the next IRP stack frame.
+PIO_STACK_FRAME IoGetNextIrpStackFrame(PIRP Irp);
+
+PIO_STACK_FRAME IoGetIrpStackFrame(PIRP Irp, int Index);
+
+PIRP IoGetIrpFromStackFrame(PIO_STACK_FRAME Frame);
+
+// TODO something something IoCallDriver
+// Note: IoCallDriver MUST be appended at the end and it will not actually call into
+// the next driver directly, instead it will return and let IoDispatchIrp deal with it

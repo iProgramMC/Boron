@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	io/fileobj.h
+	io/fcb.h
 	
 Abstract:
 	
@@ -13,10 +13,8 @@ Author:
 ***/
 #pragma once
 
-#include "fcb.h"
-
-typedef struct _FILE_OBJECT
+typedef struct _FCB
 {
-	PFCB Fcb;
+	int ReferenceCount;
 }
-FILE_OBJECT, *PFILE_OBJECT;
+FCB, *PFCB;

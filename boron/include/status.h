@@ -58,6 +58,9 @@ enum
 	STATUS_DELETE_CANCELED,     // The handle delete operation was canceled.
 	STATUS_TOO_MANY_HANDLES,    // Too many handles have been opened.
 	
+	// I/O errors/status codes
+	STATUS_PENDING,             // Operation in progress
+	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS
