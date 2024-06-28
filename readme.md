@@ -85,9 +85,9 @@ all present related to it.
 	* [x] Object lookup
 
 * [x] I/O manager
-	* [ ] I/O Request Packet (IRP)
-	* [ ] Instant completion of IRPs
-	* [ ] Asynchronous completion of IRPs
+	* [ ] File objects
+	* [ ] File system/volume objects
+	* [ ] ...
 
 * [ ] File system manager
 	* [ ] ...
@@ -106,6 +106,9 @@ all present related to it.
 	* [ ] ...
 	* [ ] Running NanoShell applications natively???
 	* [ ] ...
+
+* [ ] I/O manager improvements
+	* [ ] Asynchronous I/O support...
 
 * [ ] ...
 
