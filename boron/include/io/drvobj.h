@@ -13,10 +13,12 @@ Author:
 ***/
 #pragma once
 
+// TODO
+
 typedef BSTATUS(*PDRIVER_ENTRY)(PDRIVER_OBJECT Object);
 typedef BSTATUS(*PDRIVER_UNLOAD)(PDRIVER_OBJECT Object);
-typedef BSTATUS(*PDRIVER_START_IO)(PDEVICE_OBJECT Object, PIRP Irp);
-typedef BSTATUS(*PDRIVER_DISPATCH)(PDEVICE_OBJECT Object, PIRP Irp);
+//typedef BSTATUS(*PDRIVER_START_IO)(PDEVICE_OBJECT Object, PIRP Irp);
+//typedef BSTATUS(*PDRIVER_DISPATCH)(PDEVICE_OBJECT Object, PIRP Irp);
 typedef BSTATUS(*PDRIVER_ADD_DEVICE)(PDRIVER_OBJECT Object, PDEVICE_OBJECT Device);
 
 struct _DRIVER_OBJECT
@@ -39,7 +41,7 @@ struct _DRIVER_OBJECT
 	PDRIVER_ENTRY DriverEntry;
 	
 	// The routine that begins an I/O request.
-	PDRIVER_START_IO StartIo;
+	//PDRIVER_START_IO StartIo;
 	
 	// The routine called when the driver is to be unloaded. If can't
 	// be unloaded, this is NULL.
@@ -54,5 +56,5 @@ struct _DRIVER_OBJECT
 	PDRIVER_ADD_DEVICE AddDevice;
 	
 	// Dispatch handlers. Indexed by an IRP's function id.
-	PDRIVER_DISPATCH DispatchTable[IRP_FUN_COUNT];
+	//PDRIVER_DISPATCH DispatchTable[IRP_FUN_COUNT];
 };

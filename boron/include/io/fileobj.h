@@ -13,10 +13,14 @@ Author:
 ***/
 #pragma once
 
-#include "fcb.h"
-
 typedef struct _FILE_OBJECT
 {
-	PFCB Fcb;
+	PDEVICE_OBJECT DeviceObject;
+	
+	void* Context1;
+	void* Context2;
+	
+	uint64_t Offset;
+	uint32_t Flags;
 }
 FILE_OBJECT, *PFILE_OBJECT;

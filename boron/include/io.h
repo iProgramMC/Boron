@@ -20,10 +20,8 @@ Author:
 typedef struct _DEVICE_OBJECT DEVICE_OBJECT, *PDEVICE_OBJECT;
 typedef struct _DRIVER_OBJECT DRIVER_OBJECT, *PDRIVER_OBJECT;
 typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
-typedef struct _IRP IRP, *PIRP;
 typedef struct _FCB FCB, *PFCB;
 
-#include <io/irp.h>
 #include <io/devobj.h>
 #include <io/drvobj.h>
 #include <io/fcb.h>

@@ -18,5 +18,7 @@ typedef struct _FCB
 	PDEVICE_OBJECT DeviceObject;
 	
 	int ReferenceCount;
+	
+	uint32_t Flags;
 }
 FCB, *PFCB;
