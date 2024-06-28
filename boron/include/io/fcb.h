@@ -15,6 +15,8 @@ Author:
 
 typedef struct _FCB
 {
+	PDEVICE_OBJECT DeviceObject;
+	
 	int ReferenceCount;
 }
 FCB, *PFCB;

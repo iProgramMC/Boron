@@ -139,6 +139,10 @@ struct KTHREAD_tag
 	// The method is called at IPL_DPC with the dispatcher database
 	// locked.
 	PKTHREAD_TERMINATE_METHOD TerminateMethod;
+	
+	// TODO: This doesn't belong in KTHREAD, but rather ETHREAD. This
+	// layering violation will be fixed later.
+	LIST_ENTRY DeferredIrpList;
 };
 
 // Creates an empty, uninitialized, thread object.

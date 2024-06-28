@@ -86,6 +86,7 @@ IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 #define IRP_FLAG_COMPLETED        (1 << 4) // IRP was completed
 #define IRP_FLAG_CANCELLED        (1 << 5) // IRP was cancelled
 #define IRP_FLAG_PENDING          (1 << 6) // IRP is currently pending completion
+#define IRP_FLAG_PAGING_IO        (1 << 7) // IRP was sent to perform paging I/O
 
 typedef BSTATUS(*IO_COMPLETION_ROUTINE)(PDEVICE_OBJECT Device, PIRP Irp, void* Context);
 
@@ -123,14 +124,24 @@ typedef struct _IRP
 	KPROCESSOR_MODE ModeRequestor;
 	
 	int AssociatedIrpCount;
-	PIRP AssociatedIrp;
+	
 	PIRP ParentIrp;
 	
 	IO_STATUS_BLOCK StatusBlock;
 	
+#ifdef DEBUG
+	// Assigned for debugging -- normally this is not needed.  When entering
+	// an IRP function that manipulates the current thread, check if this IRP
+	// originates from that thread.
+	PKTHREAD OwnerThread;
+#endif
+	
+	// Event that starts out cleared (reset), set when the IRP is completed.
 	PKEVENT CompletionEvent;
 	
+	// APC emitted when the IRP is completed
 	PKAPC CompletionApc;
+	void* CompletionApcContext;
 	
 	// Buffer associated with the IRP.  This is the source/destination buffer
 	// that the IRP uses to transfer data.
@@ -138,8 +149,9 @@ typedef struct _IRP
 	// freed when this IRP is completed.
 	PMDL Mdl;
 	
-	uint8_t CurrentFrameIndex;
-	uint8_t StackSize;
+	bool Begun;
+	int8_t CurrentFrameIndex;
+	int8_t StackSize;
 	
 	// If ModeRequestor == MODE_USER, then this points to a file object that
 	// was referenced when this IRP was created. When the IRP is freed, this
@@ -149,6 +161,19 @@ typedef struct _IRP
 	// Used in synchronous mode.  Determines how long to wait for the IRP to
 	// finish.
 	int Timeout;
+	
+	// Pointer to device queue entry sentinel.  Never accessed directly, but
+	// checked against to determine the end of a list.
+	const LIST_ENTRY* DeviceQueueHead;
+	
+	union
+	{
+		// If this is a master IRP, the entry into the lowermost device object's IRP queue.
+		LIST_ENTRY DeviceQueueEntry;
+	
+		// If this is an associated IRP, the entry into the thread's deferred IRP list.
+		LIST_ENTRY DeferredIrpEntry;
+	};
 	
 	// This IRP was allocated with an appendage whose size in bytes is
 	// sizeof(IO_STACK_FRAME) * StackSize.

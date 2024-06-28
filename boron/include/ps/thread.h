@@ -20,6 +20,8 @@ typedef struct ETHREAD_tag
 {
 	KTHREAD Tcb;
 	
+	LIST_ENTRY PendingIrpList;
+	
 	// TODO
 }
 ETHREAD, *PETHREAD;
