@@ -17,6 +17,8 @@ Author:
 ***/
 #include "exp.h"
 
+// NOTE: Thanks to https://github.com/xrarch/mintia/blob/3f33cc5f3b70527fefc029056420c2a46e6afb10/OS/OSKernel/Executive/ExRwLock.df
+
 #define EX_RWLOCK_WAIT_TIMEOUT 300 /* Milliseconds */
 
 #define PASS_OVER_INCREMENT   2 /* Increment when rwlock is passed over to exclusive waiter */

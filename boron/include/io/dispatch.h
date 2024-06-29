@@ -53,6 +53,8 @@ Author:
 // - The initial set of calls have been copied from NanoShell as they have been deemed adequate.  More calls might be added
 //   in the future, or these calls might be changed.
 //
+// - TODO: Define a kernel-wide time format (64-bit Unix epoch time?)
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, int OpenFlags);

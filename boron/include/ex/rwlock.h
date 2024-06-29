@@ -53,6 +53,9 @@ EX_RW_LOCK, *PEX_RW_LOCK;
 // Initializes the RW-lock structure.
 void ExInitializeRwLock(PEX_RW_LOCK Lock);
 
+// De-initializes an RW-lock.
+void ExDeinitializeRwLock(PEX_RW_LOCK Lock);
+
 // Acquires an RW-lock in exclusive mode.
 BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertable);
 
