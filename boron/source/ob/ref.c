@@ -50,6 +50,78 @@ void ObpDeleteObject(void* Object)
 	}
 }
 
+static KTHREAD    ObpReaperThread;
+static KEVENT     ObpReaperEvent;
+static KSPIN_LOCK ObpReaperLock; // TODO: A mutex would probably work here, but I'm not very confident
+static LIST_ENTRY ObpReaperList;
+
+static NO_RETURN void ObpReaperThreadRoutine(UNUSED void* Context)
+{
+	while (true)
+	{
+		KeWaitForSingleObject(&ObpReaperEvent, false, TIMEOUT_INFINITE);
+		
+		// ObpReaperEvent was pulsed, therefore we should start popping things off
+		KIPL Ipl;
+		
+		while (true)
+		{
+			KeAcquireSpinLock(&ObpReaperLock, &Ipl);
+			if (IsListEmpty(&ObpReaperList))
+			{
+				KeReleaseSpinLock(&ObpReaperLock, Ipl);
+				break;
+			}
+			
+			PLIST_ENTRY Entry = RemoveHeadList(&ObpReaperList);
+			KeReleaseSpinLock(&ObpReaperLock, Ipl);
+			
+			POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, ReapedListEntry);
+			void* Body = Header->Body;
+			
+			ObpDeleteObject(Body);
+		}
+	}
+}
+
+bool ObpInitializeReaperThread()
+{
+	BSTATUS Status;
+	
+	Status = KeInitializeThread(
+		&ObpReaperThread,
+		POOL_NO_MEMORY_HANDLE,  // KernelStack
+		ObpReaperThreadRoutine, // StartRoutine
+		NULL,                   // StartContext
+		KeGetSystemProcess()    // Process
+	);
+	
+	if (FAILED(Status))
+		return false;
+	
+	KeSetPriorityThread(&ObpReaperThread, PRIORITY_REALTIME);
+	KeReadyThread(&ObpReaperThread);
+	
+	KeInitializeEvent(&ObpReaperEvent, EVENT_SYNCHRONIZATION, false);
+	
+	InitializeListHead(&ObpReaperList);
+	
+	return true;
+}
+
+void ObpReapObject(void* Object)
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&ObpReaperLock, &Ipl);
+	
+	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	InsertTailList(&ObpReaperList, &Hdr->ReapedListEntry);
+	
+	KeReleaseSpinLock(&ObpReaperLock, Ipl);
+	
+	KePulseEvent(&ObpReaperEvent, 1);
+}
+
 void ObReferenceObjectByPointer(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
@@ -72,11 +144,10 @@ void ObDereferenceObject(void* Object)
 		// Object is permanent, therefore it shouldn't be deleted.
 		return;
 	
-	DbgPrint("ObDereferenceObject: object %p lost its final reference TODO", Object);
 	if (KeGetIPL() > IPL_NORMAL)
 	{
-		// Enqueue this object for deletion. TODO
-		DbgPrint("ObDereferenceObject: Object %p lost its final reference at IPL %d! TODO", Object, KeGetIPL());
+		// Enqueue this object for deletion.
+		ObpReapObject(Object);
 		return;
 	}
 	

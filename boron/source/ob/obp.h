@@ -61,6 +61,7 @@ BSTATUS ObpLookUpObjectPath(
 bool ObpInitializeBasicMutexes();
 bool ObpInitializeBasicTypes();
 bool ObpInitializeRootDirectory();
+bool ObpInitializeReaperThread();
 
 // Mutexes
 void ObpEnterObjectTypeMutex();

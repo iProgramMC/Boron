@@ -36,6 +36,9 @@ bool ObInitSystem()
 	if (!ObpInitializeRootDirectory())
 		return false;
 	
+	if (!ObpInitializeReaperThread())
+		return false;
+	
 	DbgPrint("Object manager was initialized successfully!");
 	
 	return true;

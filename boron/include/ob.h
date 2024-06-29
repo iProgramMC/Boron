@@ -114,12 +114,6 @@ struct _NONPAGED_OBJECT_HEADER
 	int PointerCount;
 	int HandleCount;
 	
-	// Entry into the object type's list of objects. Valid if this is an object type.
-	//
-	// NOTE: If there are any fields that aren't valid or used at all if this isn't an
-	// object type, put them in a union to save space.
-	LIST_ENTRY TypeListEntry;
-	
 	POBJECT_HEADER NormalHeader;
 };
 
@@ -129,7 +123,13 @@ struct _OBJECT_HEADER
 	
 	// Entry into the parent directory's list of entries.
 	// TODO: Replace with an AATREE entry
-	LIST_ENTRY DirectoryListEntry;
+	//
+	// If object was deleted at high IPL, this is the entry into the list of reaped objects
+	union
+	{
+		LIST_ENTRY DirectoryListEntry;
+		LIST_ENTRY ReapedListEntry;
+	};
 	
 	// Pointer to the parent directory.
 	POBJECT_DIRECTORY ParentDirectory;

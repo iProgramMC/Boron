@@ -287,8 +287,11 @@ void AttemptCreateEphemeralObject()
 	
 	ModifyEphemeralObject(Object);
 	
-	// Then dereference the object.  It should be freed.
+	// Remove the final reference at high IPL.  It should go through the reaper thread and delete.
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	DbgPrint("ModifyEphemeralObject: Deleting final reference at high IPL");
 	ObDereferenceObject(Object);
+	KeLowerIPL(Ipl);
 }
 
 void PerformObjectTest()
