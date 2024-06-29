@@ -6,12 +6,14 @@ Module name:
 	io/devobj.h
 	
 Abstract:
-	
+	This header file defines the I/O device object structure.
 	
 Author:
 	iProgramInCpp - 16 February 2024
 ***/
 #pragma once
+
+#include "dispatch.h"
 
 struct _DEVICE_OBJECT
 {
@@ -23,6 +25,9 @@ struct _DEVICE_OBJECT
 	
 	// The entry in the driver object's list of devices.
 	LIST_ENTRY ListEntry;
+	
+	// A pointer to the driver object's dispatch table.
+	PIO_DISPATCH_TABLE DispatchTable;
 	
 	// Extension data.
 	size_t ExtensionSize;

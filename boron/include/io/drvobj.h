@@ -6,19 +6,17 @@ Module name:
 	io/drvobj.h
 	
 Abstract:
-	
+	This header file defines the I/O driver object structure.
 	
 Author:
 	iProgramInCpp - 16 February 2024
 ***/
 #pragma once
 
-// TODO
+#include "dispatch.h"
 
 typedef BSTATUS(*PDRIVER_ENTRY)(PDRIVER_OBJECT Object);
 typedef BSTATUS(*PDRIVER_UNLOAD)(PDRIVER_OBJECT Object);
-//typedef BSTATUS(*PDRIVER_START_IO)(PDEVICE_OBJECT Object, PIRP Irp);
-//typedef BSTATUS(*PDRIVER_DISPATCH)(PDEVICE_OBJECT Object, PIRP Irp);
 typedef BSTATUS(*PDRIVER_ADD_DEVICE)(PDRIVER_OBJECT Object, PDEVICE_OBJECT Device);
 
 struct _DRIVER_OBJECT
@@ -40,9 +38,6 @@ struct _DRIVER_OBJECT
 	// The entry point of the driver.
 	PDRIVER_ENTRY DriverEntry;
 	
-	// The routine that begins an I/O request.
-	//PDRIVER_START_IO StartIo;
-	
 	// The routine called when the driver is to be unloaded. If can't
 	// be unloaded, this is NULL.
 	PDRIVER_UNLOAD Unload;
@@ -55,6 +50,6 @@ struct _DRIVER_OBJECT
 	// devices and add them.
 	PDRIVER_ADD_DEVICE AddDevice;
 	
-	// Dispatch handlers. Indexed by an IRP's function id.
-	//PDRIVER_DISPATCH DispatchTable[IRP_FUN_COUNT];
+	// Dispatch table.
+	IO_DISPATCH_TABLE DispatchTable;
 };
