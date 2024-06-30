@@ -152,13 +152,19 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 
 int KeGetVersionNumber()
 {
-	return 4;
+	return 5;
 }
 
 void PsInitSystemProcess();
 
 NO_RETURN void KeInitSMP()
 {
+	LdrInitializeHal();
+	
+	// Phase 1 of HAL initialization on the BSP goes here. Phase 2 will be performed
+	// in KiCPUBootstrap.
+	HalInitSystemUP();
+	
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;
 	
@@ -174,7 +180,7 @@ NO_RETURN void KeInitSMP()
 	
 	if (pSMP->cpu_count > ProcessorLimit)
 	{
-		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs %llu (limit is %llu)", pSMP->cpu_count, ProcessorLimit);
+		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", pSMP->cpu_count, ProcessorLimit);
 	}
 	
 	int cpuListPFN = MmAllocatePhysicalPage();
@@ -217,18 +223,12 @@ NO_RETURN void KeInitSMP()
 			pBSPInfo = pInfo;
 	}
 	
+	// After the below point, KeCrashBeforeSMPInit can't be used, and KeCrash proper doesn't
+	// work because the CPUs haven't booted yet
 	KiSmpInitted = true;
-	
-	LdrInitializeHal();
-	
-	// phase 1 of HAL initialization on the BSP:
-	HalInitSystemUP();
 	
 	// Initialize system process.
 	PsInitSystemProcess();
-	
-	// First phase of initialization
-	//ObInitializeFirstPhase();
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), June 2024 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);
