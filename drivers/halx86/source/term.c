@@ -94,7 +94,10 @@ void HalInitTerminal()
 		pFramebuffer->width,
 		pFramebuffer->height,
 		pFramebuffer->pitch,
-		// no canvas
+		8, 16,      // red mask size and shift
+		8, 8,       // green mask size and shift
+		8, 0,       // blue mask size and shift
+		NULL,       // canvas
 		NULL,       // ansi colors
 		NULL,       // ansi bright colors
 		&defaultBG, // default background
