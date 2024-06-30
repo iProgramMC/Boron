@@ -96,7 +96,7 @@ bool KeInsertQueueApc(
 	{
 		if (!Apc->NormalRoutine || (Thread->ApcDisableCount == 0 && !Thread->ApcInProgress))
 		{
-			KiUnwaitThread(Thread, STATUS_ALERTED, Increment);
+			KiUnwaitThread(Thread, STATUS_KERNEL_APC, Increment);
 		}
 	}
 	

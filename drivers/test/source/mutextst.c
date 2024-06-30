@@ -21,6 +21,8 @@ Author:
 static KMUTEX TestMutex;
 static KMUTEX TestMutex2;
 
+#define DELAY (100)
+
 NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 {
 	int ThreadNum = (int)(uintptr_t)Parameter;
@@ -35,11 +37,11 @@ NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 		void* Objects[] = { &TestMutex, &TestMutex2 };
 		KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL);
 		
-		LogMsg("Thread %d Waiting A Second...", ThreadNum);
+		LogMsg("Thread %d Waiting %d ms...", ThreadNum, DELAY);
 		// Wait a second.
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
-		KeSetTimer(&Timer, 1000, NULL);
+		KeSetTimer(&Timer, DELAY, NULL);
 		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
 		
 		// Finally, release the mutexes.

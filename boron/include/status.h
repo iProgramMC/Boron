@@ -28,9 +28,10 @@ enum
 	
 	// Wait for object(s) errors
 	STATUS_WAITING = 1000,      // these 3 are returned by the KeWaitFor*Object(s) functions.
-	STATUS_ALERTED,
+	STATUS_ALERTED,             // Received a user APC while waiting
 	STATUS_TIMEOUT,             // Timeout or would block
 	STATUS_KILLED,              // Thread was killed
+	STATUS_KERNEL_APC,          // Received a kernel APC, resume waiting
 	
 	// Probe errors
 	STATUS_FAULT = 2000,        // returned by MmProbeAddress when a bad page fault was triggered.
@@ -71,7 +72,7 @@ enum
 	
 	// Status codes used internally
 #ifdef KERNEL
-	STATUS_NO_SEGMENTS_AFTER_THIS = 0x70000000,
+	STATUS_NO_SEGMENTS_AFTER_THIS = 0x2000000,
 #endif
 };
 

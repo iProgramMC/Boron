@@ -225,99 +225,110 @@ int KeWaitForMultipleObjects(
 	if (Count > Maximum)
 		KeCrash("KeWaitForMultipleObjects: Object count %d is bigger than the maximum wait blocks of %d", Count, Maximum); 
 	
-	KIPL Ipl = KiLockDispatcher();
-	
-	// Perform an initial check to see if there are any objects we can acquire right away.
-	// Do not enqueue the thread wait blocks on the objects' queues yet, because we're maybe
-	// going to break early, or only polling(TODO). However, we are going to fill in the
-	// fields of the wait block to make things easier on ourselves.
-	bool Satisfied = true;
-	int SatisfierIndex = 0;
-	
-	for (int i = 0; i < Count; i++)
+	while (true)
 	{
-		PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
-		PKDISPATCH_HEADER Object = Objects[i];
+		KIPL Ipl = KiLockDispatcher();
 		
-		WaitBlock->Object = Object;
-		WaitBlock->Thread = Thread;
+		// Perform an initial check to see if there are any objects we can acquire right away.
+		// Do not enqueue the thread wait blocks on the objects' queues yet, because we're maybe
+		// going to break early, or only polling(TODO). However, we are going to fill in the
+		// fields of the wait block to make things easier on ourselves.
+		bool Satisfied = true;
+		int SatisfierIndex = 0;
 		
-		bool IsSignaled = KiIsObjectSignaled(Object, Thread);
-		if (IsSignaled && WaitType == WAIT_TYPE_ANY)
-		{
-			Satisfied = true;
-			SatisfierIndex = i;
-			KiAcquireObject(Object, Thread);
-			break;
-		}
-		else if (!IsSignaled)
-		{
-			Satisfied = false;
-		}
-	}
-	
-	if (Satisfied && WaitType == WAIT_TYPE_ANY)
-	{
-		// Well, if we're already satisfied, just return immediately!
-		KiUnlockDispatcher(Ipl);
-		return STATUS_RANGE_WAIT + SatisfierIndex;
-	}
-	else if (Satisfied && WaitType == WAIT_TYPE_ALL)
-	{
-		// All objects are acquireable, so acquire them all.
 		for (int i = 0; i < Count; i++)
 		{
-			KiAcquireObject(WaitBlockArray[i].Object, Thread);
+			PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
+			PKDISPATCH_HEADER Object = Objects[i];
+			
+			WaitBlock->Object = Object;
+			WaitBlock->Thread = Thread;
+			
+			bool IsSignaled = KiIsObjectSignaled(Object, Thread);
+			if (IsSignaled && WaitType == WAIT_TYPE_ANY)
+			{
+				Satisfied = true;
+				SatisfierIndex = i;
+				KiAcquireObject(Object, Thread);
+				break;
+			}
+			else if (!IsSignaled)
+			{
+				Satisfied = false;
+			}
+		}
+		
+		if (Satisfied && WaitType == WAIT_TYPE_ANY)
+		{
+			// Well, if we're already satisfied, just return immediately!
+			KiUnlockDispatcher(Ipl);
+			return STATUS_RANGE_WAIT + SatisfierIndex;
+		}
+		else if (Satisfied && WaitType == WAIT_TYPE_ALL)
+		{
+			// All objects are acquireable, so acquire them all.
+			for (int i = 0; i < Count; i++)
+			{
+				KiAcquireObject(WaitBlockArray[i].Object, Thread);
+			}
+			
+			KiUnlockDispatcher(Ipl);
+			return STATUS_SUCCESS;
+		}
+		else if (TimeoutMS == 0)
+		{
+			// This is simply a poll, so return with a timeout status.
+			KiUnlockDispatcher(Ipl);
+			return STATUS_TIMEOUT;
+		}
+		
+		// Ok, finally handling the non-trivial case.
+		// Insert each block into the object's wait block queue.
+		for (int i = 0; i < Count; i++)
+		{
+			PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
+			PKDISPATCH_HEADER Object = Objects[i];
+			
+			InsertTailList(&Object->WaitBlockList, &WaitBlock->Entry);
+		}
+		
+		Thread->WaitBlockArray = WaitBlockArray;
+		Thread->WaitType = WaitType;
+		Thread->WaitCount = Count;
+		Thread->WaitIsAlertable = Alertable;
+		Thread->WaitStatus = STATUS_WAITING;
+		Thread->WaitMode = MODE_KERNEL; // TODO
+		Thread->Status = KTHREAD_STATUS_WAITING;
+		
+		// Note, surely it's not zero, because we guard against that
+		if (TimeoutMS != TIMEOUT_INFINITE)
+		{
+			// Set the wait timer up. It's going to wake us up when it expires,
+			// and call KepWaitTimerExpiry, which cancels the wait.
+			KeInitializeDpc(&Thread->WaitDpc, KepWaitTimerExpiry, Thread);
+			KeSetImportantDpc(&Thread->WaitDpc, true);
+			KeInitializeTimer(&Thread->WaitTimer);
+			KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
 		}
 		
 		KiUnlockDispatcher(Ipl);
-		return STATUS_SUCCESS;
-	}
-	else if (TimeoutMS == 0)
-	{
-		// This is simply a poll, so return with a timeout status.
-		KiUnlockDispatcher(Ipl);
-		return STATUS_TIMEOUT;
-	}
-	
-	// Ok, finally handling the non-trivial case.
-	// Insert each block into the object's wait block queue.
-	for (int i = 0; i < Count; i++)
-	{
-		PKWAIT_BLOCK WaitBlock = &WaitBlockArray[i];
-		PKDISPATCH_HEADER Object = Objects[i];
 		
-		InsertTailList(&Object->WaitBlockList, &WaitBlock->Entry);
-	}
-	
-	Thread->WaitBlockArray = WaitBlockArray;
-	Thread->WaitType = WaitType;
-	Thread->WaitCount = Count;
-	Thread->WaitIsAlertable = Alertable;
-	Thread->WaitStatus = STATUS_WAITING;
-	Thread->WaitMode = MODE_KERNEL; // TODO
-	Thread->Status = KTHREAD_STATUS_WAITING;
-	
-	// Note, surely it's not zero, because we guard against that
-	if (TimeoutMS != TIMEOUT_INFINITE)
-	{
-		// Set the wait timer up. It's going to wake us up when it expires,
-		// and call KepWaitTimerExpiry, which cancels the wait.
-		KeInitializeDpc(&Thread->WaitDpc, KepWaitTimerExpiry, Thread);
-		KeSetImportantDpc(&Thread->WaitDpc, true);
-		KeInitializeTimer(&Thread->WaitTimer);
-		KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
-	}
-	
-	KiUnlockDispatcher(Ipl);
-	
-	KeYieldCurrentThread();
-	
-	ASSERT(Alertable || Thread->WaitStatus != STATUS_ALERTED);
-	
-	if (Thread->WaitStatus == STATUS_ALERTED)
-	{
-		// TODO: KeTestAlertThread
+		KeYieldCurrentThread();
+		
+		ASSERT(Alertable || Thread->WaitStatus != STATUS_ALERTED);
+		
+		if (Thread->WaitStatus == STATUS_ALERTED)
+		{
+			// TODO:
+			// This is a user mode wait that was interrupted.
+			// Call KeTestAlertThread and return STATUS_ALERTED.
+			break;
+		}
+		
+		if (Thread->WaitStatus != STATUS_KERNEL_APC)
+			break;
+		
+		// Request a wait again after a kernel APC.
 	}
 	
 	return Thread->WaitStatus;

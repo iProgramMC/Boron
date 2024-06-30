@@ -40,16 +40,24 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
+	//LogMsg(ANSI_RED "Starting process test" ANSI_RESET);
 	//PerformProcessTest();
+	//LogMsg(ANSI_RED "Starting mutex test" ANSI_RESET);
 	//PerformMutexTest();
 	//PerformBallTest();
 	//PerformFireworksTest();
-	PerformHandleTest();
+	//LogMsg(ANSI_RED "Starting handle test" ANSI_RESET);
+	//PerformHandleTest();
+	LogMsg(ANSI_RED "Starting APC test" ANSI_RESET);
+	PerformApcTest();
+	//LogMsg(ANSI_RED "Starting rwlock test" ANSI_RESET);
 	//PerformRwlockTest();
-	PerformObjectTest();
+	//LogMsg(ANSI_RED "Starting object test" ANSI_RESET);
+	//PerformObjectTest();
+	//LogMsg(ANSI_RED "Starting MDL test" ANSI_RESET);
 	//PerformMdlTest();
-	//PerformApcTest();
-	PerformIntTest();
+	//LogMsg(ANSI_RED "Starting interrupt test" ANSI_RESET);
+	//PerformIntTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);

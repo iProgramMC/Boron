@@ -26,7 +26,7 @@ int SomeVariable;
 NO_RETURN
 void ExclusiveRoutine(UNUSED void* Ptr)
 {
-	while (true)
+	for (int i = 0; i < 20; i++)
 	{
 		//DbgPrint("Exclusively Acquiring Lock...");
 		ExAcquireExclusiveRwLock(&RWLock, false, false);
@@ -45,6 +45,8 @@ void ExclusiveRoutine(UNUSED void* Ptr)
 		ExReleaseRwLock(&RWLock);
 		//DbgPrint("Exclusively Released Lock...");
 	}
+	
+	KeTerminateThread(1);
 }
 
 NO_RETURN
@@ -52,7 +54,7 @@ void ReaderRoutine(void* Ptr)
 {
 	int Something = (int)(uintptr_t)Ptr;
 	
-	while (true)
+	for (int i = 0; i < 20; i++)
 	{
 		//DbgPrint("Thread %d Acquiring Lock...", Something);
 		ExAcquireSharedRwLock(&RWLock, false, false, false);
@@ -70,6 +72,8 @@ void ReaderRoutine(void* Ptr)
 		//KeSetTimer(&Timer, 200, NULL);
 		//KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
 	}
+	
+	KeTerminateThread(1);
 }
 
 void PerformRwlockTest()
