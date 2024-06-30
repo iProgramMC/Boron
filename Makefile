@@ -72,8 +72,8 @@ $(IMAGE_TARGET): kernel drivers limine_config
 	@cp $(KERNEL_ELF) $(KERNEL_DELF)
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_DELF) $(DRIVERS_TARGETS) limine.cfg limine/limine.sys limine/limine-cd.bin $(ISO_DIR)
-	@xorriso -as mkisofs -b limine-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
+	@cp $(KERNEL_DELF) $(DRIVERS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
+	@xorriso -as mkisofs -b limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
 
