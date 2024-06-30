@@ -49,7 +49,4 @@ struct _DRIVER_OBJECT
 	// device ID can simply tell the kernel to lookup the specific
 	// devices and add them.
 	PDRIVER_ADD_DEVICE AddDevice;
-	
-	// Dispatch table.
-	IO_DISPATCH_TABLE DispatchTable;
 };

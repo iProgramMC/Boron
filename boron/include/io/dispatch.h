@@ -69,12 +69,12 @@ typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
-typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Status, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
-typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Status, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
+typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
+typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
-typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Status, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_LOOKUP_DIR_METHOD) (PIO_STATUS_BLOCK Status, PFCB Fcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_LOOKUP_DIR_METHOD) (PIO_STATUS_BLOCK Iosb, PFCB Fcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
 typedef BSTATUS(*IO_MAKE_DIR_METHOD)   (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
@@ -85,7 +85,7 @@ typedef BSTATUS(*IO_IO_CONTROL_METHOD) (PFCB Fcb, int IoControlCode, const void*
 typedef BSTATUS(*IO_CHANGE_MODE_METHOD)(PFCB Fcb, uintptr_t NewMode);
 typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
-typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Status, PFCB Fcb);
+typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
 
 typedef struct _IO_DISPATCH_TABLE
 {

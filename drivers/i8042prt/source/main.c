@@ -17,6 +17,7 @@ Author:
 #include <hal.h>
 
 #include "i8042.h"
+#include "kbd.h"
 
 int AllocateVector(PKIPL Ipl, KIPL Default)
 {
@@ -78,10 +79,41 @@ BSTATUS InitializeDevice()
 	return STATUS_SUCCESS;
 }
 
-BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
+BSTATUS KbdUnload(PDRIVER_OBJECT DriverObject)
 {
-	// TODO: Try to create device object with Io
+	LogMsg("I8042prt: Tried to unload.  That's not supported.");
+	return STATUS_UNIMPLEMENTED;
+}
+
+BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
+{
+	BSTATUS Status;
 	
+	Status = InitializeDevice();
+	if (FAILED(Status))
+	{
+		LogMsg("I8042prt: Cannot initialize keyboard driver.");
+		return Status;
+	}
 	
-	return InitializeDevice();
+	// Create the device object for each device.
+	Status = KbdCreateDeviceObject();
+	if (FAILED(Status))
+	{
+		LogMsg("I8042prt: Cannot create keyboard device object.");
+		return Status;
+	}
+	
+	/*
+	// TODO
+	Status = MouCreateDeviceObject();
+	if (FAILED(Status))
+	{
+		// TODO: Nicer error handling
+		KeCrash("I8042prt: Cannot create mouse device object.");
+		return Status;
+	}
+	*/
+	
+	return STATUS_SUCCESS;
 }

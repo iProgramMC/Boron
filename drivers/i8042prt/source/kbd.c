@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	main.c
+	kbd.c
 	
 Abstract:
 	This module implements the keyboard part of the
@@ -12,8 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 2 April 2024
 ***/
-#include <string.h>
-#include "i8042.h"
+#include "kbd.h"
 
 static KINTERRUPT KbdInterrupt;
 static KSPIN_LOCK KbdInterruptLock;
@@ -114,4 +113,31 @@ void KbdInitialize(int Vector, KIPL Ipl)
 	
 	if (!KeConnectInterrupt(&KbdInterrupt))
 		KeCrash("KbdInitialize: Cannot connect interrupt");
+}
+
+IO_DISPATCH_TABLE KbdDispatchTable;
+
+BSTATUS KbdRead(
+	PIO_STATUS_BLOCK Iosb,
+	UNUSED PFCB Fcb,
+	UNUSED uintptr_t Offset,
+	UNUSED size_t Length,
+	UNUSED void* Buffer,
+	UNUSED bool Block
+)
+{
+	// TODO
+	Iosb->Status = STATUS_UNIMPLEMENTED;
+	
+	return STATUS_UNIMPLEMENTED;
+}
+
+void KbdInitializeDispatchTable()
+{
+	KbdDispatchTable.Read = &KbdRead;
+}
+
+BSTATUS KbdCreateDeviceObject()
+{
+	return STATUS_UNIMPLEMENTED;
 }

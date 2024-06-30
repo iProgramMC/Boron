@@ -22,7 +22,7 @@ bool OnKillHandle(void* HandleToKill, UNUSED void* Context)
 void PerformHandleTest()
 {
 	void* HanTab;
-	if (FAILED(ExCreateHandleTable(4, 0, 1, &HanTab)))
+	if (FAILED(ExCreateHandleTable(0, 1, 4, 1, &HanTab)))
 		KeCrash("Error, handle table must exist to perform the test");
 	
 	void *Ptr1, *Ptr2, *Ptr3, *Ptr4, *Ptr5;
@@ -68,11 +68,11 @@ void PerformHandleTest()
 	else
 		LogMsg("Deleting handle 5 failed.");
 	
-	// Try killing the third handle:
-	if (SUCCEEDED(ExDeleteHandle(HanTab, Hand3, OnKillHandle, NULL)))
-		LogMsg("Deleting handle 3 succeeded");
+	// Try killing the fourth handle:
+	if (SUCCEEDED(ExDeleteHandle(HanTab, Hand4, OnKillHandle, NULL)))
+		LogMsg("Deleting handle 4 succeeded");
 	else
-		LogMsg("Deleting handle 3 failed.");
+		LogMsg("Deleting handle 4 failed.");
 	
 	// Kill the handle table.
 	if (SUCCEEDED(ExKillHandleTable(HanTab, OnKillHandle, NULL)))

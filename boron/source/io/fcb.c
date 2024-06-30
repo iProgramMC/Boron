@@ -22,7 +22,7 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 		return NULL;
 	
 	Fcb->DeviceObject = DeviceObject;
-	Fcb->DispatchTable = &DeviceObject->DriverObject->DispatchTable;
+	Fcb->DispatchTable = DeviceObject->DispatchTable;
 	Fcb->ExtensionSize = ExtensionSize;
 	
 	ExInitializeRwLock (&Fcb->RwLock);

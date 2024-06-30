@@ -40,17 +40,24 @@ void ExUnlockHandleTable(void* TableV)
 	KeReleaseMutex(&Table->Mutex);
 }
 
-BSTATUS ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel, void** OutTable)
+BSTATUS ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, size_t Limit, int MutexLevel, void** OutTable)
 {
 	PEHANDLE_TABLE Table = MmAllocatePool(POOL_NONPAGED, sizeof(EHANDLE_TABLE));
 	
 	if (Table == NULL)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
+	if (Limit < InitialSize)
+	{
+		Limit = InitialSize;
+		GrowBySize = 0;
+	}
+	
 	KeInitializeMutex(&Table->Mutex, MutexLevel);
 	
-	Table->Capacity = InitialSize;
+	Table->Capacity = Table->InitialSize = InitialSize;
 	Table->GrowBy   = GrowBySize;
+	Table->Limit    = Limit;
 	
 	if (InitialSize == 0)
 	{
@@ -149,6 +156,69 @@ BSTATUS ExKillHandleTable(void* TableV, EX_KILL_HANDLE_ROUTINE KillHandleRoutine
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS ExpResizeHandleTable(PEHANDLE_TABLE Table, size_t NewSize)
+{
+	// If the new size is the same as the current capacity, just return a success value.
+	if (NewSize == Table->Capacity)
+		return STATUS_SUCCESS;
+	
+	if (NewSize > Table->Limit && Table->Limit > 0)
+	{
+		NewSize = Table->Limit;
+		
+	#ifdef DEBUG
+		ASSERT(NewSize >= Table->Capacity);
+	#endif
+		
+		// If the size is unchanged after the limit, then we have too many handles.
+		if (NewSize <= Table->Capacity)
+			return STATUS_TOO_MANY_HANDLES;
+	}
+	
+	DbgPrint("Resizing handle table %p to %zu", Table, NewSize);
+	
+	PEHANDLE_ITEM NewHandleMap = MmAllocatePool(POOL_NONPAGED, sizeof(EHANDLE_ITEM) * NewSize);
+	if (!NewHandleMap)
+	{
+		// Error, can't expand because we ran out of memory.
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	if (NewSize > Table->Capacity)
+	{
+		size_t GrowBy = NewSize - Table->Capacity;
+		
+		if (Table->HandleMap)
+		{
+			// Initialize the newly allocated area with zero.
+			memset(NewHandleMap + Table->Capacity, 0, GrowBy * sizeof(EHANDLE_ITEM));
+			memcpy(NewHandleMap, Table->HandleMap, Table->Capacity * sizeof(EHANDLE_ITEM));
+		}
+		else
+		{
+			memset(NewHandleMap, 0, NewSize * sizeof(EHANDLE_ITEM));
+			
+		#ifdef DEBUG
+			for (size_t i = NewSize; i < Table->Capacity; i++)
+				ASSERT(Table->HandleMap[i].Pointer == NULL);
+		#endif
+		}
+	}
+	else
+	{
+		memcpy(NewHandleMap, Table->HandleMap, NewSize * sizeof(EHANDLE_ITEM));
+	}
+	
+	// Free the old handle map and place in the new one.
+	if (Table->HandleMap)
+		MmFreePool(Table->HandleMap);
+	
+	Table->HandleMap = NewHandleMap;
+	Table->Capacity  = NewSize;
+	
+	return STATUS_SUCCESS;
+}
+
 BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 {
 	if (!Pointer)
@@ -170,6 +240,10 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 			Table->HandleMap[i].Pointer = Pointer;
 			ExUnlockHandleTable(Table);
 			*OutHandle = INDEX_TO_HANDLE(i);
+			
+			if (Table->MaxIndex < i)
+				Table->MaxIndex = i;
+			
 			return STATUS_SUCCESS;
 		}
 	}
@@ -183,31 +257,25 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 		return STATUS_TOO_MANY_HANDLES;
 	}
 	
-	PEHANDLE_ITEM NewHandleMap = MmAllocatePool(POOL_NONPAGED, sizeof(EHANDLE_ITEM) * (Table->Capacity + Table->GrowBy));
-	if (!NewHandleMap)
-	{
-		// Error, can't expand! Out of memory!!
-		ExUnlockHandleTable(Table);
-		return STATUS_INSUFFICIENT_MEMORY;
-	}
-	
-	// Initialize the newly allocated area with zero.
-	memset(NewHandleMap + Table->Capacity, 0, Table->GrowBy * sizeof(EHANDLE_ITEM));
-	memcpy(NewHandleMap, Table->HandleMap, Table->Capacity * sizeof(EHANDLE_ITEM));
-	
-	// Free the old handle map and place in the new one.
-	MmFreePool(Table->HandleMap);
-	Table->HandleMap = NewHandleMap;
-	
 	// Get the first unallocated handle. All handles 0 to the old capacity are allocated,
 	// and all handles from the old capacity to the new one aren't, so the old capacity
 	// is our first index.
 	size_t NewIndex = Table->Capacity;
-	Table->Capacity += Table->GrowBy;
+	
+	BSTATUS Status = ExpResizeHandleTable(Table, Table->Capacity + Table->GrowBy);
+	if (FAILED(Status))
+	{
+		// Error, can't expand! Out of memory!!
+		ExUnlockHandleTable(Table);
+		return Status;
+	}
 	
 	// Allocate it!
 	Table->HandleMap[NewIndex].Pointer = Pointer;
 	ExUnlockHandleTable(Table);
+	
+	if (Table->MaxIndex < NewIndex)
+		Table->MaxIndex = NewIndex;
 	
 	*OutHandle = INDEX_TO_HANDLE(NewIndex);
 	return STATUS_SUCCESS;
@@ -264,6 +332,42 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 	}
 	
 	Table->HandleMap[Handle].Pointer = NULL;
+	
+	if (Table->MaxIndex == Handle)
+	{
+		// Find a lower max index.
+		for (; Table->MaxIndex > 0 && Table->HandleMap[Table->MaxIndex].Pointer == NULL; Table->MaxIndex--);
+		
+	#ifdef DEBUG
+		
+		// Check if there are any entries that we skipped over in debug mode.
+		for (size_t i = Table->MaxIndex + 1; i < Table->Capacity; i++)
+		{
+			ASSERT(Table->HandleMap[i].Pointer == NULL);
+		}
+		
+	#endif
+		
+		size_t NewCapacity = Table->Capacity;
+		
+		// While we can bite GrowBy entries off of the handle map, we should.
+		// TODO: Redundant conditions maybe?
+		while (Table->MaxIndex + Table->GrowBy <= NewCapacity &&
+		       Table->InitialSize + Table->GrowBy <= NewCapacity &&
+		       Table->GrowBy < NewCapacity)
+		{
+			NewCapacity -= Table->GrowBy;
+		}
+		
+		if (NewCapacity != Table->Capacity)
+		{
+			// TODO: Dropping the return result right now because an OOM condition is not fatal -
+			// the handle table just won't get shrunk. We really should have an MmReallocatePool
+			// type function.
+			(void) ExpResizeHandleTable(Table, NewCapacity);
+		}
+	}
+	
 	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
 }

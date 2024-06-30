@@ -32,6 +32,9 @@ typedef struct tagEHANDLE_TABLE
 	
 	size_t Capacity;
 	size_t GrowBy;
+	size_t InitialSize;
+	size_t MaxIndex;
+	size_t Limit;
 	
 	PEHANDLE_ITEM HandleMap;
 }
@@ -42,7 +45,7 @@ typedef bool(*EX_KILL_HANDLE_ROUTINE)(void* Pointer, void* Context);
 // Creates a handle table.
 // If GrowBySize is equal to zero, the handle table cannot grow, so attempts to
 // ExCreateHandle will return HANDLE_NONE.
-BSTATUS ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, int MutexLevel, void** OutTable);
+BSTATUS ExCreateHandleTable(size_t InitialSize, size_t GrowBySize, size_t Limit, int MutexLevel, void** OutTable);
 
 // Acquires the handle table's mutex.
 void ExLockHandleTable(void* HandleTable);

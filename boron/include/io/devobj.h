@@ -26,7 +26,7 @@ struct _DEVICE_OBJECT
 	// The entry in the driver object's list of devices.
 	LIST_ENTRY ListEntry;
 	
-	// A pointer to the driver object's dispatch table.
+	// A pointer to the I/O operation dispatch table.
 	PIO_DISPATCH_TABLE DispatchTable;
 	
 	PFCB Fcb;
