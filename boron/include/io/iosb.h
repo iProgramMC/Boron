@@ -34,6 +34,14 @@ typedef struct _IO_STATUS_BLOCK
 		
 		// LookUpDir
 		PFCB FoundFcb;
+		
+		// BackingMemory
+		struct
+		{
+			void*  Start;  // Start should be aligned to 4096 bytes
+			size_t Length; // Length should be a multiple of 4096
+		}
+		BackingMemory;
 	};
 }
 IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;

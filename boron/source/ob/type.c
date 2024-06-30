@@ -153,3 +153,8 @@ bool ObpInitializeBasicTypes()
 	
 	return true;
 }
+
+POBJECT_TYPE ObGetObjectType(void* Object)
+{
+	return OBJECT_GET_HEADER(Object)->NonPagedObjectHeader->ObjectType;
+}

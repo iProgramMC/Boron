@@ -40,9 +40,13 @@ void IopDeleteDevice(void* Object)
 	DbgPrint("UNIMPLEMENTED: IopDeleteDevice(%p)", Object);
 }
 
-BSTATUS IopParseDevice(void* Object, UNUSED const char** Name, UNUSED void* Context, UNUSED int LoopCount, UNUSED void** OutObject)
+BSTATUS IopCreateDeviceFileObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {
-	// TODO
-	DbgPrint("UNIMPLEMENTED: IopParseFile(%p)", Object);
-	return STATUS_UNIMPLEMENTED;
+	BSTATUS Status = IopCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
+	
+	// TODO: Permission inheritance
+	
+	return Status;
 }
+
+// IopParseDevice is implemented in io/parse.c

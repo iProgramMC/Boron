@@ -287,3 +287,6 @@ BSTATUS ObReferenceObjectByName(
 
 // Closes a handle.
 BSTATUS ObClose(HANDLE Handle);
+
+// Gets the object's type.
+POBJECT_TYPE ObGetObjectType(void* Object);

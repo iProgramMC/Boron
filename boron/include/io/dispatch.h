@@ -55,10 +55,20 @@ Author:
 //
 // - TODO: Define a kernel-wide time format (64-bit Unix epoch time?)
 //
+// - IO_BACKING_MEM_METHOD gets the backing memory address and length from the FCB.  This is usually not implemented for
+//   on-disk file systems, but can be implemented for RAM-backed file systems and certain MMIO devices, such as frame buffer
+//   devices.
+//
+// - IO_CREATE_OBJ_METHOD is the method called when a file object is created from this FCB.
+//
+// - IO_DELETE_OBJ_METHOD is the method called when a file object referencing this FCB is deleted.
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
+typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
-typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, int OpenFlags);
-typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb);
+typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
+typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
+typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
 typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Status, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
 typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Status, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
@@ -75,11 +85,14 @@ typedef BSTATUS(*IO_IO_CONTROL_METHOD) (PFCB Fcb, int IoControlCode, const void*
 typedef BSTATUS(*IO_CHANGE_MODE_METHOD)(PFCB Fcb, uintptr_t NewMode);
 typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
+typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Status, PFCB Fcb);
 
 typedef struct _IO_DISPATCH_TABLE
 {
 	IO_CREATE_METHOD      Create;
+	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_METHOD      Delete;
+	IO_DELETE_OBJ_METHOD  DeleteObject;
 	IO_OPEN_METHOD        Open;
 	IO_CLOSE_METHOD       Close;
 	IO_READ_METHOD        Read;
@@ -98,5 +111,6 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_CHANGE_MODE_METHOD ChangeMode;
 	IO_CHANGE_TIME_METHOD ChangeTime;
 	IO_MAKE_LINK_METHOD   MakeLink;
+	IO_BACKING_MEM_METHOD BackingMemory;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;

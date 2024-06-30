@@ -5,7 +5,7 @@
 #include <ob.h>
 #include <ldr.h>
 
-extern POBJECT_TYPE IopDriverType, IopDeviceType, IopFileType;
+extern POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType;
 
 // Driver object operations
 void IopDeleteDriver(void* Object);
@@ -24,3 +24,8 @@ bool IopInitializeDriversDir();
 bool IopInitializeDeviceType();
 bool IopInitializeDriverType();
 bool IopInitializeFileType();
+
+// Create a file object. This doesn't actually open the object.
+BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);
+
+BSTATUS IopCreateDeviceFileObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);

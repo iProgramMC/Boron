@@ -29,6 +29,8 @@ struct _DEVICE_OBJECT
 	// A pointer to the driver object's dispatch table.
 	PIO_DISPATCH_TABLE DispatchTable;
 	
+	PFCB Fcb;
+	
 	// Extension data.
 	size_t ExtensionSize;
 	char Extension[];
