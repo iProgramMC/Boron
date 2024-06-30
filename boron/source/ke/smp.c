@@ -159,12 +159,6 @@ void PsInitSystemProcess();
 
 NO_RETURN void KeInitSMP()
 {
-	LdrInitializeHal();
-	
-	// Phase 1 of HAL initialization on the BSP goes here. Phase 2 will be performed
-	// in KiCPUBootstrap.
-	HalInitSystemUP();
-	
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;
 	

@@ -28,5 +28,8 @@ NO_RETURN void KiSystemStartup(void)
 	KeSchedulerInitUP();
 	KeInitArchUP();
 	LdrInit();
+	LdrInitializeHal();
+	HalInitSystemUP();
+	LdrInitAfterHal();
 	KeInitSMP(); // no return
 }

@@ -51,4 +51,8 @@ void LdrInitializeDrivers();
 
 const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress);
 
+#ifdef KERNEL
+void LdrInitAfterHal();
+#endif
+
 #endif//NS64_LDR_H
