@@ -212,14 +212,6 @@ uint32_t GetRandomColor()
 	return (Rand() + 0x808080) & 0xFFFFFF;
 }
 
-static void PerformDelay(int Ms)
-{
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	KeSetTimer(&Timer, Ms, NULL);
-	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
-}
-
 void SpawnParticle(PFIREWORK_DATA Data);
 
 #define DELTA_SEC Delay / 1000
@@ -252,7 +244,7 @@ NO_RETURN void T_Particle(void* Parameter)
 		PlotPixel(Data.m_color, Data.m_x, Data.m_y);
 		
 		int Delay = 16 + (T != 0);
-		PerformDelay(Delay);
+		PerformDelay(Delay, NULL);
 		i += Delay;
 		T++;
 		if (T == 3)
@@ -302,7 +294,7 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 		PlotPixel(Data.m_color, Data.m_x, Data.m_y);
 		
 		int Delay = 16 + (T != 0);
-		PerformDelay(Delay);
+		PerformDelay(Delay, NULL);
 		i += Delay;
 		T++;
 		if (T == 3)
@@ -373,6 +365,6 @@ void PerformFireworksTest()
 			SpawnExplodeable();
 		}
 		
-		PerformDelay(2000 + Rand() % 2000);
+		PerformDelay(2000 + Rand() % 2000, NULL);
 	}
 }

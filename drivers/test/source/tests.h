@@ -24,4 +24,5 @@ void PerformObjectTest(void);
 void PerformMdlTest(void);
 void PerformApcTest(void);
 void PerformIntTest(void);
+void PerformKeyboardTest(void);
 

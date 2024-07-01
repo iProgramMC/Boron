@@ -46,14 +46,6 @@ static NO_RETURN void ApcTestRoutine()
 	}*/
 }
 
-static void PerformDelay(int Ms)
-{
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	KeSetTimer(&Timer, Ms, NULL);
-	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
-}
-
 void PerformApcTest()
 {
 	KTHREAD Thread;
@@ -61,7 +53,7 @@ void PerformApcTest()
 	KeReadyThread(&Thread);
 	
 	// wait a bit.
-	PerformDelay(1000);
+	PerformDelay(1000, NULL);
 	
 	KAPC Apc;
 	LogMsg("Initializing APC...");

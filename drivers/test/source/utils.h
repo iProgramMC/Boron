@@ -18,3 +18,6 @@ Author:
 
 // Create a simple thread.
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter);
+
+// Performs a small delay.
+void PerformDelay(int Ms, PKDPC Dpc);

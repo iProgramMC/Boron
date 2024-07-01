@@ -34,6 +34,7 @@ struct _DRIVER_OBJECT
 	
 	// List of device objects implemented by this driver.
 	LIST_ENTRY DeviceList;
+	KSPIN_LOCK DeviceListLock;
 	
 	// The entry point of the driver.
 	PDRIVER_ENTRY DriverEntry;

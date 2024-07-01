@@ -15,10 +15,21 @@ Author:
 
 #include "dispatch.h"
 
+// Supported types of devices:
+typedef enum _DEVICE_TYPE
+{
+	DEVICE_TYPE_UNKNOWN,
+	DEVICE_TYPE_CHARACTER, // Terminals, keyboards, mice, etc.
+	DEVICE_TYPE_BLOCK,     // Disk drives, CD-ROM drives, etc.
+	DEVICE_TYPE_VIDEO,     // Frame buffer devices
+	DEVICE_TYPE_NETWORK,   // Network adapter devices
+}
+DEVICE_TYPE;
+
 struct _DEVICE_OBJECT
 {
-	// Number of references.
-	int RefCount;
+	// The type of device object this is.
+	DEVICE_TYPE DeviceType;
 	
 	// The driver object that we belong to.
 	PDRIVER_OBJECT DriverObject;
@@ -36,4 +47,13 @@ struct _DEVICE_OBJECT
 	char Extension[];
 };
 
-//BSTATUS IoCreate
+BSTATUS IoCreateDevice(
+	PDRIVER_OBJECT DriverObject,
+	size_t DeviceExtensionSize,
+	size_t FcbExtensionSize,
+	const char* DeviceName,
+	DEVICE_TYPE Type,
+	bool Permanent,
+	PIO_DISPATCH_TABLE DispatchTable,
+	PDEVICE_OBJECT* OutDeviceObject
+);

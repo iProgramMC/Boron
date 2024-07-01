@@ -14,6 +14,8 @@ Author:
 ***/
 #include "kbd.h"
 
+static PDEVICE_OBJECT KbdDeviceObject;
+
 static KINTERRUPT KbdInterrupt;
 static KSPIN_LOCK KbdInterruptLock;
 static KDPC KbdDpc;
@@ -137,7 +139,27 @@ void KbdInitializeDispatchTable()
 	KbdDispatchTable.Read = &KbdRead;
 }
 
+extern PDRIVER_OBJECT I8042DriverObject;
+
 BSTATUS KbdCreateDeviceObject()
 {
-	return STATUS_UNIMPLEMENTED;
+	BSTATUS Status;
+	
+	KbdInitializeDispatchTable();
+	
+	Status = IoCreateDevice(
+		I8042DriverObject,
+		0, // DeviceExtensionSize
+		0, // FcbExtensionSize
+		"I8042PrtKeyboard",
+		DEVICE_TYPE_CHARACTER,
+		false,
+		&KbdDispatchTable,
+		&KbdDeviceObject
+	);
+	
+	if (FAILED(Status))
+		DbgPrint("IoCreateDevice for I8042prt Keyboard failed: %d", Status);
+	
+	return Status;
 }

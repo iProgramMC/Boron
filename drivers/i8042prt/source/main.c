@@ -19,6 +19,8 @@ Author:
 #include "i8042.h"
 #include "kbd.h"
 
+PDRIVER_OBJECT I8042DriverObject;
+
 int AllocateVector(PKIPL Ipl, KIPL Default)
 {
 	int Vector = -1;
@@ -87,6 +89,8 @@ BSTATUS KbdUnload(PDRIVER_OBJECT DriverObject)
 
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
+	I8042DriverObject = DriverObject;
+	
 	BSTATUS Status;
 	
 	Status = InitializeDevice();

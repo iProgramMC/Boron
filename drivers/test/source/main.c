@@ -38,26 +38,29 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 	return Thread;
 }
 
+void PerformDelay(int Ms, PKDPC Dpc)
+{
+	KTIMER Timer;
+	
+	KeInitializeTimer(&Timer);
+	KeSetTimer(&Timer, Ms, Dpc);
+	
+	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE);
+}
+
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
-	//LogMsg(ANSI_RED "Starting process test" ANSI_RESET);
 	//PerformProcessTest();
-	//LogMsg(ANSI_RED "Starting mutex test" ANSI_RESET);
 	//PerformMutexTest();
 	//PerformBallTest();
 	//PerformFireworksTest();
-	//LogMsg(ANSI_RED "Starting handle test" ANSI_RESET);
 	//PerformHandleTest();
-	LogMsg(ANSI_RED "Starting APC test" ANSI_RESET);
-	PerformApcTest();
-	//LogMsg(ANSI_RED "Starting rwlock test" ANSI_RESET);
+	//PerformApcTest();
 	//PerformRwlockTest();
-	//LogMsg(ANSI_RED "Starting object test" ANSI_RESET);
-	//PerformObjectTest();
-	//LogMsg(ANSI_RED "Starting MDL test" ANSI_RESET);
+	PerformObjectTest();
 	//PerformMdlTest();
-	//LogMsg(ANSI_RED "Starting interrupt test" ANSI_RESET);
 	//PerformIntTest();
+	//PerformKeyboardTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);

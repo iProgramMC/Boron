@@ -22,16 +22,6 @@ Author:
 // Updates for each processor ID.
 int Updates[64];
 
-static void PerformDelay(int Ms, PKDPC Dpc)
-{
-	KTIMER Timer;
-	
-	KeInitializeTimer(&Timer);
-	KeSetTimer(&Timer, Ms, Dpc);
-	
-	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE);
-}
-
 NO_RETURN void TestThread1()
 {
 	// Display a simple run timer
