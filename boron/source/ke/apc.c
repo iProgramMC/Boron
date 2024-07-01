@@ -108,9 +108,10 @@ void KiDispatchApcQueue()
 {
 	// N.B. This only dispatches _kernel_ APCs. User APCs are dispatched somewhere else.
 	ASSERT(KeGetIPL() == IPL_APC);
+	KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = KeGetCurrentThread();
-	KIPL Ipl = KiLockDispatcher();
+	bool WasWaiting = Thread->WaitStatus == STATUS_KERNEL_APC;
 	
 	while (!IsListEmpty(&Thread->KernelApcQueue))
 	{
@@ -192,6 +193,13 @@ void KiDispatchApcQueue()
 		}
 		
 		Thread->ApcInProgress--;
+	}
+	
+	// If this thread was woken up from a wait to perform this APC, then let the wait function
+	// know that it was woken up by a kernel APC.  This way, it can retry the wait.
+	if (WasWaiting)
+	{
+		Thread->WaitStatus = STATUS_KERNEL_APC;
 	}
 	
 	KiUnlockDispatcher(Ipl);
