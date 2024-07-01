@@ -72,6 +72,8 @@ static void LdriLoadFile(PLIMINE_FILE File)
 	}
 }
 
+static PLIMINE_FILE HalFile = NULL;
+
 // Initializes the DLL loader and loads the boot modules.
 void LdrInit()
 {
@@ -85,8 +87,6 @@ void LdrInit()
 	DbgPrint("Loaded Modules: %d", Response->module_count);
 	
 	// note: we want to load the HAL first
-	PLIMINE_FILE HalFile = NULL;
-	
 	for (uint64_t i = 0; i < Response->module_count; i++)
 	{
 		PLIMINE_FILE File = Response->modules[i];
@@ -103,6 +103,11 @@ void LdrInit()
 	}
 	
 	LdriLoadFile(HalFile);
+}
+
+void LdrInitAfterHal()
+{
+	struct limine_module_response* Response = KeLimineModuleRequest.response;
 	
 	for (uint64_t i = 0; i < Response->module_count; i++)
 	{
