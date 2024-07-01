@@ -33,16 +33,26 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 		// Create a file object for the device.
 		
 		PFILE_OBJECT* OutObject2 = (PFILE_OBJECT*) OutObject;
-		return IopCreateDeviceFileObject(DeviceObject, OutObject2, 0, 0);
+		BSTATUS Status = IopCreateDeviceFileObject(DeviceObject, OutObject2, 0, 0);
+		
+		if (FAILED(Status))
+			return Status;
+		
+		// Assign the output path name to NULL.
+		*Name = NULL;
+		return STATUS_SUCCESS;
 	}
 	
 	// There is a path.  Call the mounted file system (if any) to resolve it. TODO
+	DbgPrint("UNIMPLEMENTED: IopParseDevice(%p, %s, %p, %d, %p)", Object, Path, Context, LoopCount, OutObject);
 	return STATUS_UNIMPLEMENTED;
 }
 
-BSTATUS IopParseFile(void* Object, UNUSED const char** Name, UNUSED void* Context, UNUSED int LoopCount, UNUSED void** OutObject)
+BSTATUS IopParseFile(void* Object, const char** ParsePath, UNUSED void* Context, UNUSED int LoopCount, UNUSED void** OutObject)
 {
+	const char* PathName = *ParsePath;
+	
 	// TODO
-	DbgPrint("UNIMPLEMENTED: IopParseFile(%p)", Object);
+	DbgPrint("UNIMPLEMENTED: IopParseFile(%p, %s, %p, %d, %p)", Object, PathName, Context, LoopCount, OutObject);
 	return STATUS_UNIMPLEMENTED;
 }

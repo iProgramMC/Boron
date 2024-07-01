@@ -30,9 +30,11 @@ void PerformKeyboardTest()
 		KeyboardDeviceName,
 		HANDLE_NONE, // RootDirectory
 		0,           // Flags
-		IoDeviceType,
+		IoFileType,
 		&DeviceHandle
 	);
+	
+	LogMsg("Opened keyboard device, got handle %d, status %d.", DeviceHandle, Status);
 	
 	if (FAILED(Status))
 		KeCrash("Failed to open %s, ObOpenDeviceByName returned %d", KeyboardDeviceName, Status);
@@ -41,6 +43,4 @@ void PerformKeyboardTest()
 	
 	// Close the device once a key has been pressed
 	ObClose(DeviceHandle);
-	
-	LogMsg("TODO: Keyboard test here");
 }

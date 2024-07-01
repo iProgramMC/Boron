@@ -63,9 +63,10 @@ bool IopInitializeObjectTypes()
 	
 	// Initialize the File object type.
 	Info.MaintainHandleCount = true;
-	Info.Delete = IopDeleteFile;
+	Info.Open = IopOpenFile;
 	Info.Close = IopCloseFile;
 	Info.Parse = IopParseFile;
+	Info.Delete = IopDeleteFile;
 	Status = ObCreateObjectType("File", &Info, &IoFileType);
 	if (FAILED(Status))
 	{

@@ -15,6 +15,7 @@ void IopDeleteDevice(void* Object);
 BSTATUS IopParseDevice(void* Object, const char** Name, void* Context, int LoopCount, void** OutObject);
 
 // File object operations
+void IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason);
 void IopDeleteFile(void* Object);
 void IopCloseFile(void* Object, int HandleCount);
 BSTATUS IopParseFile(void* Object, const char** Name, void* Context, int LoopCount, void** OutObject);
