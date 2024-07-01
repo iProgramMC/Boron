@@ -54,16 +54,24 @@ BSTATUS ObpAllocateObject(
 		memset (NonPagedObjectHeader, 0, Size);
 		
 		// Allocate and copy the name.
-		size_t NameLength = strlen (Name);
-		ObjectHeader->ObjectName = MmAllocatePool(POOL_NONPAGED, NameLength + 1);
-		if (!ObjectHeader->ObjectName)
+		if (Name)
 		{
-			// Womp, womp. Deallocate everything and return.
-			MmFreePool(NonPagedObjectHeader);
-			return STATUS_INSUFFICIENT_MEMORY;
+			// TODO: Name doesn't matter in non-paged contexts does it?
+			size_t NameLength = strlen (Name);
+			ObjectHeader->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
+			if (!ObjectHeader->ObjectName)
+			{
+				// Womp, womp. Deallocate everything and return.
+				MmFreePool(NonPagedObjectHeader);
+				return STATUS_INSUFFICIENT_MEMORY;
+			}
+			
+			memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
 		}
-		
-		memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
+		else
+		{
+			ObjectHeader->ObjectName = NULL;
+		}
 	}
 	else
 	{
@@ -84,17 +92,24 @@ BSTATUS ObpAllocateObject(
 		memset(ObjectHeader, 0, sizeof(OBJECT_HEADER));
 		
 		// Allocate space for the name in paged pool.
-		size_t NameLength = strlen (Name);
-		ObjectHeader->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
-		if (!ObjectHeader->ObjectName)
+		if (Name)
 		{
-			// Oh no! Deallocate everything.
-			MmFreePool(NonPagedObjectHeader);
-			MmFreePool(ObjectHeader);
-			return STATUS_INSUFFICIENT_MEMORY;
+			size_t NameLength = strlen (Name);
+			ObjectHeader->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
+			if (!ObjectHeader->ObjectName)
+			{
+				// Oh no! Deallocate everything.
+				MmFreePool(NonPagedObjectHeader);
+				MmFreePool(ObjectHeader);
+				return STATUS_INSUFFICIENT_MEMORY;
+			}
+			
+			memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
 		}
-		
-		memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
+		else
+		{
+			ObjectHeader->ObjectName = NULL;
+		}
 	}
 	
 	// Initializes the object.
@@ -133,11 +148,14 @@ BSTATUS ObCreateObject(
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
 	
-	if (!OutObject || !ObjectType || !ObjectName || !BodySize)
+	if (!OutObject || !ObjectType || !BodySize)
 		return STATUS_INVALID_PARAMETER;
 	
 	if (~Flags & OB_FLAG_NO_DIRECTORY)
-	{	
+	{
+		if (!ObjectName)
+			return STATUS_INVALID_PARAMETER;
+		
 		// If there is a root directory, then we should normalize the
 		// parent directory and name, so that:
 		// a) The name does not contain backslashes, and

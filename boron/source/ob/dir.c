@@ -292,7 +292,6 @@ BSTATUS ObpLookUpObjectPath(
 			}
 			
 			ObDereferenceObject(CurrentObject);
-			ObDereferenceObject(NewObject);
 			CurrentObject = NewObject;
 			
 			CurrDepth--;

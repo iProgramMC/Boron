@@ -37,14 +37,20 @@ typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 // Lets the object know that it should tear down because the system will delete it.
 typedef void(*OBJ_DELETE_FUNC)(void* Object);
 
+//
 // Parse a path using this object.
 //
 // N.B.:
 //  1. TemporarySpace MUST be OB_MAX_PATH_LENGTH in size!!
+//
 //  2. In the implementation of the Parse method, if the Parse method performs a lookup
 //     using ObpLookUpObjectPath, then it MUST pass LoopCount into the LoopCount parameter!
 //     (I mean, you can always pass LoopCount + 1 if you're stubborn like that, but you will
 //     run out of loops twice as quickly if some guy decides they want to create a symlink loop)
+//
+//  3. The returned Object will have 1 extra reference which will be dereferenced after the
+//     object is done with.
+//
 typedef BSTATUS(*OBJ_PARSE_FUNC) (
 	void* ParseObject,
 	const char** Name,
