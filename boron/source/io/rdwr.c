@@ -22,6 +22,16 @@ BSTATUS IoReadFile(
 	bool CanBlock
 )
 {
+	BSTATUS Status;
+	
 	// Resolve the handle.
-	PEPROCESS Process = PsGetCurrentProcess();
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	if (FAILED(Status))
+		return (Iosb->Status = Status);
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	ObDereferenceObject(FileObject);
+	return STATUS_UNIMPLEMENTED;
 }

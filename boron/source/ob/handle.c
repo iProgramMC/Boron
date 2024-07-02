@@ -34,6 +34,9 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject)
 	// Reference the object.
 	ObReferenceObjectByPointer(Object);
 	
+	// Unlock the process' handle table.
+	ExUnlockHandleTable(Process->HandleTable);
+	
 	*OutObject = Object;
 	
 	return STATUS_SUCCESS;
@@ -137,6 +140,9 @@ BSTATUS ObOpenObjectByName(
 		Status = ExGetPointerFromHandle(Process->HandleTable, RootDirectory, &InitialParseObject);
 		if (FAILED(Status))
 			return Status;
+		
+		ObReferenceObjectByPointer(InitialParseObject);
+		ExUnlockHandleTable(Process->HandleTable);
 	}
 	
 	void* Object = NULL;
@@ -155,7 +161,7 @@ BSTATUS ObOpenObjectByName(
 	// OK, the object was found.
 	Status = ObpInsertObject(Object, OutHandle, OB_OPEN_HANDLE);
 
-	// De-reference the object because ObpLookUpObjectPath adds a reference to the object.
+	// De-reference the object because ObReferenceObjectByName adds a reference to the object.
 	ObDereferenceObject(Object);
 	return Status;
 }

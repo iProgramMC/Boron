@@ -59,8 +59,8 @@ void ExUnlockHandleTable(void* HandleTable);
 BSTATUS ExCreateHandle(void* HandleTable, void* Pointer, PHANDLE OutHandle);
 
 // Maps a handle into a pointer, using the specified handle table.  This returns with the
-// handle table locked, regardless of whether a pointer was actually returned or not, so
-// the caller must call ExUnlockHandleTable.
+// handle table locked, if a pointer was actually returned, so the caller must call
+// ExUnlockHandleTable.
 BSTATUS ExGetPointerFromHandle(void* HandleTable, HANDLE Handle, void** OutObject);
 
 // Checks if a handle table contains no elements.
