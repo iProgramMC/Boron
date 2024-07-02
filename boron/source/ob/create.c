@@ -21,7 +21,6 @@ Author:
 // operations on the object.
 BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
-	const char* Name,
 	size_t BodySize,
 	void* ParseContext,
 	int Flags,
@@ -52,26 +51,6 @@ BSTATUS ObpAllocateObject(
 		
 		// Of course, initialize it.
 		memset (NonPagedObjectHeader, 0, Size);
-		
-		// Allocate and copy the name.
-		if (Name)
-		{
-			// TODO: Name doesn't matter in non-paged contexts does it?
-			size_t NameLength = strlen (Name);
-			ObjectHeader->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
-			if (!ObjectHeader->ObjectName)
-			{
-				// Womp, womp. Deallocate everything and return.
-				MmFreePool(NonPagedObjectHeader);
-				return STATUS_INSUFFICIENT_MEMORY;
-			}
-			
-			memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
-		}
-		else
-		{
-			ObjectHeader->ObjectName = NULL;
-		}
 	}
 	else
 	{
@@ -90,26 +69,6 @@ BSTATUS ObpAllocateObject(
 		// Clear the newly allocated memory.
 		memset(NonPagedObjectHeader, 0, sizeof(NONPAGED_OBJECT_HEADER));
 		memset(ObjectHeader, 0, sizeof(OBJECT_HEADER));
-		
-		// Allocate space for the name in paged pool.
-		if (Name)
-		{
-			size_t NameLength = strlen (Name);
-			ObjectHeader->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
-			if (!ObjectHeader->ObjectName)
-			{
-				// Oh no! Deallocate everything.
-				MmFreePool(NonPagedObjectHeader);
-				MmFreePool(ObjectHeader);
-				return STATUS_INSUFFICIENT_MEMORY;
-			}
-			
-			memcpy(ObjectHeader->ObjectName, Name, NameLength + 1);
-		}
-		else
-		{
-			ObjectHeader->ObjectName = NULL;
-		}
 	}
 	
 	// Initializes the object.
@@ -134,7 +93,46 @@ BSTATUS ObpAllocateObject(
 	return STATUS_SUCCESS;
 }
 
+void ObpFreeObject(POBJECT_HEADER Hdr)
+{
+	if (Hdr->ObjectName)
+	{
+		MmFreePool (Hdr->ObjectName);
+		Hdr->ObjectName = NULL;
+	}
+	
+	// Free the memory that this object occupied.
+	if (Hdr->Flags & OB_FLAG_NONPAGED)
+	{
+		// Free the nonpaged object header as one big block.
+		MmFreePool (Hdr->NonPagedObjectHeader);
+	}
+	else
+	{
+		// Free the nonpaged object header, and then the regular object header.
+		MmFreePool (Hdr->NonPagedObjectHeader);
+		MmFreePool (Hdr);
+	}
+}
+
 extern POBJECT_DIRECTORY ObpRootDirectory;
+
+BSTATUS ObpAssignName(
+	POBJECT_HEADER Header,
+	const char* Name
+)
+{
+	ASSERT(!Header->ParentDirectory);
+	ASSERT(!Header->ObjectName);
+	
+	size_t NameLength = strlen (Name);
+	Header->ObjectName = MmAllocatePool(POOL_PAGED, NameLength + 1);
+	if (!Header->ObjectName)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	memcpy(Header->ObjectName, Name, NameLength + 1);
+	return STATUS_SUCCESS;
+}
 
 BSTATUS ObCreateObject(
 	void** OutObject,
@@ -176,7 +174,6 @@ BSTATUS ObCreateObject(
 	// Allocate the object.
 	Status = ObpAllocateObject(
 		ObjectType,
-		ObjectName,
 		BodySize,
 		ParseContext,
 		Flags,
@@ -193,7 +190,7 @@ BSTATUS ObCreateObject(
 	if ((~Flags & OB_FLAG_NO_DIRECTORY) && ParentDirectory)
 	{
 		// N.B. ObLinkObject uses the root directory mutex.
-		Status = ObLinkObject(ParentDirectory, Hdr->Body);
+		Status = ObLinkObject(ParentDirectory, Hdr->Body, ObjectName);
 	}
 	
 	return Status;

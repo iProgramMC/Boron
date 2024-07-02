@@ -34,16 +34,36 @@ POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
 BSTATUS ObLinkObject(
 	POBJECT_DIRECTORY Directory,
-	void* Object)
+	void* Object,
+	const char* Name)
 {
 	ObpEnterRootDirectoryMutex();
+	
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	if (Header->ParentDirectory)
+	{
+		ObpLeaveRootDirectoryMutex();
+		return STATUS_ALREADY_LINKED;
+	}
+	
+	if (!Header->ObjectName)
+	{
+		if (!Name)
+			return STATUS_INVALID_PARAMETER;
+		
+		BSTATUS Status = ObpAssignName (Header, Name);
+		if (FAILED(Status))
+		{
+			ObpLeaveRootDirectoryMutex();
+			return Status;
+		}
+	}
 	
 	// Add it proper
 	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
 	Directory->Count++;
 	ObReferenceObjectByPointer(Directory);
 	
-	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	Header->ParentDirectory = Directory;
 	
 	ObpLeaveRootDirectoryMutex();
@@ -463,9 +483,9 @@ bool ObpInitializeRootDirectory()
 	extern POBJECT_TYPE ObpSymbolicLinkType;
 	
 	// Add all object types created so far to the object types directory.
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpObjectTypeType))) return false;
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpDirectoryType))) return false;
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpSymbolicLinkType))) return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpObjectTypeType, NULL)))   return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpDirectoryType, NULL)))    return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpSymbolicLinkType, NULL))) return false;
 	
 	ObpDebugDirectory(ObpRootDirectory);
 	ObpDebugDirectory(ObpObjectTypesDirectory);

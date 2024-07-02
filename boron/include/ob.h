@@ -256,7 +256,10 @@ void ObReferenceObjectByPointer(void* Object);
 void ObDereferenceObject(void* Object);
 
 // Links an object to a directory.
-BSTATUS ObLinkObject(POBJECT_DIRECTORY Directory, void* Object);
+// The name field is:
+// - mandatory if the object is anonymous (does not have a name), or
+// - ignored if the object is not anonymous (has a name)
+BSTATUS ObLinkObject(POBJECT_DIRECTORY Directory, void* Object, const char* Name);
 
 // Unlinks an object from its parent directory.
 BSTATUS ObUnlinkObject(void* Object);

@@ -30,24 +30,7 @@ void ObpDeleteObject(void* Object)
 	if (DeleteMethod)
 		DeleteMethod(Object);
 	
-	if (Hdr->ObjectName)
-	{
-		MmFreePool (Hdr->ObjectName);
-		Hdr->ObjectName = NULL;
-	}
-	
-	// Free the memory that this object occupied.
-	if (Hdr->Flags & OB_FLAG_NONPAGED)
-	{
-		// Free the nonpaged object header as one big block.
-		MmFreePool (Hdr->NonPagedObjectHeader);
-	}
-	else
-	{
-		// Free the nonpaged object header, and then the regular object header.
-		MmFreePool (Hdr->NonPagedObjectHeader);
-		MmFreePool (Hdr);
-	}
+	ObpFreeObject(Hdr);
 }
 
 static KTHREAD    ObpReaperThread;

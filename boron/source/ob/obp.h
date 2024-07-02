@@ -28,16 +28,25 @@ extern KMUTEX ObpRootDirectoryMutex;
 // Private functions
 BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
-	const char* Name,
 	size_t BodySize,
 	void* ParseContext,
 	int Flags,
 	POBJECT_HEADER* OutObjectHeader
 );
 
+void ObpFreeObject(POBJECT_HEADER Header);
+
 BSTATUS ObpNormalizeParentDirectoryAndName(
 	POBJECT_DIRECTORY* ParentDirectory,
 	const char** Name
+);
+
+// NOTE: Assumes that the header is valid, that it's not part of a directory,
+// and that the caller checked these things before.  They are checked in debug
+// builds, though.
+BSTATUS ObpAssignName(
+	POBJECT_HEADER Header,
+	const char* Name
 );
 
 // Gets a pointer to the type of this object.
@@ -68,6 +77,3 @@ void ObpEnterObjectTypeMutex();
 void ObpLeaveObjectTypeMutex();
 void ObpEnterRootDirectoryMutex();
 void ObpLeaveRootDirectoryMutex();
-
-
-

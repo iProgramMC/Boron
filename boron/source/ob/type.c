@@ -54,7 +54,6 @@ BSTATUS ObCreateObjectType(
 	// Allocate the object.
 	Status = ObpAllocateObject(
 		ObpObjectTypeType,
-		TypeName,
 		sizeof(OBJECT_TYPE),
 		NULL,
 		OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT,
@@ -63,6 +62,13 @@ BSTATUS ObCreateObjectType(
 	
 	if (FAILED(Status))
 		return Status;
+	
+	Status = ObpAssignName(Hdr, TypeName);
+	if (FAILED(Status))
+	{
+		ObpFreeObject(Hdr);
+		return Status;
+	}
 	
 	POBJECT_TYPE NewType = (POBJECT_TYPE) Hdr->Body;
 	
@@ -85,7 +91,7 @@ BSTATUS ObCreateObjectType(
 	
 	// If we have an object types directory, add it there.
 	if (ObpObjectTypesDirectory)
-		ObLinkObject(ObpObjectTypesDirectory, NewType);
+		ObLinkObject(ObpObjectTypesDirectory, NewType, NULL);
 	
 	*OutObjectType = NewType;
 	return STATUS_SUCCESS;
