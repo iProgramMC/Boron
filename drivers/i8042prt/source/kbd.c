@@ -123,20 +123,24 @@ BSTATUS KbdRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
 	UNUSED uintptr_t Offset,
-	UNUSED size_t Length,
-	UNUSED void* Buffer,
+	size_t Length,
+	void* Buffer,
 	UNUSED bool Block
 )
 {
-	// TODO
-	Iosb->Status = STATUS_UNIMPLEMENTED;
+	memset(Buffer, 'A', Length);
 	
-	return STATUS_UNIMPLEMENTED;
+	Iosb->Status = STATUS_SUCCESS;
+	Iosb->BytesRead = Length;
+	
+	return STATUS_SUCCESS;
 }
 
 void KbdInitializeDispatchTable()
 {
 	KbdDispatchTable.Read = &KbdRead;
+	
+	KbdDispatchTable.Flags = DISPATCH_FLAG_EXCLUSIVE;
 }
 
 extern PDRIVER_OBJECT I8042DriverObject;

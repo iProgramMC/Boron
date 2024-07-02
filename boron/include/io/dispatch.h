@@ -63,6 +63,10 @@ Author:
 //
 // - IO_DELETE_OBJ_METHOD is the method called when a file object referencing this FCB is deleted.
 //
+// - Careful! IO_READ_METHOD and IO_WRITE_METHOD may be called from the context of multiple threads at the same time!
+//   Device and FS drivers must take care to prevent race conditions in this regard.  Note that this may be disabled
+//   by setting a flag in the dispatch table.
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
@@ -70,7 +74,7 @@ typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
 typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
-typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
+typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, bool Block);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
@@ -87,8 +91,16 @@ typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
 typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
 
+enum
+{
+	// The FCB will always be locked exclusively, even in read-only
+	// operations. Use for character or polling devices.
+	DISPATCH_FLAG_EXCLUSIVE = (1 << 0),
+};
+
 typedef struct _IO_DISPATCH_TABLE
 {
+	uint32_t              Flags;
 	IO_CREATE_METHOD      Create;
 	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_METHOD      Delete;

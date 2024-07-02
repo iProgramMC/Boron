@@ -13,6 +13,11 @@ Author:
 ***/
 #pragma once
 
+enum
+{
+	FILE_FLAG_APPEND_ONLY = (1 << 0),
+};
+
 typedef struct _FILE_OBJECT
 {
 	PFCB Fcb;

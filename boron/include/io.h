@@ -26,6 +26,7 @@ typedef struct _FCB FCB, *PFCB;
 #include <io/drvobj.h>
 #include <io/fcb.h>
 #include <io/fileobj.h>
+#include <io/rdwr.h>
 
 // These aren't meant to be used directly. Instead, they're used
 // by the IoGetBuiltInData function. If the compile unit including

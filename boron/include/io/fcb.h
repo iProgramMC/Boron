@@ -40,8 +40,10 @@ typedef struct _FCB
 	
 	// FILE_TYPE
 	uint8_t FileType;
-	
 	uint32_t Flags;
+	
+	// Valid only for files and block devices.  Otherwise it's zero.
+	uint64_t FileLength;
 	
 	// FSD specific extension.  When the FCB is initialized, the
 	// size of this extension may be specified.
@@ -55,3 +57,28 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 
 // Frees an FCB.
 void IoFreeFcb(PFCB Fcb);
+
+// TODO: Maybe the waits should be alertable?
+// Locks an FCB exclusive.
+static ALWAYS_INLINE inline BSTATUS IoLockFcbExclusive(PFCB Fcb)
+{
+	return ExAcquireExclusiveRwLock(&Fcb->RwLock, false, false);
+}
+
+// Locks an FCB shared.
+static ALWAYS_INLINE inline BSTATUS IoLockFcbShared(PFCB Fcb)
+{
+	return ExAcquireSharedRwLock(&Fcb->RwLock, false, false, false);
+}
+
+// Unlocks an FCB.
+static ALWAYS_INLINE inline void IoUnlockFcb(PFCB Fcb)
+{
+	ExReleaseRwLock(&Fcb->RwLock);
+}
+
+// Demotes an FCB's lock mode to shared.
+static ALWAYS_INLINE inline void IoDemoteToSharedFcb(PFCB Fcb)
+{
+	ExDemoteToSharedRwLock(&Fcb->RwLock);
+}
