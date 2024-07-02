@@ -16,8 +16,8 @@ Author:
 
 void SendByte(uint16_t Port, uint8_t Value)
 {
-	// Stall while the output buffer is full.
-	while (KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_OUTPUT_FULL)
+	// Stall while the input buffer is empty.
+	while (KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_INPUT_EMPTY)
 		KeSpinningHint();
 	
 	KePortWriteByte(Port, Value);
@@ -25,8 +25,8 @@ void SendByte(uint16_t Port, uint8_t Value)
 
 uint8_t GetByte(uint16_t Port)
 {
-	// Stall while the input buffer is empty.
-	while (KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_INPUT_EMPTY)
+	// Stall while the output buffer is full.
+	while (~KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_OUTPUT_FULL)
 		KeSpinningHint();
 	
 	return KePortReadByte(Port);
