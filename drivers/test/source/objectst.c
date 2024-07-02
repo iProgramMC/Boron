@@ -93,7 +93,9 @@ OBJECT_TYPE_INFO TstObjectTypeInfo =
 	.Delete = NULL,
 	.Parse = NULL,
 	.Secure = NULL,
+#ifdef DEBUG
 	.Debug = NULL,
+#endif
 };
 
 static void InitializeTstObjectTypeInfo()

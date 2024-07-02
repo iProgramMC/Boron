@@ -24,6 +24,47 @@ static uint8_t  KbdBufferInt[4096];
 static uint8_t  KbdBuffer[4096];
 static uint16_t KbdPendingReads;
 
+static KEVENT KbdAvailableEvent;
+
+typedef struct FCB_EXTENSION
+{
+	uint8_t KeyCodes[256];
+	int Tail, Head;
+}
+FCB_EXTENSION, *PFCB_EXTENSION;
+
+#define Extension(Fcb) ((PFCB_EXTENSION) Fcb->Extension)
+
+static PFCB_EXTENSION KbdFcbExtension;
+
+static void KbdAddKeyToBuffer(uint8_t Code)
+{
+	PFCB_EXTENSION Ext = KbdFcbExtension;
+	
+	int NewHead = (Ext->Head + 1) % sizeof (Ext->KeyCodes);
+	if (NewHead == Ext->Tail) {
+		DbgPrint("Key press dropped due to full buffer");
+		return;
+	}
+	
+	Ext->KeyCodes[Ext->Head] = Code;
+	Ext->Head = NewHead;
+}
+
+static uint8_t KbdReadKeyFromBuffer()
+{
+	PFCB_EXTENSION Ext = KbdFcbExtension;
+	
+	if (Ext->Head == Ext->Tail)
+		return 0xFF;
+	
+	int NewTail = (Ext->Tail + 1) % sizeof (Ext->KeyCodes);
+	uint8_t Read = Ext->KeyCodes[Ext->Tail];
+	Ext->Tail = NewTail;
+	
+	return Read;
+}
+
 // Fetches the bytes read from the keyboard controller.
 static int KbdFetchBuffer(UNUSED void* Context)
 {
@@ -55,17 +96,22 @@ static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* S
 	
 	for (int i = 0; i < Count; i++)
 	{
-		uint8_t Code = KbdBuffer[i];
-		
-		// Print all key codes obtained
-		DbgPrint("Got key code (%d): %02x", i, Code);
-		
-		// TODO: Add them into the IO device's buffer here...
+		KbdAddKeyToBuffer(KbdBuffer[i]);
 	}
 	
 #ifdef SECURE
 	memset(KbdBuffer, 0, sizeof KbdBuffer);
 #endif
+	
+	if (Count != 0)
+	{
+		// TODO HACK: Calling the Kernel internal version of SetEvent that assumes
+		// the dispatcher lock is being held. It is, in this case.  Need a better
+		// way or need to figure out why DPCs have the dispatcher lock held anyway
+		extern void KiSetEvent(PKEVENT, KPRIORITY);
+		
+		KiSetEvent(&KbdAvailableEvent, 1);
+	}
 }
 
 static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
@@ -125,13 +171,46 @@ BSTATUS KbdRead(
 	UNUSED uintptr_t Offset,
 	size_t Length,
 	void* Buffer,
-	UNUSED bool Block
+	bool Block
 )
 {
-	memset(Buffer, 'A', Length);
+	ASSERT(Extension(Fcb) == KbdFcbExtension);
 	
-	Iosb->Status = STATUS_SUCCESS;
+	uint8_t* BufferBytes = Buffer;
+	
+	for (size_t i = 0; i < Length; )
+	{
+		BufferBytes[i] = KbdReadKeyFromBuffer();
+		
+		if (BufferBytes[i] != 0xFF)
+		{
+			i++;
+			continue;
+		}
+		
+		if (!Block)
+		{
+			// Can't block, so return now.
+			Iosb->Status = STATUS_SUCCESS;
+			Iosb->BytesRead = i;
+			return STATUS_SUCCESS;
+		}
+		
+		// Wait.
+		BSTATUS Status = KeWaitForSingleObject(&KbdAvailableEvent, true, TIMEOUT_INFINITE);
+		
+		if (Status != STATUS_SUCCESS)
+		{
+			Iosb->BytesRead = i;
+			Iosb->Status = Status;
+			return Status;
+		}
+		
+		// The read will be re-tried.
+	}
+	
 	Iosb->BytesRead = Length;
+	Iosb->Status = STATUS_SUCCESS;
 	
 	return STATUS_SUCCESS;
 }
@@ -151,10 +230,16 @@ BSTATUS KbdCreateDeviceObject()
 	
 	KbdInitializeDispatchTable();
 	
+	KeInitializeEvent(
+		&KbdAvailableEvent,
+		EVENT_SYNCHRONIZATION,
+		false
+	);
+	
 	Status = IoCreateDevice(
 		I8042DriverObject,
-		0, // DeviceExtensionSize
-		0, // FcbExtensionSize
+		0,                      // DeviceExtensionSize
+		sizeof (FCB_EXTENSION), // FcbExtensionSize
 		"I8042PrtKeyboard",
 		DEVICE_TYPE_CHARACTER,
 		false,
@@ -163,7 +248,12 @@ BSTATUS KbdCreateDeviceObject()
 	);
 	
 	if (FAILED(Status))
+	{
 		DbgPrint("IoCreateDevice for I8042prt Keyboard failed: %d", Status);
+		return Status;
+	}
+	
+	KbdFcbExtension = Extension(KbdDeviceObject->Fcb);
 	
 	return Status;
 }

@@ -90,17 +90,21 @@ bool IoInitSystem()
 		return false;
 	
 	// TEST: This is test code. Remove soon!
+#ifdef DEBUG
 	extern POBJECT_DIRECTORY ObpRootDirectory;
 	extern BSTATUS ObpDebugDirectory(void* DirP);
 	DbgPrint("Dumping root directory:");
 	ObpDebugDirectory(ObpRootDirectory);
+#endif
 	
 	// Initialize all drivers.
 	LdrInitializeDrivers();
 	
 	// TEST: This is test code. Remove soon!
+#ifdef DEBUG
 	DbgPrint("Dumping drivers directory:");
 	ObpDebugDirectory(IoDriversDir);
+#endif
 	
 	return true;
 }

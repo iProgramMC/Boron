@@ -22,5 +22,7 @@ void HalPrintStringDebug(const char* str)
 {
 #ifdef DEBUG
 	DbgPrintString(str);
+#else
+	(void) str;
 #endif
 }

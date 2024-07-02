@@ -53,7 +53,10 @@ void KeCrashConclusion(const char* Message)
 	snprintf(CrashBuffer, sizeof CrashBuffer, "\n\x1B[91m*** STOP (CPU %u): \x1B[0m %s\n", KeGetCurrentPRCB()->LapicId, Message);
 	
 	HalDisplayString(CrashBuffer);
+	
+#ifdef DEBUG
 	DbgPrintString(CrashBuffer);
+#endif
 	
 	// List each loaded DLL's base
 	LogMsg("Dll Base         Name");
