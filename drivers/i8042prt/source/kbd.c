@@ -13,6 +13,9 @@ Author:
 	iProgramInCpp - 2 April 2024
 ***/
 #include "kbd.h"
+#include <hal.h>
+
+#define MEASURE_LATENCIES
 
 static PDEVICE_OBJECT KbdDeviceObject;
 
@@ -23,6 +26,11 @@ static KDPC KbdDpc;
 static uint8_t  KbdBufferInt[4096];
 static uint8_t  KbdBuffer[4096];
 static uint16_t KbdPendingReads;
+
+#ifdef MEASURE_LATENCIES
+static uint64_t kbdLastInterruptTick = 0;
+static uint64_t kbdLastDpcTick = 0;
+#endif
 
 static KEVENT KbdAvailableEvent;
 
@@ -99,6 +107,10 @@ static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* S
 		KbdAddKeyToBuffer(KbdBuffer[i]);
 	}
 	
+#ifdef MEASURE_LATENCIES
+	kbdLastDpcTick = HalGetTickCount();
+#endif
+	
 #ifdef SECURE
 	memset(KbdBuffer, 0, sizeof KbdBuffer);
 #endif
@@ -141,6 +153,10 @@ static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
 	KeInitializeDpc(&KbdDpc, KbdDpcRoutine, Context);
 	KeSetImportantDpc(&KbdDpc, true);
 	KeEnqueueDpc(&KbdDpc, NULL, NULL);
+	
+#ifdef MEASURE_LATENCIES
+	kbdLastInterruptTick = HalGetTickCount();
+#endif
 }
 
 void KbdInitialize(int Vector, KIPL Ipl)
@@ -184,6 +200,16 @@ BSTATUS KbdRead(
 		
 		if (BufferBytes[i] != 0xFF)
 		{
+		#ifdef MEASURE_LATENCIES
+			uint64_t tickCount = HalGetTickCount();
+			DbgPrint(
+				"latency: %lld ticks since last interrupt (%lld since last DPC, %lld ticks between int and dpc), clock ticking at %lld ticks/s", 
+				tickCount - kbdLastInterruptTick,
+				tickCount - kbdLastDpcTick,
+				kbdLastDpcTick - kbdLastInterruptTick,
+				HalGetTickFrequency()
+			);
+		#endif
 			i++;
 			continue;
 		}
