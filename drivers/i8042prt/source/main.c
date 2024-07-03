@@ -93,13 +93,6 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 	
 	BSTATUS Status;
 	
-	Status = InitializeDevice();
-	if (FAILED(Status))
-	{
-		LogMsg("I8042prt: Cannot initialize keyboard driver.");
-		return Status;
-	}
-	
 	// Create the device object for each device.
 	Status = KbdCreateDeviceObject();
 	if (FAILED(Status))
@@ -108,16 +101,12 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 		return Status;
 	}
 	
-	/*
-	// TODO
-	Status = MouCreateDeviceObject();
+	Status = InitializeDevice();
 	if (FAILED(Status))
 	{
-		// TODO: Nicer error handling
-		KeCrash("I8042prt: Cannot create mouse device object.");
+		LogMsg("I8042prt: Cannot initialize keyboard driver.");
 		return Status;
 	}
-	*/
 	
 	return STATUS_SUCCESS;
 }

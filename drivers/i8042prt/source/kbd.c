@@ -177,6 +177,10 @@ void KbdInitialize(int Vector, KIPL Ipl)
 	
 	if (!KeConnectInterrupt(&KbdInterrupt))
 		KeCrash("KbdInitialize: Cannot connect interrupt");
+	
+	// Clear the keyboard input queue.
+	while (KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_OUTPUT_FULL)
+		KePortReadByte(I8042_PORT_DATA);
 }
 
 IO_DISPATCH_TABLE KbdDispatchTable;
