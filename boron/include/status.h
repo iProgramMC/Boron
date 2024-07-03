@@ -65,6 +65,7 @@ enum
 	STATUS_SAME_FRAME,
 	STATUS_NO_MORE_FRAMES,
 	STATUS_MORE_PROCESSING_REQUIRED, // More processing required for this operation
+	STATUS_INSUFFICIENT_SPACE,  // No space left on device
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

@@ -67,6 +67,12 @@ Author:
 //   Device and FS drivers must take care to prevent race conditions in this regard.  Note that this may be disabled
 //   by setting a flag in the dispatch table.
 //
+// - For IO_WRITE_METHOD, IsLockedExclusively is used when determining whether to drop the FCB's rwlock and re-acquire
+//   it exclusively for expansion.
+//
+// - The IO_TOUCH_METHOD method lets the FSD know that a file was updated and that the relevant time stamp (modify or
+//   access) should be updated.
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
@@ -74,7 +80,7 @@ typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
 typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
-typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, bool Block);
+typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, bool Block, bool IsLockedExclusively);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
@@ -89,12 +95,24 @@ typedef BSTATUS(*IO_IO_CONTROL_METHOD) (PFCB Fcb, int IoControlCode, const void*
 typedef BSTATUS(*IO_CHANGE_MODE_METHOD)(PFCB Fcb, uintptr_t NewMode);
 typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
+typedef BSTATUS(*IO_TOUCH_METHOD)      (PFCB Fcb, bool IsWrite);
 typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
 
 enum
 {
-	// The FCB will always be locked exclusively, even in read-only
-	// operations. Use for character or polling devices.
+	// If this flag is set, the FCB's rwlock will function like a mutex and will
+	// keep the Read and Write functions from being called in different threads.
+	//
+	// If this flag is NOT set, the FCB's rwlock has the purpose of preventing the
+	// file from being resized while the read/write operation is being performed.
+	// While resizing the file through IO_RESIZE_METHOD, the I/O manager will
+	// acquire the FCB's rwlock exclusive.  For example, in a write operation, if
+	// the file is to be expanded, the write dispatch function will drop the rw-lock
+	// and re-lock it as exclusive, expand the file, convert it back to shared,
+	// and commit the write again.
+	//
+	// As an optimization, the FCB's rwlock, when the file is opened as append only
+	// and it's written to, will start out locked as exclusive.
 	DISPATCH_FLAG_EXCLUSIVE = (1 << 0),
 };
 
@@ -123,6 +141,7 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_CHANGE_MODE_METHOD ChangeMode;
 	IO_CHANGE_TIME_METHOD ChangeTime;
 	IO_MAKE_LINK_METHOD   MakeLink;
+	IO_TOUCH_METHOD       Touch;
 	IO_BACKING_MEM_METHOD BackingMemory;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;

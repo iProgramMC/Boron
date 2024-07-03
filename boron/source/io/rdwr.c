@@ -20,7 +20,19 @@ enum
 	IO_OP_WRITE
 };
 
+#define IO_IS_WRITE(op) ((op) == IO_OP_WRITE)
+
 #define IOSB_STATUS(iosb, stat) (iosb->Status = stat)
+
+static BSTATUS IopTouchFile(PFCB Fcb, int IoType)
+{
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	if (!Dispatch->Touch)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return Dispatch->Touch(Fcb, IO_IS_WRITE(IoType));
+}
 
 static BSTATUS IopPerformOperationFileLocked(
 	PFILE_OBJECT FileObject,
@@ -29,7 +41,8 @@ static BSTATUS IopPerformOperationFileLocked(
 	void* BufferDst,
 	const void* BufferSrc,
 	size_t Length,
-	bool MayBlock
+	bool MayBlock,
+	bool LockedExclusive  // See io/dispatch.h for information about this flag
 )
 {
 	// The file control block is locked.
@@ -60,7 +73,7 @@ static BSTATUS IopPerformOperationFileLocked(
 			if (!WriteMethod)
 				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 			
-			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Length, BufferSrc, MayBlock);
+			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Length, BufferSrc, MayBlock, LockedExclusive);
 			break;
 		}
 		default:
@@ -75,7 +88,8 @@ static BSTATUS IopPerformOperationFileLocked(
 		return Status;
 	
 	// The read method succeeded, so advance the offset by however many bytes were read.
-	FileObject->Offset += Iosb->BytesRead;		
+	FileObject->Offset += Iosb->BytesRead;
+	
 	return STATUS_SUCCESS;
 }
 
@@ -84,8 +98,8 @@ static BSTATUS IopPerformOperationFileLocked(
 // On IO_OP_READ, BufferDst is used, and on IO_OP_WRITE, BufferSrc is used.
 // This is to keep const correctness throughout the code.
 BSTATUS IoPerformOperationFile(
-	PFILE_OBJECT FileObject,
 	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
 	int IoType,
 	void* BufferDst,
 	const void* BufferSrc,
@@ -100,24 +114,85 @@ BSTATUS IoPerformOperationFile(
 	ASSERT(FileObject->Fcb->DispatchTable);
 	
 	BSTATUS Status;
+	bool LockedExclusive = false;
 	
 	PFCB Fcb = FileObject->Fcb;
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
 	
-	// With read-only operations, if the dispatch table doesn't say otherwise, lock shared.
-	if (IoType == IO_OP_READ && ~(Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE))
-		Status = IoLockFcbShared(Fcb);
-	else
+	// If the DISPATCH_FLAG_EXCLUSIVE flag is set, always lock the FCB's rwlock exclusively.
+	// As an optimization, if the file is opened in append only mode, and the operation is
+	// a write, then lock the FCB's rwlock exclusively.
+	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
+		(IoType == IO_OP_WRITE && (FileObject->Flags & FILE_FLAG_APPEND_ONLY)))
+	{
+		LockedExclusive = true;
 		Status = IoLockFcbExclusive(Fcb);
+	}
+	else
+	{
+		Status = IoLockFcbShared(Fcb);
+	}
 	
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
-	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, BufferDst, BufferSrc, Length, MayBlock);
+	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, BufferDst, BufferSrc, Length, MayBlock, LockedExclusive);
 	
 	IoUnlockFcb(Fcb);
+	
+	if (Status == STATUS_SUCCESS)
+	{
+		// NOTE: Dropping status here.  It is not important whether or not the file
+		// was touched successfully after the operation was performed on it -- it's
+		// not considered unimportant.
+		//
+		// The reason IopTouchFile returns a status is to implement a call called
+		// OSTouchFile which calls this underneath.
+		(void) IopTouchFile(Fcb, IoType);
+	}
+	
 	return Status;
 }
+
+BSTATUS IoPerformOperationFileHandle(
+	PIO_STATUS_BLOCK Iosb, 
+	HANDLE Handle,
+	int IoType,
+	void* BufferDst,
+	const void* BufferSrc,
+	size_t Length,
+	bool CanBlock
+)
+{
+	// NOTE: Parameters are trusted and are assumed to source from kernel mode.
+	//
+	// For user mode, OSReadFile and OSWriteFile (the system service routines calling
+	// IoReadFile and IoWriteFile) will perform the necessary checks to ensure that
+	// the operation is valid, and that the buffer and its length are mapped the entire
+	// time by capturing the relevant pages using an MDL.
+	
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	Status = IoPerformOperationFile(Iosb, FileObject, IoType, BufferDst, BufferSrc, Length, CanBlock);
+	
+	ObDereferenceObject(FileObject);
+	
+	// See the notes in include/io/dispatch.h.
+	ASSERT(Iosb->Status == Status);
+	
+	return Status;
+}
+
+// =========== User-facing API ===========
+
+// Note: Calling a sub-function to avoid useless duplication.
 
 BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
@@ -127,30 +202,7 @@ BSTATUS IoReadFile(
 	bool CanBlock
 )
 {
-	// NOTE: Parameters are trusted and are assumed to source from kernel mode.
-	//
-	// For user mode, OSReadFile and OSWriteFile will perform the necessary checks to ensure
-	// that the operation is valid, and that the buffer and its length are mapped the entire
-	// time by capturing the relevant pages using an MDL.
-	
-	BSTATUS Status;
-	
-	// Resolve the handle.
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
-	if (FAILED(Status))
-		return IOSB_STATUS(Iosb, Status);
-	
-	PFILE_OBJECT FileObject = FileObjectV;
-	
-	Status = IoPerformOperationFile(FileObject, Iosb, IO_OP_READ, Buffer, NULL, Length, CanBlock);
-	
-	ObDereferenceObject(FileObject);
-	
-	// See the notes in include/io/dispatch.h.
-	ASSERT(Iosb->Status == Status);
-	
-	return Status;
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Buffer, NULL, Length, CanBlock);
 }
 
 BSTATUS IoWriteFile(
@@ -161,22 +213,22 @@ BSTATUS IoWriteFile(
 	bool CanBlock
 )
 {
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, NULL, Buffer, Length, CanBlock);
+}
+
+BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
+{
 	BSTATUS Status;
 	
-	// Resolve the handle.
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
 	if (FAILED(Status))
-		return IOSB_STATUS(Iosb, Status);
+		return Status;
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	Status = IoPerformOperationFile(FileObject, Iosb, IO_OP_WRITE, NULL, Buffer, Length, CanBlock);
+	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
 	
 	ObDereferenceObject(FileObject);
-	
-	// See the notes in include/io/dispatch.h.
-	ASSERT(Iosb->Status == Status);
-	
 	return Status;
 }

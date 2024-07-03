@@ -6,8 +6,8 @@ Module name:
 	io/rdwr.h
 	
 Abstract:
-	This header defines the I/O manager's read-write file operation
-	functions.
+	This header defines the I/O manager's user-facing
+	I/O functions, such as reading and writing.
 	
 Author:
 	iProgramInCpp - 2 July 2024
@@ -32,3 +32,5 @@ BSTATUS IoWriteFile(
 	size_t Length,
 	bool CanBlock
 );
+
+BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite);
