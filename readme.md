@@ -10,7 +10,7 @@ The project is wholly licensed under the three clause BSD license, **except the 
 
 #### Be advised that this is currently alpha-level software and you should not expect any stability from it.
 
-Currently this uses Limine v4.x. An upgrade is planned.
+Currently this uses Limine v7.x.
 
 ### Why the codename Boron?
 (Note: The name is probably temporary, not sure, but this is what it's called right now)

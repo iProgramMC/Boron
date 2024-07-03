@@ -34,11 +34,15 @@ typedef uint64_t(*PFHAL_GET_INT_TIMER_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_TICK_COUNT)(void);
 typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
+
+#ifdef TARGET_AMD64
 typedef void(*PFHAL_IOAPIC_SET_IRQ_REDIRECT)(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+#endif
 
 typedef struct
 {
 	uint64_t Flags;
+	
 	PFHAL_END_OF_INTERRUPT EndOfInterrupt;
 	PFHAL_REQUEST_INTERRUPT_IN_TICKS RequestInterruptInTicks;
 	PFHAL_REQUEST_IPI RequestIpi;
@@ -52,7 +56,10 @@ typedef struct
 	PFHAL_GET_TICK_COUNT GetTickCount;
 	PFHAL_GET_TICK_FREQUENCY GetTickFrequency;
 	PFHAL_GET_INT_TIMER_DELTA_TICKS GetIntTimerDeltaTicks;
+	
+#ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;
+#endif
 }
 HAL_VFTABLE, *PHAL_VFTABLE;
 

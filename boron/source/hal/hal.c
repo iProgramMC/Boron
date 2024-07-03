@@ -95,10 +95,12 @@ uint64_t HalGetIntTimerDeltaTicks()
 	return HalpVftable.GetIntTimerDeltaTicks();
 }
 
+#ifdef TARGET_AMD64
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status)
 {
 	return HalpVftable.IoApicSetIrqRedirect(Vector, Irq, LapicId, Status);
 }
+#endif
 
 NO_RETURN void HalProcessorCrashed()
 {
