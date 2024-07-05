@@ -70,6 +70,10 @@ typedef struct KPRCB_tag
 	
 	// HAL Control Block - HAL specific data.
 	HALCB_PTR HalData;
+	
+	// This bool is set if executing a DPC-level software interrupt.
+	// Used for priority-based yielding on unwait.
+	bool IsInSoftwareInterrupt;
 }
 KPRCB, *PKPRCB;
 

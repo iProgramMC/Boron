@@ -450,6 +450,8 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	
 	KIPL Ipl = KiLockDispatcher();
 	
+	KeGetCurrentPRCB()->IsInSoftwareInterrupt = true;
+	
 	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
 		KiDispatchTimerObjects();
 	
@@ -457,11 +459,18 @@ PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
 	if (Flags & PENDING_DPCS)
 		KiDispatchDpcs();
 	
+	// N.B. Re-fetch flags, might have changed.  In particular, a DPC may have set
+	// an event, or something, therefore a yield may have appeared.
+	Flags |= KeGetPendingEvents();
+	KeClearPendingEvents();
+	
 	if (Flags & PENDING_YIELD)
 		KiPerformYield(Regs);
 	
 	if (KeGetCurrentPRCB()->Scheduler.NextThread)
 		Regs = KiSwitchToNextThread();
+	
+	KeGetCurrentPRCB()->IsInSoftwareInterrupt = false;
 	
 	KiUnlockDispatcher(Ipl);
 	

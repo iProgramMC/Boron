@@ -147,7 +147,10 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	if (KeGetCurrentThread()->Priority < Thread->Priority)
 	{
 		KeSetPendingEvent(PENDING_YIELD);
-		KeIssueSoftwareInterrupt();
+		
+		// Don't issue a redundant software interrupt if we already inside one.
+		if (!KeGetCurrentPRCB()->IsInSoftwareInterrupt)
+			KeIssueSoftwareInterrupt();
 	}
 }
 
