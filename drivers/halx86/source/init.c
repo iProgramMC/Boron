@@ -19,6 +19,7 @@ Author:
 #include "apic.h"
 #include "hpet.h"
 #include "ioapic.h"
+#include "pci.h"
 
 void HalEndOfInterrupt();
 void HalRequestInterruptInTicks(uint64_t Ticks);
@@ -59,6 +60,7 @@ void HalInitSystemMP()
 	
 	HalInitApicMP();
 	HalCalibrateApic();
+	HalInitPci();
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)

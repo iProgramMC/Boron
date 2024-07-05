@@ -15,6 +15,8 @@ Author:
 #ifndef NS64_PIO_H
 #define NS64_PIO_H
 
+#include <stdint.h>
+
 uint8_t KePortReadByte(uint16_t portNo);
 void KePortWriteByte(uint16_t portNo, uint8_t data);
 uint16_t KePortReadWord(uint16_t portNo);
