@@ -141,6 +141,14 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
+	
+	// If the current thread is running at a lower priority than this one, yield
+	// as soon as the dispatcher lock is unlocked.
+	if (KeGetCurrentThread()->Priority < Thread->Priority)
+	{
+		KeSetPendingEvent(PENDING_YIELD);
+		KeIssueSoftwareInterrupt();
+	}
 }
 
 void KeSchedulerInitUP()
