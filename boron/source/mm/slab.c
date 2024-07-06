@@ -134,6 +134,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 		if (Mem)
 		{
 			KeReleaseSpinLock(&Container->Lock, OldIpl);
+			memset(Mem, 0, Container->ItemSize);
 			return Mem;
 		}
 		
@@ -181,6 +182,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 	ASSERT(Mem);
+	memset(Mem, 0, Container->ItemSize);
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
 	return Mem;
 }
