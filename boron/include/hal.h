@@ -57,10 +57,6 @@ NO_RETURN void HalCrashSystem(const char* message);
 void HalUPInit();
 void HalMPInit();
 
-// ==== Processor Management ====
-// Send the current processor an IPI to dispatch DPCs.
-void HalSendSelfIpi();
-
 // ==== AMD64 specific features ====
 #ifdef TARGET_AMD64
 void HalEnableApic();

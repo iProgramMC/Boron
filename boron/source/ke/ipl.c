@@ -12,10 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 15 September 2023
 ***/
-
-#include <ke.h>
-#include <hal.h>
-#include <string.h>
+#include "ki.h"
 
 KIPL KeGetIPL()
 {
@@ -31,61 +28,67 @@ KIPL KeGetIPL()
 // So it's important that we raise the IPL in the PRCB after, and lower it in the
 // PRCB before, we let the interrupt controller know.
 
-KIPL KeRaiseIPLIfNeeded(KIPL newIPL)
+KIPL KeRaiseIPLIfNeeded(KIPL NewIpl)
 {
-	KPRCB* me = KeGetCurrentPRCB();
-	if (!me) return 0;
+	KPRCB* Prcb = KeGetCurrentPRCB();
 	
-	KIPL oldIPL = me->Ipl;
+	// TODO: Remove the cases where Prcb can be NULL.
+	if (!Prcb)
+		return NewIpl;
 	
-	if (newIPL > oldIPL)
+	KIPL OldIpl = Prcb->Ipl;
+	
+	if (NewIpl > OldIpl)
 	{
-		KeOnUpdateIPL(newIPL, oldIPL);
-		me->Ipl = newIPL;
+		KeOnUpdateIPL(NewIpl, OldIpl);
+		Prcb->Ipl = NewIpl;
 	}
 	
-	return oldIPL;
+	return OldIpl;
 }
 
-KIPL KeRaiseIPL(KIPL newIPL)
+KIPL KeRaiseIPL(KIPL NewIpl)
 {
-	KPRCB* me = KeGetCurrentPRCB();
-	if (!me) return 0;
-		
-	KIPL oldIPL = me->Ipl;
-	if (oldIPL == newIPL)
-		return oldIPL; // no changes
+	KPRCB* Prcb = KeGetCurrentPRCB();
+	ASSERT(Prcb);
 	
-#ifdef DEBUG // In the exposed version we should probably check this even if we aren't debug. Drivers can go rogue
-	if (oldIPL > newIPL)
-		KeCrash("Error, can't raise the IPL to a lower level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
-#endif
+	KIPL OldIpl = Prcb->Ipl;
 	
-	KeOnUpdateIPL(newIPL, oldIPL);
+	if (OldIpl == NewIpl)
+		return OldIpl; // no change
 	
-	me->Ipl = newIPL;
+	ASSERT(OldIpl < NewIpl);
 	
-	return oldIPL;
+	// TODO: Perhaps it's not even necessary to reprogram the interrupt controller.
+	// No hardware interrupt is going to come in at IPL_DPC or below... (well, at
+	// least when I wean off my hacky solution of sending the self processor an IPI)
+	bool Restore = KeDisableInterrupts();
+	KeOnUpdateIPL(NewIpl, OldIpl);
+	Prcb->Ipl = NewIpl;
+	KeRestoreInterrupts(Restore);
+	
+	return OldIpl;
 }
 
 // similar logic, except we will also call DPCs if needed
-KIPL KeLowerIPL(KIPL newIPL)
+KIPL KeLowerIPL(KIPL NewIpl)
 {
-	KPRCB* me = KeGetCurrentPRCB();
-	if (!me) return 0;
+	KPRCB* Prcb = KeGetCurrentPRCB();
 	
-	KIPL oldIPL = me->Ipl;
+	// TODO: Remove the cases where Prcb can be NULL.
+	if (!Prcb)
+		return NewIpl;
 	
-	if (oldIPL == newIPL)
-		return oldIPL; // no changes
+	KIPL OldIpl = Prcb->Ipl;
 	
-#ifdef DEBUG
-	if (oldIPL < newIPL)
-		KeCrash("Error, can't lower the IPL to a higher level than we are (old %d, new %d).  RA: %p", oldIPL, newIPL, CallerAddress());
-#endif
+	if (OldIpl == NewIpl)
+		return OldIpl; // no changes
+	
+	ASSERT(OldIpl > NewIpl);
 	
 	// If we fell below DPC level, check if we have any pending events and issue a self IPI.
-	if (newIPL < IPL_DPC)
+#if 0
+	if (NewIpl < IPL_DPC)
 	{
 		bool Restore = KeDisableInterrupts();
 		
@@ -95,10 +98,17 @@ KIPL KeLowerIPL(KIPL newIPL)
 		
 		KeRestoreInterrupts(Restore);
 	}
+#endif
 	
 	// Set the current IPL
-	me->Ipl = newIPL;
-	KeOnUpdateIPL(newIPL, oldIPL);
+	bool Restore = KeDisableInterrupts();
+	Prcb->Ipl = NewIpl;
+	KeOnUpdateIPL(NewIpl, OldIpl);
+	KeRestoreInterrupts(Restore);
 	
-	return oldIPL;
+	// Check if any pending software interrupts are at this level or above
+	if (Prcb->PendingSoftInterrupts >> NewIpl)
+		KiDispatchSoftwareInterrupts(NewIpl);
+	
+	return OldIpl;
 }

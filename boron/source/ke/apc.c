@@ -15,12 +15,6 @@ Author:
 #include "ki.h"
 #include <hal.h>
 
-extern int KiVectorApcIpi;
-void KeIssueSoftwareInterruptApcLevel()
-{
-	HalRequestIpi(0, HAL_IPI_SELF, KiVectorApcIpi);
-}
-
 void KeInitializeApc(
 	PKAPC Apc,
 	PKTHREAD Thread,
@@ -90,7 +84,7 @@ bool KeInsertQueueApc(
 		InsertTailList(&Thread->KernelApcQueue, &Apc->ListEntry);
 	
 	if (KeGetCurrentThread() == Thread)
-		KeIssueSoftwareInterruptApcLevel();
+		KeIssueSoftwareInterrupt(IPL_APC);
 	
 	if (Thread->Status == KTHREAD_STATUS_WAITING)
 	{
@@ -203,4 +197,18 @@ void KiDispatchApcQueue()
 	}
 	
 	KiUnlockDispatcher(Ipl);
+}
+
+void KiApcInterrupt()
+{
+	KiAcknowledgeSoftwareInterrupt(IPL_APC);
+	
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	Prcb->Ipl = IPL_APC;
+	
+	ENABLE_INTERRUPTS();
+	
+	KiDispatchApcQueue();
+	
+	DISABLE_INTERRUPTS();
 }

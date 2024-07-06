@@ -48,5 +48,11 @@ Author:
 #define AtAddFetchMO(var,val,mo)     __atomic_add_fetch(&(var), (val), mo)
 #define AtExchange(var,val,ret)      __atomic_exchange(&(var), &(val), &(ret), ATOMIC_DEFAULT_MEMORDER)
 #define AtExchangeMO(var,val,ret,mo) __atomic_exchange(&(var), &(val), &(ret), mo)
+#define AtAndFetch(var, val)         __atomic_and_fetch(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
+#define AtAndFetchMO(var, val, mo)   __atomic_and_fetch(&(var), (val), mo)
+#define AtXorFetch(var, val)         __atomic_xor_fetch(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
+#define AtXorFetchMO(var, val, mo)   __atomic_xor_fetch(&(var), (val), mo)
+#define AtOrFetch(var, val)          __atomic_or_fetch(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
+#define AtOrFetchMO(var, val, mo)    __atomic_or_fetch(&(var), (val), mo)
 
 #endif//BORON_KE_ATOMICS_H

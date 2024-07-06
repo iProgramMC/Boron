@@ -16,12 +16,6 @@ Author:
 #include <arch.h>
 #include <hal.h>
 
-extern int KiVectorDpcIpi;
-void KeIssueSoftwareInterrupt()
-{
-	HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
-}
-
 void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)
 {
 	Dpc->List.Flink = Dpc->List.Blink = NULL;
@@ -35,21 +29,6 @@ void KeInitializeDpc(PKDPC Dpc, PKDEFERRED_ROUTINE Routine, void* Context)
 	Dpc->DeferredContext = Context;
 	
 	Dpc->Initialized = true;
-}
-
-int KeGetPendingEvents()
-{
-	return KeGetCurrentPRCB()->PendingEvents;
-}
-
-void KeClearPendingEvents()
-{
-	KeGetCurrentPRCB()->PendingEvents = 0;
-}
-
-void KeSetPendingEvent(int PendingEvent)
-{
-	KeGetCurrentPRCB()->PendingEvents |= PendingEvent;
 }
 
 // IPL: Any.
@@ -73,7 +52,7 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	// manipulated DPC queue.
 	bool Restore = KeDisableInterrupts();
 	
-	// If the DPC has been enqueued, then return early.
+	// If the DPC has been enqueued already, then return early.
 	// This allows an interrupt handler to avoid checking whether the DPC was enqueued by itself.
 	if (Dpc->Enqueued)
 	{
@@ -94,17 +73,18 @@ void KeEnqueueDpc(PKDPC Dpc, void* SysArg1, void* SysArg2)
 	else
 		InsertTailList(&Queue->List, &Dpc->List);
 	
-	KeSetPendingEvent(PENDING_DPCS);
-	
-	if (IsImportant)
-		KeIssueSoftwareInterrupt();
+	KeIssueSoftwareInterrupt(IPL_DPC);
 	
 	// Restore interrupts.
 	KeRestoreInterrupts(Restore);
+	
+	// XXX: This is probably fine.
+	if (IsImportant)
+		KiDispatchSoftwareInterrupts(KeGetIPL());
 }
 
 // Dispatches all of the DPCs in a loop.
-void KiDispatchDpcs()
+void KiDispatchDpcQueue()
 {
 	// In debug mode, test if we're at DPC level.
 	ASSERT(KeGetIPL() == IPL_DPC);
@@ -141,4 +121,33 @@ void KiDispatchDpcs()
 	}
 	
 	KeRestoreInterrupts(Restore);
+}
+
+void KiSetPendingQuantumEnd()
+{
+	bool Restore = KeDisableInterrupts();
+	
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	Prcb->YieldCurrentThread = true;
+	KeIssueSoftwareInterrupt(IPL_DPC);
+	
+	KeRestoreInterrupts(Restore);
+}
+
+void KiDpcInterrupt()
+{
+	KiAcknowledgeSoftwareInterrupt(IPL_DPC);
+	
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	Prcb->Ipl = IPL_DPC;
+	
+	ENABLE_INTERRUPTS();
+	
+	KiDispatchTimerQueue();
+	KiDispatchDpcQueue();
+	
+	if (Prcb->YieldCurrentThread)
+		KiHandleQuantumEnd();
+	
+	DISABLE_INTERRUPTS();
 }

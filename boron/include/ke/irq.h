@@ -54,16 +54,12 @@ void KeSetInterruptIPL(int Vector, KIPL Ipl);
 // The HAL can't use these directly.
 extern
 int KiVectorCrash,
-    KiVectorTlbShootdown,
-    KiVectorDpcIpi,
-    KiVectorApcIpi;
+    KiVectorTlbShootdown;
 
 #else
 
 #define KiVectorCrash        (KeGetSystemInterruptVector(KGSIV_CRASH))
 #define KiVectorTlbShootdown (KeGetSystemInterruptVector(KGSIV_TLB_SHOOTDOWN))
-#define KiVectorDpcIpi       (KeGetSystemInterruptVector(KGSIV_DPC_IPI))
-#define KiVectorApcIpi       (KeGetSystemInterruptVector(KGSIV_APC_IPI))
 
 #endif
 
@@ -75,8 +71,6 @@ enum
 	KGSIV_NONE = 0,
 	KGSIV_CRASH,
 	KGSIV_TLB_SHOOTDOWN,
-	KGSIV_DPC_IPI,
-	KGSIV_APC_IPI,
 };
 
 int KeGetSystemInterruptVector(int Number);

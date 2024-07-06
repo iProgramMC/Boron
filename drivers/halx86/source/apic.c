@@ -394,11 +394,6 @@ void HalCalibrateApic()
 	}
 }
 
-void HalSendSelfIpi()
-{
-	HalSendIpi(KeGetCurrentPRCB()->LapicId, KiVectorDpcIpi);
-}
-
 void HalApicSetIrqIn(uint64_t Ticks)
 {
 	ApicWriteRegister(APIC_REG_LVT_TIMER,    HalpVectorApicTimer);

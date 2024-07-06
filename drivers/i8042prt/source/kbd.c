@@ -117,12 +117,7 @@ static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* S
 	
 	if (Count != 0)
 	{
-		// TODO HACK: Calling the Kernel internal version of SetEvent that assumes
-		// the dispatcher lock is being held. It is, in this case.  Need a better
-		// way or need to figure out why DPCs have the dispatcher lock held anyway
-		extern void KiSetEvent(PKEVENT, KPRIORITY);
-		
-		KiSetEvent(&KbdAvailableEvent, 1);
+		KeSetEvent(&KbdAvailableEvent, 1);
 	}
 }
 

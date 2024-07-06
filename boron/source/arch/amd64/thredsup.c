@@ -16,40 +16,26 @@ Author:
 #include <ke.h>
 #include <string.h>
 
+NO_RETURN void KiThreadEntryPoint();
+
 void KiSetupRegistersThread(PKTHREAD Thread)
 {
-	const uint64_t OffsetFromActualBottom = 0x20;
-	const uint64_t OffsetOfPKREGISTERSFromBottom = sizeof(KREGISTERS) + 0x50;
+	uintptr_t StackBottom = ((uintptr_t) Thread->Stack.Top + (uintptr_t) Thread->Stack.Size) & ~0xF;
 	
-	uint64_t StackBottom = ((uint64_t) Thread->Stack.Top + (uint64_t) Thread->Stack.Size - OffsetFromActualBottom) & ~0xF;
+	uint64_t* StackPointer = (uint64_t*) StackBottom;
 	
-	PKREGISTERS Regs = (PKREGISTERS) ((StackBottom - OffsetOfPKREGISTERSFromBottom) & ~0xF);
+	*(--StackPointer) = (uint64_t) KiThreadEntryPoint; // Set return address
+	*(--StackPointer) = 0x200; // Set IF when entering the thread
+	*(--StackPointer) = SEG_RING_0_DATA; // Set DS
+	*(--StackPointer) = SEG_RING_0_DATA; // Set ES
+	*(--StackPointer) = SEG_RING_0_DATA; // Set FS
+	*(--StackPointer) = SEG_RING_0_DATA; // Set GS
+	*(--StackPointer) = 0; // Set RBP
+	*(--StackPointer) = (uint64_t) Thread->StartRoutine; // Set RBX
+	*(--StackPointer) = (uint64_t) Thread->StartContext; // Set R12
+	*(--StackPointer) = 0; // Set R13
+	*(--StackPointer) = 0; // Set R14
+	*(--StackPointer) = 0; // Set R15
 	
-	memset(Regs, 0, OffsetOfPKREGISTERSFromBottom + OffsetFromActualBottom);
-	
-	Regs->rip = (uint64_t) Thread->StartRoutine;
-	
-	// The first argument to the start routine is passed
-	// into rdi.
-	Regs->rdi = (uint64_t) Thread->StartContext;
-	
-	// The stack is empty. Nothing is pushed.
-	// Ensure that it is aligned to 16 bytes.
-	// The function is specified not to return.
-	Regs->rsp = StackBottom;
-	
-	// Assign the code and data segments.
-	Regs->cs = SEG_RING_0_CODE;
-	Regs->ds =
-	Regs->es =
-	Regs->fs =
-	Regs->gs =
-	Regs->ss = SEG_RING_0_DATA;
-	
-	Regs->OldIpl = IPL_NORMAL;
-	
-	// Enable interrupts when entering the thread.
-	Regs->rflags |= 0x200;
-	
-	Thread->State = Regs;
+	Thread->StackPointer = StackPointer;
 }

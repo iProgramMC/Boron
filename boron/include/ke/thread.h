@@ -76,7 +76,7 @@ struct KTHREAD_tag
 	
 	KTHREAD_STACK Stack;
 	
-	PKREGISTERS State; // Part of the kernel stack!!
+	void* StackPointer; // Pass this into KiSwitchThreadStack.
 	
 	int WaitType;
 	

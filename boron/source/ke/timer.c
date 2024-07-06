@@ -145,6 +145,16 @@ void KiDispatchTimerObjects()
 	}
 }
 
+void KiDispatchTimerQueue()
+{
+	KIPL Ipl = KiLockDispatcher();
+	
+	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
+		KiDispatchTimerObjects();
+	
+	KiUnlockDispatcher(Ipl);
+}
+
 // -------- Exposed API --------
 
 bool KeReadStateTimer(PKTIMER Timer)

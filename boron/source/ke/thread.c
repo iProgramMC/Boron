@@ -15,8 +15,6 @@ Author:
 ***/
 #include "ki.h"
 
-void KeYieldCurrentThreadSub(); // trap.asm
-
 BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	if (!Thread)
@@ -125,13 +123,7 @@ void KeYieldCurrentThread()
 	KIPL Ipl = KeRaiseIPL(IPL_DPC);
 	
 	KeGetCurrentThread()->QuantumUntil = 0;
-	
-	// N.B. we probably don't need to update the scheduler's
-	// QuantumUntil field because the pending event stuff doesn't
-	// _really_ care about that.
-	
-	KeSetPendingEvent(PENDING_YIELD);
-	KeYieldCurrentThreadSub();
+	KiSetPendingQuantumEnd();
 	
 	KeLowerIPL(Ipl);
 }

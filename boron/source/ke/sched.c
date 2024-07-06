@@ -146,11 +146,7 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	// as soon as the dispatcher lock is unlocked.
 	if (KeGetCurrentThread()->Priority < Thread->Priority)
 	{
-		KeSetPendingEvent(PENDING_YIELD);
-		
-		// Don't issue a redundant software interrupt if we already inside one.
-		if (!KeGetCurrentPRCB()->IsInSoftwareInterrupt)
-			KeIssueSoftwareInterrupt();
+		KiSetPendingQuantumEnd();
 	}
 }
 
@@ -188,8 +184,12 @@ void KeSchedulerInit()
 // Commit to running threads managed by the scheduler.
 NO_RETURN void KeSchedulerCommit()
 {
-	KeSetPendingEvent(PENDING_YIELD);
-	KeIssueSoftwareInterrupt();
+	// NOTE: The raise of the IPL to IPL_DPC is not really because of anything
+	// KiSetPendingQuantumEnd does being unsafe, it's to actually get it to issue
+	// the quantum-end interrupt.
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	KiSetPendingQuantumEnd();
+	KeLowerIPL(Ipl);
 	
 	// Wait for the waves to pick us up...
 	while (true)
@@ -250,6 +250,10 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, boo
 		if (IsListEmpty(&Sched->ExecQueue[Priority]))
 			Sched->ExecQueueMask &= ~QUEUE_BIT(Priority);
 		
+		// Clear the priority boost so that it doesn't persist.
+		Thread->Priority = Thread->BasePriority;
+		Thread->PriorityBoost = 0;
+		
 		return Thread;
 	}
 	
@@ -262,7 +266,10 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 	KiAssertOwnDispatcherLock();
 	
 	uint64_t QuantumTicks = HalGetTickFrequency() * MAX_QUANTUM_US / 1000000;
-	Thread->QuantumUntil = HalGetTickCount() + QuantumTicks;
+	uint64_t QuantumUntil = HalGetTickCount() + QuantumTicks;
+	
+	Thread->QuantumUntil = QuantumUntil;
+	KeGetCurrentScheduler()->QuantumUntil = QuantumUntil;
 	
 	if (HalUseOneShotIntTimer())
 	{
@@ -282,7 +289,7 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 
 PKTHREAD KiGetNextThread(bool MayDowngrade);
 
-void KiEndThreadQuantum(PKREGISTERS Regs)
+void KiEndThreadQuantum()
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -316,25 +323,16 @@ void KiEndThreadQuantum(PKREGISTERS Regs)
 		
 		Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
 		
-		// Save the registers.
-		CurrentThread->State = Regs;
-		
 		// Set the last processor ID of the thread.
 		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
-		
-		// Remove the priority boost.
-		CurrentThread->Priority = CurrentThread->BasePriority;
-		CurrentThread->PriorityBoost = 0;
 	}
 	
-	// Unload the current thread.
-	Scheduler->CurrentThread = NULL;
 	Scheduler->QuantumUntil  = 0;
 }
 
 static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* SystemArgument1, UNUSED void* SystemArgument2)
 {
-	KiAssertOwnDispatcherLock();
+	KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = ContextV;
 	
@@ -344,10 +342,10 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	Thread->Stack.Handle = POOL_NO_MEMORY_HANDLE;
 	
 	// Remove the thread from the global list of threads.
-	KIPL Ipl;
-	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl);
+	KIPL Ipl2;
+	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl2);
 	RemoveEntryList(&Thread->EntryGlobal);
-	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
+	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl2);
 	
 	// Remove the thread from the parent process' list of threads.
 	RemoveEntryList(&Thread->EntryProc);
@@ -382,6 +380,8 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	// If the thread is detached, deallocate it.
 	if (Thread->Detached)
 		Thread->TerminateMethod(Thread);
+	
+	KiUnlockDispatcher(Ipl);
 }
 
 // I dub this "work stealing", although I'm pretty sure I've heard this somewhere before.
@@ -418,7 +418,7 @@ PKTHREAD KiGetNextThread(bool MayDowngrade)
 	
 	int MinPriority = 0;
 	if (CurrentThread)
-		MinPriority = CurrentThread->Priority;
+		MinPriority = CurrentThread->BasePriority;
 	
 	// The "trick" behind this function is that we REALLY don't want to downgrade priority.
 	
@@ -461,7 +461,7 @@ PKTHREAD KiGetNextThread(bool MayDowngrade)
 	return NULL;
 }
 
-void KiPerformYield(PKREGISTERS Regs)
+void KiPerformYield()
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -471,11 +471,7 @@ void KiPerformYield(PKREGISTERS Regs)
 	// If the current thread was "running" when it yielded, its quantum has
 	// ended forcefully and we should place it back on the execution queue.
 	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
-		return KiEndThreadQuantum(Regs);
-	
-	// Remove any priority boost this thread might have.
-	CurrentThread->Priority = CurrentThread->BasePriority;
-	CurrentThread->PriorityBoost = 0;
+		return KiEndThreadQuantum();
 	
 	PKTHREAD NextThread = KiGetNextThread(true);
 	if (!NextThread)
@@ -484,10 +480,7 @@ void KiPerformYield(PKREGISTERS Regs)
 	Scheduler->NextThread = NextThread;
 	
 	if (CurrentThread)
-	{
-		// Save the registers.
-		CurrentThread->State = Regs;
-		
+	{		
 		// Was the thread terminated?
 		if (CurrentThread->Status == KTHREAD_STATUS_TERMINATED)
 		{
@@ -501,13 +494,7 @@ void KiPerformYield(PKREGISTERS Regs)
 		}
 	}
 	
-	// Unload the current thread.
-	bool Restore = KeDisableInterrupts();
-	
-	Scheduler->CurrentThread = NULL;
 	Scheduler->QuantumUntil  = 0;
-	
-	KeRestoreInterrupts(Restore);
 }
 
 bool KiNeedToSwitchThread()
@@ -529,7 +516,7 @@ static PKPROCESS KepGetProcessToSwitchAddressSpaceTo(PKTHREAD Thread)
 	       Thread->Process;
 }
 
-PKREGISTERS KiSwitchToNextThread()
+void KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
 	
@@ -543,6 +530,8 @@ PKREGISTERS KiSwitchToNextThread()
 	// If KiEndThreadQuantum has picked a next thread, it's also gotten rid
 	// of CurrentThread.
 	SchedDebug("Scheduling In Thread %p", Scheduler->NextThread);
+	
+	PKTHREAD OldThread = Scheduler->CurrentThread;
 	
 	Scheduler->CurrentThread = Scheduler->NextThread;
 	Scheduler->NextThread    = NULL;
@@ -570,9 +559,40 @@ PKREGISTERS KiSwitchToNextThread()
 		KiSwitchToAddressSpaceProcess(DestProcess);
 	
 	if (!IsListEmpty(&Thread->KernelApcQueue))
-		KeIssueSoftwareInterruptApcLevel();
+		KeIssueSoftwareInterrupt(IPL_APC);
 	
-	return Thread->State;
+	// Switch to thread's stack.
+	//
+	// NOTE: There are two paths from here:
+	// 1. Function execution will continue HERE but in the thread's context.
+	//
+	// 2. Function execution will continue in KiThreadEntryPoint.  This will unlock
+	//    the dispatcher lock, lower IPL and jump to the thread's start routine.
+	//
+	//    It won't dispatch any APCs, but it's not necessary since the APC
+	//    queue will be empty anyway.
+	if (OldThread)
+		KiSwitchThreadStack(&OldThread->StackPointer, Thread->StackPointer);
+	else
+		KiSwitchThreadStackForever(Thread->StackPointer);
+	
+	// NOTE: Beyond this point, you CANNOT use "Thread" anymore to refer to the
+	// thread that was just switched to.  You have to use "OldThread" - that was
+	// the thread that was switched from when it saved its state in
+	// KiSwitchThreadStack. But, well, there's nothing here for now, so fine.
+}
+
+void KiHandleQuantumEnd()
+{
+	KIPL Ipl = KiLockDispatcher();
+	
+	KiPerformYield();
+	
+	if (KeGetCurrentScheduler()->NextThread) {
+		KiSwitchToNextThread();
+	}
+	
+	KiUnlockDispatcher(Ipl);
 }
 
 void KeTimerTick()
@@ -587,7 +607,7 @@ void KeTimerTick()
 	// 2. You really don't need it!
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
-	SchedDebug("Thread->QuantumUntil: %lld  HalGetTickCount: %lld", Thread->QuantumUntil, HalGetTickCount());
+	SchedDebug("Scheduler->QuantumUntil: %lld  HalGetTickCount: %lld", Scheduler->QuantumUntil, HalGetTickCount());
 	
 	// TODO: Optimize the amount of reschedules we perform.
 	
@@ -595,8 +615,7 @@ void KeTimerTick()
 	{
 		// Thread's quantum has expired!!
 		SchedDebug("Thread Quantum Has Expired");
-		KeSetPendingEvent(PENDING_YIELD);
-		KeIssueSoftwareInterrupt(); // This interrupt will show up when we exit this interrupt.
+		KiSetPendingQuantumEnd();
 	}
 	else if (HalUseOneShotIntTimer())
 	{
@@ -633,13 +652,10 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	
 	Thread->IncrementTerminated = Increment;
 	
-	// Further cleanup will be performed in a DPC.
+	KiSetPendingQuantumEnd();
 	
 	// Unlock the dispatcher and yield.
 	KiUnlockDispatcher(Ipl);
-	
-	// Note! There is a chance we won't get to this point. That's completely fine though actually.
-	KeYieldCurrentThread();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

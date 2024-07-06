@@ -18,6 +18,8 @@ Author:
 #include <hal.h>
 #include <string.h>
 
+// TODO: This needs heavy cleanup.
+
 // ===== Tests =====
 void KiPerformTests();
 
@@ -26,13 +28,11 @@ BIG_MEMORY_HANDLE KiAllocateDefaultStack();
 
 void KiSetupRegistersThread(PKTHREAD Thread); // Defined in arch
 
-void KiPerformYield(PKREGISTERS);
+void KiPerformYield();
 
 bool KiNeedToSwitchThread();
 
-PKREGISTERS KiSwitchToNextThread();
-
-PKREGISTERS KiHandleSoftIpi(PKREGISTERS);
+void KiSwitchToNextThread();
 
 void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment);
 
@@ -53,9 +53,29 @@ bool KiIsObjectSignaled(PKDISPATCH_HEADER Header, PKTHREAD Thread);
 PKTHREAD KiWaitTestAndGetWaiter(PKDISPATCH_HEADER Object, KPRIORITY Increment);
 void KiWaitTest(PKDISPATCH_HEADER Object, KPRIORITY Increment);
 
-void KeIssueSoftwareInterruptApcLevel();
+void KiDispatchTimerQueue();
 
-void KiDispatchApcQueue();
+void KiApcInterrupt();
+
+void KiDpcInterrupt();
+
+void KeIssueSoftwareInterrupt(KIPL Ipl);
+
+void KiAcknowledgeSoftwareInterrupt(KIPL Ipl);
+
+void KiDispatchSoftwareInterrupts(KIPL NewIpl);
+
+void KiHandleQuantumEnd();
+
+void KiSetPendingQuantumEnd();
+
+void KiOnKillProcess(PKPROCESS Process);
+
+void KiSwitchThreadStack(void** OldStack, void* NewStack);
+
+// Same as KiSwitchThreadStack, but discards the old context.  Used during
+// initialization of the scheduler when no thread was switched to before.
+void KiSwitchThreadStackForever(void* NewStack);
 
 // Define KiAssertOwnDispatcherLock
 // Note: this has chances to fail if the current processor
@@ -71,7 +91,5 @@ void KiAssertOwnDispatcherLock_(const char* FunctionName);
 void KiSwitchToAddressSpaceProcess(PKPROCESS Process);
 
 NO_DISCARD BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
-
-void KiOnKillProcess(PKPROCESS Process);
 
 #endif//BORON_KE_KI_H

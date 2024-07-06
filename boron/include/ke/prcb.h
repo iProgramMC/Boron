@@ -62,18 +62,18 @@ typedef struct KPRCB_tag
 	// DPC queue
 	KDPC_QUEUE DpcQueue;
 	
-	// Pending event flags
-	int PendingEvents;
+	// Whether a yield is pending for the current thread.
+	bool YieldCurrentThread;
+	
+	// Software interrupt pending flags.
+	#define PENDING(Ipl) (1 << (Ipl - 1))
+	int PendingSoftInterrupts;
 	
 	// Scheduler for the current processor.
 	KSCHEDULER Scheduler;
 	
 	// HAL Control Block - HAL specific data.
 	HALCB_PTR HalData;
-	
-	// This bool is set if executing a DPC-level software interrupt.
-	// Used for priority-based yielding on unwait.
-	bool IsInSoftwareInterrupt;
 }
 KPRCB, *PKPRCB;
 
@@ -82,19 +82,6 @@ PKPRCB KeGetCurrentPRCB();
 int KeGetProcessorCount();
 
 uint32_t KeGetBootstrapLapicId();
-
-enum
-{
-	PENDING_YIELD = (1 << 0),
-	//PENDING_APCS  = (1 << 1),
-	PENDING_DPCS  = (1 << 2),
-};
-
-int KeGetPendingEvents();
-void KeClearPendingEvents();
-void KeSetPendingEvent(int PendingEvent);
-void KeIssueSoftwareInterrupt();
-void KeIssueSoftwareInterruptApcLevel();
 
 static_assert(sizeof(KPRCB) <= 4096, "struct KPRCB should be smaller or equal to the page size, for objective reasons");
 

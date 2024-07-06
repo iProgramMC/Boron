@@ -120,6 +120,79 @@ MmSafeCopySub:
 	rep movsb         ; repeats "move single byte" RCX times
 	xor rax, rax      ; return zero for no error
 	ret
+
+; void KiSwitchThreadStack(void** OldStack, void* NewStack)
+; NOTE: Function is run at IPL_DPC with the dispatcher lock held.
+global KiSwitchThreadStack
+KiSwitchThreadStack:
+	; NOTE: There's no need to create a fake iretq frame to use iretq
+	; to return to.  This function can only be run from kernel mode
+	; where ss == ds == SEG_RING_0_DATA and cs == SEG_RING_0_CODE.
 	
+	; Push System V ABI callee saved registers.
+	; TODO: Do we really need to push and pop rflags?
+	; TODO: Do we really need to push the segment registers?
+	pushfq
+	mov  rax, ds
+	push rax
+	mov  rax, es
+	push rax
+	mov  rax, fs
+	push rax
+	mov  rax, gs
+	push rax
+	push rbp
+	push rbx
+	push r12
+	push r13
+	push r14
+	push r15
+	
+	; Store the current rsp into *OldStack.
+	mov  qword [rdi], rsp
+	
+	; Load the current rsp from NewStack.
+	mov  rsp, rsi
+	
+	; Pop everything and return as usual.
+KiPopEverythingAndReturn:
+	pop  r15
+	pop  r14
+	pop  r13
+	pop  r12
+	pop  rbx
+	pop  rbp
+	pop  rax
+	mov  gs, rax
+	pop  rax
+	mov  fs, rax
+	pop  rax
+	mov  es, rax
+	pop  rax
+	mov  ds, rax
+	xor  rax, rax
+	
+	; Pop RFLAGS and return
+	popfq
+	ret
+
+; Used for the init phase of the scheduler, when no thread
+; was selected.
+global KiSwitchThreadStackForever
+KiSwitchThreadStackForever:
+	mov rsp, rdi
+	jmp KiPopEverythingAndReturn
+
+extern KiUnlockDispatcher
+
+; Arguments:
+; rbx - Thread entry point.
+; r12 - Thread context.
+global KiThreadEntryPoint
+KiThreadEntryPoint:
+	xor  rdi, rdi
+	call KiUnlockDispatcher
+	mov  rdi, r12
+	jmp  rbx
 
 section .bss

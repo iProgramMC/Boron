@@ -443,36 +443,40 @@ void KiWaitTest(PKDISPATCH_HEADER Object, KPRIORITY Increment)
 	(void) KiWaitTestAndGetWaiter(Object, Increment);
 }
 
-PKREGISTERS KiHandleSoftIpi(PKREGISTERS Regs)
+void KeIssueSoftwareInterrupt(KIPL Ipl)
 {
-	int Flags = KeGetPendingEvents();
-	KeClearPendingEvents();
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	AtOrFetch(Prcb->PendingSoftInterrupts, PENDING(Ipl));
+}
+
+void KiAcknowledgeSoftwareInterrupt(KIPL Ipl)
+{
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	AtAndFetch(Prcb->PendingSoftInterrupts, ~PENDING(Ipl));
+}
+
+void KiDispatchSoftwareInterrupts(KIPL NewIpl)
+{
+	bool Restore = KeDisableInterrupts();
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	int Pending = 0;
 	
-	KIPL Ipl = KiLockDispatcher();
+	while ((Pending = Prcb->PendingSoftInterrupts & (0xFF << NewIpl)) != 0)
+	{
+		// Invoke the relevant software interrupt.
+		if (Pending & PENDING(IPL_DPC))
+			KiDpcInterrupt();
+		
+		if (Pending & PENDING(IPL_APC))
+			KiApcInterrupt();
+		
+		// When handling software interrupts at IPL_APC or lower, it is totally possible
+		// to be re-scheduled to a different processor/thread, so we need to re-fetch the
+		// PRCB pointer.
+		Prcb = KeGetCurrentPRCB();
+	}
 	
-	KeGetCurrentPRCB()->IsInSoftwareInterrupt = true;
+	Prcb->Ipl = NewIpl;
 	
-	if (KiGetNextTimerExpiryTick() <= HalGetTickCount() + 100)
-		KiDispatchTimerObjects();
-	
-	// N.B. Dispatch DPCs before performing a yield. See KiPerformYield for more info.
-	if (Flags & PENDING_DPCS)
-		KiDispatchDpcs();
-	
-	// N.B. Re-fetch flags, might have changed.  In particular, a DPC may have set
-	// an event, or something, therefore a yield may have appeared.
-	Flags |= KeGetPendingEvents();
-	KeClearPendingEvents();
-	
-	if (Flags & PENDING_YIELD)
-		KiPerformYield(Regs);
-	
-	if (KeGetCurrentPRCB()->Scheduler.NextThread)
-		Regs = KiSwitchToNextThread();
-	
-	KeGetCurrentPRCB()->IsInSoftwareInterrupt = false;
-	
-	KiUnlockDispatcher(Ipl);
-	
-	return Regs;
+	KeRestoreInterrupts(Restore);
 }

@@ -137,13 +137,16 @@ void KiExitHardwareInterrupt(int OldIpl)
 {
 	DISABLE_INTERRUPTS();
 	
-	if (OldIpl == MAGIC_IPL)
-		OldIpl = IPL_DPC;
+	PKPRCB Prcb = KeGetCurrentPRCB();
 	
-	PKIPL IplPtr = &KeGetCurrentPRCB()->Ipl;
-	KIPL PrevIpl = *IplPtr;
-	*IplPtr = OldIpl;
+	KIPL PrevIpl = Prcb->Ipl;
+	Prcb->Ipl = OldIpl;
 	KeOnUpdateIPL(OldIpl, PrevIpl);
+	
+	// Note: safe to call here beecause KiDispatchSoftwareInterrupts
+	// preserves interrupt disable state across a call to it
+	if (Prcb->PendingSoftInterrupts >> OldIpl)
+		KiDispatchSoftwareInterrupts(OldIpl);
 }
 
 // ==== Interrupt Handlers ====
@@ -153,20 +156,6 @@ PKREGISTERS KiTrapUnknownHandler(PKREGISTERS Regs)
 {
 	KeOnUnknownInterrupt(Regs);
 	return Regs;
-}
-
-PKREGISTERS KiHandleApcIpi(PKREGISTERS Regs)
-{
-	KiDispatchApcQueue();
-	HalEndOfInterrupt();
-	return Regs;
-}
-
-PKREGISTERS KiHandleDpcIpi(PKREGISTERS Regs)
-{
-	PKREGISTERS New = KiHandleSoftIpi(Regs);
-	HalEndOfInterrupt();
-	return New;
 }
 
 PKREGISTERS KiHandleDoubleFault(PKREGISTERS Regs)
