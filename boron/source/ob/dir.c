@@ -144,6 +144,46 @@ static size_t ObpMatchPathName(const char* FileName, const char* Path)
 	return 0;
 }
 
+//
+// Looks for an object inside of a directory.  As an optimization, this
+// only inspects the first path component. For example, if the path looks
+// something like "BORON\TEST\SOMETHING", the path lookup will only be
+// performed on the first path component "BORON".
+//
+// The matched path component's length will be returned through OutMatchLength.
+// Thus, the path lookup can continue for each subsequent path component; as
+// in the example above, "TEST\SOMETHING" and "SOMETHING" will be looked up
+// next.
+//
+BSTATUS ObpLookUpDirectoryEntry(
+	POBJECT_DIRECTORY Directory,
+	const char* PathToMatch,
+	void** OutObject,
+	size_t* OutMatchLength
+)
+{
+	PLIST_ENTRY Entry = Directory->ListHead.Flink;
+	
+	while (Entry != &Directory->ListHead)
+	{
+		POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
+		
+		size_t MatchLength = ObpMatchPathName(Header->ObjectName, PathToMatch);
+		if (MatchLength != 0)
+		{
+			ObReferenceObjectByPointer(Header->Body);
+			*OutObject = Header->Body;
+			*OutMatchLength = MatchLength;
+			
+			return STATUS_SUCCESS;;
+		}
+		
+		// Didn't match, so continue.
+		Entry = Entry->Flink;
+	}
+	
+	return STATUS_NAME_NOT_FOUND;
+}
 
 // Performs a path lookup in the object namespace. It can either be
 // an absolute path lookup (from the root of the directory tree), or
@@ -242,32 +282,12 @@ BSTATUS ObpLookUpObjectPath(
 			// We do, so browse the directory to find an entry with the same name
 			// as the current path segment.
 			POBJECT_DIRECTORY Directory = CurrentObject;
-			PLIST_ENTRY Entry = Directory->ListHead.Flink;
 			
-			bool FoundMatch = false;
+			size_t MatchLength = 0;
+			void* LookedUpObject = NULL;
+			BSTATUS Status = ObpLookUpDirectoryEntry(Directory, CurrentPath, &LookedUpObject, &MatchLength);
 			
-			while (Entry != &Directory->ListHead)
-			{
-				POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
-				
-				size_t MatchLength = ObpMatchPathName(Header->ObjectName, CurrentPath);
-				if (MatchLength != 0)
-				{
-					// Match! Time to continue parsing through this object.
-					CurrentPath += MatchLength;
-					
-					ObReferenceObjectByPointer(Header->Body);
-					ObDereferenceObject(CurrentObject);
-					CurrentObject = Header->Body;
-					FoundMatch = true;
-					break;
-				}
-				
-				// Didn't match, so continue.
-				Entry = Entry->Flink;
-			}
-			
-			if (!FoundMatch)
+			if (FAILED(Status))
 			{
 				// No match! Inform caller about our failure.
 				//
@@ -276,6 +296,12 @@ BSTATUS ObpLookUpObjectPath(
 				ObpLeaveRootDirectoryMutex();
 				return STATUS_NAME_NOT_FOUND;
 			}
+			
+			// Match! Time to continue parsing through this object.
+			CurrentPath += MatchLength;
+			
+			ObDereferenceObject(CurrentObject);
+			CurrentObject = LookedUpObject;
 			
 			CurrDepth--;
 			continue;

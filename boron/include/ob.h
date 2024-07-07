@@ -41,20 +41,20 @@ typedef void(*OBJ_DELETE_FUNC)(void* Object);
 // Parse a path using this object.
 //
 // N.B.:
-//  1. TemporarySpace MUST be OB_MAX_PATH_LENGTH in size!!
-//
-//  2. In the implementation of the Parse method, if the Parse method performs a lookup
+//  1. In the implementation of the Parse method, if the Parse method performs a lookup
 //     using ObpLookUpObjectPath, then it MUST pass LoopCount into the LoopCount parameter!
 //     (I mean, you can always pass LoopCount + 1 if you're stubborn like that, but you will
 //     run out of loops twice as quickly if some guy decides they want to create a symlink loop)
 //
-//  3. The returned Object will have 1 extra reference which will be dereferenced after the
-//     object is done with.
+//  2. The returned Object will have 1 extra reference, if there is one.
+//
+//  3. The "Name" value will be overwritten if an object was found, with the following:
+//     - NULL: This is the desired object, or
+//     - A valid offset of the original value of 'Name' which can be used to lookup 
 //
 typedef BSTATUS(*OBJ_PARSE_FUNC) (
 	void* ParseObject,
 	const char** Name,
-	//char* TemporarySpace,
 	void* Context,
 	int LoopCount,
 	void** Object
