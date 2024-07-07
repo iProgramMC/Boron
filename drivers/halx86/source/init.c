@@ -50,6 +50,7 @@ void HalInitSystemUP()
 	HalInitAcpi();
 	HalInitIoApic();
 	HpetInitialize();
+	HalInitPci();
 }
 
 // Initialize the HAL separately for each processor.
@@ -60,7 +61,6 @@ void HalInitSystemMP()
 	
 	HalInitApicMP();
 	HalCalibrateApic();
-	HalInitPci();
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)

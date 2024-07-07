@@ -15,6 +15,9 @@ Author:
 #pragma once
 
 #include <stdint.h>
+#include <ke.h>
+#include <mm.h>
+#include <string.h>
 
 #define PCI_CONFIG_ADDRESS (0xCF8)
 #define PCI_CONFIG_DATA    (0xCFC)
@@ -39,15 +42,19 @@ Author:
 #define PCI_OFFSET_CAPABILITIES_PTR   (0x34)  // byte 0 used, rest reserved
 #define PCI_OFFSET_INTERRUPT          (0x3C)  // interrupt line byte 0, interrupt pin byte 1, min grant byte 2, max latency byte 3
 
+#define PCI_MAX_BUS  (256)
+#define PCI_MAX_SLOT (32)
+#define PCI_MAX_FUNC (8)
+
 //
-// Defines a PCI device geographical address - i.e. where
+// Defines a PCI device's geographical address - i.e. where
 // the device is found on the PCI bus.
 //
 typedef struct
 {
-	uint32_t Bus;
-	uint32_t Slot;
-	uint32_t Function;
+	uint8_t Bus;
+	uint8_t Slot;
+	uint8_t Function;
 }
 PCI_ADDRESS, *PPCI_ADDRESS;
 
@@ -67,5 +74,37 @@ typedef union
 	uint32_t VendorAndDeviceId;
 }
 PCI_IDENTIFIER, *PPCI_IDENTIFIER;
+
+//
+// Defines the structure of the PCI class register as shown in the
+// PCI config table.
+//
+typedef union
+{
+	struct
+	{
+		uint8_t Revision;
+		uint8_t ProgIF;
+		uint8_t SubClass;
+		uint8_t Class;
+	};
+	
+	uint32_t Register;
+}
+PCI_CLASS, *PPCI_CLASS;
+
+//
+// Defines a registered PCI device.  Stores its device ID, vendor ID,
+// class and subclass registers, as well as its geographical address
+// on the bus.
+//
+typedef struct
+{
+	PCI_IDENTIFIER Identifier;
+	PCI_ADDRESS Address;
+	PCI_CLASS Class;
+}
+PCI_DEVICE, *PPCI_DEVICE;
+
 
 void HalInitPci();
