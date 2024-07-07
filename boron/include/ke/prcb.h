@@ -73,7 +73,7 @@ typedef struct KPRCB_tag
 	KSCHEDULER Scheduler;
 	
 	// HAL Control Block - HAL specific data.
-	HALCB_PTR HalData;
+	PKHALCB HalData;
 }
 KPRCB, *PKPRCB;
 

@@ -100,6 +100,21 @@ void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool
 {
 	return HalpVftable.IoApicSetIrqRedirect(Vector, Irq, LapicId, Status);
 }
+
+BSTATUS
+HalPciEnumerate(
+    bool LookUpByIds,
+    size_t IdCount,
+    PPCI_IDENTIFIER Identifiers,
+    uint8_t ClassCode,
+    uint8_t SubClassCode,
+    PHAL_PCI_ENUMERATE_CALLBACK Callback,
+	void* CallbackContext
+)
+{
+	return HalpVftable.PciEnumerate(LookUpByIds, IdCount, Identifiers, ClassCode, SubClassCode, Callback, CallbackContext);
+}
+
 #endif
 
 NO_RETURN void HalProcessorCrashed()

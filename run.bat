@@ -7,17 +7,23 @@ set NSPath=%CD%
 cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
-qemu-system-x86_64.exe -no-reboot -no-shutdown  ^
--M q35                                          ^
--m 64M                                          ^
--smp 4                                          ^
--boot d                                         ^
--cdrom %nspath%\build\image.iso                 ^
--display sdl                                    ^
--accel tcg                                      ^
--monitor telnet:127.0.0.1:56789,server,nowait   ^
--debugcon stdio                                 ^
--s
+if exist %nspath%\vdiske2.vdi (
+	set DriveOptions=-cdrom %nspath%\build\image.iso -drive id=disk,file=%nspath%\vdiske2.vdi,if=none
+) else (
+	set DriveOptions=-cdrom %nspath%\build\image.iso
+)
+
+qemu-system-x86_64.exe -no-reboot -no-shutdown ^
+-M q35 ^
+-m 64M ^
+-smp 4 ^
+-boot d ^
+-display sdl ^
+-accel tcg ^
+-monitor telnet:127.0.0.1:56789,server,nowait ^
+-debugcon stdio ^
+-s ^
+%DriveOptions%
 
 :-debugcon stdio                                 ^
 :-d cpu_reset                                    ^

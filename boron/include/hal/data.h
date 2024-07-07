@@ -24,8 +24,6 @@ typedef struct KHALCB_tag
 }
 KHALCB, *PKHALCB;
 
-typedef void* HALCB_PTR;
-
 PKHALCB KeGetCurrentHalCB();
 
 #endif//BORON_HAL_DATA_H

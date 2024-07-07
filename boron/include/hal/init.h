@@ -36,7 +36,11 @@ typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
 
 #ifdef TARGET_AMD64
+
 typedef void(*PFHAL_IOAPIC_SET_IRQ_REDIRECT)(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+
+#include "pci.h"
+
 #endif
 
 typedef struct
@@ -59,6 +63,7 @@ typedef struct
 	
 #ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;
+	PFHAL_PCI_ENUMERATE PciEnumerate;
 #endif
 }
 HAL_VFTABLE, *PHAL_VFTABLE;

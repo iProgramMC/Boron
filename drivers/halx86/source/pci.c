@@ -195,6 +195,57 @@ void HalPciProbe()
 	DbgPrint("PCI device probe complete.");
 }
 
+BSTATUS
+HalPciEnumerate(
+    bool LookUpByIds,
+    size_t IdCount,
+    PPCI_IDENTIFIER Identifiers,
+    uint8_t ClassCode,
+    uint8_t SubClassCode,
+    PHAL_PCI_ENUMERATE_CALLBACK Callback,
+	void* CallbackContext
+)
+{
+	bool FoundDevices = false;
+	
+	for (size_t i = 0; i < HalpPciDeviceCount; i++)
+	{
+		PPCI_DEVICE Device = &HalpPciDevices[i];
+		
+		// Check if the device matches.
+		if (LookUpByIds)
+		{
+			bool Is = false;
+			
+			for (size_t j = 0; !Is && j < IdCount; j++)
+			{
+				if (Device->Identifier.VendorAndDeviceId == Identifiers[j].VendorAndDeviceId)
+					Is = true;
+			}
+			
+			if (Is)
+			{
+				if (Callback(Device, CallbackContext))
+					FoundDevices = true;
+			}
+		}
+		else
+		{
+			if (ClassCode == Device->Class.Class &&
+			   (SubClassCode == PCI_SUBCLASS_ANY || SubClassCode == Device->Class.SubClass))
+			{
+				if (Callback(Device, CallbackContext))
+					FoundDevices = true;
+			}
+		}
+	}
+	
+	if (FoundDevices)
+		return STATUS_SUCCESS;
+	else
+		return STATUS_NO_SUCH_DEVICES;
+}
+
 void HalInitPci()
 {
 	HalPciProbe();

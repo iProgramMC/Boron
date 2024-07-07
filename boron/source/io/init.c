@@ -104,6 +104,8 @@ bool IoInitSystem()
 #ifdef DEBUG
 	DbgPrint("Dumping drivers directory:");
 	ObpDebugDirectory(IoDriversDir);
+	DbgPrint("Dumping devices directory:");
+	ObpDebugDirectory(IoDevicesDir);
 #endif
 	
 	return true;

@@ -91,6 +91,13 @@ NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDKI_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
+#
+# NOTE 7.7.2024 -- No-reorder-functions was added because a certain functions
+# was generating an "unlikely" section, which was placed at different addresses
+# in kernel.elf and kernel2.elf, screwing up the symbol table...  That's pretty
+# bad.
+#
+# TODO: fix above ^^^
 override CFLAGS +=          \
 	-fno-omit-frame-pointer \
 	-std=c11                \
@@ -100,6 +107,7 @@ override CFLAGS +=          \
 	-fno-lto                \
 	-fno-pie                \
 	-fno-pic                \
+	-fno-reorder-functions  \
 	-m64                    \
 	-march=x86-64           \
 	-mabi=sysv              \
@@ -123,6 +131,7 @@ override CXXFLAGS +=        \
 	-fno-lto                \
 	-fno-pie                \
 	-fno-pic                \
+	-fno-reorder-functions  \
 	-m64                    \
 	-march=x86-64           \
 	-mabi=sysv              \
