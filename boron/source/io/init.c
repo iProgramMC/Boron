@@ -15,7 +15,7 @@ Author:
 #include "iop.h"
 #include <string.h>
 
-POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType;
+POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType, IoControllerType;
 POBJECT_DIRECTORY IoDriversDir;
 POBJECT_DIRECTORY IoDevicesDir;
 
@@ -28,6 +28,7 @@ void* IoGetBuiltInData(int Number)
 		case __IO_FILE_TYPE:   return IoFileType;
 		case __IO_DRIVERS_DIR: return IoDriversDir;
 		case __IO_DEVICES_DIR: return IoDevicesDir;
+		case __IO_CNTRLR_TYPE: return IoControllerType;
 		default:               return NULL;
 	}
 }
@@ -58,6 +59,17 @@ bool IopInitializeObjectTypes()
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create Device type.");
+		return false;
+	}
+	
+	// Initialize the Controller object type.
+	Info.Delete = IopDeleteController;
+	Info.Parse = NULL;
+	Status = ObCreateObjectType("Controller", &Info, &IoControllerType);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("IO: Failed to create Controller type.");
 		return false;
 	}
 	
@@ -102,10 +114,14 @@ bool IoInitSystem()
 	
 	// TEST: This is test code. Remove soon!
 #ifdef DEBUG
+	extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
+	
 	DbgPrint("Dumping drivers directory:");
 	ObpDebugDirectory(IoDriversDir);
 	DbgPrint("Dumping devices directory:");
 	ObpDebugDirectory(IoDevicesDir);
+	DbgPrint("Dumping types directory:");
+	ObpDebugDirectory(ObpObjectTypesDirectory);
 #endif
 	
 	return true;

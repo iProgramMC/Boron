@@ -42,6 +42,10 @@ struct _DEVICE_OBJECT
 	
 	PFCB Fcb;
 	
+	// If this is part of a controller, this is the entry into the controller's
+	// device tree.
+	AVLTREE_ENTRY DeviceTreeEntry;
+	
 	// If this is a partition, this is the device object this one belongs to
 	// (Note: This object is referenced for the lifetime of this device)
 	PDEVICE_OBJECT ParentDevice;

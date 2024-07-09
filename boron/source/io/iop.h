@@ -15,6 +15,9 @@ void IopDeleteDriver(void* Object);
 void IopDeleteDevice(void* Object);
 BSTATUS IopParseDevice(void* Object, const char** Name, void* Context, int LoopCount, void** OutObject);
 
+// Controller object operations
+void IopDeleteController(void* Object);
+
 // File object operations
 void IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason);
 void IopDeleteFile(void* Object);
