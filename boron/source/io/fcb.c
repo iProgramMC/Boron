@@ -36,3 +36,11 @@ void IoFreeFcb(PFCB Fcb)
 	
 	MmFreePool(Fcb);
 }
+
+void IoDereferenceFcb(PFCB Fcb)
+{
+	IO_DEREFERENCE_METHOD DerefMethod = Fcb->DispatchTable->Dereference;
+	
+	if (DerefMethod)
+		DerefMethod(Fcb);
+}

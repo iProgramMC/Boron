@@ -45,6 +45,10 @@ BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, u
 	FileObject->OpenFlags = OpenFlags;
 	
 	// Call the FCB's create object method, if it exists.
+	//
+	// This will NOT add a reference to the FCB -- the job of adding the reference
+	// falls back to the file system driver (FSD), because only it can add the
+	// reference in a thread-safe way.
 	IO_CREATE_OBJ_METHOD CreateObjMethod = Fcb->DispatchTable->CreateObject;
 	
 	if (CreateObjMethod)
@@ -88,10 +92,14 @@ void IopCloseFile(void* Object, int HandleCount)
 void IopDeleteFile(void* Object)
 {
 	PFILE_OBJECT File = Object;
-	IO_DELETE_OBJ_METHOD DeleteObjectMethod = File->Fcb->DispatchTable->DeleteObject;
 	
-	if (DeleteObjectMethod)
-		DeleteObjectMethod(File->Fcb, Object);
+	// Delete the reference to the FCB.
+	IO_DELETE_OBJ_METHOD DeleteObjMethod = File->Fcb->DispatchTable->DeleteObject;
+	
+	if (DeleteObjMethod)
+		DeleteObjMethod(File->Fcb, Object);
+	
+	IoDereferenceFcb(File->Fcb);
 }
 
 // IopParseFile is implemented in io/parse.c

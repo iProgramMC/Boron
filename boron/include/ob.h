@@ -42,7 +42,7 @@ typedef void(*OBJ_DELETE_FUNC)(void* Object);
 //
 // N.B.:
 //  1. In the implementation of the Parse method, if the Parse method performs a lookup
-//     using ObpLookUpObjectPath, then it MUST pass LoopCount into the LoopCount parameter!
+//     using ObReferenceObjectByName, then it MUST pass LoopCount into the LoopCount parameter!
 //     (I mean, you can always pass LoopCount + 1 if you're stubborn like that, but you will
 //     run out of loops twice as quickly if some guy decides they want to create a symlink loop)
 //
@@ -51,6 +51,10 @@ typedef void(*OBJ_DELETE_FUNC)(void* Object);
 //  3. The "Name" value will be overwritten if an object was found, with the following:
 //     - NULL: This is the desired object, or
 //     - A valid offset of the original value of 'Name' which can be used to lookup 
+//
+//  4. The passed in ParseObject will have a net zero difference in reference count after the
+//     call (so, the initial reference won't be dereferenced while inside of the function).
+//     The dereference job falls onto the caller (in most cases, ObReferenceObjectByName)
 //
 typedef BSTATUS(*OBJ_PARSE_FUNC) (
 	void* ParseObject,
@@ -286,6 +290,9 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject);
 // The caller must call ObDereferenceObject when done with the returned object.
 //
 // N.B. Specifying NULL for InitialParseObject means that the lookup is absolute.
+//
+// N.B. The InitialParseObject will have a net zero difference in reference count
+//      across calls to this function.
 BSTATUS ObReferenceObjectByName(
 	const char* Path,
 	void* InitialParseObject,

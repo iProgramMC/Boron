@@ -4,6 +4,7 @@
 #include <mm.h>
 #include <ob.h>
 #include <ldr.h>
+#include <string.h>
 
 extern POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType;
 

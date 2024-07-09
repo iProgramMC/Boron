@@ -68,6 +68,7 @@ enum
 	STATUS_INSUFFICIENT_SPACE,  // No space left on device
 	STATUS_NO_SUCH_DEVICES,     // No devices with specified properties found
 	STATUS_UNLOAD,              // Returned by the driver entry.  Tells the driver loader that this driver should be unloaded.
+	STATUS_NOT_A_DIRECTORY,     // Not a directory
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

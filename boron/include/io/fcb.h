@@ -58,6 +58,11 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 // Frees an FCB.
 void IoFreeFcb(PFCB Fcb);
 
+// Dereferences an FCB.
+// This calls its Dereference function.  The Boron executive does not store the
+// reference count of an FCB.
+void IoDereferenceFcb(PFCB Fcb);
+
 // TODO: Maybe the waits should be alertable?
 // Locks an FCB exclusive.
 static ALWAYS_INLINE inline BSTATUS IoLockFcbExclusive(PFCB Fcb)

@@ -42,6 +42,15 @@ struct _DEVICE_OBJECT
 	
 	PFCB Fcb;
 	
+	// If this is a partition, this is the device object this one belongs to
+	// (Note: This object is referenced for the lifetime of this device)
+	PDEVICE_OBJECT ParentDevice;
+	
+	// If this is a mounted partition, this is the file object pointing to the
+	// root of said mount.
+	// TODO: Maybe this belongs in a separate object?
+	PFILE_OBJECT MountRoot;
+	
 	// Extension data.
 	size_t ExtensionSize;
 	char Extension[];

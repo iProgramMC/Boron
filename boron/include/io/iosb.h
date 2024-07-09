@@ -32,8 +32,13 @@ typedef struct _IO_STATUS_BLOCK
 		// ReadDir
 		uint64_t NextOffset;
 		
-		// LookUpDir
-		PFCB FoundFcb;
+		// ParseDir
+		struct
+		{
+			PFCB FoundFcb;
+			const char* ReparsePath;
+		}
+		ParseDir;
 		
 		// BackingMemory
 		struct

@@ -60,8 +60,15 @@ Author:
 //   devices.
 //
 // - IO_CREATE_OBJ_METHOD is the method called when a file object is created from this FCB.
+//   Note: This method will not add a reference to the FCB.  The job of adding a reference to the FCB falls on the FSD
+//   (File system driver) in methods that return an FCB, such as IO_PARSE_METHOD.
 //
-// - IO_DELETE_OBJ_METHOD is the method called when a file object referencing this FCB is deleted.
+// - IO_DELETE_OBJ_METHOD is the method called when a file object is deleted with a reference to this FCB.
+//   This does not erase the reference to the FCB, but the file object, when deleted, will also separately call
+//   IO_DEREFERENCE_METHOD.
+//
+// - IO_DEREFERENCE_METHOD is the method called when a reference to the FCB is deleted. For example, a file object being
+//   deleted will call this function on its FCB.
 //
 // - Careful! IO_READ_METHOD and IO_WRITE_METHOD may be called from the context of multiple threads at the same time!
 //   Device and FS drivers must take care to prevent race conditions in this regard.  Note that this may be disabled
@@ -73,10 +80,13 @@ Author:
 // - The IO_TOUCH_METHOD method lets the FSD know that a file was updated and that the relevant time stamp (modify or
 //   access) should be updated.
 //
+// - IO_PARSE_DIR_METHOD, in the Iosb's ReparsePath, will ONLY return NULL or a substring of ParsePath.
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
+typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
 typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
@@ -84,7 +94,7 @@ typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_LOOKUP_DIR_METHOD) (PIO_STATUS_BLOCK Iosb, PFCB Fcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, int ParseLoopCount);
 typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
 typedef BSTATUS(*IO_MAKE_DIR_METHOD)   (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
@@ -113,6 +123,8 @@ enum
 	//
 	// As an optimization, the FCB's rwlock, when the file is opened as append only
 	// and it's written to, will start out locked as exclusive.
+	//
+	// This does not affect operations other than `Read` and `Write`.
 	DISPATCH_FLAG_EXCLUSIVE = (1 << 0),
 };
 
@@ -120,9 +132,10 @@ typedef struct _IO_DISPATCH_TABLE
 {
 	uint32_t              Flags;
 	IO_CREATE_METHOD      Create;
-	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_METHOD      Delete;
+	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_OBJ_METHOD  DeleteObject;
+	IO_DEREFERENCE_METHOD Dereference;
 	IO_OPEN_METHOD        Open;
 	IO_CLOSE_METHOD       Close;
 	IO_READ_METHOD        Read;
@@ -130,7 +143,7 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_OPEN_DIR_METHOD    OpenDir;
 	IO_CLOSE_DIR_METHOD   CloseDir;
 	IO_READ_DIR_METHOD    ReadDir;
-	IO_LOOKUP_DIR_METHOD  LookupDir;
+	IO_PARSE_DIR_METHOD   ParseDir;
 	IO_RESIZE_METHOD      Resize;
 	IO_MAKE_FILE_METHOD   MakeFile;
 	IO_MAKE_DIR_METHOD    MakeDir;
