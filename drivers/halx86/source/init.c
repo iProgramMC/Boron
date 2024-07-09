@@ -82,6 +82,13 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks;
 	HalpVfTable.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect;
 	HalpVfTable.PciEnumerate = HalPciEnumerate;
+	HalpVfTable.PciConfigReadDword = HalPciConfigReadDword;
+	HalpVfTable.PciConfigReadWord = HalPciConfigReadWord;
+	HalpVfTable.PciConfigWriteDword = HalPciConfigWriteDword;
+	HalpVfTable.PciReadDeviceIdentifier = HalPciReadDeviceIdentifier;
+	HalpVfTable.PciReadBar = HalPciReadBar;
+	HalpVfTable.PciReadBarAddress = HalPciReadBarAddress;
+	HalpVfTable.PciReadBarIoAddress = HalPciReadBarIoAddress;
 	HalpVfTable.Flags = HAL_VFTABLE_LOADED;
 	
 	// Hook the HAL's functions.

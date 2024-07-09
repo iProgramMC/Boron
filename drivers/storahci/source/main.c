@@ -24,38 +24,26 @@ int DriveNumber;
 
 bool AhciPciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext)
 {
-	char Buffer[16];
-	int Number = AtFetchAdd(DriveNumber, 1);
-	snprintf (Buffer, sizeof Buffer, "AhciDisk%d", Number);
+	(void) Device;
+	(void) CallbackContext;
 	
-	PDEVICE_OBJECT DeviceObject;
+	// The base address of the AHCI controller is located at BAR 5.
+	//uintptr_t BaseAddress = PciReadBarAddress(&Device->Address, 5);
 	
-	BSTATUS Status = IoCreateDevice(
-		AhciDriverObject,
-		sizeof(DEVICE_EXTENSION),
-		sizeof(FCB_EXTENSION),
-		Buffer,
-		DEVICE_TYPE_BLOCK,
-		true, // TODO: false
-		&AhciDispatchTable,
-		&DeviceObject
-	);
-	
-	if (FAILED(Status))
-	{
-		LogMsg("Ahci: Failed to create AHCI disk %d. Status: %d", Number, Status);
-		return false;
-	}
-	
+	// Use the HHDM offset to determine the HBA's 
 	return true;
+}
+
+void AhciInitializeDispatchTable()
+{
+	
 }
 
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
 	AhciDriverObject = DriverObject;
 	
-	// TODO:
-	//AhciDispatchTable
+	AhciInitializeDispatchTable();
 	
 	BSTATUS Status = HalPciEnumerate(
 		false,

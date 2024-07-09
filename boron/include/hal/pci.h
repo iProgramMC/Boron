@@ -132,3 +132,24 @@ typedef BSTATUS(*PFHAL_PCI_ENUMERATE)(bool, size_t, PPCI_IDENTIFIER, uint8_t, ui
 
 // Value that can be passed into HalPciEnumerate to specify that the subclass shouldn't be checked.
 #define PCI_SUBCLASS_ANY (0xFF)
+
+typedef uint32_t(*PFHAL_PCI_CONFIG_READ_DWORD)(PPCI_ADDRESS, uint8_t);
+uint32_t HalPciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset);
+
+typedef uint16_t(*PFHAL_PCI_CONFIG_READ_WORD)(PPCI_ADDRESS, uint8_t);
+uint16_t HalPciConfigReadWord(PPCI_ADDRESS Address, uint8_t Offset);
+
+typedef void(*PFHAL_PCI_CONFIG_WRITE_DWORD)(PPCI_ADDRESS, uint8_t, uint32_t);
+void HalPciConfigWriteDword(PPCI_ADDRESS Address, uint8_t Offset, uint32_t Data);
+
+typedef void(*PFHAL_PCI_READ_DEVICE_IDENTIFIER)(PPCI_ADDRESS, PPCI_IDENTIFIER);
+void HalPciReadDeviceIdentifier(PPCI_ADDRESS Address, PPCI_IDENTIFIER OutIdentifier);
+
+typedef uint32_t(*PFHAL_PCI_READ_BAR)(PPCI_ADDRESS, int);
+uint32_t HalPciReadBar(PPCI_ADDRESS Address, int BarIndex);
+
+typedef uint32_t(*PFHAL_PCI_READ_BAR_IO_ADDRESS)(PPCI_ADDRESS, int);
+uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex);
+
+typedef uintptr_t(*PFHAL_PCI_READ_BAR_ADDRESS)(PPCI_ADDRESS, int);
+uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex);

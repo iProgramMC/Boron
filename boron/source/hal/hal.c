@@ -115,6 +115,40 @@ HalPciEnumerate(
 	return HalpVftable.PciEnumerate(LookUpByIds, IdCount, Identifiers, ClassCode, SubClassCode, Callback, CallbackContext);
 }
 
+uint32_t HalPciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset)
+{
+	return HalpVftable.PciConfigReadDword(Address, Offset);
+}
+
+uint16_t HalPciConfigReadWord(PPCI_ADDRESS Address, uint8_t Offset)
+{
+	return HalpVftable.PciConfigReadWord(Address, Offset);
+}
+
+void HalPciConfigWriteDword(PPCI_ADDRESS Address, uint8_t Offset, uint32_t Data)
+{
+	HalpVftable.PciConfigWriteDword(Address, Offset, Data);
+}
+
+void HalPciReadDeviceIdentifier(PPCI_ADDRESS Address, PPCI_IDENTIFIER OutIdentifier)
+{
+	HalpVftable.PciReadDeviceIdentifier(Address, OutIdentifier);
+}
+
+uint32_t HalPciReadBar(PPCI_ADDRESS Address, int BarIndex)
+{
+	return HalpVftable.PciReadBar(Address, BarIndex);
+}
+
+uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex)
+{
+	return HalpVftable.PciConfigReadDword(Address, BarIndex);
+}
+
+uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
+{
+	return HalpVftable.PciConfigReadDword(Address, BarIndex);
+}
 #endif
 
 NO_RETURN void HalProcessorCrashed()

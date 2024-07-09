@@ -48,3 +48,11 @@ Author:
 #define PCI_MAX_FUNC (8)
 
 void HalInitPci();
+
+uint32_t HalPciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset);
+uint16_t HalPciConfigReadWord(PPCI_ADDRESS Address, uint8_t Offset);
+void HalPciConfigWriteDword(PPCI_ADDRESS Address, uint8_t Offset, uint32_t Data);
+void HalPciReadDeviceIdentifier(PPCI_ADDRESS Address, PPCI_IDENTIFIER OutIdentifier);
+uint32_t HalPciReadBar(PPCI_ADDRESS Address, int BarIndex);
+uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex);
+uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex);

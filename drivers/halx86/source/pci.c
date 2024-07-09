@@ -26,37 +26,37 @@ static void PcipWriteAddress(PPCI_ADDRESS Address, uint8_t Offset)
 	);
 }
 
-uint32_t PciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset)
+uint32_t HalPciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset)
 {
 	PcipWriteAddress(Address, Offset);
 	return KePortReadDword(PCI_CONFIG_DATA);
 }
 
-void PciConfigWriteDword(PPCI_ADDRESS Address, uint8_t Offset, uint32_t Data)
+void HalPciConfigWriteDword(PPCI_ADDRESS Address, uint8_t Offset, uint32_t Data)
 {
 	PcipWriteAddress(Address, Offset);
 	KePortWriteDword(PCI_CONFIG_DATA, Data);
 }
 
-uint16_t PciConfigReadWord(PPCI_ADDRESS Address, uint8_t Offset)
+uint16_t HalPciConfigReadWord(PPCI_ADDRESS Address, uint8_t Offset)
 {
 	PcipWriteAddress(Address, Offset);
 	return (uint16_t)(KePortReadDword(PCI_CONFIG_DATA) >> (8 * (Offset & 2)));
 }
 
-void PciReadDeviceIdentifier(PPCI_ADDRESS Address, PPCI_IDENTIFIER OutIdentifier)
+void HalPciReadDeviceIdentifier(PPCI_ADDRESS Address, PPCI_IDENTIFIER OutIdentifier)
 {
-	OutIdentifier->VendorAndDeviceId = PciConfigReadDword(Address, PCI_OFFSET_DEVICE_IDENTIFIER);
+	OutIdentifier->VendorAndDeviceId = HalPciConfigReadDword(Address, PCI_OFFSET_DEVICE_IDENTIFIER);
 }
 
-uint32_t PciReadBar(PPCI_ADDRESS Address, int BarIndex)
+uint32_t HalPciReadBar(PPCI_ADDRESS Address, int BarIndex)
 {
-	return PciConfigReadDword(Address, PCI_OFFSET_BAR0 + 4 * BarIndex);
+	return HalPciConfigReadDword(Address, PCI_OFFSET_BAR0 + 4 * BarIndex);
 }
 
-uintptr_t PciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
+uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 {
-	uint32_t LowBar = PciReadBar(Address, BarIndex);
+	uint32_t LowBar = HalPciReadBar(Address, BarIndex);
 	
 	// Check if the BAR is actually for an I/O space device.
 	if (LowBar & 1)
@@ -80,12 +80,12 @@ uintptr_t PciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 		// Unknown type of BAR
 		return 0;
 	
-	return ((uint64_t)PciReadBar(Address, BarIndex + 1) << 32) | (LowBar & ~0xF);
+	return ((uint64_t)HalPciReadBar(Address, BarIndex + 1) << 32) | (LowBar & ~0xF);
 }
 
-uint32_t PciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex)
+uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex)
 {
-	uint32_t Bar = PciReadBar(Address, BarIndex);
+	uint32_t Bar = HalPciReadBar(Address, BarIndex);
 	
 	// Check if the BAR is actually for a memory space device.
 	if (~Bar & 1)
@@ -153,7 +153,7 @@ void HalPciProbe()
 		{
 			for (Device.Address.Function = 0; Device.Address.Function < PCI_MAX_FUNC; Device.Address.Function++)
 			{
-				PciReadDeviceIdentifier(&Device.Address, &Device.Identifier);
+				HalPciReadDeviceIdentifier(&Device.Address, &Device.Identifier);
 				
 				if (Device.Identifier.VendorId == 0xFFFF)
 					continue;
@@ -161,7 +161,7 @@ void HalPciProbe()
 				//DbgPrint("Found PCI device. Vendor ID: %04x, Device ID: %04x", Device.Identifier.VendorId, Device.Identifier.DeviceId);
 				
 				// Also fetch its class register
-				Device.Class.Register = PciConfigReadDword(&Device.Address, PCI_OFFSET_REVISION_CLASS);
+				Device.Class.Register = HalPciConfigReadDword(&Device.Address, PCI_OFFSET_REVISION_CLASS);
 				
 				HalpPciAddDevice(&Device);
 			}
