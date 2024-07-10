@@ -19,21 +19,6 @@ PDRIVER_OBJECT AhciDriverObject;
 
 IO_DISPATCH_TABLE AhciDispatchTable;
 
-// TODO: System wide solution.
-int DriveNumber;
-
-bool AhciPciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext)
-{
-	(void) Device;
-	(void) CallbackContext;
-	
-	// The base address of the AHCI controller is located at BAR 5.
-	//uintptr_t BaseAddress = PciReadBarAddress(&Device->Address, 5);
-	
-	// Use the HHDM offset to determine the HBA's 
-	return true;
-}
-
 void AhciInitializeDispatchTable()
 {
 	

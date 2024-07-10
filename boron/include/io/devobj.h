@@ -42,6 +42,9 @@ struct _DEVICE_OBJECT
 	
 	PFCB Fcb;
 	
+	// If this is part of a controller, this is the pointer to that controller.
+	PCONTROLLER_OBJECT ParentController;
+	
 	// If this is part of a controller, this is the entry into the controller's
 	// device tree.
 	AVLTREE_ENTRY DeviceTreeEntry;
