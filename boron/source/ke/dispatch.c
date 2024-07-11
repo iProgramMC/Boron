@@ -325,6 +325,8 @@ int KeWaitForMultipleObjects(
 			break;
 		}
 		
+		ASSERT(Thread->WaitStatus != STATUS_WAITING);
+		
 		if (Thread->WaitStatus != STATUS_KERNEL_APC)
 			break;
 		
