@@ -89,6 +89,10 @@ BSTATUS IoAddDeviceController(
 	
 	IopEnterControllerMutex(Controller);
 	bool Inserted = InsertItemAvlTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
+	
+	if (Inserted)
+		AtStore(Device->ParentController, Controller);
+	
 	IopLeaveControllerMutex(Controller);
 	
 	return Inserted ? STATUS_SUCCESS : STATUS_ALREADY_LINKED;
@@ -101,6 +105,8 @@ BSTATUS IoRemoveDeviceController(
 {
 	IopEnterControllerMutex(Controller);
 	bool Removed = RemoveItemAvlTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
+	if (Removed)
+		AtStore(Device->ParentController, NULL);
 	IopLeaveControllerMutex(Controller);
 	
 	return Removed ? STATUS_SUCCESS : STATUS_NOT_LINKED;

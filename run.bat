@@ -8,7 +8,7 @@ cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
 if exist %nspath%\vdiske2.vdi (
-	set DriveOptions=-cdrom %nspath%\build\image.iso -drive id=disk,file=%nspath%\vdiske2.vdi,if=none
+	set DriveOptions=-cdrom %nspath%\build\image.iso -drive id=disk,file=%nspath%\vdiske2.vdi,if=none -device ahci,id=ahci -device ide-hd,drive=disk,bus=ahci.0
 ) else (
 	set DriveOptions=-cdrom %nspath%\build\image.iso
 )

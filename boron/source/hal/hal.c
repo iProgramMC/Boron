@@ -142,12 +142,12 @@ uint32_t HalPciReadBar(PPCI_ADDRESS Address, int BarIndex)
 
 uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex)
 {
-	return HalpVftable.PciConfigReadDword(Address, BarIndex);
+	return HalpVftable.PciReadBarIoAddress(Address, BarIndex);
 }
 
 uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 {
-	return HalpVftable.PciConfigReadDword(Address, BarIndex);
+	return HalpVftable.PciReadBarAddress(Address, BarIndex);
 }
 #endif
 

@@ -18,6 +18,77 @@ Author:
 int ControllerNumber; // Atomically incremented
 int DriveNumber; // TODO: Maybe a system wide solution?
 
+// TODO: Better way of identifying devices?
+// PxSIG seems to have a format different than you might expect:
+//   31:24 - LBA high register
+//   23:16 - LBA mid register
+//   15:08 - LBA low register
+//   07:00 - sector count register
+// I don't know how these could possibly line up with being unique identifiers for certain devices.
+// I will use this method because it served NanoShell well so far, but we'll need to look for a better
+// solution or a clarification as to how this method works.
+#define	SATA_SIG_ATA    0x00000101  // SATA drive
+#define	SATA_SIG_ATAPI  0xEB140101  // SATAPI drive
+#define	SATA_SIG_SEMB   0xC33C0101  // Enclosure management bridge
+#define	SATA_SIG_PM     0x96690101  // Port multiplier
+
+void AhciRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerName, PAHCI_PORT Port)
+{
+	PCONTROLLER_EXTENSION ContExtension = (PCONTROLLER_EXTENSION) Controller->Extension;
+	int Offset = (int)(Port - ContExtension->MemRegs->PortList);
+	
+	uint32_t Signature = Port->Signature;
+	
+	DbgPrint("Controller %s port %d has signature 0x%08X", OBJECT_GET_HEADER(Controller)->ObjectName, Offset, Signature);
+	
+	// TODO: only allow ATA devices for now
+	if (Signature != SATA_SIG_ATA)
+		return;
+	
+	char Buffer[32];
+	snprintf(Buffer, sizeof Buffer, "%sDisk%d", ControllerName, Offset);
+	
+	// Create a device object for this device.
+	PDEVICE_OBJECT DeviceObject;
+	
+	BSTATUS Status = IoCreateDevice(
+		AhciDriverObject,
+		sizeof(DEVICE_EXTENSION),
+		sizeof(FCB_EXTENSION),
+		Buffer,
+		DEVICE_TYPE_BLOCK,
+		false,
+		&AhciDispatchTable,
+		&DeviceObject
+	);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Cannot create device object called %s: %d", Buffer, Status);
+		return;
+	}
+	
+	// Add it to the controller.
+	Status = IoAddDeviceController(
+		Controller,
+		Offset,
+		DeviceObject
+	);
+	
+	if (FAILED(Status))
+		KeCrash("StorAhci: Device #%d was already added to controller", Offset);
+	
+	// Initialize the specific device object.
+	PDEVICE_EXTENSION DeviceExt = (PDEVICE_EXTENSION) DeviceObject->Extension;
+	
+	DeviceExt->ParentHba = ContExtension->MemRegs;
+	DeviceExt->AhciPort = Port;
+	
+	
+	// After the device object was initialized, de-reference it.
+	ObDereferenceObject(DeviceObject);
+}
+
 bool AhciPciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 {
 	int ContNumber = AtFetchAdd(ControllerNumber, 1);
@@ -95,7 +166,32 @@ bool AhciPciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 		}
 	}
 	
-	// TODO: Check HbaMem->Ghc.PortsImplemented, etc.
+	uint32_t Pi = HbaMem->Ghc.PortsImplemented;
 	
+	for (int Port = 0; Port < 32; Port++)
+	{
+		if (~Pi & (1 << Port))
+			continue;
+		
+		// This port is implemented.  Therefore, this is a device we can register.
+		
+		// First, check whether this port is actually open.
+		PAHCI_PORT AhciPort = &HbaMem->PortList[Port];
+		
+		if (AhciPort->SataStatus.DeviceDetection != PORT_SSTS_DET_DETEST)
+			// Device presence wasn't detected and/or Phy communication wasn't established
+			continue;
+		
+		if (AhciPort->SataStatus.InterfacePowerManagement != PORT_SSTS_IPM_ACTIVE)
+			// Interface is not in active state
+			continue;
+		
+		// Register the device on the port now.
+		AhciRegisterDevice(Controller, Buffer, AhciPort);
+	}
+	
+	// After initializing the controller object, dereference it.
+	ObDereferenceObject(Controller);
 	return true;
 }
+ 
