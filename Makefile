@@ -20,7 +20,7 @@ KERNEL_NAME = kernel.elf
 DRIVERS_LIST = \
 	halx86     \
 	i8042prt   \
-	storahci   \
+	stornvme   \
 	test
 
 # The build directory

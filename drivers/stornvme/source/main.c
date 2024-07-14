@@ -7,28 +7,28 @@ Module name:
 	
 Abstract:
 	This module implements the main function for the
-	AHCI device driver.
+	NVMe device driver.
 	
 Author:
 	iProgramInCpp - 7 July 2024
 ***/
-#include "ahci.h"
+#include "nvme.h"
 #include <string.h>
 
-PDRIVER_OBJECT AhciDriverObject;
+PDRIVER_OBJECT NvmeDriverObject;
 
-IO_DISPATCH_TABLE AhciDispatchTable;
+IO_DISPATCH_TABLE NvmeDispatchTable;
 
-void AhciInitializeDispatchTable()
+void NvmeInitializeDispatchTable()
 {
 	
 }
 
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
-	AhciDriverObject = DriverObject;
+	NvmeDriverObject = DriverObject;
 	
-	AhciInitializeDispatchTable();
+	NvmeInitializeDispatchTable();
 	
 	BSTATUS Status = HalPciEnumerate(
 		false,
@@ -36,7 +36,7 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 		NULL,
 		PCI_CLASS_MASS_STORAGE,
 		PCI_SUBCLASS_SATA,
-		AhciPciDeviceEnumerated,
+		NvmePciDeviceEnumerated,
 		NULL
 	);
 	
