@@ -77,6 +77,8 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 		&Controller
 	);
 	
+	LogMsg("NvmePciDeviceEnumerated: PCI Ven%04x Dev%04x", Device->Identifier.VendorId, Device->Identifier.DeviceId);
+	
 	if (FAILED(Status))
 	{
 		LogMsg("Could not create controller object for %s: status %d", Buffer, Status);

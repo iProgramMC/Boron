@@ -35,7 +35,7 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 		0,
 		NULL,
 		PCI_CLASS_MASS_STORAGE,
-		PCI_SUBCLASS_SATA,
+		PCI_SUBCLASS_NVM,
 		NvmePciDeviceEnumerated,
 		NULL
 	);
