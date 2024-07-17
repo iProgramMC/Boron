@@ -54,6 +54,12 @@ Author:
 #define PCI_CMD_INTERRUPTDISABLE (1 << 10)
 
 //
+// PCI status flags.
+//
+#define PCI_STA_INTERRUPTSTATUS  (1 << 3)
+#define PCI_STA_CAPABILITIESLIST (1 << 4)
+
+//
 // Defines common PCI class codes.
 //
 enum
@@ -133,6 +139,28 @@ typedef union
 PCI_CLASS, *PPCI_CLASS;
 
 //
+// Holds information about this PCI device's MSI capability, if it
+// exists.
+//
+typedef struct
+{
+	bool Exists;
+	uint8_t CapabilityOffset;
+}
+PCI_MSI_DATA, *PPCI_MSI_DATA;
+
+//
+// Holds information about this PCI device's MSI-X capability, if it
+// exists.
+//
+typedef struct
+{
+	bool Exists;
+	uint8_t CapabilityOffset;
+}
+PCI_MSIX_DATA, *PPCI_MSIX_DATA;
+
+//
 // Defines a registered PCI device.  Stores its device ID, vendor ID,
 // class and subclass registers, as well as its geographical address
 // on the bus.
@@ -142,6 +170,8 @@ typedef struct
 	PCI_IDENTIFIER Identifier;
 	PCI_ADDRESS Address;
 	PCI_CLASS Class;
+	PCI_MSI_DATA MsiData;
+	PCI_MSIX_DATA MsixData;
 }
 PCI_DEVICE, *PPCI_DEVICE;
 

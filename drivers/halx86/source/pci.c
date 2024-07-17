@@ -100,6 +100,60 @@ KSPIN_LOCK HalpPciDeviceSpinLock;
 
 static void HalpPciAddDevice(PPCI_DEVICE Device)
 {
+	// Process this device's capabilities list, if it exists.
+	uint16_t Status = HalPciConfigReadWord(&Device->Address, PCI_OFFSET_STATUS_COMMAND + 2);
+	
+	if (Status & PCI_STA_CAPABILITIESLIST)
+	{
+		// The capabilities pointer is stored at offset 0x34.
+		// Trim the upper 24 bits as the header is only 256 bytes in size, and also the lower 4 bits.
+		uint32_t CapabilityOffset = HalPciConfigReadDword(&Device->Address, PCI_OFFSET_CAPABILITIES_PTR);
+		CapabilityOffset &= 0xFC;
+		
+		// The capability offset linked list is terminated with a zero.
+		while (CapabilityOffset != 0)
+		{
+			uint32_t UpperDword = HalPciConfigReadDword(&Device->Address, CapabilityOffset);
+			uint8_t  Capability = UpperDword & 0xFF;
+			
+			// Determine the capability's ID.
+			switch (Capability)
+			{
+				case PCI_CAP_MSI:
+				{
+					Device->MsiData.Exists = true;
+					Device->MsiData.CapabilityOffset = CapabilityOffset;
+					break;
+				}
+				
+				case PCI_CAP_MSI_X:
+				{
+					Device->MsixData.Exists = true;
+					Device->MsixData.CapabilityOffset = CapabilityOffset;
+					break;
+				}
+				
+				default:
+				{
+					DbgPrint(
+						"PCI device %04x_%04x at %d.%d.%d has unrecognised capability %02x",
+						Device->Identifier.VendorId,
+						Device->Identifier.DeviceId,
+						Device->Address.Bus,
+						Device->Address.Slot,
+						Device->Address.Function,
+						Capability
+					);
+					break;
+				}
+			}
+			
+			// Jump to the next capability offset.
+			CapabilityOffset = (UpperDword >> 8) & 0xFC;
+		}
+	}
+	
+	// Now, add it into the list of known PCI devices.
 	KIPL Ipl;
 	KeAcquireSpinLock(&HalpPciDeviceSpinLock, &Ipl);
 	
@@ -148,11 +202,16 @@ void HalPciProbe()
 	
 	for (int Bus = 0; Bus < PCI_MAX_BUS; Bus++)
 	{
-		Device.Address.Bus = Bus;
-		for (Device.Address.Slot = 0; Device.Address.Slot < PCI_MAX_SLOT; Device.Address.Slot++)
+		for (int Slot = 0; Slot < PCI_MAX_SLOT; Slot++)
 		{
-			for (Device.Address.Function = 0; Device.Address.Function < PCI_MAX_FUNC; Device.Address.Function++)
+			for (int Function = 0; Function < PCI_MAX_FUNC; Function++)
 			{
+				memset(&Device, 0, sizeof Device);
+				
+				Device.Address.Bus = Bus;
+				Device.Address.Slot = Slot;
+				Device.Address.Function = Function;
+				
 				HalPciReadDeviceIdentifier(&Device.Address, &Device.Identifier);
 				
 				if (Device.Identifier.VendorId == 0xFFFF)
@@ -177,7 +236,7 @@ void HalPciProbe()
 		PPCI_DEVICE Device = &HalpPciDevices[i];
 		
 		DbgPrint(
-			"DEVICE: Bus %02x, Slot %02x, Function %1x, Vendor ID: %04x, Device ID: %04x, Class: %02x, SubClass: %02x, ProgIF: %02x, Rev: %02x",
+			"DEVICE: Bus %02x, Slot %02x, Function %1x, Vendor ID: %04x, Device ID: %04x, Class: %02x, SubClass: %02x, ProgIF: %02x, Rev: %02x. Ints: %s",
 			Device->Address.Bus,
 			Device->Address.Slot,
 			Device->Address.Function,
@@ -186,7 +245,8 @@ void HalPciProbe()
 			Device->Class.Class,
 			Device->Class.SubClass,
 			Device->Class.ProgIF,
-			Device->Class.Revision
+			Device->Class.Revision,
+			Device->MsixData.Exists ? "MSI-X" : (Device->MsiData.Exists ? "MSI" : "No Interrupts")
 		);
 	}
 	

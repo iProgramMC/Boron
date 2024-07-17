@@ -25,6 +25,11 @@ Author:
 
 #define PCI_VENDOR_INVALID (0xFFFF)
 
+// PCI capability IDs.
+#define PCI_CAP_PCI_EXPRESS (0x01)
+#define PCI_CAP_MSI         (0x05)
+#define PCI_CAP_MSI_X       (0x11)
+
 #define PCI_MAX_BUS  (256)
 #define PCI_MAX_SLOT (32)
 #define PCI_MAX_FUNC (8)
