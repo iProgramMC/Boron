@@ -18,6 +18,42 @@ Author:
 #include <status.h>
 
 //
+// Offsets for base PCI configuration header.
+//
+#define PCI_OFFSET_DEVICE_IDENTIFIER  (0x00)  // vendor ID bits 0:15, device ID bits 16:31
+#define PCI_OFFSET_STATUS_COMMAND     (0x04)  // command bits 0:15, status bits 16:31
+#define PCI_OFFSET_REVISION_CLASS     (0x08)  // revision bits 0:7, prog IF bits 8:15, subclass bits 16:23, class bits 24:31
+#define PCI_OFFSET_ACCESS_DETAILS     (0x0C)  // cache line size byte 0, latency timer byte 1, header type byte 2, BIST byte 3
+
+//
+// Offsets for PCI configuration header of type 0x0.
+//
+#define PCI_OFFSET_BAR0               (0x10)
+#define PCI_OFFSET_BAR1               (0x14)
+#define PCI_OFFSET_BAR2               (0x18)
+#define PCI_OFFSET_BAR3               (0x1C)
+#define PCI_OFFSET_BAR4               (0x20)
+#define PCI_OFFSET_BAR5               (0x24)
+#define PCI_OFFSET_SUBSYS_IDENTIFIER  (0x2C)
+#define PCI_OFFSET_EXPROM_BASE_ADDR   (0x30)
+#define PCI_OFFSET_CAPABILITIES_PTR   (0x34)  // byte 0 used, rest reserved
+#define PCI_OFFSET_INTERRUPT          (0x3C)  // interrupt line byte 0, interrupt pin byte 1, min grant byte 2, max latency byte 3
+
+//
+// PCI command flags.
+//
+#define PCI_CMD_IOSPACE          (1 << 0)
+#define PCI_CMD_MEMORYSPACE      (1 << 1)
+#define PCI_CMD_BUSMASTERING     (1 << 2)
+#define PCI_CMD_SPECIALCYCLES    (1 << 3)
+#define PCI_CMD_MEMWRINVENABLE   (1 << 4)
+#define PCI_CMD_VGAPALETTESNOOP  (1 << 5)
+#define PCI_CMD_PARERRRESPONSE   (1 << 6)
+#define PCI_CMD_SERRNENABLE      (1 << 8)
+#define PCI_CMD_FASTB2BENABLE    (1 << 9)
+#define PCI_CMD_INTERRUPTDISABLE (1 << 10)
+
+//
 // Defines common PCI class codes.
 //
 enum

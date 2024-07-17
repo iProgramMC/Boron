@@ -144,7 +144,7 @@ void PerformKeyboardTest()
 	BSTATUS Status;
 	
 	// Wait a half sec just to be sure. Ideally this wouldn't happen
-	PerformDelay(500, NULL);
+	//PerformDelay(500, NULL);
 	
 	// Open the device
 	HANDLE DeviceHandle = HANDLE_NONE;
