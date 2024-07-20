@@ -29,11 +29,10 @@ Author:
 #include <rtl/ansi.h>
 #include <rtl/assert.h>
 #include <rtl/check64.h>
-
 #include <status.h>
 
+#define FORCE_INLINE ALWAYS_INLINE static inline
 #define BIT(x) (1ULL << (x))
-
 #define ASM __asm__ __volatile__
 
 // We're using C11

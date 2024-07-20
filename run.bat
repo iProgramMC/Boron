@@ -22,6 +22,7 @@ qemu-system-x86_64.exe -no-reboot -no-shutdown ^
 -accel tcg ^
 -monitor telnet:127.0.0.1:56789,server,nowait ^
 -debugcon stdio ^
+-trace *nvme* -trace *msi* -D %nspath%\keep\nvmelog.txt ^
 -s ^
 %DriveOptions%
 

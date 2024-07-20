@@ -215,11 +215,15 @@ typedef struct
 }
 KARCH_DATA;
 
-// Manual interrupt disabling functions. Should rather use
+// Manual interrupt disabling functions. Should instead use
 // KeDisableInterrupts and KeRestoreInterrupts, but these have
 // their uses too.
 #define DISABLE_INTERRUPTS() ASM("cli")
 #define ENABLE_INTERRUPTS()  ASM("sti")
+
+// MSI message data register
+#define MSI_TRIGGERLEVEL   (1 << 15)
+#define MSI_LEVELASSERT    (1 << 14)
 
 #include <arch.h>
 

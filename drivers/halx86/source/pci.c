@@ -130,6 +130,27 @@ static void HalpPciAddDevice(PPCI_DEVICE Device)
 				{
 					Device->MsixData.Exists = true;
 					Device->MsixData.CapabilityOffset = CapabilityOffset;
+					
+					// Disable interrupts on the capability, and read information from it.
+					UpperDword |= PCI_MSIX_MC_ENABLE  << 16;
+					UpperDword |= PCI_MSIX_MC_FUNMASK << 16;
+					
+					HalPciConfigWriteDword(&Device->Address, CapabilityOffset, UpperDword);
+					
+					uint32_t Command = HalPciConfigReadDword(&Device->Address, PCI_OFFSET_STATUS_COMMAND);
+					Command |= PCI_CMD_INTERRUPTDISABLE;
+					HalPciConfigWriteDword(&Device->Address, PCI_OFFSET_STATUS_COMMAND, Command);
+					
+					Device->MsixData.TableSize = PCI_MSIX_MC_TABLESIZE(UpperDword >> 16);
+					
+					uint32_t Bir = HalPciConfigReadDword(&Device->Address, CapabilityOffset + 0x04);
+					Device->MsixData.Bir         = Bir &  0x7;
+					Device->MsixData.TableOffset = Bir & ~0x7;
+					
+					uint32_t Pbir = HalPciConfigReadDword(&Device->Address, CapabilityOffset + 0x04);
+					Device->MsixData.Pbir               = Pbir &  0x7;
+					Device->MsixData.PendingTableOffset = Pbir & ~0x7;
+					
 					break;
 				}
 				

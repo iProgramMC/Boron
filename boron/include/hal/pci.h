@@ -17,6 +17,8 @@ Author:
 #include <stdint.h>
 #include <status.h>
 
+#include <mm/pmm.h>
+
 //
 // Offsets for base PCI configuration header.
 //
@@ -157,6 +159,11 @@ typedef struct
 {
 	bool Exists;
 	uint8_t CapabilityOffset;
+	uint8_t Bir;                  // Index into the BAR array used for the message table
+	uint8_t Pbir;                 // Ditto but for the pending bit table
+	int     TableSize;
+	uintptr_t TableOffset;        // Offset into BAR(BIR)
+	uintptr_t PendingTableOffset; // Offset into BAR(PBIR)
 }
 PCI_MSIX_DATA, *PPCI_MSIX_DATA;
 
@@ -194,6 +201,38 @@ HalPciEnumerate(
 	void* CallbackContext
 );
 
+//
+// MSI message control register flags.
+//
+#define PCI_MSI_MC_ENABLE            (1 << 0)
+#define PCI_MSI_MC_MULTIMSGCAP(logn) (((logn) & 0x7) << 1) // Capable: logn - The log2() of the number of interrupts supported
+#define PCI_MSI_MC_MULTIMSGEN(logn)  (((logn) & 0x7) << 4) // Enable:  logn - The log2() of the number of interrupts supported
+#define PCI_MSI_MC_64BIT             (1 << 7)
+#define PCI_MSI_MC_PERVECTORMASK     (1 << 8)
+
+//
+// MSI-X table entry.
+//
+typedef struct
+{
+	uint64_t Address;
+	uint32_t MessageData;
+	uint32_t VectorControl;
+}
+PCI_MSIX_TABLE_ENTRY, *PPCI_MSIX_TABLE_ENTRY;
+
+//
+// MSI-X message control bits.
+//
+#define PCI_MSIX_MC_ENABLE        (1 << 15)
+#define PCI_MSIX_MC_FUNMASK       (1 << 14)
+#define PCI_MSIX_MC_TABLESIZE(x)  ((x) & ((1<<10) - 1))
+
+//
+// MSI-X vector control bits.
+//
+#define PCI_MSIX_MASKED  (1 << 0) // VectorControl
+
 typedef BSTATUS(*PFHAL_PCI_ENUMERATE)(bool, size_t, PPCI_IDENTIFIER, uint8_t, uint8_t, PHAL_PCI_ENUMERATE_CALLBACK, void*);
 
 // Value that can be passed into HalPciEnumerate to specify that the subclass shouldn't be checked.
@@ -219,3 +258,68 @@ uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex);
 
 typedef uintptr_t(*PFHAL_PCI_READ_BAR_ADDRESS)(PPCI_ADDRESS, int);
 uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex);
+
+FORCE_INLINE
+void HalPciMsixSetFunctionMask(PPCI_DEVICE Device, bool Mask) {
+	ASSERT(Device->MsixData.Exists);
+	uint32_t U = HalPciConfigReadDword(
+		&Device->Address,
+		Device->MsixData.CapabilityOffset
+	);
+	
+	if ((Mask))
+		U |= PCI_MSIX_MC_FUNMASK;
+	else
+		U &= ~PCI_MSIX_MC_FUNMASK;
+	
+	HalPciConfigWriteDword(
+		&Device->Address,
+		Device->MsixData.CapabilityOffset,
+		U
+	);
+}
+
+//
+// Creates a message used in an MSI vector configuration.  When written to one of the LAPICs in
+// the system, it will trigger an interrupt on that processor.
+//
+FORCE_INLINE
+uint32_t HalPciMsiCreateMessage(uint8_t Vector, bool EdgeTrigger, bool Deassert)
+{
+	uint32_t Value = Vector;
+	if (!EdgeTrigger) Value |= MSI_TRIGGERLEVEL;
+	if (!Deassert)    Value |= MSI_LEVELASSERT;
+	return Value;
+}
+
+//
+// Creates an address that can be used in an MSI vector configuration.  Writing the return value of
+// HalPciMsiCreateMessage to this address as a 32-bit integer will trigger the chosen interrupt vector.
+//
+FORCE_INLINE
+uintptr_t HalPciMsiCreateAddress(uint8_t ProcessorId)
+{
+	return 0xFEE00000 | ProcessorId << 12;
+}
+
+//
+// Assign an MSI message to the specific vector for an MSI-X capable device.
+//
+// Parameters:
+//   Device      - The device affected by this change
+//   Index       - The index within the MSI-X vector table affected by this change.
+//   Vector      - The interrupt vector triggered when this message signalled interrupt is fired
+//   EdgeTrigger - 
+//
+FORCE_INLINE
+void HalPciMsixSetInterrupt(PPCI_DEVICE Device, int Index, uint8_t ProcessorId, uint8_t Vector, bool EdgeTrigger, bool Deassert)
+{
+	uintptr_t Address = HalPciReadBarAddress(&Device->Address, Device->MsixData.Bir);
+	
+	PPCI_MSIX_TABLE_ENTRY Table = MmGetHHDMOffsetAddr(Address + Device->MsixData.TableOffset);
+	Table += Index;
+	
+	Table->Address = HalPciMsiCreateAddress(ProcessorId);
+	Table->MessageData = HalPciMsiCreateMessage(Vector, EdgeTrigger, Deassert);
+	Table->VectorControl = 0;
+}
