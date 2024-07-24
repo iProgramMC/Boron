@@ -201,6 +201,12 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	KiUnwaitThread(Thread, STATUS_TIMEOUT, 0);
 }
 
+bool Active = false;
+
+bool IsActive() {
+	return Active;
+}
+
 // TODO: Add WaitMode parameter.
 int KeWaitForMultipleObjects(
 	int Count,
@@ -311,9 +317,11 @@ int KeWaitForMultipleObjects(
 			KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
 		}
 		
-		KiUnlockDispatcher(Ipl);
-		
+		// Yield at IPL_DPC to prevent DPCs that may unwait this thread from showing up
+		// until after this thread has completely yielded.
+		KiUnlockDispatcher(IPL_DPC);
 		KeYieldCurrentThread();
+		KeLowerIPL(Ipl);
 		
 		ASSERT(Alertable || Thread->WaitStatus != STATUS_ALERTED);
 		

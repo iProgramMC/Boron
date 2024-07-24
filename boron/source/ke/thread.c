@@ -121,13 +121,8 @@ void KeDetachThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod)
 void KeYieldCurrentThread()
 {
 	KIPL Ipl = KeRaiseIPL(IPL_DPC);
-	
 	KeGetCurrentThread()->QuantumUntil = 0;
-	KiSetPendingQuantumEnd();
-	
-	// Lower IPL to normal first and then raise it back to the old IPL.
-	KeLowerIPL(IPL_NORMAL);
-	KeRaiseIPL(Ipl);
+	KiHandleQuantumEnd(Ipl);
 }
 
 BSTATUS KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
