@@ -268,9 +268,9 @@ void HalPciMsixSetFunctionMask(PPCI_DEVICE Device, bool Mask) {
 	);
 	
 	if ((Mask))
-		U |= PCI_MSIX_MC_FUNMASK;
+		U |= (PCI_MSIX_MC_FUNMASK << 16);
 	else
-		U &= ~PCI_MSIX_MC_FUNMASK;
+		U &= ~(PCI_MSIX_MC_FUNMASK << 16);
 	
 	HalPciConfigWriteDword(
 		&Device->Address,

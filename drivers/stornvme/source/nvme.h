@@ -58,15 +58,62 @@ NVME_CAPABILITIES;
 
 static_assert(sizeof(NVME_CAPABILITIES) == 8);
 
+enum
+{
+	ADMOP_DELETE_IO_SUBMISSION_QUEUE = 0x0,
+	ADMOP_CREATE_IO_SUBMISSION_QUEUE = 0x1,
+	ADMOP_DELETE_IO_COMPLETION_QUEUE = 0x4,
+	ADMOP_CREATE_IO_COMPLETION_QUEUE = 0x5,
+	ADMOP_IDENTIFY                   = 0x6,
+	ADMOP_SET_FEATURES               = 0x9,
+	ADMOP_GET_FEATURES               = 0xA,
+};
+
+enum
+{
+	CNS_NAMESPACE = 0,
+	CNS_CONTROLLER,
+	CNS_NAMESPACELIST
+};
+
+typedef union
+{
+	struct {
+		int OpCode            : 8;
+		int FusedOperation    : 2;  // 0 - Normal, 1 - Fused first command, 2 - Fused second command
+		int Reserved          : 4;
+		int PrpSgl            : 2;  // 0 - PRP, 1 - SGL + single contiguous physical buffer, 2 - SGL + address of SGL segment
+		int CommandIdentifier : 16; // N.B. Don't use 0xFFFF
+	};
+	
+	uint32_t AsUint32;
+}
+NVME_COMMAND_HEADER, *PNVME_COMMAND_HEADER;
+
+static_assert(sizeof(NVME_COMMAND_HEADER) == 0x4);
+
 typedef struct
 {
-	uint32_t CommandDword0;
-	uint32_t NameSpaceId;
-	uint64_t Reserved;
+	NVME_COMMAND_HEADER CommandHeader; // Command Dword 0
+	uint32_t NamespaceId;
+	uint32_t CommandDword2;
+	uint32_t CommandDword3;
 	uint64_t MetadataPointer;
-	uint64_t DataPointerPrp0;
-	uint64_t DataPointerPrp1;
-	uint32_t CommandSpecific[6];
+	uint64_t DataPointer[2];
+	
+	union {
+		uint32_t CommandDword10;
+		struct {
+			uint32_t Cns          : 8;
+			uint32_t Reserved     : 8;
+			uint32_t ControllerId : 16;
+		} Identify;
+	};
+	uint32_t CommandDword11;
+	uint32_t CommandDword12;
+	uint32_t CommandDword13;
+	uint32_t CommandDword14;
+	uint32_t CommandDword15;
 }
 NVME_SUBMISSION_QUEUE_ENTRY, *PNVME_SUBMISSION_QUEUE_ENTRY;
 
@@ -145,19 +192,54 @@ static_assert(sizeof(NVME_CONTROLLER) == 0x1000);
 
 typedef struct
 {
+	NVME_SUBMISSION_QUEUE_ENTRY Sub;
+	NVME_COMPLETION_QUEUE_ENTRY Comp;
+	PKEVENT Event;
+}
+QUEUE_ENTRY_PAIR, *PQUEUE_ENTRY_PAIR;
+
+typedef struct
+{
+	void*  Address;
+	size_t EntryCount;
+	int    Index;
+	int    Phase;
+	volatile uint32_t* DoorBell;
+}
+QUEUE_ACCESS_BLOCK, *PQUEUE_ACCESS_BLOCK;
+
+typedef struct _CONTROLLER_EXTENSION CONTROLLER_EXTENSION, *PCONTROLLER_EXTENSION;
+
+typedef struct
+{
+	PCONTROLLER_EXTENSION Controller;
+	KDPC Dpc;
+	KSEMAPHORE Semaphore;
+	KSPIN_LOCK SpinLock;
+	KSPIN_LOCK InterruptSpinLock; // Not actually used for anything
+	KINTERRUPT Interrupt;
+	QUEUE_ACCESS_BLOCK SubmissionQueue;
+	QUEUE_ACCESS_BLOCK CompletionQueue;
+	PQUEUE_ENTRY_PAIR Entries[PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY)];
+}
+QUEUE_CONTROL_BLOCK, *PQUEUE_CONTROL_BLOCK;
+
+struct _CONTROLLER_EXTENSION
+{
 	PPCI_DEVICE PciDevice;
 	
-	PNVME_CONTROLLER Controller;
+	PNVME_CONTROLLER Controller; // BAR0
 	
 	PNVME_SUBMISSION_QUEUE_ENTRY SubmissionQueue;
 	PNVME_COMPLETION_QUEUE_ENTRY CompletionQueue;
 	size_t SubmissionQueueCount;
 	size_t CompletionQueueCount;
-	size_t DoorbellStride;
+	size_t DoorbellStride; // NOTE: To get the stride in bytes, do `4 << DoorbellStride`
 	size_t MaximumQueueEntries;
 	
-}
-CONTROLLER_EXTENSION, *PCONTROLLER_EXTENSION;
+	QUEUE_CONTROL_BLOCK AdminQueue;
+	PQUEUE_CONTROL_BLOCK IoQueues;
+};
 
 typedef struct
 {
@@ -175,3 +257,6 @@ extern PDRIVER_OBJECT NvmeDriverObject;
 extern IO_DISPATCH_TABLE NvmeDispatchTable;
 
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext);
+
+// Utilities
+int AllocateVector(PKIPL Ipl, KIPL Default);

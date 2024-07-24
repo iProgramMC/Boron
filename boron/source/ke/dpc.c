@@ -103,12 +103,19 @@ void KiDispatchDpcQueue()
 		PKDPC Dpc = CONTAINING_RECORD(Entry, KDPC, List);
 		Dpc->Enqueued = false;
 		
+		// Make a copy of the data from the DPC routine, as it might
+		// be re-enqueued again from an interrupt, destroying the context.
+		PKDEFERRED_ROUTINE Routine = Dpc->Routine;
+		void* Context = Dpc->DeferredContext;
+		void* SysArg1 = Dpc->SystemArgument1;
+		void* SysArg2 = Dpc->SystemArgument2;
+		
 		ENABLE_INTERRUPTS();
 		
-		Dpc->Routine(Dpc,
-		             Dpc->DeferredContext,
-		             Dpc->SystemArgument1,
-		             Dpc->SystemArgument2);
+		Routine(Dpc,
+		        Context,
+		        SysArg1,
+		        SysArg2);
 		
 		// Consider the DPC pointer invalid, so don't do anything with it after
 		// invoking its routine.

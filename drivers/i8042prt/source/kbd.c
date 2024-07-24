@@ -145,6 +145,7 @@ static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
 		return;
 	
 	// Initialize and enqueue the DPC now.
+	// TODO: Don't think we should reinitialize the DPC every time
 	KeInitializeDpc(&KbdDpc, KbdDpcRoutine, Context);
 	KeSetImportantDpc(&KbdDpc, true);
 	KeEnqueueDpc(&KbdDpc, NULL, NULL);

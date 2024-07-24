@@ -19,6 +19,17 @@ PDRIVER_OBJECT NvmeDriverObject;
 
 IO_DISPATCH_TABLE NvmeDispatchTable;
 
+int AllocateVector(PKIPL Ipl, KIPL Default)
+{
+	int Vector = -1;
+	
+	*Ipl = Default;
+	while ((Vector = KeAllocateInterruptVector(*Ipl)) < 0 && *Ipl < IPL_CLOCK)
+		(*Ipl)++;
+	
+	return Vector;
+}
+
 void NvmeInitializeDispatchTable()
 {
 	

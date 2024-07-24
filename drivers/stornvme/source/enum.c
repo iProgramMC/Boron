@@ -15,6 +15,11 @@ Author:
 #include "nvme.h"
 #include <string.h>
 
+// Massive thanks to Mathewnd's Astral for help with this implementation
+// https://github.com/Mathewnd/Astral/blob/rewrite/kernel-src/io/block/nvme.c
+
+#define NVME_PRIORITY_BOOST 1
+
 #define SUBMISSION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY))
 #define COMPLETION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_COMPLETION_QUEUE_ENTRY))
 
@@ -23,6 +28,59 @@ Author:
 
 int ControllerNumber; // Atomically incremented
 int DriveNumber; // TODO: Maybe a system wide solution?
+
+FORCE_INLINE volatile uint32_t* GetDoorBell(volatile void* DoorbellArray, int Index, bool IsCompletion, int Stride)
+{
+	volatile uint8_t* DoorBells = DoorbellArray;
+	return (volatile uint32_t*)(DoorBells + (4 << Stride) * (Index * 2 + (IsCompletion ? 1 : 0)));
+}
+
+static void NvmeDpc(PKDPC Dpc, void* Context, UNUSED void* SystemArgument1, UNUSED void* SystemArgument2)
+{
+	PQUEUE_CONTROL_BLOCK Qcb = Context;
+	ASSERT(CONTAINING_RECORD(Dpc, QUEUE_CONTROL_BLOCK, Dpc) == Qcb);
+	
+	KIPL Ipl;
+	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);
+	
+	PNVME_COMPLETION_QUEUE_ENTRY CompletionQueue = Qcb->CompletionQueue.Address;
+	int Count = 0;
+	
+	while (CompletionQueue[Qcb->CompletionQueue.Index].Status.Phase == Qcb->CompletionQueue.Phase)
+	{
+		int SubmissionId = CompletionQueue[Qcb->CompletionQueue.Index].CommandIdentifier;
+		
+		// Copy the completion queue entry.
+		Qcb->Entries[SubmissionId]->Comp = CompletionQueue[Qcb->CompletionQueue.Index];
+		
+		// Set the event.
+		KeSetEvent(Qcb->Entries[SubmissionId]->Event, NVME_PRIORITY_BOOST);
+		
+		// Clear the entry in the Entries list and release the entry semaphore.
+		Qcb->Entries[SubmissionId] = NULL;
+		KeReleaseSemaphore(&Qcb->Semaphore, 1, NVME_PRIORITY_BOOST);
+		
+		// Increment the pair's completion queue index in a round fashion.
+		Qcb->CompletionQueue.Index = (Qcb->CompletionQueue.Index + 1) % Qcb->CompletionQueue.EntryCount;
+		if (Qcb->CompletionQueue.Index == 0)
+			Qcb->CompletionQueue.Phase ^= 1;
+		
+		Count++;
+	}
+	
+	if (Count)
+		*Qcb->CompletionQueue.DoorBell = Qcb->CompletionQueue.Index;
+	
+	KeReleaseSpinLock(&Qcb->SpinLock, Ipl);
+}
+
+void NvmeService(PKINTERRUPT Interrupt, void* Context)
+{
+	PQUEUE_CONTROL_BLOCK Qcb = Context;
+	ASSERT(Qcb == CONTAINING_RECORD(Interrupt, QUEUE_CONTROL_BLOCK, Interrupt));
+	
+	KeEnqueueDpc(&Qcb->Dpc, NULL, NULL);
+}
 
 void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerName, int Number)
 {
@@ -67,6 +125,104 @@ void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerNam
 	
 	// After the device object was initialized, de-reference it.
 	ObDereferenceObject(DeviceObject);
+}
+
+static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex)
+{
+	PPCI_DEVICE Device = Qcb->Controller->PciDevice;
+	KIPL Ipl;
+	int Vector = AllocateVector(&Ipl, IPL_DEVICES1);
+	if (Vector < 0)
+		ASSERT(Vector >= 0);
+	
+	KeInitializeDpc(&Qcb->Dpc, NvmeDpc, Qcb);
+	
+	KeInitializeInterrupt(
+		&Qcb->Interrupt,
+		NvmeService,
+		Qcb,
+		&Qcb->InterruptSpinLock,
+		Vector,
+		Ipl,
+		false
+	);
+	
+	UNUSED bool Connected = KeConnectInterrupt(&Qcb->Interrupt);
+	ASSERT(Connected);
+	
+	HalPciMsixSetInterrupt(Device, MsixIndex, KeGetCurrentPRCB()->LapicId, Vector, false, true);
+	
+	HalPciMsixSetFunctionMask(Device, false);
+}
+
+// Send a command to a queue and wait for it to finish.
+//
+// NOTE: The PKEVENT Event field of EntryPair must point to a valid event.
+void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
+{
+	// Wait on the semaphore to ensure there's space for our request.
+	//
+	// The semaphore will get released by the DPC routine when an operation
+	// has completed.
+	KeWaitForSingleObject(&Qcb->Semaphore, false, TIMEOUT_INFINITE);
+	
+	KIPL Ipl;
+	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);
+	
+	PNVME_SUBMISSION_QUEUE_ENTRY SubmissionQueue = Qcb->SubmissionQueue.Address;
+	
+	// Find a free spot to place this pointer in the Qcb's Entries list.
+	int Index = 0;
+	while (Qcb->Entries[Index]) Index++;
+	
+	// This shouldn't happen as the Qcb's Semaphore stops us from reaching the limit.
+	ASSERT(Index != (int)ARRAY_COUNT(Qcb->Entries));
+	
+	Qcb->Entries[Index] = EntryPair;
+	
+	// Add and advance.
+	SubmissionQueue[Qcb->SubmissionQueue.Index] = EntryPair->Sub;
+	Qcb->SubmissionQueue.Index = (Qcb->SubmissionQueue.Index + 1) % Qcb->SubmissionQueue.EntryCount;
+	
+	// Set the door bell.
+	*Qcb->SubmissionQueue.DoorBell = Qcb->SubmissionQueue.Index;
+	
+	KeReleaseSpinLock(&Qcb->SpinLock, Ipl);
+}
+
+BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, uint32_t Cns, uint32_t NamespaceId)
+{
+	QUEUE_ENTRY_PAIR QueueEntry;
+	memset(&QueueEntry, 0, sizeof QueueEntry);
+	
+	// note: PRP = 0, FusedOperation = 0
+	QueueEntry.Sub.CommandHeader.OpCode = ADMOP_IDENTIFY;
+	QueueEntry.Sub.NamespaceId = NamespaceId;
+	
+	// Allocate a memory page to receive identification information.
+	int Page = MmAllocatePhysicalPage();
+	if (Page == PFN_INVALID)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	QueueEntry.Sub.DataPointer[0] = MmPFNToPhysPage(Page);
+	
+	QueueEntry.Sub.Identify.Cns = Cns;
+	
+	KEVENT Event;
+	KeInitializeEvent(&Event, EVENT_NOTIFICATION, false);
+	QueueEntry.Event = &Event;
+	
+	NvmeSend(&ContExtension->AdminQueue, &QueueEntry);
+	
+	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
+	if (FAILED(Status))
+		return Status;
+	
+	memcpy(IdentifyBuffer, MmGetHHDMOffsetAddr(MmPFNToPhysPage(Page)), PAGE_SIZE);
+	
+	MmFreePhysicalPage(Page);
+	
+	return STATUS_SUCCESS;
 }
 
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
@@ -128,8 +284,19 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	HalPciConfigWriteDword(&Device->Address, PCI_OFFSET_STATUS_COMMAND, StatusCommand);
 	
-	// TODO: MSI-X
-	
+	if (!Device->MsixData.Exists || Device->MsixData.TableSize == 0)
+	{
+		DbgPrint(
+			"StorNvme ERROR: Rejecting device %d:%d:%d because it %s MSI-X and table size is %d",
+			Device->Address.Bus,
+			Device->Address.Slot,
+			Device->Address.Function,
+			Device->MsixData.Exists ? "supports" : "doesn't support",
+			Device->MsixData.Exists ? Device->MsixData.TableSize : -1
+		);
+		
+		goto CleanupAndGoAway;
+	}
 	
 	NVME_CAPABILITIES Caps;
 	NVME_CONFIGURATION Config;
@@ -219,8 +386,57 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	SET_CAPABILITIES(Caps, Controller->Capabilities);
 	
 	// Record device capabilities inside the controller extension.
-	ContExtension->DoorbellStride = 1 << (Caps.DoorbellStride + 2);
+	ContExtension->DoorbellStride = Caps.DoorbellStride;
 	ContExtension->MaximumQueueEntries =  Caps.MaxQueueEntriesSupported + 1;
+	
+	ContExtension->AdminQueue.Controller = ContExtension;
+	
+	// Initialize the admin queue structures.
+	PQUEUE_ACCESS_BLOCK Queue = &ContExtension->AdminQueue.SubmissionQueue;
+	Queue->Address    = MmGetHHDMOffsetAddr(AdminSubmissionQueueBasePhy);
+	Queue->EntryCount = SUBMISSION_QUEUE_SIZE;
+	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, 0, false, ContExtension->DoorbellStride);
+	Queue->Phase      = 0;
+	Queue->Index      = 0;
+	
+	Queue = &ContExtension->AdminQueue.CompletionQueue;
+	Queue->Address    = MmGetHHDMOffsetAddr(AdminCompletionQueueBasePhy);
+	Queue->EntryCount = COMPLETION_QUEUE_SIZE;
+	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, 0, true, ContExtension->DoorbellStride);
+	Queue->Phase      = 1;
+	Queue->Index      = 0;
+	
+	KeInitializeDpc(&ContExtension->AdminQueue.Dpc, NvmeDpc, &ContExtension->AdminQueue);
+	KeInitializeSpinLock(&ContExtension->AdminQueue.SpinLock);
+	KeInitializeSemaphore(&ContExtension->AdminQueue.Semaphore, ARRAY_COUNT(ContExtension->AdminQueue.Entries), SEMAPHORE_LIMIT_NONE);
+	
+	// Create the admin queue interrupt.
+	NvmeCreateInterruptForQueue(&ContExtension->AdminQueue, 0);
+	
+	// Send an identification request.
+	void* Memory = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
+	memset(Memory, 0, PAGE_SIZE);
+	
+	Status = NvmeIdentify(ContExtension, Memory, CNS_CONTROLLER, 0);
+	if (FAILED(Status))
+		KeCrash("Stornvme TODO handle identification failure nicely. Status %d", Status);
+	
+	// hex dump that crap
+	uint8_t* Data = Memory;
+	DbgPrint("Identified:");
+	#define A(x) (((x)>=0x20&&(x)<=0x7F)?(x):'.')
+	for (size_t i = 0; i < PAGE_SIZE; i += 16) {
+		DbgPrint("%04x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x    %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
+			i,
+			Data[0], Data[1], Data[2], Data[3], Data[4], Data[5], Data[6], Data[7], 
+			Data[8], Data[9], Data[10], Data[11], Data[12], Data[13], Data[14], Data[15],
+			A(Data[0]), A(Data[1]), A(Data[2]), A(Data[3]), A(Data[4]), A(Data[5]), A(Data[6]), A(Data[7]), 
+			A(Data[8]), A(Data[9]), A(Data[10]), A(Data[11]), A(Data[12]), A(Data[13]), A(Data[14]), A(Data[15])
+		);
+		Data += 16;
+	}
+	
+	MmFreePool(Memory);
 	
 	// After initializing the controller object, dereference it.
 	ObDereferenceObject(ControllerObject);
