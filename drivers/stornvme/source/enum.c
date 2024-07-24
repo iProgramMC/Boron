@@ -57,6 +57,8 @@ static void NvmeDpc(PKDPC Dpc, void* Context, UNUSED void* SystemArgument1, UNUS
 		KeSetEvent(Qcb->Entries[SubmissionId]->Event, NVME_PRIORITY_BOOST);
 		
 		// Clear the entry in the Entries list and release the entry semaphore.
+		ASSERT(SubmissionId >= 0 && SubmissionId < (int)ARRAY_COUNT(Qcb->Entries) && Qcb->Entries[SubmissionId] != NULL);
+		
 		Qcb->Entries[SubmissionId] = NULL;
 		KeReleaseSemaphore(&Qcb->Semaphore, 1, NVME_PRIORITY_BOOST);
 		
@@ -178,6 +180,8 @@ void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 	// This shouldn't happen as the Qcb's Semaphore stops us from reaching the limit.
 	ASSERT(Index != (int)ARRAY_COUNT(Qcb->Entries));
 	
+	EntryPair->Sub.CommandHeader.CommandIdentifier = Index;
+	
 	Qcb->Entries[Index] = EntryPair;
 	
 	// Add and advance.
@@ -223,6 +227,33 @@ BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, 
 	MmFreePhysicalPage(Page);
 	
 	return STATUS_SUCCESS;
+}
+
+void Identify(PCONTROLLER_EXTENSION ContExtension)
+{
+	void* Memory = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
+	memset(Memory, 0, PAGE_SIZE);
+	
+	BSTATUS Status = NvmeIdentify(ContExtension, Memory, CNS_CONTROLLER, 0);
+	if (FAILED(Status))
+		KeCrash("Stornvme TODO handle identification failure nicely. Status %d", Status);
+	
+	// hex dump that crap
+	uint8_t* Data = Memory;
+	LogMsg("Identified:");
+	#define A(x) (((x)>=0x20&&(x)<=0x7F)?(x):'.')
+	for (size_t i = 0; i < 128; i += 16) {
+		LogMsg("%04x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x    %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
+			i,
+			Data[0], Data[1], Data[2], Data[3], Data[4], Data[5], Data[6], Data[7], 
+			Data[8], Data[9], Data[10], Data[11], Data[12], Data[13], Data[14], Data[15],
+			A(Data[0]), A(Data[1]), A(Data[2]), A(Data[3]), A(Data[4]), A(Data[5]), A(Data[6]), A(Data[7]), 
+			A(Data[8]), A(Data[9]), A(Data[10]), A(Data[11]), A(Data[12]), A(Data[13]), A(Data[14]), A(Data[15])
+		);
+		Data += 16;
+	}
+	
+	MmFreePool(Memory);
 }
 
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
@@ -414,29 +445,10 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	NvmeCreateInterruptForQueue(&ContExtension->AdminQueue, 0);
 	
 	// Send an identification request.
-	void* Memory = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
-	memset(Memory, 0, PAGE_SIZE);
-	
-	Status = NvmeIdentify(ContExtension, Memory, CNS_CONTROLLER, 0);
-	if (FAILED(Status))
-		KeCrash("Stornvme TODO handle identification failure nicely. Status %d", Status);
-	
-	// hex dump that crap
-	uint8_t* Data = Memory;
-	DbgPrint("Identified:");
-	#define A(x) (((x)>=0x20&&(x)<=0x7F)?(x):'.')
-	for (size_t i = 0; i < PAGE_SIZE; i += 16) {
-		DbgPrint("%04x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x    %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
-			i,
-			Data[0], Data[1], Data[2], Data[3], Data[4], Data[5], Data[6], Data[7], 
-			Data[8], Data[9], Data[10], Data[11], Data[12], Data[13], Data[14], Data[15],
-			A(Data[0]), A(Data[1]), A(Data[2]), A(Data[3]), A(Data[4]), A(Data[5]), A(Data[6]), A(Data[7]), 
-			A(Data[8]), A(Data[9]), A(Data[10]), A(Data[11]), A(Data[12]), A(Data[13]), A(Data[14]), A(Data[15])
-		);
-		Data += 16;
-	}
-	
-	MmFreePool(Memory);
+	Identify(ContExtension);
+	Identify(ContExtension);
+	Identify(ContExtension);
+	Identify(ContExtension);
 	
 	// After initializing the controller object, dereference it.
 	ObDereferenceObject(ControllerObject);
