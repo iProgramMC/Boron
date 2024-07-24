@@ -66,18 +66,20 @@ void MmUnlockKernelSpace()
 	MmpUnlockKernelSpaceFunc();
 }
 
-static int MmSyncLockSwitch;
+static volatile int MmSyncLockSwitch;
+static volatile int MmSyncLockSwitch2;
 
 // Called from ExpInitializeExecutive.
 void MmSwitchKernelSpaceLock()
 {
 	extern int KeProcessorCount;
+	int ProcCount = KeProcessorCount;
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	
 	// Wait until all processors end up here
 	AtAddFetch(MmSyncLockSwitch, 1);
-	while (AtLoad(MmSyncLockSwitch) < KeProcessorCount)
-		KeSpinningHint(); 
+	while (AtLoad(MmSyncLockSwitch) < ProcCount)
+		KeSpinningHint();
 	
 	// All processors are here, if we're the bootstrap processor, perform the switch!!
 	if (Prcb->IsBootstrap)
@@ -89,8 +91,11 @@ void MmSwitchKernelSpaceLock()
 	}
 	
 	// Done, now sync again
-	AtAddFetch(MmSyncLockSwitch, -1);
-	while (AtLoad(MmSyncLockSwitch) > 0)
+	//
+	// TODO: Not re-using the original MmSyncLockSwitch variable.  It seems I have issues booting on
+	// one of my pieces of hardware due to it... I don't know why it works now.
+	AtAddFetch(MmSyncLockSwitch2, 2);
+	while (AtLoad(MmSyncLockSwitch2) < ProcCount)
 		KeSpinningHint();
 }
 
