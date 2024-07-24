@@ -25,6 +25,23 @@ KSPIN_LOCK KeTLBSLock;
 
 void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
 {
+	// TODO: Is it a good idea to allow dynamic memory allocation before SMP init?
+	// I'll allow it for now...
+	//
+	// The idea is, if the processor list wasn't setup and we don't have a current PRCB,
+	// chances are that the other CPUs aren't active, therefore just invalidate the pages
+	// here and return.
+	if (!KeGetCurrentPRCB())
+	{
+		// Invalidate the pages on the local CPU
+		for (size_t i = 0; i < Length; i++)
+		{
+			KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
+		}
+		
+		return;
+	}
+	
 	KIPL OldIpl, UnusedIpl;
 	KIPL CurrentIpl = KeGetIPL();
 	KeAcquireSpinLock(&KeTLBSLock, &OldIpl);
