@@ -18,71 +18,11 @@ Author:
 // Massive thanks to Mathewnd's Astral for help with this implementation
 // https://github.com/Mathewnd/Astral/blob/rewrite/kernel-src/io/block/nvme.c
 
-#define NVME_PRIORITY_BOOST 1
-
-#define SUBMISSION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY))
-#define COMPLETION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_COMPLETION_QUEUE_ENTRY))
-
 #define SET_CONFIGURATION(Cfg, Cfg2) ((Cfg).AsUint32 = (Cfg2).AsUint32)
 #define SET_CAPABILITIES(Cap, Cap2)  ((Cap).AsUint64 = (Cap2).AsUint64)
 
 int ControllerNumber; // Atomically incremented
 int DriveNumber; // TODO: Maybe a system wide solution?
-
-FORCE_INLINE volatile uint32_t* GetDoorBell(volatile void* DoorbellArray, int Index, bool IsCompletion, int Stride)
-{
-	volatile uint8_t* DoorBells = DoorbellArray;
-	return (volatile uint32_t*)(DoorBells + (4 << Stride) * (Index * 2 + (IsCompletion ? 1 : 0)));
-}
-
-static void NvmeDpc(PKDPC Dpc, void* Context, UNUSED void* SystemArgument1, UNUSED void* SystemArgument2)
-{
-	PQUEUE_CONTROL_BLOCK Qcb = Context;
-	ASSERT(CONTAINING_RECORD(Dpc, QUEUE_CONTROL_BLOCK, Dpc) == Qcb);
-	
-	KIPL Ipl;
-	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);
-	
-	PNVME_COMPLETION_QUEUE_ENTRY CompletionQueue = Qcb->CompletionQueue.Address;
-	int Count = 0;
-	
-	while (CompletionQueue[Qcb->CompletionQueue.Index].Status.Phase == Qcb->CompletionQueue.Phase)
-	{
-		int SubmissionId = CompletionQueue[Qcb->CompletionQueue.Index].CommandIdentifier;
-		
-		// Copy the completion queue entry.
-		Qcb->Entries[SubmissionId]->Comp = CompletionQueue[Qcb->CompletionQueue.Index];
-		
-		// Set the event.
-		KeSetEvent(Qcb->Entries[SubmissionId]->Event, NVME_PRIORITY_BOOST);
-		
-		// Clear the entry in the Entries list and release the entry semaphore.
-		ASSERT(SubmissionId >= 0 && SubmissionId < (int)ARRAY_COUNT(Qcb->Entries) && Qcb->Entries[SubmissionId] != NULL);
-		
-		Qcb->Entries[SubmissionId] = NULL;
-		KeReleaseSemaphore(&Qcb->Semaphore, 1, NVME_PRIORITY_BOOST);
-		
-		// Increment the pair's completion queue index in a round fashion.
-		Qcb->CompletionQueue.Index = (Qcb->CompletionQueue.Index + 1) % Qcb->CompletionQueue.EntryCount;
-		if (Qcb->CompletionQueue.Index == 0)
-			Qcb->CompletionQueue.Phase ^= 1;
-		
-		Count++;
-	}
-	
-	if (Count)
-		*Qcb->CompletionQueue.DoorBell = Qcb->CompletionQueue.Index;
-	
-	KeReleaseSpinLock(&Qcb->SpinLock, Ipl);
-}
-
-void NvmeService(PKINTERRUPT Interrupt, void* Context)
-{
-	PQUEUE_CONTROL_BLOCK Qcb = Context;
-	ASSERT(Qcb == CONTAINING_RECORD(Interrupt, QUEUE_CONTROL_BLOCK, Interrupt));
-	
-	KeEnqueueDpc(&Qcb->Dpc, NULL, NULL);
-}
 
 void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerName, int Number)
 {
@@ -127,71 +67,6 @@ void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerNam
 	
 	// After the device object was initialized, de-reference it.
 	ObDereferenceObject(DeviceObject);
-}
-
-static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex)
-{
-	PPCI_DEVICE Device = Qcb->Controller->PciDevice;
-	KIPL Ipl;
-	int Vector = AllocateVector(&Ipl, IPL_DEVICES1);
-	if (Vector < 0)
-		ASSERT(Vector >= 0);
-	
-	KeInitializeDpc(&Qcb->Dpc, NvmeDpc, Qcb);
-	
-	KeInitializeInterrupt(
-		&Qcb->Interrupt,
-		NvmeService,
-		Qcb,
-		&Qcb->InterruptSpinLock,
-		Vector,
-		Ipl,
-		false
-	);
-	
-	UNUSED bool Connected = KeConnectInterrupt(&Qcb->Interrupt);
-	ASSERT(Connected);
-	
-	HalPciMsixSetInterrupt(Device, MsixIndex, KeGetCurrentPRCB()->LapicId, Vector, false, true);
-	
-	HalPciMsixSetFunctionMask(Device, false);
-}
-
-// Send a command to a queue and wait for it to finish.
-//
-// NOTE: The PKEVENT Event field of EntryPair must point to a valid event.
-void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
-{
-	// Wait on the semaphore to ensure there's space for our request.
-	//
-	// The semaphore will get released by the DPC routine when an operation
-	// has completed.
-	KeWaitForSingleObject(&Qcb->Semaphore, false, TIMEOUT_INFINITE);
-	
-	KIPL Ipl;
-	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);
-	
-	PNVME_SUBMISSION_QUEUE_ENTRY SubmissionQueue = Qcb->SubmissionQueue.Address;
-	
-	// Find a free spot to place this pointer in the Qcb's Entries list.
-	int Index = 0;
-	while (Qcb->Entries[Index]) Index++;
-	
-	// This shouldn't happen as the Qcb's Semaphore stops us from reaching the limit.
-	ASSERT(Index != (int)ARRAY_COUNT(Qcb->Entries));
-	
-	EntryPair->Sub.CommandHeader.CommandIdentifier = Index;
-	
-	Qcb->Entries[Index] = EntryPair;
-	
-	// Add and advance.
-	SubmissionQueue[Qcb->SubmissionQueue.Index] = EntryPair->Sub;
-	Qcb->SubmissionQueue.Index = (Qcb->SubmissionQueue.Index + 1) % Qcb->SubmissionQueue.EntryCount;
-	
-	// Set the door bell.
-	*Qcb->SubmissionQueue.DoorBell = Qcb->SubmissionQueue.Index;
-	
-	KeReleaseSpinLock(&Qcb->SpinLock, Ipl);
 }
 
 BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, uint32_t Cns, uint32_t NamespaceId)
@@ -418,31 +293,17 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	// Record device capabilities inside the controller extension.
 	ContExtension->DoorbellStride = Caps.DoorbellStride;
-	ContExtension->MaximumQueueEntries =  Caps.MaxQueueEntriesSupported + 1;
+	ContExtension->MaximumQueueEntries = Caps.MaxQueueEntriesSupported + 1;
 	
-	ContExtension->AdminQueue.Controller = ContExtension;
-	
-	// Initialize the admin queue structures.
-	PQUEUE_ACCESS_BLOCK Queue = &ContExtension->AdminQueue.SubmissionQueue;
-	Queue->Address    = MmGetHHDMOffsetAddr(AdminSubmissionQueueBasePhy);
-	Queue->EntryCount = SUBMISSION_QUEUE_SIZE;
-	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, 0, false, ContExtension->DoorbellStride);
-	Queue->Phase      = 0;
-	Queue->Index      = 0;
-	
-	Queue = &ContExtension->AdminQueue.CompletionQueue;
-	Queue->Address    = MmGetHHDMOffsetAddr(AdminCompletionQueueBasePhy);
-	Queue->EntryCount = COMPLETION_QUEUE_SIZE;
-	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, 0, true, ContExtension->DoorbellStride);
-	Queue->Phase      = 1;
-	Queue->Index      = 0;
-	
-	KeInitializeDpc(&ContExtension->AdminQueue.Dpc, NvmeDpc, &ContExtension->AdminQueue);
-	KeInitializeSpinLock(&ContExtension->AdminQueue.SpinLock);
-	KeInitializeSemaphore(&ContExtension->AdminQueue.Semaphore, ARRAY_COUNT(ContExtension->AdminQueue.Entries), SEMAPHORE_LIMIT_NONE);
-	
-	// Create the admin queue interrupt.
-	NvmeCreateInterruptForQueue(&ContExtension->AdminQueue, 0);
+	// Initialize the admin queue.
+	NvmeSetupQueue(
+		ContExtension,
+		&ContExtension->AdminQueue,
+		AdminSubmissionQueueBasePhy,
+		AdminCompletionQueueBasePhy,
+		0,
+		0
+	);
 	
 	// Send an identification request.
 	Identify(ContExtension);

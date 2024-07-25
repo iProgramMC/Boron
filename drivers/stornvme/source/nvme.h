@@ -18,6 +18,9 @@ Author:
 #include <hal.h>
 #include <mm.h>
 
+// Priority boost used when setting events or releasing semaphores.
+#define NVME_PRIORITY_BOOST 1
+
 #define CSTS_RDY   (1 << 0) // Ready
 #define CSTS_CFS   (1 << 1) // Controller Fatal Status
 #define CSTS_PP    (1 << 5) // Processing Paused
@@ -137,6 +140,9 @@ NVME_COMPLETION_QUEUE_ENTRY, *PNVME_COMPLETION_QUEUE_ENTRY;
 
 static_assert(sizeof(NVME_COMPLETION_QUEUE_ENTRY) == 0x10);
 
+#define SUBMISSION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY))
+#define COMPLETION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_COMPLETION_QUEUE_ENTRY))
+
 typedef union
 {
 	struct {
@@ -220,6 +226,8 @@ typedef struct
 	KINTERRUPT Interrupt;
 	QUEUE_ACCESS_BLOCK SubmissionQueue;
 	QUEUE_ACCESS_BLOCK CompletionQueue;
+	uintptr_t SubmissionQueuePhysical;
+	uintptr_t CompletionQueuePhysical;
 	PQUEUE_ENTRY_PAIR Entries[PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY)];
 }
 QUEUE_CONTROL_BLOCK, *PQUEUE_CONTROL_BLOCK;
@@ -256,7 +264,34 @@ FCB_EXTENSION, *PFCB_EXTENSION;
 extern PDRIVER_OBJECT NvmeDriverObject;
 extern IO_DISPATCH_TABLE NvmeDispatchTable;
 
+// ==== Queue Management ====
+
+// Send a raw command to a queue. Note that the PKEVENT Event field of EntryPair
+// must point to a valid event. The event may be initialized as a synchronization
+// event if reuse is desired.
+// 
+// After sending, one may wait on the event passed into EntryPair. Once the operation is
+// complete, the event will be set.
+void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair);
+
+// NOTE: Ownership of the SubmissionQueuePhysical and CompletionQueuePhysical pages is transferred to the queue.
+void NvmeSetupQueue(
+	PCONTROLLER_EXTENSION ContExtension,
+	PQUEUE_CONTROL_BLOCK Qcb,
+	uintptr_t SubmissionQueuePhysical,
+	uintptr_t CompletionQueuePhysical,
+	int DoorBellIndex,
+	int MsixIndex
+);
+
+
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext);
 
 // Utilities
 int AllocateVector(PKIPL Ipl, KIPL Default);
+
+FORCE_INLINE volatile uint32_t* GetDoorBell(volatile void* DoorbellArray, int Index, bool IsCompletion, int Stride)
+{
+	volatile uint8_t* DoorBells = DoorbellArray;
+	return (volatile uint32_t*)(DoorBells + (4 << Stride) * (Index * 2 + (IsCompletion ? 1 : 0)));
+}
