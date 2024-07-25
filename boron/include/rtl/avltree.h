@@ -58,6 +58,8 @@ bool RemoveItemAvlTree(PAVLTREE Tree, PAVLTREE_ENTRY Item);
 
 PAVLTREE_ENTRY LookUpItemAvlTree(PAVLTREE Tree, AVLTREE_KEY Key);
 
+PAVLTREE_ENTRY LookUpItemApproximateAvlTree(PAVLTREE Tree, AVLTREE_KEY Key);
+
 PAVLTREE_ENTRY GetFirstEntryAvlTree(PAVLTREE Tree);
 
 PAVLTREE_ENTRY GetLastEntryAvlTree(PAVLTREE Tree);

@@ -43,6 +43,53 @@ static const int MiSlabSizes[] =
 
 static MISLAB_CONTAINER MiSlabContainer[2][MISLAB_SIZE_COUNT];
 
+// This tree is used when a slab item larger than a page size is allocated.
+//
+// TODO: There is probably going to be a ton of contention on this lock, we need something better.
+KSPIN_LOCK MmpSlabItemTopLock;
+AVLTREE    MmpSlabItemTopTree;
+
+static size_t MmpSlabItemDetermineLength(int ItemSize)
+{
+	if (ItemSize < PAGE_SIZE / 4)
+		return PAGE_SIZE;
+	
+	// Allow at least 4 items to fit.
+	return (ItemSize * 4 + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
+}
+
+static bool MmpRequiresAvlTreeEntry(int ItemSize)
+{
+	return ItemSize >= PAGE_SIZE / 4;
+}
+
+static bool MmpAddSlabItemToTree(PMISLAB_ITEM SlabItem)
+{
+	AVLTREE_KEY Key = (AVLTREE_KEY)(uintptr_t)SlabItem;
+	InitializeAvlTreeEntry(&SlabItem->TreeEntry);
+	SlabItem->TreeEntry.Key = Key;
+	
+	KIPL Ipl;
+	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
+	
+	bool Inserted = InsertItemAvlTree(&MmpSlabItemTopTree, &SlabItem->TreeEntry);
+	
+	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
+	return Inserted;
+}
+
+static bool MmpRemoveSlabItemFromTree(PMISLAB_ITEM SlabItem)
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
+	ASSERT(SlabItem->TreeEntry.Key == (AVLTREE_KEY)(uintptr_t)SlabItem);
+	
+	bool Removed = RemoveItemAvlTree(&MmpSlabItemTopTree, &SlabItem->TreeEntry);
+	
+	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
+	return Removed;
+}
+
 static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size, bool NonPaged)
 {
 	Container->ItemSize = Size;
@@ -85,6 +132,10 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 	int BitmapWrdsToCheck  = (EntriesPerItem + 63) / 64;
 	int LastBitmapBitCount = EntriesPerItem % 64;
 	
+	// NOTE: If the slab item has an AVL tree index into it, it can only store
+	// at most 4 items inside, so therefore only one of the bitmaps will actually
+	// be checked.
+	
 	for (int BitmapIndex = 0; BitmapIndex < BitmapWrdsToCheck; BitmapIndex++)
 	{
 		int Count = 64;
@@ -107,15 +158,6 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 	}
 	
 	return NULL;
-}
-
-size_t MmpSlabItemDetermineLength(int ItemSize)
-{
-	if (ItemSize < PAGE_SIZE / 4)
-		return PAGE_SIZE;
-	
-	// Allow at least 4 items to fit.
-	return (ItemSize * 4 + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
 }
 
 void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
@@ -180,6 +222,10 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	// Link it to the list:
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
 	
+	// If the entry size is big enough, we're going to want to insert it into the AVL tree too.
+	if (MmpRequiresAvlTreeEntry(Container->ItemSize))
+		MmpAddSlabItemToTree(Item);
+	
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 	ASSERT(Mem);
 	memset(Mem, 0, Container->ItemSize);
@@ -187,14 +233,12 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	return Mem;
 }
 
-void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
+void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* Ptr)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&Container->Lock, &OldIpl);
 	
 	uint8_t* PtrBytes = Ptr;
-	
-	PMISLAB_ITEM Item = (PMISLAB_ITEM) ((uintptr_t) PtrBytes & ~0xFFF);
 	
 	if (Item->Check != MI_SLAB_ITEM_CHECK || Item->Parent != Container)
 	{
@@ -217,10 +261,15 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, void* Ptr)
 	// Unset the relevant bit
 	Item->Bitmap[Diff / 64] &= ~(1 << (Diff % 64));
 	
+	bool RequiresAvlTreeEntry = MmpRequiresAvlTreeEntry(Container->ItemSize);
+	
 	// Check if it's all zero:
-	if (!Item->Bitmap[0] && !Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])
+	if (!Item->Bitmap[0] && (RequiresAvlTreeEntry || (!Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])))
 	{
 		RemoveEntryList(&Item->ListEntry);
+		
+		if (RequiresAvlTreeEntry)
+			MmpRemoveSlabItemFromTree(Item);
 		
 		// Free the memory handle.
 		MmFreePoolBig(Item->MemHandle);
@@ -287,5 +336,41 @@ void MiSlabFree(void* Ptr)
 	
 	PMISLAB_ITEM Item = PageAlignedPtr;
 	
-	MmpSlabContainerFree(Item->Parent, Ptr);
+	KIPL Ipl;
+	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
+	
+	// Check if the slab item top tree has it.
+	//
+	// If the entry is not NULL, it will point to a valid slab item. But we should also check
+	// if the pointer in question belongs inside of that item. If it does, call MmpSlabContainerFree
+	// on the tree thing, otherwise, hope that this is a standard small item.
+	PAVLTREE_ENTRY Entry = LookUpItemApproximateAvlTree(&MmpSlabItemTopTree, (uintptr_t) PageAlignedPtr);
+	
+	// NOTE: We don't want to delay releasing the tree lock. The entry should stick around until
+	// the free is committed, otherwise we have a double-free and I clearly won't define that.
+	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
+	
+	if (!Entry)
+		// There are no entries in the slab item top tree. This means that no allocations whose slab items
+		// couldn't fit inside of one page have been issued. Therefore, handle it as if it were a standard
+		// small item.
+		goto StandardHandling;
+	
+	// Well, it was, get the pointer to that item.
+	Item = CONTAINING_RECORD(Entry, MISLAB_ITEM, TreeEntry);
+	
+	// This item pointer is page aligned.
+	ASSERT(((uintptr_t)Item & 0xFFF) == 0);
+	
+	// Now check if the pointer we were passed actually belongs inside this slab item.
+	if ((char*)Ptr < Item->Data || Item->Data + Item->Length - sizeof(Item) <= (char*)Ptr)
+	{
+		// No, so we will want to handle it the normal way.
+		Item = PageAlignedPtr;
+	}
+	
+StandardHandling:
+	ASSERT(Item->Check == MI_SLAB_ITEM_CHECK);
+	
+	MmpSlabContainerFree(Item->Parent, Item, Ptr);
 }

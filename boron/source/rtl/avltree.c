@@ -431,6 +431,32 @@ PAVLTREE_ENTRY LookUpItemAvlTree(PAVLTREE Tree, AVLTREE_KEY Key)
 	return NULL;
 }
 
+PAVLTREE_ENTRY LookUpItemApproximateAvlTree(PAVLTREE Tree, AVLTREE_KEY Key)
+{
+	PAVLTREE_ENTRY Node = Tree->Root.Rlink;
+	PAVLTREE_ENTRY ChosenNode = NULL;
+
+	while (Node)
+	{
+		if (Key == Node->Key)
+		{
+			ChosenNode = Node;
+			break;
+		}
+		
+		if (Node->Key <= Key)
+		{
+			ChosenNode = Node;
+			Node = Node->Rlink;
+			continue;
+		}
+		
+		Node = Node->Llink;
+	}
+
+	return ChosenNode;
+}
+
 PAVLTREE_ENTRY GetFirstEntryAvlTree(PAVLTREE Tree)
 {
 	PAVLTREE_ENTRY Node = Tree->Root.Rlink;

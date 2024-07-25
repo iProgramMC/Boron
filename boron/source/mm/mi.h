@@ -35,7 +35,18 @@ typedef struct MISLAB_ITEM_tag
 	int Check;
 	int Length;
 	
-	uint64_t Bitmap[4]; // Supports down to 16 byte sized items
+	// If more than 4 items can fit onto one page, then use the full extent of the
+	// bitmap.  Otherwise, use only one part of the bitmap and put the AVL tree entry
+	// into the rest.
+	union
+	{
+		uint64_t Bitmap[4]; // Supports down to 16 byte sized items
+		struct
+		{
+			uint64_t Bitmap2[1];
+			AVLTREE_ENTRY TreeEntry;
+		};
+	};
 	
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
