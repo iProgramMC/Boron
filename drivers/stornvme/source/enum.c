@@ -24,17 +24,28 @@ Author:
 int ControllerNumber; // Atomically incremented
 int DriveNumber; // TODO: Maybe a system wide solution?
 
-void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerName, int Number)
+void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t NamespaceId, const char* ContName)
 {
-	PCONTROLLER_EXTENSION ContExtension = (PCONTROLLER_EXTENSION) Controller->Extension;
+	// Send an identification request.
+	void* Memory = MmAllocatePool(POOL_NONPAGED, PAGE_SIZE);
+	BSTATUS Status = NvmeIdentify(ContExtension, Memory, CNS_NAMESPACE, NamespaceId);
+	if (FAILED(Status))
+		KeCrash("StorNvme TODO: failure to identify namespace id 0x%x on controller %s", NamespaceId, ContName);
+	
+	PNVME_NAMESPACE_ID Ident = Memory;
+	
+	int BlockSizeLog = Ident->LbaFormats[Ident->FormattedLbaSize & 0xF].LbaDataSize;
+	
+	// The size of a block should be at most the system page size.
+	ASSERT((1 << BlockSizeLog) >= 512 && (1 << BlockSizeLog) <= PAGE_SIZE);
 	
 	char Buffer[32];
-	snprintf(Buffer, sizeof Buffer, "%sDisk%d", ControllerName, Number);
+	snprintf(Buffer, sizeof Buffer, "%sDisk%u", ContName, NamespaceId);
 	
 	// Create a device object for this device.
 	PDEVICE_OBJECT DeviceObject;
 	
-	BSTATUS Status = IoCreateDevice(
+	Status = IoCreateDevice(
 		NvmeDriverObject,
 		sizeof(DEVICE_EXTENSION),
 		sizeof(FCB_EXTENSION),
@@ -53,82 +64,30 @@ void NvmeRegisterDevice(PCONTROLLER_OBJECT Controller, const char* ControllerNam
 	
 	// Add it to the controller.
 	Status = IoAddDeviceController(
-		Controller,
-		Number,
+		ContExtension->ControllerObject,
+		NamespaceId,
 		DeviceObject
 	);
 	
 	if (FAILED(Status))
-		KeCrash("StorNvme: Device #%d was already added to controller", Number);
+		KeCrash("StorNvme: Device #%u was already added to controller", NamespaceId);
 	
 	// Initialize the specific device object.
+	PDEVICE_EXTENSION DeviceExtension = (PDEVICE_EXTENSION) DeviceObject->Extension;
 	
-	// TODO
+	DeviceExtension->ContExtension = ContExtension;
+	
+	DeviceExtension->NamespaceId  = NamespaceId;
+	DeviceExtension->Capacity     = Ident->NamespaceCapacity;
+	DeviceExtension->BlockSizeLog = BlockSizeLog;
+	DeviceExtension->BlockSize    = 1 << BlockSizeLog;
+	
+	DbgPrint("StorNvme: %s: %llu blocks with %llu bytes per block", Buffer, Ident->NamespaceCapacity, DeviceExtension->BlockSize);
+	
+	MmFreePool(Ident);
 	
 	// After the device object was initialized, de-reference it.
 	ObDereferenceObject(DeviceObject);
-}
-
-BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, uint32_t Cns, uint32_t NamespaceId)
-{
-	QUEUE_ENTRY_PAIR QueueEntry;
-	memset(&QueueEntry, 0, sizeof QueueEntry);
-	
-	// note: PRP = 0, FusedOperation = 0
-	QueueEntry.Sub.CommandHeader.OpCode = ADMOP_IDENTIFY;
-	QueueEntry.Sub.NamespaceId = NamespaceId;
-	
-	// Allocate a memory page to receive identification information.
-	int Page = MmAllocatePhysicalPage();
-	if (Page == PFN_INVALID)
-		return STATUS_INSUFFICIENT_MEMORY;
-	
-	QueueEntry.Sub.DataPointer[0] = MmPFNToPhysPage(Page);
-	
-	QueueEntry.Sub.Identify.Cns = Cns;
-	
-	KEVENT Event;
-	KeInitializeEvent(&Event, EVENT_NOTIFICATION, false);
-	QueueEntry.Event = &Event;
-	
-	NvmeSend(&ContExtension->AdminQueue, &QueueEntry);
-	
-	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
-	if (FAILED(Status))
-		return Status;
-	
-	memcpy(IdentifyBuffer, MmGetHHDMOffsetAddr(MmPFNToPhysPage(Page)), PAGE_SIZE);
-	
-	MmFreePhysicalPage(Page);
-	
-	return STATUS_SUCCESS;
-}
-
-void Identify(PCONTROLLER_EXTENSION ContExtension)
-{
-	void* Memory = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
-	memset(Memory, 0, PAGE_SIZE);
-	
-	BSTATUS Status = NvmeIdentify(ContExtension, Memory, CNS_CONTROLLER, 0);
-	if (FAILED(Status))
-		KeCrash("Stornvme TODO handle identification failure nicely. Status %d", Status);
-	
-	// hex dump that crap
-	uint8_t* Data = Memory;
-	LogMsg("Identified:");
-	#define A(x) (((x)>=0x20&&(x)<=0x7F)?(x):'.')
-	for (size_t i = 0; i < 128; i += 16) {
-		LogMsg("%04x: %02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x    %c%c%c%c%c%c%c%c %c%c%c%c%c%c%c%c",
-			i,
-			Data[0], Data[1], Data[2], Data[3], Data[4], Data[5], Data[6], Data[7], 
-			Data[8], Data[9], Data[10], Data[11], Data[12], Data[13], Data[14], Data[15],
-			A(Data[0]), A(Data[1]), A(Data[2]), A(Data[3]), A(Data[4]), A(Data[5]), A(Data[6]), A(Data[7]), 
-			A(Data[8]), A(Data[9]), A(Data[10]), A(Data[11]), A(Data[12]), A(Data[13]), A(Data[14]), A(Data[15])
-		);
-		Data += 16;
-	}
-	
-	MmFreePool(Memory);
 }
 
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
@@ -156,6 +115,7 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	PCONTROLLER_EXTENSION ContExtension = (PCONTROLLER_EXTENSION) ControllerObject->Extension;
 	
 	ContExtension->PciDevice = Device;
+	ContExtension->ControllerObject = ControllerObject;
 	
 	// The base address of the NVMe controller is located at BAR 0.
 	// According to the specification, the lower 12 bits are reserved, so they are ignored.
@@ -306,10 +266,69 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	);
 	
 	// Send an identification request.
-	Identify(ContExtension);
-	Identify(ContExtension);
-	Identify(ContExtension);
-	Identify(ContExtension);
+	PNVME_IDENTIFICATION Ident = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
+	memset(Ident, 0, PAGE_SIZE);
+	
+	Status = NvmeIdentify(ContExtension, Ident, CNS_CONTROLLER, 0);
+	if (FAILED(Status))
+		KeCrash("Stornvme TODO handle identification failure nicely. Status %d", Status);
+	
+	if (Ident->ControllerType != 0 && Ident->ControllerType != CT_IO)
+		// Here we would need to free the queue, deinitialize the controller and return
+		KeCrash("Stornvme TODO handle non-I/O controllers nicely.");
+	
+	// Enable the software progress marker feature, if available
+	Status = NvmeSetFeature(ContExtension, NVME_FEAT_SOFTWARE_PROGRESS, 0);
+	if (FAILED(Status) && Status != STATUS_HARDWARE_IO_ERROR)
+		KeCrash("Stornvme TODO handle set feature failure nicely. Status %d", Status);
+	
+	ContExtension->SoftwareProgressMarkerEnabled = SUCCEEDED(Status);
+	
+	// Get namespace list.
+	uint32_t* NamespaceList = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
+	memset(NamespaceList, 0, sizeof NamespaceList);
+	
+	Status = NvmeIdentify(ContExtension, NamespaceList, CNS_NAMESPACELIST, 0);
+	if (FAILED(Status))
+		KeCrash("Stornvme TODO handle failure to enumerate namespace list nicely. Status %d", Status);
+	
+	// Determine how many pairs to use.
+	size_t IoMin = Device->MsixData.TableSize;
+	if (IoMin > MAX_IO_QUEUES_PER_CONTROLLER)
+		IoMin = MAX_IO_QUEUES_PER_CONTROLLER;
+	ASSERT(IoMin != 0);
+	
+	size_t IoQueueCount = 0;
+	Status = NvmeAllocateIoQueues(ContExtension, IoMin, &IoQueueCount);
+	if (FAILED(Status))
+		KeCrash("Stornvme TODO handle failure to allocate I/O queues nicely. Status %d", Status);
+	
+	ASSERT(IoQueueCount != 0);
+	if (IoQueueCount > IoMin)
+		IoQueueCount = IoMin;
+	
+	ContExtension->IoQueueCount = IoQueueCount;
+	
+	size_t AllocSize = sizeof(QUEUE_CONTROL_BLOCK) * IoQueueCount;
+	ContExtension->IoQueues = MmAllocatePool(POOL_NONPAGED, AllocSize);
+	
+	DbgPrint("StorNvme: %s Using %zu I/O queues", Buffer, ContExtension->IoQueueCount);
+	
+	// Create the I/O queues.
+	for (size_t i = 0; i < IoQueueCount; i++)
+	{
+		Status = NvmeInitializeIoQueue(ContExtension, &ContExtension->IoQueues[i], i + 1);
+		ASSERT(Status == STATUS_SUCCESS);
+	}
+	
+	// Initialize namespaces.
+	for (size_t i = 0; i < 1024 && NamespaceList[i]; i++)
+	{
+		NvmeInitializeNamespace(ContExtension, NamespaceList[i], Buffer);
+	}
+	
+	MmFreePool(NamespaceList);
+	MmFreePool(Ident);
 	
 	// After initializing the controller object, dereference it.
 	ObDereferenceObject(ControllerObject);

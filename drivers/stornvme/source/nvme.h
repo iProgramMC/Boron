@@ -27,6 +27,8 @@ Author:
 
 #define CC_EN      (1 << 0) // Enable
 
+#define MAX_IO_QUEUES_PER_CONTROLLER (16)
+
 #define AQA_ADMIN_COMPLETION_QUEUE_SIZE(size) ((size) << 16)
 #define AQA_ADMIN_SUBMISSION_QUEUE_SIZE(size)  (size)
 
@@ -72,11 +74,25 @@ enum
 	ADMOP_GET_FEATURES               = 0xA,
 };
 
-enum
+enum // For the Identify.Cns field of the submission queue entry
 {
 	CNS_NAMESPACE = 0,
 	CNS_CONTROLLER,
 	CNS_NAMESPACELIST
+};
+
+enum // Controller types reported by the NVMe identify command
+{
+	CT_NONE,
+	CT_IO,
+	CT_DISCOVERY,
+	CT_ADMIN
+};
+
+enum // Feature types for NvmeSetFeature
+{
+	NVME_FEAT_QUEUE_COUNT       = 0x07,
+	NVME_FEAT_SOFTWARE_PROGRESS = 0x80,
 };
 
 typedef union
@@ -105,14 +121,41 @@ typedef struct
 	uint64_t DataPointer[2];
 	
 	union {
-		uint32_t CommandDword10;
+		uint32_t AsUint32;
 		struct {
 			uint32_t Cns          : 8;
 			uint32_t Reserved     : 8;
 			uint32_t ControllerId : 16;
 		} Identify;
-	};
-	uint32_t CommandDword11;
+		struct {
+			uint32_t FeatureIdentifier : 16;
+			uint32_t Reserved          : 15;
+			uint32_t Save              : 1;
+		} SetFeatures;
+		struct {
+			uint16_t QueueId;
+			uint16_t QueueSize;
+		} CreateIoQueue;
+	} Dword10;
+	union {
+		uint32_t AsUint32;
+		struct {
+			uint16_t SubQueueCount;
+			uint16_t ComQueueCount;
+		} SetFeatures;
+		struct {
+			uint8_t  PhysicallyContiguous : 1;
+			uint8_t  QueuePriority        : 2;
+			uint16_t Reserved             : 13;
+			uint16_t CompletionQueueId    : 16;
+		} CreateIoSubQueue;
+		struct {
+			uint8_t  PhysicallyContiguous : 1;
+			uint8_t  InterruptsEnabled    : 1;
+			uint16_t Reserved             : 14;
+			uint16_t InterruptVector      : 16;
+		} CreateIoCompQueue;
+	} Dword11;
 	uint32_t CommandDword12;
 	uint32_t CommandDword13;
 	uint32_t CommandDword14;
@@ -124,7 +167,15 @@ static_assert(sizeof(NVME_SUBMISSION_QUEUE_ENTRY) == 0x40);
 
 typedef struct
 {
-	uint32_t CommandSpecific;
+	union {
+		uint32_t CommandSpecific;
+		union {
+			struct {
+				uint16_t Sub;
+				uint16_t Com;
+			} QueueCount;
+		} SetFeatures;
+	};
 	uint32_t Reserved;
 	uint16_t SubmissionQueueHeadPointer;
 	uint16_t SubmissionQueueIdentifier;
@@ -198,6 +249,145 @@ static_assert(sizeof(NVME_CONTROLLER) == 0x1000);
 
 typedef struct
 {
+	uint16_t PciVendorId;
+	uint16_t PciSubsystemVendorId;
+	char     SerialNumber[20];
+	char     ModelNumber[40];
+	char     FirmwareRevision[8];
+	uint8_t  RecommendedArbitrationBurst;
+	uint8_t  IeeeOuiIdentifier[3];
+	uint8_t  NamespaceSharing;
+	uint8_t  MaximumDataTransferSize;
+	uint16_t ControllerId;
+	uint32_t Version;
+	uint32_t Rtd3ResumeLatency;
+	uint32_t Rtd3EntryLatency;
+	uint32_t OptionalAsyncEventsSupported;
+	uint32_t ControllerAttributes;
+	uint16_t ReadRecoveryLevelsSupported;
+	uint8_t  Reserved0[9];
+	uint8_t  ControllerType;
+	uint64_t FruGuid[2];
+	uint16_t CommandRetryDelay[3];
+	uint8_t  Reserved1[240 - 134];
+	uint8_t  NvmeMiReserved[253 - 240];
+	uint8_t  NvmSubsystemReport;
+	uint8_t  VpdWriteCycleInformation;
+	uint8_t  ManagementEndpointCapabilities;
+	uint16_t OptionalAdminCommandSupport;
+	uint8_t  AbortCommandLimit;
+	uint8_t  AsynchronousEventRequestLimit;
+	uint8_t  FirmwareUpdates;
+	uint8_t  LogPageAttributes;
+	uint8_t  ErrorLogPageEntries;
+	uint8_t  PowerStateSupportCount;
+	uint8_t  AdminVendorSpecific;
+	uint8_t  Apsta;
+	uint16_t Wctemp;
+	uint16_t Cctemp;
+	uint16_t Mtfa;
+	uint32_t HostMemoryBufferPreferredSize;
+	uint32_t HostMemoryBufferMinimumSize;
+	uint64_t TotalNvmCapacity[2];
+	uint64_t UnallocatedNvmCapacity[2];
+	uint32_t Rpmbs;
+	uint16_t Edstt;
+	uint8_t  Dsto;
+	uint8_t  Fwug;
+	uint16_t Kas;
+	uint16_t Hctma;
+	uint16_t Mntmt;
+	uint16_t Mxtmt;
+	uint32_t SaniCap;
+	uint32_t Hmminds;
+	uint16_t Hmmaxd;
+	uint16_t Nsetidmax;
+	uint16_t Endgidmax;
+	uint8_t  Anatt;
+	uint8_t  Anacap;
+	uint32_t Anagrpmax;
+	uint32_t Nanagrpid;
+	uint32_t Pels;
+	uint16_t DomainIdentifier;
+	uint8_t  Reserved2[512 - 358];
+	// NVM Command Set Attributes
+	uint8_t  SubQueueEntrySize;
+	uint8_t  ComQueueEntrySize;
+	uint16_t MaximumOutstandingCommands;
+	uint32_t NamespaceCount;
+	uint16_t OptionalNvmCommandSupport;
+	uint16_t FusedOperationSupport;
+	uint8_t  FormatNvmAttributes;
+	uint8_t  VolatileWriteCache;
+	uint8_t  AtomicWriteUnitNormal;
+	uint8_t  AtomicWriteUnitPowerFail;
+	uint8_t  IoCommandSetVendorSpecific;
+	uint8_t  NamespaceWriteProtection;
+	uint8_t  AtomicCompareWriteUnit;
+	// More...
+}
+PACKED
+NVME_IDENTIFICATION, *PNVME_IDENTIFICATION;
+
+typedef union
+{
+	struct {
+		uint32_t MetadataSize : 16;
+		uint32_t LbaDataSize  : 8;
+		uint32_t RelativePerf : 2;
+	};
+	uint32_t AsUint32;
+}
+NVME_LBA_FORMAT;
+
+typedef struct
+{
+	uint64_t NamespaceSize;
+	uint64_t NamespaceCapacity;
+	uint64_t NamespaceUtilization;
+	uint8_t  NamespaceFeatures;
+	uint8_t  LbaFormatCount;
+	uint8_t  FormattedLbaSize;
+	uint8_t  MetadataCapabilities;
+	uint8_t  E2eDataProtectionCaps;
+	uint8_t  E2eDataProtectionTypeSettings;
+	uint8_t  NsMultipathIoAndSharing;
+	uint8_t  ReservationCaps;
+	uint8_t  FormatProgressIndicator;
+	uint8_t  DeallocateLogicalBlockFeatures;
+	uint16_t AtomicWriteUnitNormal;
+	uint16_t AtomicWriteUnitPowerFail;
+	uint16_t AtomicCompareWriteUnit;
+	uint16_t AtomicBoundarySizeNormal;
+	uint16_t AtomicBoundaryOffset;
+	uint16_t AtomicBoundarySizePowerFail;
+	uint16_t OptimalIoBoundary;
+	uint64_t NvmCapacity[2];
+	uint16_t PreferredWriteGranularity;
+	uint16_t PreferredWriteAlignment;
+	uint16_t PreferredDeallocGranularity;
+	uint16_t PreferredDeallocAlignment;
+	uint16_t OptimalWriteSize;
+	uint16_t MaxSingleSourceRangeLength;
+	uint32_t MaximumCopyLength;
+	uint8_t  MaximumSourceRangeCount;
+	uint8_t  Reserved[92 - 81];
+	uint32_t AnaGroupIdentifier;
+	uint8_t  Reserved2[99 - 96];
+	uint8_t  NamespaceAttributes;
+	uint16_t NvmSetIdentifier;
+	uint16_t EnduranceGroupIdentifier;
+	uint64_t NamespaceGuid[2];
+	uint64_t IeeeEuiIdentifier;
+	NVME_LBA_FORMAT LbaFormats[64];
+}
+PACKED
+NVME_NAMESPACE_ID, *PNVME_NAMESPACE_ID;
+
+static_assert(sizeof(NVME_NAMESPACE_ID) == 384);
+
+typedef struct
+{
 	NVME_SUBMISSION_QUEUE_ENTRY Sub;
 	NVME_COMPLETION_QUEUE_ENTRY Comp;
 	PKEVENT Event;
@@ -234,6 +424,7 @@ QUEUE_CONTROL_BLOCK, *PQUEUE_CONTROL_BLOCK;
 
 struct _CONTROLLER_EXTENSION
 {
+	PCONTROLLER_OBJECT ControllerObject;
 	PPCI_DEVICE PciDevice;
 	
 	PNVME_CONTROLLER Controller; // BAR0
@@ -244,6 +435,8 @@ struct _CONTROLLER_EXTENSION
 	size_t CompletionQueueCount;
 	size_t DoorbellStride; // NOTE: To get the stride in bytes, do `4 << DoorbellStride`
 	size_t MaximumQueueEntries;
+	size_t IoQueueCount;
+	bool   SoftwareProgressMarkerEnabled;
 	
 	QUEUE_CONTROL_BLOCK AdminQueue;
 	PQUEUE_CONTROL_BLOCK IoQueues;
@@ -251,9 +444,18 @@ struct _CONTROLLER_EXTENSION
 
 typedef struct
 {
-	int Test;
+	PCONTROLLER_EXTENSION ContExtension;
+	
+	uint32_t NamespaceId;
+	uint64_t Capacity;
+	uint16_t BlockSizeLog; // note: 2^BlockSizeLog == BlockSize
+	uint16_t BlockSize;
 }
 DEVICE_EXTENSION, *PDEVICE_EXTENSION;
+
+#define GET_FCB(FcbExt) (&((PFCB)FcbExt)[-1])
+#define GET_DEVICE_OBJECT(DevExt) (&((PDEVICE_OBJECT)DevExt)[-1])
+#define GET_CONTROLLER_OBJECT(ContExt) (&((PCONTROLLER_OBJECT)ContExt)[-1])
 
 typedef struct
 {
@@ -284,8 +486,17 @@ void NvmeSetupQueue(
 	int MsixIndex
 );
 
+// ==== Commands ====
+BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, uint32_t Cns, uint32_t NamespaceId);
+
+BSTATUS NvmeSetFeature(PCONTROLLER_EXTENSION ContExtension, int FeatureIdentifier, uintptr_t DataPointer);
+
+BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCount, size_t* OutQueueCount);
 
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext);
+
+// Initializes a queue control block as an I/O queue. The admin queue is initialized in a different place.
+BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTROL_BLOCK Qcb, size_t Id);
 
 // Utilities
 int AllocateVector(PKIPL Ipl, KIPL Default);
