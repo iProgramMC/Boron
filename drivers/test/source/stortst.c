@@ -16,41 +16,47 @@ Author:
 #include <hal.h>
 #include <string.h>
 
-#define MAX(a, b) ((a) < (b) ? (b) : (a))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 //#define PERFORMANCE_TEST
 
 const char* const StorDeviceName = "\\Devices\\Nvme0Disk1"; // <-- this is what the NVMe driver calls the first nvme device
 
-void DumpHex(void* DataV, size_t DataSize)
+void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
 {
 	uint8_t* Data = DataV;
 	
 	#define A(x) (((x) >= 0x20 && (x) <= 0x7F) ? (x) : '.')
 	
-	for (size_t i = 0; i < DataSize; i += 16) {
-		char Buffer[128];
+	const size_t PrintPerRow = 32;
+	
+	for (size_t i = 0; i < DataSize; i += PrintPerRow) {
+		char Buffer[256];
 		Buffer[0] = 0;
 		
 		sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
 		
-		for (size_t j = 0; j < 16; j++) {
+		for (size_t j = 0; j < PrintPerRow; j++) {
 			if (i + j >= DataSize)
 				strcat(Buffer, "   ");
 			else
-				sprintf(Buffer + strlen(Buffer), "%02x", Data[i + j]);
+				sprintf(Buffer + strlen(Buffer), "%02x ", Data[i + j]);
 		}
 		
 		strcat(Buffer, "  ");
 		
-		for (size_t j = 0; j < 16; j++) {
+		for (size_t j = 0; j < PrintPerRow; j++) {
 			if (i + j >= DataSize)
 				strcat(Buffer, " ");
 			else
 				sprintf(Buffer + strlen(Buffer), "%c", A(Data[i + j]));
 		}
 		
-		DbgPrint("%s", Buffer);
+		if (LogScreen)
+			LogMsg("%s", Buffer);
+		else
+			DbgPrint("%s", Buffer);
 	}
 }
 
@@ -105,12 +111,8 @@ void PerformStorageTest()
 	Status = IoGetAlignmentInfo(DeviceHandle, &Alignment);
 	ASSERT(SUCCEEDED(Status));
 	
-	LogMsg("A");
 	Alignment *= 2;
-	
-	LogMsg("Ballocating %zu", Alignment);
 	void* Buffer = MmAllocatePool(POOL_NONPAGED, Alignment);
-	LogMsg("C");
 	
 	if (FAILED(Status))
 		KeCrash("Failed to open %s, ObOpenDeviceByName returned %d", StorDeviceName, Status);
@@ -124,7 +126,7 @@ void PerformStorageTest()
 	if (FAILED(Status))
 		KeCrash("Failed to read, IoReadFile returned %d.", Status);
 	
-	DumpHex(Buffer, Alignment);
+	DumpHex(Buffer, MIN(1024, Alignment), true);
 #endif
 	
 	// Close the device once a key has been pressed
