@@ -314,7 +314,7 @@ bool RemoveItemAvlTree(PAVLTREE Tree, PAVLTREE_ENTRY Node)
 		// Get successor.
 		SubNode = Node->Rlink;
 		while (SubNode->Llink)
-			SubNode = SubNode->Rlink;
+			SubNode = SubNode->Llink;
 	}
 
 	int Balance = BALANCE_MINUS_ONE;
@@ -397,9 +397,9 @@ bool RemoveItemAvlTree(PAVLTREE Tree, PAVLTREE_ENTRY Node)
 		Parent = GET_PARENT(SubNode);
 
 		if (GET_PARENT(Node)->Llink == Node)
-			SubNode = Parent->Llink;
+			Parent->Llink = SubNode;
 		else
-			SubNode = Parent->Rlink;
+			Parent->Rlink = SubNode;
 
 		Child = SubNode->Llink;
 		if (Child)
