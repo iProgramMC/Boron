@@ -187,7 +187,7 @@ BSTATUS KbdRead(
 	UNUSED uintptr_t Offset,
 	size_t Length,
 	void* Buffer,
-	bool Block
+	uint32_t Flags
 )
 {
 	ASSERT(Extension(Fcb) == KbdFcbExtension);
@@ -214,7 +214,7 @@ BSTATUS KbdRead(
 			continue;
 		}
 		
-		if (!Block)
+		if (Flags & IO_RW_NONBLOCK)
 		{
 			// Can't block, so return now.
 			Iosb->Status = STATUS_SUCCESS;

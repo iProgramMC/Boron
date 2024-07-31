@@ -47,6 +47,13 @@ typedef struct _IO_STATUS_BLOCK
 			size_t Length; // Length should be a multiple of 4096
 		}
 		BackingMemory;
+		
+		// GetAlignmentInfo
+		struct
+		{
+			uint32_t BlockSizeLog;
+		}
+		AlignmentInfo;
 	};
 }
 IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;

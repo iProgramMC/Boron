@@ -82,6 +82,10 @@ Author:
 //
 // - IO_PARSE_DIR_METHOD, in the Iosb's ReparsePath, will ONLY return NULL or a substring of ParsePath.
 //
+// - In the case of block devices, IO_ALIGN_INFO_METHOD returns the block size.  Read and Write operations are performed
+//   with block size alignment.  If the alignment value is 1, then there is no alignment requirement.  If this method
+//   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
+//
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
@@ -89,11 +93,11 @@ typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
-typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, bool Block);
-typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, bool Block, bool IsLockedExclusively);
+typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Length, void* Buffer, uint32_t Flags);
+typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Length, const void* Buffer, uint32_t Flags);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
-typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, int ParseLoopCount);
 typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
@@ -107,6 +111,20 @@ typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
 typedef BSTATUS(*IO_TOUCH_METHOD)      (PFCB Fcb, bool IsWrite);
 typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
+typedef size_t (*IO_ALIGN_INFO_METHOD) (PFCB Fcb);
+
+// Flags for IO_READ_METHOD and IO_WRITE_METHOD:
+
+// The operation may not block.  If a situation arises where this operation would block, it is immediately ended.
+#define IO_RW_NONBLOCK         (1 << 0)
+
+// The FCB's rwlock is locked exclusively.  If there's a need for the current thread to own the rwlock exclusively,
+// and this isn't checked, then the routine must release the lock and re-acquire it exclusive.
+#define IO_RW_LOCKEDEXCLUSIVE  (1 << 1)
+
+// This is paging I/O.  This means memory might be very scarce or downright not available, so memory allocations
+// should be avoided.  This may make memory operations slower, but this is a worthy sacrifice considering the situation.
+#define IO_RW_PAGING           (1 << 2)
 
 enum
 {
@@ -156,5 +174,6 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_MAKE_LINK_METHOD   MakeLink;
 	IO_TOUCH_METHOD       Touch;
 	IO_BACKING_MEM_METHOD BackingMemory;
+	IO_ALIGN_INFO_METHOD  GetAlignmentInfo;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;

@@ -34,6 +34,18 @@ static BSTATUS IopTouchFile(PFCB Fcb, int IoType)
 	return Dispatch->Touch(Fcb, IO_IS_WRITE(IoType));
 }
 
+static size_t IopGetAlignmentInfo(PFCB Fcb)
+{
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	// As noted in include/io/dispatch.h, if the method isn't implemented, a default
+	// alignment of 1 is assumed.
+	if (!Dispatch->GetAlignmentInfo)
+		return 1;
+	
+	return Dispatch->GetAlignmentInfo(Fcb);
+}
+
 static BSTATUS IopPerformOperationFileLocked(
 	PFILE_OBJECT FileObject,
 	PIO_STATUS_BLOCK Iosb,
@@ -41,8 +53,7 @@ static BSTATUS IopPerformOperationFileLocked(
 	void* BufferDst,
 	const void* BufferSrc,
 	size_t Length,
-	bool MayBlock,
-	bool LockedExclusive  // See io/dispatch.h for information about this flag
+	uint32_t Flags // See io/dispatch.h for information about this field
 )
 {
 	// The file control block is locked.
@@ -63,7 +74,7 @@ static BSTATUS IopPerformOperationFileLocked(
 			if (!ReadMethod)
 				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 			
-			Status = ReadMethod (Iosb, Fcb, FileObject->Offset, Length, BufferDst, MayBlock);
+			Status = ReadMethod (Iosb, Fcb, FileObject->Offset, Length, BufferDst, Flags);
 			break;
 		}
 		case IO_OP_WRITE:
@@ -73,7 +84,7 @@ static BSTATUS IopPerformOperationFileLocked(
 			if (!WriteMethod)
 				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 			
-			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Length, BufferSrc, MayBlock, LockedExclusive);
+			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Length, BufferSrc, Flags);
 			break;
 		}
 		default:
@@ -104,7 +115,7 @@ BSTATUS IoPerformOperationFile(
 	void* BufferDst,
 	const void* BufferSrc,
 	size_t Length,
-	bool MayBlock
+	uint32_t Flags
 )
 {
 	// TODO: Cache would intervene around here
@@ -114,18 +125,20 @@ BSTATUS IoPerformOperationFile(
 	ASSERT(FileObject->Fcb->DispatchTable);
 	
 	BSTATUS Status;
-	bool LockedExclusive = false;
+	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
 	
 	PFCB Fcb = FileObject->Fcb;
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
 	
 	// If the DISPATCH_FLAG_EXCLUSIVE flag is set, always lock the FCB's rwlock exclusively.
+	//
 	// As an optimization, if the file is opened in append only mode, and the operation is
-	// a write, then lock the FCB's rwlock exclusively.
+	// a write, then lock the FCB's rwlock exclusive, instead of locking it shared, then
+	// unlocking it, and then locking it exclusive.
 	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
 		(IoType == IO_OP_WRITE && (FileObject->Flags & FILE_FLAG_APPEND_ONLY)))
 	{
-		LockedExclusive = true;
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 		Status = IoLockFcbExclusive(Fcb);
 	}
 	else
@@ -136,7 +149,7 @@ BSTATUS IoPerformOperationFile(
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
-	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, BufferDst, BufferSrc, Length, MayBlock, LockedExclusive);
+	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, BufferDst, BufferSrc, Length, Flags);
 	
 	IoUnlockFcb(Fcb);
 	
@@ -161,7 +174,7 @@ BSTATUS IoPerformOperationFileHandle(
 	void* BufferDst,
 	const void* BufferSrc,
 	size_t Length,
-	bool CanBlock
+	uint32_t Flags
 )
 {
 	// NOTE: Parameters are trusted and are assumed to source from kernel mode.
@@ -180,7 +193,7 @@ BSTATUS IoPerformOperationFileHandle(
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	Status = IoPerformOperationFile(Iosb, FileObject, IoType, BufferDst, BufferSrc, Length, CanBlock);
+	Status = IoPerformOperationFile(Iosb, FileObject, IoType, BufferDst, BufferSrc, Length, Flags);
 	
 	ObDereferenceObject(FileObject);
 	
@@ -199,10 +212,10 @@ BSTATUS IoReadFile(
 	HANDLE Handle,
 	void* Buffer,
 	size_t Length,
-	bool CanBlock
+	uint32_t Flags
 )
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Buffer, NULL, Length, CanBlock);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Buffer, NULL, Length, Flags);
 }
 
 BSTATUS IoWriteFile(
@@ -210,10 +223,10 @@ BSTATUS IoWriteFile(
 	HANDLE Handle,
 	const void* Buffer,
 	size_t Length,
-	bool CanBlock
+	uint32_t Flags
 )
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, NULL, Buffer, Length, CanBlock);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, NULL, Buffer, Length, Flags);
 }
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
@@ -231,4 +244,20 @@ BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
 	
 	ObDereferenceObject(FileObject);
 	return Status;
+}
+
+BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
+{
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	*AlignmentOut = IopGetAlignmentInfo(FileObject->Fcb);
+	
+	ObDereferenceObject(FileObject);
+	return STATUS_SUCCESS;
 }

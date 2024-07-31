@@ -70,6 +70,7 @@ enum
 	STATUS_UNLOAD,              // Returned by the driver entry.  Tells the driver loader that this driver should be unloaded.
 	STATUS_NOT_A_DIRECTORY,     // Not a directory
 	STATUS_HARDWARE_IO_ERROR,   // I/O error reported by backing hardware
+	STATUS_UNALIGNED_OPERATION, // Unaligned operation was attempted.  Use IoGetOperationAlignment to find the alignment required to write to this device.
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

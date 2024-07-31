@@ -22,7 +22,7 @@ BSTATUS IoReadFile(
 	HANDLE Handle,
 	void* Buffer,
 	size_t Length,
-	bool CanBlock
+	uint32_t Flags
 );
 
 BSTATUS IoWriteFile(
@@ -30,7 +30,9 @@ BSTATUS IoWriteFile(
 	HANDLE Handle,
 	const void* Buffer,
 	size_t Length,
-	bool CanBlock
+	uint32_t Flags
 );
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite);
+
+BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut);
