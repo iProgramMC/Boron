@@ -74,6 +74,12 @@ enum
 	ADMOP_GET_FEATURES               = 0xA,
 };
 
+enum
+{
+	IOOP_WRITE = 0x1,
+	IOOP_READ  = 0x2,
+};
+
 enum // For the Identify.Cns field of the submission queue entry
 {
 	CNS_NAMESPACE = 0,
@@ -136,6 +142,9 @@ typedef struct
 			uint16_t QueueId;
 			uint16_t QueueSize;
 		} CreateIoQueue;
+		struct {
+			uint32_t LbaLow;
+		} ReadWrite;
 	} Dword10;
 	union {
 		uint32_t AsUint32;
@@ -155,8 +164,23 @@ typedef struct
 			uint16_t Reserved             : 14;
 			uint16_t InterruptVector      : 16;
 		} CreateIoCompQueue;
+		struct {
+			uint32_t LbaHigh;
+		} ReadWrite;
 	} Dword11;
-	uint32_t CommandDword12;
+	union {
+		uint32_t AsUint32;
+		struct {
+			uint32_t LogicalBlockCount : 16;
+			uint32_t Reserved          : 4;
+			uint32_t DirectiveType     : 4; // reserved with IOOP_READ
+			uint32_t StorageTagCheck   : 1;
+			uint32_t Reserved1         : 1;
+			uint32_t ProtectionInfo    : 4;
+			uint32_t ForceUnitAccess   : 1;
+			uint32_t LimitedRetry      : 1;
+		} ReadWrite;
+	} Dword12;
 	uint32_t CommandDword13;
 	uint32_t CommandDword14;
 	uint32_t CommandDword15;
@@ -437,6 +461,7 @@ struct _CONTROLLER_EXTENSION
 	size_t MaximumQueueEntries;
 	size_t IoQueueCount;
 	bool   SoftwareProgressMarkerEnabled;
+	size_t ActiveQueueIndex;
 	
 	QUEUE_CONTROL_BLOCK AdminQueue;
 	PQUEUE_CONTROL_BLOCK IoQueues;
@@ -450,6 +475,11 @@ typedef struct
 	uint64_t Capacity;
 	uint16_t BlockSizeLog; // note: 2^BlockSizeLog == BlockSize
 	uint16_t BlockSize;
+	
+	// This is used for paging I/O.  In paging I/O situations, especially write operations,
+	// it is forbidden to allocate new memory.
+	int    ReserveReadPagePfn;
+	KMUTEX ReserveReadMutex;
 }
 DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
@@ -459,7 +489,8 @@ DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 typedef struct
 {
-	int Test;
+	PCONTROLLER_EXTENSION ControllerExtension;
+	PDEVICE_EXTENSION DeviceExtension;
 }
 FCB_EXTENSION, *PFCB_EXTENSION;
 
@@ -493,12 +524,24 @@ BSTATUS NvmeSetFeature(PCONTROLLER_EXTENSION ContExtension, int FeatureIdentifie
 
 BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCount, size_t* OutQueueCount);
 
+// If "Wait" is set to true, the command will be waited upon.  Otherwise, it will be run asynchronously, and
+// it is the caller's duty to have setup a valid event in the queue entry pair and wait on it when done issuing
+// requests.
+BSTATUS NvmeSendRead(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64_t Lba, uintptr_t BlockCount, bool Wait, PQUEUE_ENTRY_PAIR QueueEntryPtr);
+
+BSTATUS NvmeSendWrite(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64_t Lba, uintptr_t BlockCount, bool Wait, PQUEUE_ENTRY_PAIR QueueEntryPtr);
+
 bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext);
 
 // Initializes a queue control block as an I/O queue. The admin queue is initialized in a different place.
 BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTROL_BLOCK Qcb, size_t Id);
 
-// Utilities
+// ==== I/O Manager Functions ====
+BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, uint32_t Flags);
+BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, uint32_t Flags);
+size_t  NvmeGetAlignmentInfo(PFCB Fcb);
+
+// ==== Utilities ====
 int AllocateVector(PKIPL Ipl, KIPL Default);
 
 FORCE_INLINE volatile uint32_t* GetDoorBell(volatile void* DoorbellArray, int Index, bool IsCompletion, int Stride)
@@ -506,3 +549,5 @@ FORCE_INLINE volatile uint32_t* GetDoorBell(volatile void* DoorbellArray, int In
 	volatile uint8_t* DoorBells = DoorbellArray;
 	return (volatile uint32_t*)(DoorBells + (4 << Stride) * (Index * 2 + (IsCompletion ? 1 : 0)));
 }
+
+PQUEUE_CONTROL_BLOCK NvmeChooseIoQueue(PCONTROLLER_EXTENSION Extension);

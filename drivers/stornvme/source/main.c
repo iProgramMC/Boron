@@ -32,7 +32,9 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 
 void NvmeInitializeDispatchTable()
 {
-	
+	NvmeDispatchTable.Read = NvmeRead;
+	NvmeDispatchTable.Write = NvmeWrite;
+	NvmeDispatchTable.GetAlignmentInfo = NvmeGetAlignmentInfo;
 }
 
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)

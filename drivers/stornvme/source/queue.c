@@ -163,3 +163,14 @@ void NvmeSetupQueue(
 	// Create the queue interrupt.
 	NvmeCreateInterruptForQueue(Qcb, MsixIndex);
 }
+
+PQUEUE_CONTROL_BLOCK NvmeChooseIoQueue(PCONTROLLER_EXTENSION Extension)
+{
+	// NOTE: Unbounded increase, but this is fine.  If it overflows,
+	// even if the I/O queue count is not a power of 2, it'll still
+	// work. Just that some of the IO queues will be rarely used more
+	// often than the others.
+	size_t Index = AtFetchAdd(Extension->ActiveQueueIndex, 1);
+	Index %= Extension->IoQueueCount;
+	return &Extension->IoQueues[Index];
+}

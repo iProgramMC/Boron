@@ -72,15 +72,24 @@ void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t Names
 	if (FAILED(Status))
 		KeCrash("StorNvme: Device #%u was already added to controller", NamespaceId);
 	
-	// Initialize the specific device object.
+	// Initialize the device object.
 	PDEVICE_EXTENSION DeviceExtension = (PDEVICE_EXTENSION) DeviceObject->Extension;
-	
 	DeviceExtension->ContExtension = ContExtension;
-	
 	DeviceExtension->NamespaceId  = NamespaceId;
 	DeviceExtension->Capacity     = Ident->NamespaceCapacity;
 	DeviceExtension->BlockSizeLog = BlockSizeLog;
 	DeviceExtension->BlockSize    = 1 << BlockSizeLog;
+	
+	// Create a reserve read/write page to facilitate paging I/O in memory scarce situations.
+	DeviceExtension->ReserveReadPagePfn = MmAllocatePhysicalPage();
+	ASSERT(DeviceExtension->ReserveReadPagePfn != PFN_INVALID && "TODO: Handle this failure nicely");
+	
+	KeInitializeMutex(&DeviceExtension->ReserveReadMutex, 1);
+	
+	// Initialize the FCB extension.
+	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) DeviceObject->Fcb->Extension;
+	FcbExtension->ControllerExtension = ContExtension;
+	FcbExtension->DeviceExtension = DeviceExtension;
 	
 	DbgPrint("StorNvme: %s: %llu blocks with %llu bytes per block", Buffer, Ident->NamespaceCapacity, DeviceExtension->BlockSize);
 	

@@ -24,7 +24,14 @@ BSTATUS NvmeSendAndWait(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 	
 	NvmeSend(Qcb, EntryPair);
 	
-	return KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
+	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
+	if (FAILED(Status))
+		return Status;
+	
+	if (EntryPair->Comp.Status.Code != 0)
+		return STATUS_HARDWARE_IO_ERROR;
+	
+	return STATUS_SUCCESS;
 }
 
 BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, uint32_t Cns, uint32_t NamespaceId)
@@ -46,14 +53,13 @@ BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, 
 	QueueEntry.Sub.Dword10.Identify.Cns = Cns;
 	
 	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
-	if (FAILED(Status))
-		return Status;
-	
-	memcpy(IdentifyBuffer, MmGetHHDMOffsetAddr(MmPFNToPhysPage(Page)), PAGE_SIZE);
+	if (!FAILED(Status))
+	{
+		memcpy(IdentifyBuffer, MmGetHHDMOffsetAddr(MmPFNToPhysPage(Page)), PAGE_SIZE);
+	}
 	
 	MmFreePhysicalPage(Page);
-	
-	return STATUS_SUCCESS;
+	return Status;
 }
 
 BSTATUS NvmeSetFeature(PCONTROLLER_EXTENSION ContExtension, int FeatureIdentifier, uintptr_t DataPointer)
@@ -67,14 +73,7 @@ BSTATUS NvmeSetFeature(PCONTROLLER_EXTENSION ContExtension, int FeatureIdentifie
 	QueueEntry.Sub.DataPointer[0] = DataPointer;
 	QueueEntry.Sub.Dword10.SetFeatures.FeatureIdentifier = FeatureIdentifier;
 	
-	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
-	if (FAILED(Status))
-		return Status;
-	
-	if (QueueEntry.Comp.Status.Code != 0)
-		return STATUS_HARDWARE_IO_ERROR;
-	
-	return STATUS_SUCCESS;
+	return NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
 }
 
 BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCount, size_t* OutQueueCount)
@@ -94,9 +93,6 @@ BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCo
 	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
 	if (FAILED(Status))
 		return Status;
-	
-	if (QueueEntry.Comp.Status.Code != 0)
-		return STATUS_HARDWARE_IO_ERROR;
 	
 	uint16_t Min = QueueEntry.Comp.SetFeatures.QueueCount.Sub + 1;
 	if (Min > QueueEntry.Comp.SetFeatures.QueueCount.Com + 1)
@@ -138,11 +134,8 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	
 	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
 	if (FAILED(Status))
-		return Status;
-	
-	if (QueueEntry.Comp.Status.Code != 0)
 	{
-		DbgPrint("StorNvme: failed to create I/O completion queue %zu", Id);
+		DbgPrint("StorNvme: failed to create I/O completion queue %zu: status %d", Id, Status);
 		MmFreePhysicalPage(SubQueuePfn);
 		MmFreePhysicalPage(ComQueuePfn);
 		return STATUS_HARDWARE_IO_ERROR;
@@ -161,11 +154,8 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	
 	Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
 	if (FAILED(Status))
-		return Status;
-	
-	if (QueueEntry.Comp.Status.Code != 0)
 	{
-		DbgPrint("StorNvme: failed to create I/O submission queue %zu", Id);
+		DbgPrint("StorNvme: failed to create I/O submission queue %zu: status %d", Id, Status);
 		ASSERT(false && "TODO: Cleanup");
 		MmFreePhysicalPage(SubQueuePfn);
 		MmFreePhysicalPage(ComQueuePfn);
@@ -176,4 +166,52 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	NvmeSetupQueue(ContExtension, Qcb, MmPFNToPhysPage(SubQueuePfn), MmPFNToPhysPage(ComQueuePfn), (int) Id, (int) Id);
 	
 	return STATUS_SUCCESS;
+}
+
+BSTATUS NvmeSendRead(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64_t Lba, uintptr_t BlockCount, bool Wait, PQUEUE_ENTRY_PAIR QueueEntryPtr)
+{
+	PCONTROLLER_EXTENSION ContExtension = DeviceExtension->ContExtension;
+	memset(QueueEntryPtr, 0, sizeof *QueueEntryPtr);
+	
+	QueueEntryPtr->Sub.CommandHeader.OpCode = IOOP_READ;
+	QueueEntryPtr->Sub.NamespaceId = DeviceExtension->NamespaceId;
+	QueueEntryPtr->Sub.DataPointer[0] = Prp[0];
+	QueueEntryPtr->Sub.DataPointer[1] = Prp[1];
+	QueueEntryPtr->Sub.Dword10.ReadWrite.LbaLow  = (uint32_t) (Lba & 0xFFFFFFFF);
+	QueueEntryPtr->Sub.Dword11.ReadWrite.LbaHigh = (uint32_t) (Lba >> 32);
+	QueueEntryPtr->Sub.Dword12.ReadWrite.LogicalBlockCount = (uint16_t) ((BlockCount - 1) & 0xFFFF);
+	
+	if (Wait)
+	{
+		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+	}
+	else
+	{
+		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		return STATUS_SUCCESS;
+	}
+}
+
+BSTATUS NvmeSendWrite(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64_t Lba, uintptr_t BlockCount, bool Wait, PQUEUE_ENTRY_PAIR QueueEntryPtr)
+{
+	PCONTROLLER_EXTENSION ContExtension = DeviceExtension->ContExtension;
+	memset(QueueEntryPtr, 0, sizeof *QueueEntryPtr);
+	
+	QueueEntryPtr->Sub.CommandHeader.OpCode = IOOP_WRITE;
+	QueueEntryPtr->Sub.NamespaceId = DeviceExtension->NamespaceId;
+	QueueEntryPtr->Sub.DataPointer[0] = Prp[0];
+	QueueEntryPtr->Sub.DataPointer[1] = Prp[1];
+	QueueEntryPtr->Sub.Dword10.ReadWrite.LbaLow  = (uint32_t) (Lba & 0xFFFFFFFF);
+	QueueEntryPtr->Sub.Dword11.ReadWrite.LbaHigh = (uint32_t) (Lba >> 32);
+	QueueEntryPtr->Sub.Dword12.ReadWrite.LogicalBlockCount = (uint16_t) ((BlockCount - 1) & 0xFFFF);
+	
+	if (Wait)
+	{
+		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+	}
+	else
+	{
+		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		return STATUS_SUCCESS;
+	}
 }

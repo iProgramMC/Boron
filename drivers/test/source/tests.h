@@ -25,4 +25,4 @@ void PerformMdlTest(void);
 void PerformApcTest(void);
 void PerformIntTest(void);
 void PerformKeyboardTest(void);
-
+void PerformStorageTest(void);
