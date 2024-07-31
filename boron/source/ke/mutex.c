@@ -59,6 +59,7 @@ int KeReadStateMutex(PKMUTEX Mutex)
 	return AtLoad(Mutex->Header.Signaled);
 }
 
+// TODO: Add a priority boost parameter
 void KeReleaseMutex(PKMUTEX Mutex)
 {
 	KIPL Ipl = KiLockDispatcher();
