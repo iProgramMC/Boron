@@ -134,24 +134,29 @@ void NvmeSetupQueue(
 	uintptr_t SubmissionQueuePhysical,
 	uintptr_t CompletionQueuePhysical,
 	int DoorBellIndex,
-	int MsixIndex
+	int MsixIndex,
+	size_t SubmissionQueueCount,
+	size_t CompletionQueueCount
 )
 {
 	Qcb->Controller = ContExtension;
+	
+	ASSERT(SubmissionQueueCount);
+	ASSERT(CompletionQueueCount);
 	
 	Qcb->SubmissionQueuePhysical = SubmissionQueuePhysical;
 	Qcb->CompletionQueuePhysical = CompletionQueuePhysical;
 	
 	PQUEUE_ACCESS_BLOCK Queue = &Qcb->SubmissionQueue;
 	Queue->Address    = MmGetHHDMOffsetAddr(SubmissionQueuePhysical);
-	Queue->EntryCount = SUBMISSION_QUEUE_SIZE;
+	Queue->EntryCount = SubmissionQueueCount;
 	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, DoorBellIndex, false, ContExtension->DoorbellStride);
 	Queue->Phase      = 0;
 	Queue->Index      = 0;
 	
 	Queue = &Qcb->CompletionQueue;
 	Queue->Address    = MmGetHHDMOffsetAddr(CompletionQueuePhysical);
-	Queue->EntryCount = COMPLETION_QUEUE_SIZE;
+	Queue->EntryCount = CompletionQueueCount;
 	Queue->DoorBell   = GetDoorBell(ContExtension->Controller->DoorBells, DoorBellIndex, true, ContExtension->DoorbellStride);
 	Queue->Phase      = 1;
 	Queue->Index      = 0;

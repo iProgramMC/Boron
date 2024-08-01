@@ -81,10 +81,10 @@ void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t Names
 	DeviceExtension->BlockSize    = 1 << BlockSizeLog;
 	
 	// Create a reserve read/write page to facilitate paging I/O in memory scarce situations.
-	DeviceExtension->ReserveReadPagePfn = MmAllocatePhysicalPage();
-	ASSERT(DeviceExtension->ReserveReadPagePfn != PFN_INVALID && "TODO: Handle this failure nicely");
+	DeviceExtension->ReserveIoPagePfn = MmAllocatePhysicalPage();
+	ASSERT(DeviceExtension->ReserveIoPagePfn != PFN_INVALID && "TODO: Handle this failure nicely");
 	
-	KeInitializeMutex(&DeviceExtension->ReserveReadMutex, 1);
+	KeInitializeMutex(&DeviceExtension->ReserveIoMutex, 1);
 	
 	// Initialize the FCB extension.
 	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) DeviceObject->Fcb->Extension;
@@ -237,8 +237,20 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	ContExtension->SubmissionQueue = MmGetHHDMOffsetAddr(AdminSubmissionQueueBasePhy);
 	ContExtension->CompletionQueue = MmGetHHDMOffsetAddr(AdminCompletionQueueBasePhy);
-	ContExtension->SubmissionQueueCount = SUBMISSION_QUEUE_SIZE;
-	ContExtension->CompletionQueueCount = COMPLETION_QUEUE_SIZE;
+	
+	SET_CAPABILITIES(Caps, Controller->Capabilities);
+	
+	size_t MinPageSize = 1 << (12 + Caps.MemoryPageSizeMinimum);
+	
+	size_t MaxComQueueSize = Caps.MaxQueueEntriesSupported + 1;
+	size_t MaxSubQueueSize = Caps.MaxQueueEntriesSupported + 1;
+	if (MaxComQueueSize > COMPLETION_QUEUE_SIZE)
+		MaxComQueueSize = COMPLETION_QUEUE_SIZE;
+	if (MaxSubQueueSize > SUBMISSION_QUEUE_SIZE)
+		MaxSubQueueSize = SUBMISSION_QUEUE_SIZE;
+	
+	ContExtension->SubmissionQueueCount = MaxSubQueueSize;
+	ContExtension->CompletionQueueCount = MaxComQueueSize;
 	
 	memset(ContExtension->SubmissionQueue, 0, PAGE_SIZE);
 	memset(ContExtension->CompletionQueue, 0, PAGE_SIZE);
@@ -258,8 +270,6 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 		goto CleanupAndGoAway;
 	}
 	
-	SET_CAPABILITIES(Caps, Controller->Capabilities);
-	
 	// Record device capabilities inside the controller extension.
 	ContExtension->DoorbellStride = Caps.DoorbellStride;
 	ContExtension->MaximumQueueEntries = Caps.MaxQueueEntriesSupported + 1;
@@ -271,7 +281,9 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 		AdminSubmissionQueueBasePhy,
 		AdminCompletionQueueBasePhy,
 		0,
-		0
+		0,
+		MaxSubQueueSize,
+		MaxComQueueSize
 	);
 	
 	// Send an identification request.
@@ -293,6 +305,10 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	ContExtension->SoftwareProgressMarkerEnabled = SUCCEEDED(Status);
 	
+	// Calculate maximum data transfer size.
+	ContExtension->MaximumDataTransferSize = MinPageSize << Ident->MaximumDataTransferSize;
+	LogMsg("Maximum data transfer size: %zu  (%zu)", ContExtension->MaximumDataTransferSize, Ident->MaximumDataTransferSize);
+	
 	// Get namespace list.
 	uint32_t* NamespaceList = MmAllocatePool(POOL_PAGED, PAGE_SIZE);
 	memset(NamespaceList, 0, sizeof NamespaceList);
@@ -312,6 +328,8 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	if (FAILED(Status))
 		KeCrash("Stornvme TODO handle failure to allocate I/O queues nicely. Status %d", Status);
 	
+	//DbgPrint("StorNvme: msix table size: %zu  iomin: %zu  ioqueuecount: %zu", Device->MsixData.TableSize, IoMin, IoQueueCount);
+	
 	ASSERT(IoQueueCount != 0);
 	if (IoQueueCount > IoMin)
 		IoQueueCount = IoMin;
@@ -327,7 +345,18 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	for (size_t i = 0; i < IoQueueCount; i++)
 	{
 		Status = NvmeInitializeIoQueue(ContExtension, &ContExtension->IoQueues[i], i + 1);
-		ASSERT(Status == STATUS_SUCCESS);
+		if (Status != STATUS_SUCCESS)
+		{
+			// NOTE: this used to call it a "hardware bug", it's probably not
+			LogMsg(
+				"StorNvme: bug: NVMe controller reported %zu queue counts but we could actually only initialize %zu of them",
+				IoQueueCount,
+				i
+			);
+			
+			ContExtension->IoQueueCount = i;
+			break;
+		}
 	}
 	
 	// Initialize namespaces.

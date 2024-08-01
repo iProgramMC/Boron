@@ -6,5 +6,6 @@ limine/*
 keep/*
 drivers/*/build/*
 vdiske2.vdi
+vdiske2.vmdk
 
 source/ha/flanterm/*

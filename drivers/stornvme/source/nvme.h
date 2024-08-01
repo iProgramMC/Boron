@@ -32,37 +32,6 @@ Author:
 #define AQA_ADMIN_COMPLETION_QUEUE_SIZE(size) ((size) << 16)
 #define AQA_ADMIN_SUBMISSION_QUEUE_SIZE(size)  (size)
 
-typedef union
-{
-	struct {
-		int MaxQueueEntriesSupported        : 16;// 15:00
-		int ContiguousQueuesRequired        : 1; // 16
-		int ArbitrationMechanismSupported   : 2; // 18:17
-		int Reserved0                       : 5; // 23:19
-		int Timeout                         : 8; // 31:24
-		int DoorbellStride                  : 4; // 35:32
-		int NvmSubsystemResetSupported      : 1; // 36
-		int   Css_NvmCommandSet             : 1; // 37
-		int   Css_Reserved                  : 5; // 42:38
-		int   Css_IoCommandSetSupported     : 1; // 43
-		int   Css_AdminCommandSetOnly       : 1; // 44
-		int BootPartitionSupport            : 1; // 45
-		int ControllerPowerScope            : 2; // 47:46
-		int MemoryPageSizeMinimum           : 4; // 51:48
-		int MemoryPageSizeMaximum           : 4; // 55:52
-		int PersistentMemoryRegionSupported : 1; // 56
-		int ControllerMemoryBufferSupported : 1; // 57
-		int NvmSubsystemShutdownSupported   : 1; // 58
-		int ControllerReadyModesSupported   : 2; // 60:59
-		int Reserved1                       : 3; // 63:61
-	};
-	
-	uint64_t AsUint64;
-}
-NVME_CAPABILITIES;
-
-static_assert(sizeof(NVME_CAPABILITIES) == 8);
-
 enum
 {
 	ADMOP_DELETE_IO_SUBMISSION_QUEUE = 0x0,
@@ -217,6 +186,37 @@ static_assert(sizeof(NVME_COMPLETION_QUEUE_ENTRY) == 0x10);
 
 #define SUBMISSION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_SUBMISSION_QUEUE_ENTRY))
 #define COMPLETION_QUEUE_SIZE (PAGE_SIZE / sizeof(NVME_COMPLETION_QUEUE_ENTRY))
+
+typedef union
+{
+	struct {
+		int MaxQueueEntriesSupported        : 16;// 15:00
+		int ContiguousQueuesRequired        : 1; // 16
+		int ArbitrationMechanismSupported   : 2; // 18:17
+		int Reserved0                       : 5; // 23:19
+		int Timeout                         : 8; // 31:24
+		int DoorbellStride                  : 4; // 35:32
+		int NvmSubsystemResetSupported      : 1; // 36
+		int   Css_NvmCommandSet             : 1; // 37
+		int   Css_Reserved                  : 5; // 42:38
+		int   Css_IoCommandSetSupported     : 1; // 43
+		int   Css_AdminCommandSetOnly       : 1; // 44
+		int BootPartitionSupport            : 1; // 45
+		int ControllerPowerScope            : 2; // 47:46
+		int MemoryPageSizeMinimum           : 4; // 51:48
+		int MemoryPageSizeMaximum           : 4; // 55:52
+		int PersistentMemoryRegionSupported : 1; // 56
+		int ControllerMemoryBufferSupported : 1; // 57
+		int NvmSubsystemShutdownSupported   : 1; // 58
+		int ControllerReadyModesSupported   : 2; // 60:59
+		int Reserved1                       : 3; // 63:61
+	};
+	
+	uint64_t AsUint64;
+}
+NVME_CAPABILITIES;
+
+static_assert(sizeof(NVME_CAPABILITIES) == 8);
 
 typedef union
 {
@@ -462,6 +462,7 @@ struct _CONTROLLER_EXTENSION
 	size_t IoQueueCount;
 	bool   SoftwareProgressMarkerEnabled;
 	size_t ActiveQueueIndex;
+	size_t MaximumDataTransferSize;
 	
 	QUEUE_CONTROL_BLOCK AdminQueue;
 	PQUEUE_CONTROL_BLOCK IoQueues;
@@ -478,8 +479,8 @@ typedef struct
 	
 	// This is used for paging I/O.  In paging I/O situations, especially write operations,
 	// it is forbidden to allocate new memory.
-	int    ReserveReadPagePfn;
-	KMUTEX ReserveReadMutex;
+	int    ReserveIoPagePfn;
+	KMUTEX ReserveIoMutex;
 }
 DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
@@ -514,7 +515,9 @@ void NvmeSetupQueue(
 	uintptr_t SubmissionQueuePhysical,
 	uintptr_t CompletionQueuePhysical,
 	int DoorBellIndex,
-	int MsixIndex
+	int MsixIndex,
+	size_t SubmissionQueueCount,
+	size_t CompletionQueueCount
 );
 
 // ==== Commands ====

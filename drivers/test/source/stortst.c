@@ -126,7 +126,7 @@ void PerformStorageTest()
 	if (FAILED(Status))
 		KeCrash("Failed to read, IoReadFile returned %d.", Status);
 	
-	DumpHex(Buffer, MIN(1024, Alignment), true);
+	DumpHex(Buffer, Alignment, true);
 #endif
 	
 	// Close the device once a key has been pressed

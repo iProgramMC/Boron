@@ -29,7 +29,10 @@ BSTATUS NvmeSendAndWait(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 		return Status;
 	
 	if (EntryPair->Comp.Status.Code != 0)
+	{
+		DbgPrint("Command %d sent to qcb %p returned code %d. Returning STATUS_HARDWARE_IO_ERROR", EntryPair->Sub.CommandHeader.OpCode, Qcb, EntryPair->Comp.Status.Code);
 		return STATUS_HARDWARE_IO_ERROR;
+	}
 	
 	return STATUS_SUCCESS;
 }
@@ -94,9 +97,9 @@ BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCo
 	if (FAILED(Status))
 		return Status;
 	
-	uint16_t Min = QueueEntry.Comp.SetFeatures.QueueCount.Sub + 1;
-	if (Min > QueueEntry.Comp.SetFeatures.QueueCount.Com + 1)
-		Min = QueueEntry.Comp.SetFeatures.QueueCount.Com + 1;
+	uint16_t Min = QueueEntry.Comp.SetFeatures.QueueCount.Sub;
+	if (Min > QueueEntry.Comp.SetFeatures.QueueCount.Com)
+		Min = QueueEntry.Comp.SetFeatures.QueueCount.Com;
 	
 	*OutQueueCount = Min + 1;
 	return STATUS_SUCCESS;
@@ -125,9 +128,16 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	// Create the completion queue
 	QueueEntry.Sub.CommandHeader.OpCode = ADMOP_CREATE_IO_COMPLETION_QUEUE;
 	
+	size_t MaxComQueueSize = ContExtension->MaximumQueueEntries;
+	size_t MaxSubQueueSize = ContExtension->MaximumQueueEntries;
+	if (MaxComQueueSize > COMPLETION_QUEUE_SIZE)
+		MaxComQueueSize = COMPLETION_QUEUE_SIZE;
+	if (MaxSubQueueSize > SUBMISSION_QUEUE_SIZE)
+		MaxSubQueueSize = SUBMISSION_QUEUE_SIZE;
+	
 	QueueEntry.Sub.DataPointer[0] = MmPFNToPhysPage(ComQueuePfn);
 	QueueEntry.Sub.Dword10.CreateIoQueue.QueueId = Id;
-	QueueEntry.Sub.Dword10.CreateIoQueue.QueueSize = COMPLETION_QUEUE_SIZE;
+	QueueEntry.Sub.Dword10.CreateIoQueue.QueueSize = MaxComQueueSize - 1;
 	QueueEntry.Sub.Dword11.CreateIoCompQueue.InterruptsEnabled = 1;
 	QueueEntry.Sub.Dword11.CreateIoCompQueue.PhysicallyContiguous = 1;
 	QueueEntry.Sub.Dword11.CreateIoCompQueue.InterruptVector = Id;
@@ -148,7 +158,7 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	QueueEntry.Sub.Dword10.AsUint32 = 0;
 	QueueEntry.Sub.Dword11.AsUint32 = 0;
 	QueueEntry.Sub.Dword10.CreateIoQueue.QueueId = Id;
-	QueueEntry.Sub.Dword10.CreateIoQueue.QueueSize = SUBMISSION_QUEUE_SIZE;
+	QueueEntry.Sub.Dword10.CreateIoQueue.QueueSize = MaxSubQueueSize - 1;
 	QueueEntry.Sub.Dword11.CreateIoSubQueue.CompletionQueueId = Id;
 	QueueEntry.Sub.Dword11.CreateIoSubQueue.PhysicallyContiguous = 1;
 	
@@ -163,7 +173,7 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	}
 	
 	// Now initialize the Qcb itself.
-	NvmeSetupQueue(ContExtension, Qcb, MmPFNToPhysPage(SubQueuePfn), MmPFNToPhysPage(ComQueuePfn), (int) Id, (int) Id);
+	NvmeSetupQueue(ContExtension, Qcb, MmPFNToPhysPage(SubQueuePfn), MmPFNToPhysPage(ComQueuePfn), (int) Id, (int) Id, MaxComQueueSize, MaxSubQueueSize);
 	
 	return STATUS_SUCCESS;
 }
