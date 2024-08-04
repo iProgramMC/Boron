@@ -15,10 +15,6 @@ Author:
 
 #include "mi.h"
 
-// TODO: An 'int' PFN is sufficient for now! It allows up to 16 TB
-// of physical memory to be represented right now, which is 1024 times
-// what's in my computer
-
 extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
@@ -155,21 +151,21 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 #endif
 }
 
-int MmPhysPageToPFN(uintptr_t physAddr)
+MMPFN MmPhysPageToPFN(uintptr_t PhysAddr)
 {
-	return physAddr / PAGE_SIZE;
+	return (MMPFN) (PhysAddr / PAGE_SIZE);
 }
 
-uintptr_t MmPFNToPhysPage(int pfn)
+uintptr_t MmPFNToPhysPage(MMPFN Pfn)
 {
-	return (uintptr_t) pfn * PAGE_SIZE;
+	return (uintptr_t) Pfn * PAGE_SIZE;
 }
 
-MMPFN* MmGetPageFrameFromPFN(int pfn)
+MMPFDBE* MmGetPageFrameFromPFN(MMPFN Pfn)
 {
-	MMPFN* pPFNDB = (MMPFN*) MM_PFNDB_BASE;
+	PMMPFDBE pPFNDB = (PMMPFDBE) MM_PFNDB_BASE;
 	
-	return &pPFNDB[pfn];
+	return &pPFNDB[Pfn];
 }
 
 void MmZeroOutFirstPFN();
@@ -178,8 +174,8 @@ void MmZeroOutFirstPFN();
 // The zeroed PFN list will be prioritised for speed. If there
 // are no free zero pfns, then a free PFN will be zeroed before
 // being issued.
-static int MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
-static int MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
+static MMPFN MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
+static MMPFN MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
 static KSPIN_LOCK MmPfnLock;
 
 // Note! Initialization is done on the BSP. So no locking needed
@@ -233,7 +229,7 @@ void MiInitPMM()
 		uint64_t lastAllocatedPage = 0;
 		for (int pfn = pfnStart; pfn < pfnEnd; pfn++)
 		{
-			uint64_t currPage = (MM_PFNDB_BASE + sizeof(MMPFN) * pfn) & ~(PAGE_SIZE - 1);
+			uint64_t currPage = (MM_PFNDB_BASE + sizeof(MMPFDBE) * pfn) & ~(PAGE_SIZE - 1);
 			if (lastAllocatedPage == currPage) // check is probably useless
 				continue;
 			
@@ -245,7 +241,7 @@ void MiInitPMM()
 		}
 	}
 	
-	DbgPrint("Initializing the PFN database.", sizeof(MMPFN));
+	DbgPrint("Initializing the PFN database.", sizeof(MMPFDBE));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	
@@ -264,7 +260,7 @@ void MiInitPMM()
 			if (MiFirstFreePFN == PFN_INVALID)
 				MiFirstFreePFN =  currPFN;
 			
-			MMPFN* pPF = MmGetPageFrameFromPFN(currPFN);
+			MMPFDBE* pPF = MmGetPageFrameFromPFN(currPFN);
 			
 			// initialize this PFN
 			memset(pPF, 0, sizeof *pPF);
@@ -276,7 +272,7 @@ void MiInitPMM()
 				// also update the last PF's next frame idx
 				if (lastPfnOfPrevBlock != PFN_INVALID)
 				{
-					MMPFN* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
+					MMPFDBE* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
 					pPrevPF->NextFrame = currPFN;
 				}
 			}
@@ -326,9 +322,9 @@ void MiInitPMM()
 
 // TODO: Add locking
 
-static void MmpRemovePfnFromList(int* First, int* Last, int Current)
+static void MmpRemovePfnFromList(PMMPFN First, PMMPFN Last, MMPFN Current)
 {
-	MMPFN *pPF = MmGetPageFrameFromPFN(Current);
+	PMMPFDBE pPF = MmGetPageFrameFromPFN(Current);
 	
 	// disconnect its neighbors from this one
 	if (pPF->NextFrame != PFN_INVALID)
@@ -356,18 +352,18 @@ static void MmpRemovePfnFromList(int* First, int* Last, int Current)
 	}
 }
 
-static void MmpAddPfnToList(int* First, int* Last, int Current)
+static void MmpAddPfnToList(PMMPFN First, PMMPFN Last, MMPFN Current)
 {
 	if (*First == PFN_INVALID)
 	{
 		*First = *Last = Current;
 		
-		MMPFN* pPF = MmGetPageFrameFromPFN(Current);
+		MMPFDBE* pPF = MmGetPageFrameFromPFN(Current);
 		pPF->NextFrame = PFN_INVALID;
 		pPF->PrevFrame = PFN_INVALID;
 	}
 	
-	MMPFN *pLastPFN = MmGetPageFrameFromPFN(*Last), *pCurrPFN = MmGetPageFrameFromPFN(Current);
+	PMMPFDBE pLastPFN = MmGetPageFrameFromPFN(*Last), pCurrPFN = MmGetPageFrameFromPFN(Current);
 	
 	pLastPFN->NextFrame = Current;
 	pCurrPFN->PrevFrame = *Last;
@@ -376,13 +372,13 @@ static void MmpAddPfnToList(int* First, int* Last, int Current)
 	*Last = Current;
 }
 
-static int MmpAllocateFromFreeList(int* First, int* Last)
+static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 {
 	if (*First == PFN_INVALID)
 		return PFN_INVALID;
 	
 	int currPFN = *First;
-	MMPFN *pPF = MmGetPageFrameFromPFN(*First);
+	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
 	
 	pPF->Type = PF_TYPE_USED;
 	pPF->RefCount = 1;
@@ -393,12 +389,12 @@ static int MmpAllocateFromFreeList(int* First, int* Last)
 	return currPFN;
 }
 
-int MmAllocatePhysicalPage()
+MMPFN MmAllocatePhysicalPage()
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
-	int currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
+	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
 	if (currPFN == PFN_INVALID)
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
 	
@@ -411,7 +407,7 @@ int MmAllocatePhysicalPage()
 	return currPFN;
 }
 
-void MmFreePhysicalPage(int pfn)
+void MmFreePhysicalPage(MMPFN pfn)
 {
 	KIPL OldIpl;
 	
@@ -421,7 +417,7 @@ void MmFreePhysicalPage(int pfn)
 	
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
-	PMMPFN PageFrame = MmGetPageFrameFromPFN(pfn);
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(pfn);
 	
 	ASSERT(PageFrame->Type == PF_TYPE_USED);
 	
@@ -440,9 +436,9 @@ void MmFreePhysicalPage(int pfn)
 
 // Zeroes out a free PFN, takes it off the free PFN list and adds it to
 // the zero PFN list.
-static void MmpZeroOutPFN(int pfn)
+static void MmpZeroOutPFN(MMPFN pfn)
 {
-	MMPFN* pPF = MmGetPageFrameFromPFN(pfn);
+	PMMPFDBE pPF = MmGetPageFrameFromPFN(pfn);
 	if (pPF->Type == PF_TYPE_ZEROED)
 		return;
 	
@@ -463,7 +459,7 @@ static void MmpZeroOutPFN(int pfn)
 	MmpAddPfnToList(&MiFirstZeroPFN, &MiLastZeroPFN, pfn);
 }
 
-void MmZeroOutPFN(int pfn)
+void MmZeroOutPFN(MMPFN pfn)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
@@ -489,7 +485,7 @@ void MmZeroOutFirstPFN()
 
 void* MmAllocatePhysicalPageHHDM()
 {
-	int PhysicalPage = MmAllocatePhysicalPage();
+	MMPFN PhysicalPage = MmAllocatePhysicalPage();
 	
 	if (PhysicalPage == PFN_INVALID)
 		return NULL;
@@ -502,9 +498,9 @@ void MmFreePhysicalPageHHDM(void* page)
 	return MmFreePhysicalPage(MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(page)));
 }
 
-void MmPageAddReference(int Pfn)
+void MmPageAddReference(MMPFN Pfn)
 {
-	PMMPFN PageFrame = MmGetPageFrameFromPFN(Pfn);
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
 	
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);

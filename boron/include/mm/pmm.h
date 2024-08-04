@@ -15,42 +15,44 @@ Author:
 #ifndef BORON_MM_PMM_H
 #define BORON_MM_PMM_H
 
+#include <mm/pfn.h>
+
 // Initialize the physical memory manager.
-void MiInitPMM();
+void MiInitPMM(void);
 
 // Get the base address of the HHDM (higher half direct map)
-uint8_t* MmGetHHDMBase();
+uint8_t* MmGetHHDMBase(void);
 
 // Converts a physical address into an HHDM address.
-void* MmGetHHDMOffsetAddr(uintptr_t physAddr);
+void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr);
 
 // Converts an HHDM based address into a physical address.
-uintptr_t MmGetHHDMOffsetFromAddr(void* addr);
+uintptr_t MmGetHHDMOffsetFromAddr(void* Addr);
 
 // Converts a physical address to a page frame number (PFN).
-int MmPhysPageToPFN(uintptr_t physAddr);
+MMPFN MmPhysPageToPFN(uintptr_t PhysAddr);
 
 // Converts a page frame number (PFN) to a physical page.
-uintptr_t MmPFNToPhysPage(int pfn);
+uintptr_t MmPFNToPhysPage(MMPFN Pfn);
 
 // This returns a PFN, use MmPFNToPhysPage to convert it to
 // a physical address, and MmGetHHDMOffsetAddr to address into it directly
-int MmAllocatePhysicalPage();
+MMPFN MmAllocatePhysicalPage(void);
 
 // Adds a reference to a PFN.
-void MmPageAddReference(int Pfn);
+void MmPageAddReference(MMPFN Pfn);
 
 // This expects a PFN. Use MmPhysPageToPFN if you have a physically
 // addressed page to free. Lowers the reference counter of the physical page.
 // When zero, the page is freed from physical memory and can be used again.
-void MmFreePhysicalPage(int pfn);
+void MmFreePhysicalPage(MMPFN Pfn);
 
 // Same as MmAllocatePhysicalPage, but returns an HHDM based address.
-void* MmAllocatePhysicalPageHHDM();
+void* MmAllocatePhysicalPageHHDM(void);
 
 // Same as MmFreePhysicalPage, but takes in an address from MmAllocatePhysicalPageHHDM
 // instead of a PFN.
-void MmFreePhysicalPageHHDM(void* page);
+void MmFreePhysicalPageHHDM(void* Page);
 
 // Gets the total amount of free pages.
 size_t MmGetTotalFreePages();

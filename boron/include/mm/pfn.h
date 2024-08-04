@@ -17,9 +17,17 @@ Author:
 
 #include <main.h>
 
-// Page frame item in the page frame database.
-// Keep this structure's size a power of 2, please.
-// Currently this only reserves 0.7% of physical memory.  Not bad
+// Page frame number.
+//
+// TODO: An 'int' PFN is sufficient for now. It allows up to 16 TB
+// of physical memory to be represented right now, which is 1024 times
+// what's in my computer.  But if needed, you should change this to
+// a uintptr_t.
+typedef int MMPFN, *PMMPFN;
+
+// Page frame database entry structure.
+//
+// Keep this structure's size a power of 2.
 typedef struct
 {
 	// Flags for the specifically referenced page frame.
@@ -28,35 +36,35 @@ typedef struct
 	
 	// Disregard if this is allocated.  Eventually these will be part of a union
 	// where they will take on different roles depending on the role of the page.
-	int NextFrame;
-	int PrevFrame;
+	MMPFN NextFrame;
+	MMPFN PrevFrame;
 	
 	// Disregard if this is free. Eventually this will be part of a union
 	// where it will take on different roles depending on the role of the
 	// page.
 	int RefCount;
 	
-	// The PTE this is used in. Used only in non-shared pages.
-	uint64_t PteUsingThis;
+	// Prototype PTE.  This points to the entry in an FCB's page cache, if this
+	// page is found on the standby list.
+	// TODO: Use this
+	//uint64_t PrototypePte;
 	
 	// Unused for now.
-	uint64_t qword3;
+	//uint64_t qword3;
 }
-MMPFN, *PMMPFN;
+MMPFDBE, *PMMPFDBE;
 
 #define PFN_FLAG_CAPTURED (1 << 0)
 
-enum MMPFN_TYPE_tag
+enum
 {
 	PF_TYPE_FREE,
 	PF_TYPE_ZEROED,
 	PF_TYPE_USED,
 };
 
-#define PFN_INVALID (-1)
+#define PFN_INVALID ((MMPFN)-1)
 
-#define PFNS_PER_PAGE (PAGE_SIZE / sizeof(MMPFN))
-
-static_assert((sizeof(MMPFN) & (sizeof(MMPFN) - 1)) == 0,  "The page frame struct should be a power of two");
+static_assert((sizeof(MMPFDBE) & (sizeof(MMPFDBE) - 1)) == 0,  "The page frame struct should be a power of two");
 
 #endif//BORON_MM_PFN_H
