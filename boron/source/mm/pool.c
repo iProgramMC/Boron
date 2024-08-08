@@ -14,30 +14,24 @@ Author:
 ***/
 #include "mi.h"
 
-void* MmGetAddressFromBigHandle(BIG_MEMORY_HANDLE Handle)
+size_t MmGetSizeFromPoolAddress(void* Address)
 {
-	return MiGetAddressFromPoolSpaceHandle((MIPOOL_SPACE_HANDLE)Handle);
+	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
+	return MiGetSizeFromPoolSpaceHandle(Handle);
 }
 
-size_t MmGetSizeFromBigHandle(BIG_MEMORY_HANDLE Handle)
+void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 {
-	return MiGetSizeFromPoolSpaceHandle((MIPOOL_SPACE_HANDLE)Handle);
-}
-
-BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** OutputAddress, int Tag)
-{
-	void* OutputAddressStorage = NULL;
-	if (!OutputAddress)
-		OutputAddress = &OutputAddressStorage;
+	void* OutputAddress = NULL;
 	
-	BIG_MEMORY_HANDLE OutHandle = (BIG_MEMORY_HANDLE) MiReservePoolSpaceTagged (
+	MIPOOL_SPACE_HANDLE OutHandle = (MIPOOL_SPACE_HANDLE) MiReservePoolSpaceTagged (
 		PageCount,
-		OutputAddress,
+		&OutputAddress,
 		Tag,
 		PoolFlags);
 	
 	if (!OutHandle)
-		return OutHandle;
+		return NULL;
 	
 	if (~PoolFlags & POOL_FLAG_CALLER_CONTROLLED)
 	{
@@ -50,34 +44,35 @@ BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** Outp
 		// Map the memory in!  This will affect ALL page maps
 		if (!MiMapAnonPages(
 			MiGetCurrentPageMap(),
-			(uintptr_t) *OutputAddress,
+			(uintptr_t) OutputAddress,
 			PageCount,
 			MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL,
 			NonPaged))
 		{
 			MmUnlockKernelSpace();
-			MiFreePoolSpace((MIPOOL_SPACE_HANDLE) OutHandle);
-			return (BIG_MEMORY_HANDLE) 0;
+			MiFreePoolSpace(OutHandle);
+			return NULL;
 		}
 		
 		MmUnlockKernelSpace();
 	}
 	
-	return OutHandle;
+	return OutputAddress;
 }
 
-void MmFreePoolBig(BIG_MEMORY_HANDLE Handle)
+void MmFreePoolBig(void* Address)
 {
-	int PoolFlags = (int) MiGetUserDataFromPoolSpaceHandle((MIPOOL_SPACE_HANDLE) Handle);
+	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
 	
+	int PoolFlags = (int) MiGetUserDataFromPoolSpaceHandle(Handle);
 	if (~PoolFlags & POOL_FLAG_CALLER_CONTROLLED)
 	{
 		MmLockKernelSpaceExclusive();
 		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MiUnmapPages(MiGetCurrentPageMap(),
-					 (uintptr_t)MmGetAddressFromBigHandle(Handle),
-					 MmGetSizeFromBigHandle(Handle));
+					 (uintptr_t)Address,
+					 MiGetSizeFromPoolSpaceHandle(Handle));
 		
 		MmUnlockKernelSpace();
 	}

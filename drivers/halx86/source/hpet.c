@@ -49,9 +49,8 @@ void HpetInitialize()
 	uintptr_t HpetAddress = Hpet->Address.Address;
 	
 	// Map the HPET as uncacheable.
-	void* Address;
-	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, &Address, POOL_TAG("HPET"));
-	if (!Handle)
+	void* Address = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("HPET"));
+	if (!Address)
 	{
 	CRASH_BECAUSE_FAILURE_TO_MAP:
 		KeCrashBeforeSMPInit("Could not map HPET as uncacheable");

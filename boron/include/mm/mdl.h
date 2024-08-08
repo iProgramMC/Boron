@@ -36,7 +36,6 @@ typedef struct _MDL
 	size_t ByteCount;            // Direct size from MmCaptureMdl
 	uintptr_t SourceStartVA;     // The virtual address where this MDL was captured from
 	uintptr_t MappedStartVA;     // The virtual address where this MDL is mapped into system memory
-	BIG_MEMORY_HANDLE MapHandle; // The handle to the pool space area where the memory was mapped
 	PEPROCESS Process;           // Process these pages belong to
 	size_t NumberPages;          // Size of the page frame number list
 	int Pages[];
@@ -53,7 +52,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl);
 void MmUnpinPagesMdl(PMDL Mdl);
 
 // Maps an MDL into pool space. Use MmUnmapMDL to unmap the MDL.
-BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions);
+BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions);
 
 // Unmaps an MDL from pool space.
 void MmUnmapPinnedPagesMdl(PMDL Mdl);

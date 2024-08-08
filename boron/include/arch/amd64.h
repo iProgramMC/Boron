@@ -45,6 +45,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MM_PTE_DEMAND     (1ULL << 11) // is waiting for an allocation (demand paging)
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
 #define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
+#define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
 
 #define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
 	// 63 - execute disable

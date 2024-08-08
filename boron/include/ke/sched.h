@@ -63,7 +63,7 @@ typedef struct
 	
 	AVLTREE TimerTree;
 	
-	BIG_MEMORY_HANDLE IdleThreadStack;
+	void* IdleThreadStackTop;
 	
 	// in ticks, copy of CurrentThread->QuantumUntil unless
 	// CurrentThread is null, in which case it's zero

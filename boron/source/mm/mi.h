@@ -51,8 +51,6 @@ typedef struct MISLAB_ITEM_tag
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
 	
-	BIG_MEMORY_HANDLE MemHandle;
-	
 	char Data[0];
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
@@ -112,7 +110,6 @@ typedef struct
 	// MiSlabFree tells apart huge memory blocks (HMBs) from regular slab
 	// allocated stuff.
 	uint64_t Check;
-	BIG_MEMORY_HANDLE MemHandle;
 	char Data[];
 }
 HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
@@ -183,6 +180,9 @@ size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 
 // Get the user data from the address range owned by a handle as passed to MiReservePoolSpaceTagged.
 uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+
+// Get the pool space handle from an address returned by MiReservePoolSpaceTagged.
+MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* Address);
 
 // Dump info about the pool. Debug only.
 void MiDumpPoolInfo();

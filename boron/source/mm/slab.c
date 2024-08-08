@@ -185,7 +185,6 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	
 	// Allocate a new slab item.
 	PMISLAB_ITEM Item;
-	void* Addr;
 	
 	int Length = MmpSlabItemDetermineLength(Container->ItemSize);
 	
@@ -193,15 +192,14 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	// page faults on that memory.  Even if we mapped it all already,
 	// it's going to cause issues when freeing too..
 	
-	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
+	void* Addr = MmAllocatePoolBig(
 		//Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
 		POOL_FLAG_NON_PAGED,
 		(Length + PAGE_SIZE - 1) / PAGE_SIZE,
-		&Addr,
 		POOL_TAG("SbIt")
 	);
 	
-	if (!Handle)
+	if (!Addr)
 	{
 		DbgPrint("ERROR: MmpSlabContainerAllocate: Out of memory! What will we do?!");
 		// TODO
@@ -216,8 +214,6 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
 	Item->Length = Length;
-	
-	Item->MemHandle = Handle;
 	
 	// Link it to the list:
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
@@ -271,8 +267,8 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 		if (RequiresAvlTreeEntry)
 			MmpRemoveSlabItemFromTree(Item);
 		
-		// Free the memory handle.
-		MmFreePoolBig(Item->MemHandle);
+		// Free the memory.
+		MmFreePoolBig(Item);
 	}
 	
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
@@ -282,22 +278,20 @@ void* MmpAllocateHuge(bool IsNonPaged, size_t Size)
 {	
 	size_t PageCount = (Size + sizeof(HUGE_MEMORY_BLOCK) + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	void* Addr;
-	BIG_MEMORY_HANDLE MemHandle = MmAllocatePoolBig(
+	void* Addr = MmAllocatePoolBig(
 		IsNonPaged ? POOL_FLAG_NON_PAGED : 0,
 		PageCount,
-		&Addr,
 		POOL_TAG("BHUG")
 	);
 	
-	if (!MemHandle)
+	if (!Addr)
 	{
-		ASSERT(!"Shit!");
+		DbgPrint("ERROR: MmpAllocateHuge: Out of memory!");
+		ASSERT(!"Out of memory!");
 		return NULL;
 	}
 	
 	PHUGE_MEMORY_BLOCK Hmb = Addr;
-	Hmb->MemHandle = MemHandle;
 	Hmb->Check = MI_HUGE_MEMORY_CHECK;
 	memset(Hmb->Data, 0, Size);
 	
@@ -306,7 +300,7 @@ void* MmpAllocateHuge(bool IsNonPaged, size_t Size)
 
 void MmpFreeHuge(PHUGE_MEMORY_BLOCK Hmb)
 {
-	MmFreePoolBig(Hmb->MemHandle);
+	MmFreePoolBig(Hmb);
 }
 
 void* MiSlabAllocate(bool IsNonPaged, size_t Size)

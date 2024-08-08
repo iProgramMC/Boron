@@ -24,10 +24,9 @@ Author:
 #include "flanterm/backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
-BIG_MEMORY_HANDLE HalpTerminalMemoryHandle;
-uint8_t*        HalpTerminalMemory;
-size_t          HalpTerminalMemoryHead;
-size_t          HalpTerminalMemorySize;
+uint8_t* HalpTerminalMemory;
+size_t   HalpTerminalMemoryHead;
+size_t   HalpTerminalMemorySize;
 
 static struct flanterm_context* HalpTerminalContext;
 
@@ -80,10 +79,7 @@ void HalInitTerminal()
 	
 	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
 	
-	void* memory;
-	
-	HalpTerminalMemoryHandle = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, &memory, POOL_TAG("Term"));
-	HalpTerminalMemory       = memory;
+	HalpTerminalMemory       = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, POOL_TAG("Term"));
 	HalpTerminalMemoryHead   = 0;
 	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;
 	

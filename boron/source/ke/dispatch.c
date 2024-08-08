@@ -180,9 +180,7 @@ static bool KepSatisfiedEnough(PKDISPATCH_HEADER Object, int SatisfiedCount)
 
 static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1, UNUSED void* SA2)
 {
-	// DPCs are enqueued with the dispatcher lock held.
-	// @TODO Is this a bad decision? Should we not do that?
-	KiAssertOwnDispatcherLock();
+	KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = Context;
 	
@@ -199,6 +197,8 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	// it's waiting for and wakes it up.
 	// The thread's priority will not be boosted on timeout.
 	KiUnwaitThread(Thread, STATUS_TIMEOUT, 0);
+	
+	KiUnlockDispatcher(Ipl);
 }
 
 bool Active = false;

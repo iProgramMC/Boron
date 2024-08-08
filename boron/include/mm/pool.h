@@ -27,23 +27,17 @@ typedef int POOL_TYPE;
 // Redundant, could just pass 0
 #define POOL_PAGED (0)
 
-typedef uintptr_t BIG_MEMORY_HANDLE;
-
 #define POOL_TAG(x) *((int*)x)
-
-#define POOL_NO_MEMORY_HANDLE ((BIG_MEMORY_HANDLE) 0)
 
 // ******* Big Pool *******
 // The big pool is a pool allocation system which returns page
 // aligned addresses within the pool area of memory.
 
-BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** OutputAddress, int Tag);
+void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag);
 
-void MmFreePoolBig(BIG_MEMORY_HANDLE Handle);
+void MmFreePoolBig(void* Address);
 
-void* MmGetAddressFromBigHandle(BIG_MEMORY_HANDLE Handle);
-
-size_t MmGetSizeFromBigHandle(BIG_MEMORY_HANDLE Handle);
+size_t MmGetSizeFromPoolAddress(void* Address);
 
 // ******* Little Pool *******
 // The little pool is a pool allocation system implemented on top

@@ -49,7 +49,7 @@ static NO_RETURN void ApcTestRoutine()
 void PerformApcTest()
 {
 	KTHREAD Thread;
-	ASSERT(KeInitializeThread(&Thread, POOL_NO_MEMORY_HANDLE, ApcTestRoutine, NULL, KeGetCurrentProcess()) == STATUS_SUCCESS);
+	ASSERT(KeInitializeThread(&Thread, NULL, ApcTestRoutine, NULL, KeGetCurrentProcess()) == STATUS_SUCCESS);
 	KeReadyThread(&Thread);
 	
 	// wait a bit.

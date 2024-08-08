@@ -92,7 +92,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	return (MIPOOL_SPACE_HANDLE) PoolEntry;
 }
 
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
@@ -125,7 +125,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	}
 	
 #ifdef DEBUG
-	DbgPrint("ERROR: MiReservePoolSpaceTagged ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
+	DbgPrint("ERROR: MiReservePoolSpaceTaggedSub ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
 #endif
 	
 	if (OutputAddress)
@@ -155,7 +155,7 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 	}
 }
 
-void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
+void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
@@ -175,6 +175,67 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
 	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
+}
+
+void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
+{
+	uintptr_t Address = ((PMIPOOL_ENTRY) Handle)->Address;
+	
+	// Acquire the kernel space lock and zero out its PTE.
+	MmLockKernelSpaceExclusive();
+	
+	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, true);
+	ASSERT(*PtePtr == ((Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR));
+	*PtePtr = 0;
+	
+	MmUnlockKernelSpace();
+	
+	// Now actually free that handle.
+	MiFreePoolSpaceSub(Handle);
+}
+
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
+{
+	// The actual size of the desired memory region is passed into SizeInPages.  Add 1 to it.
+	// The memory region will actually be formed of:
+	// [ 1 Page Reserved ] [ SizeInPages Pages Usable ]
+	//
+	// The reserved page doesn't actually have anything mapped inside.  Instead, its PTE
+	// will contain the address of the pool header, minus MM_KERNEL_SPACE_BASE.  Bit 58 will
+	// be set, and the present bit will be clear.
+	SizeInPages += 1;
+	
+	void* OutputAddressSub;
+	
+	MIPOOL_SPACE_HANDLE Handle = MiReservePoolSpaceTaggedSub(SizeInPages, &OutputAddressSub, Tag, UserData);
+	
+	if (!Handle)
+		return Handle;
+	
+	ASSERT(Handle >= MM_KERNEL_SPACE_BASE);
+	
+	// Acquire the kernel space lock and place the address of the handle into the first part of the PTE.
+	MmLockKernelSpaceExclusive();
+	
+	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), (uintptr_t) OutputAddressSub, true);
+	if (!PtePtr)
+	{
+		// TODO: Handle this in a nicer way.
+		DbgPrint("Could not get PTE for output address %p because we ran out of memory?", OutputAddressSub);
+		MiFreePoolSpaceSub(Handle);
+		
+		return (MIPOOL_SPACE_HANDLE) NULL;
+	}
+	
+	ASSERT(*PtePtr == 0);
+	ASSERT((Handle & MM_PTE_PRESENT) == 0);
+	
+	*PtePtr = (Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR;
+	MmUnlockKernelSpace();
+	
+	*OutputAddress = (void*) ((uintptr_t) OutputAddressSub + PAGE_SIZE);
+	
+	return Handle;
 }
 
 void MiDumpPoolInfo()
@@ -217,15 +278,29 @@ void MiDumpPoolInfo()
 
 void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
-	return (void*) ((PMIPOOL_ENTRY)Handle)->Address;
+	return (void*) (((PMIPOOL_ENTRY)Handle)->Address + PAGE_SIZE);
 }
 
 size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
-	return (size_t) ((PMIPOOL_ENTRY)Handle)->Size;
+	return (size_t) (((PMIPOOL_ENTRY)Handle)->Size - 1);
 }
 
 uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
 	return ((PMIPOOL_ENTRY)Handle)->UserData;
+}
+
+MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
+{
+	uintptr_t Address = (uintptr_t) AddressV;
+	
+	MmLockKernelSpaceExclusive();
+	
+	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address - PAGE_SIZE, true);
+	MIPOOL_SPACE_HANDLE Handle = ((*PtePtr) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE;
+	
+	MmUnlockKernelSpace();
+	
+	return Handle;
 }

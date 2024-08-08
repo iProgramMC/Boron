@@ -15,13 +15,13 @@ Author:
 ***/
 #include "ki.h"
 
-BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+BSTATUS KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	if (!Thread)
 		return STATUS_INVALID_PARAMETER;
 	
 	if (!KernelStack)
-		KernelStack = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, NULL, POOL_TAG("ThSt"));
+		KernelStack = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, POOL_TAG("ThSt"));
 	
 	if (!KernelStack)
 		return STATUS_INSUFFICIENT_MEMORY;
@@ -33,9 +33,8 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHR
 	Thread->StartRoutine = StartRoutine;
 	Thread->StartContext = StartContext;
 	
-	Thread->Stack.Top    = MmGetAddressFromBigHandle(KernelStack);
-	Thread->Stack.Size   = MmGetSizeFromBigHandle(KernelStack) * PAGE_SIZE;
-	Thread->Stack.Handle = KernelStack;
+	Thread->Stack.Top    = KernelStack;
+	Thread->Stack.Size   = MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
 	
 	Thread->Mode = MODE_KERNEL;
 	
@@ -93,7 +92,7 @@ void KeDeallocateThread(PKTHREAD Thread)
 		Thread->Status == KTHREAD_STATUS_TERMINATED ||
 		Thread->Status == KTHREAD_STATUS_UNINITIALIZED);
 	
-	ASSERT(Thread->Stack.Handle == 0);
+	ASSERT(Thread->Stack.Top == NULL);
 	
 	MmFreePool(Thread);
 }
@@ -125,7 +124,7 @@ void KeYieldCurrentThread()
 	KiHandleQuantumEnd(Ipl);
 }
 
-BSTATUS KeInitializeThread(PKTHREAD Thread, BIG_MEMORY_HANDLE KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+BSTATUS KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	if (!Thread)
 		return STATUS_INVALID_PARAMETER;

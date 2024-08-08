@@ -70,7 +70,7 @@ NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
 		PKTHREAD Thread = KeAllocateThread();
 		if (FAILED(KeInitializeThread(
 				Thread,
-				POOL_NO_MEMORY_HANDLE,
+				NULL,
 				ExpInitializeExecutive,
 				NULL,
 				KeGetSystemProcess()

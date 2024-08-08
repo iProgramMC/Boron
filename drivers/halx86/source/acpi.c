@@ -89,12 +89,11 @@ void AcpiInitPmt()
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_MEMORY)
 	{
-		void* PageAddress = NULL;
 		uintptr_t Addr = Header->X_PMTimerBlock.Address;
 		uintptr_t OffsetWithinPage = Addr & 0xFFF;
 		
-		BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, &PageAddress, POOL_TAG("APMT"));
-		if (!Handle)
+		void* PageAddress = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("APMT"));
+		if (!PageAddress)
 		{
 		CRASH_BECAUSE_FAILURE_TO_MAP:
 			KeCrashBeforeSMPInit("Could not map ACPI PMT timer as uncacheable");

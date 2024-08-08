@@ -172,7 +172,7 @@ void KeSchedulerInit()
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
-	if (FAILED(KiInitializeThread(Thread, POOL_NO_MEMORY_HANDLE, KiIdleThreadEntry, NULL, KeGetSystemProcess())))
+	if (FAILED(KiInitializeThread(Thread, NULL, KiIdleThreadEntry, NULL, KeGetSystemProcess())))
 		KeCrash("cannot create idle thread");
 	
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
@@ -337,9 +337,9 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	PKTHREAD Thread = ContextV;
 	
 	// Free the thread's kernel stack.
-	ASSERT(Thread->Stack.Handle);
-	MmFreePoolBig(Thread->Stack.Handle);
-	Thread->Stack.Handle = POOL_NO_MEMORY_HANDLE;
+	ASSERT(Thread->Stack.Top);
+	MmFreePoolBig(Thread->Stack.Top);
+	Thread->Stack.Top = NULL;
 	
 	// Remove the thread from the global list of threads.
 	KIPL Ipl2;

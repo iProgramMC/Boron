@@ -32,6 +32,7 @@ bool KiInsertTimerTree(PKTIMER Timer)
 
 bool KiCancelTimer(PKTIMER Timer)
 {
+	KiAssertOwnDispatcherLock();
 	bool Status = Timer->IsEnqueued;
 	
 	// Note. "IF" check not necessary, but good for an optimization.

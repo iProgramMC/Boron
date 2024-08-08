@@ -23,7 +23,7 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 	
 	if (FAILED(KeInitializeThread(
 		Thread,
-		POOL_NO_MEMORY_HANDLE,
+		NULL,
 		StartRoutine,
 		Parameter,
 		KeGetSystemProcess())))

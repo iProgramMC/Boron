@@ -73,7 +73,7 @@ bool ObpInitializeReaperThread()
 	
 	Status = KeInitializeThread(
 		&ObpReaperThread,
-		POOL_NO_MEMORY_HANDLE,  // KernelStack
+		NULL,                   // KernelStack
 		ObpReaperThreadRoutine, // StartRoutine
 		NULL,                   // StartContext
 		KeGetSystemProcess()    // Process

@@ -44,27 +44,23 @@ void MmFreeMdl(PMDL Mdl)
 	MmFreePool(Mdl);
 }
 
-BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissions)
+BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions)
 {
-	if (Mdl->MappedStartVA || Mdl->MapHandle)
+	if (Mdl->MappedStartVA)
 		return STATUS_NO_REMAP;
 	
-	void* AddressV = NULL;
-	uintptr_t MapAddress = 0;
-	
-	BIG_MEMORY_HANDLE Handle = MmAllocatePoolBig(
+	void* AddressV = MmAllocatePoolBig(
 		POOL_FLAG_CALLER_CONTROLLED,
 		Mdl->NumberPages,
-		&AddressV,
 		POOL_TAG("MdlM")
 	);
 	
-	MapAddress = (uintptr_t) AddressV;
+	uintptr_t MapAddress = (uintptr_t) AddressV;
 	
-	// If the handle couldn't be obtained, we don't have enough
+	// If the memory couldn't be allocated, we don't have enough
 	// pool memory space, because the request was for a caller
 	// controlled region.
-	if (!Handle)
+	if (!AddressV)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
 	uintptr_t Address = MapAddress;
@@ -86,17 +82,16 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissio
 			MmFreePhysicalPage(Mdl->Pages[Index]);
 			
 			// Free the handle.
-			MmFreePoolBig(Handle);
+			MmFreePoolBig(AddressV);
 			
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
 	}
 	
 	Mdl->MappedStartVA = MapAddress;
-	Mdl->MapHandle     = Handle;
 	Mdl->Flags        |= MDL_FLAG_MAPPED;
 	
-	*OutAddress = MapAddress;
+	*OutAddress = AddressV;
 	
 	return STATUS_SUCCESS;
 }
@@ -126,7 +121,6 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	Mdl->ByteCount     = Length;
 	Mdl->SourceStartVA = VirtualAddress & ~0xFFF;
 	Mdl->MappedStartVA = 0;
-	Mdl->MapHandle     = POOL_NO_MEMORY_HANDLE;
 	Mdl->Process       = PsGetCurrentProcess();
 	Mdl->NumberPages   = NumPages;
 	
