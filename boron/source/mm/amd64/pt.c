@@ -38,7 +38,7 @@ PMMPTE MmGetPteLocation(uintptr_t Address)
 }
 
 // Creates a page mapping.
-HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping)
+HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 {
 	// Allocate the PML4.
 	int NewPageMappingPFN = MmAllocatePhysicalPage();
@@ -126,7 +126,7 @@ bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 // Clones a user page mapping
 HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
 {
-	HPAGEMAP NewPageMapping = MmCreatePageMapping(OldPageMapping);
+	HPAGEMAP NewPageMapping = MiCreatePageMapping(OldPageMapping);
 	
 	// If the new page mapping is zero, we can't proceed!
 	if (NewPageMapping == 0)
@@ -195,7 +195,7 @@ void MmpFreePageMappingLevel(uint64_t PageMappingLevel, int Index, int Level)
 	Return value:
 		None.
 ***/
-void MmFreePageMapping(HPAGEMAP OldPageMapping)
+void MiFreePageMapping(HPAGEMAP OldPageMapping)
 {
 	for (int i = 0; i < 512; i++)
 	{
@@ -227,7 +227,7 @@ void MmFreePageMapping(HPAGEMAP OldPageMapping)
 		The address of the PTE, or NULL. See function description on why
 		it would return NULL.
 ***/
-PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs)
+PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs)
 {
 	const uintptr_t FiveElevenMask = 0x1FF;
 	
@@ -265,7 +265,7 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			int pfn = MmAllocatePhysicalPage();
 			if (pfn == PFN_INVALID)
 			{
-				//DbgPrint("MmGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
+				//DbgPrint("MiGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
 				
 				// rollback
 				for (int i = 0; i < NumPfnsAllocated; i++)
@@ -290,7 +290,7 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
 		{
 			// Higher page size, we can't allocate here.  Probably HHDM or something - the kernel itself doesn't use this
-			//DbgPrint("MmGetPTEPointer: Address %p contains a higher page size, we don't support that for now", Address);
+			//DbgPrint("MiGetPTEPointer: Address %p contains a higher page size, we don't support that for now", Address);
 			return NULL;
 		}
 		
@@ -318,7 +318,7 @@ PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 ***/
 static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 {
-	// Lot of code was copied from MmGetPTEPointer.
+	// Lot of code was copied from MiGetPTEPointer.
 	const uintptr_t FiveElevenMask = 0x1FF;
 	
 	uintptr_t indices[] = {
@@ -394,7 +394,7 @@ static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 /***
 	Function description:
 		Maps a single anonymous-backed page at a certain PTE pointer.
-		MmMapAnonPage and MmMapAnonPages use this function behind the scenes.
+		MiMapAnonPage and MiMapAnonPages use this function behind the scenes.
 	
 	Parameters:
 		Mapping  - The handle to the page table to be modified
@@ -420,13 +420,13 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 		int pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
-			//DbgPrint("MmMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
+			//DbgPrint("MiMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
 			return false;
 		}
 		
 		if (!Pte)
 		{
-			//DbgPrint("MmMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
+			//DbgPrint("MiMapAnonPage(%p, %p) failed because PTE couldn't be retrieved", Mapping, Address);
 			return false;
 		}
 		
@@ -457,9 +457,9 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	Return value:
 		Whether the mapping update was successful.
 ***/
-bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged)
+bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged)
 {
-	PMMPTE Pte = MmGetPTEPointer(Mapping, Address, true);
+	PMMPTE Pte = MiGetPTEPointer(Mapping, Address, true);
 	
 	return MmpMapSingleAnonPageAtPte(Pte, Permissions, NonPaged);
 }
@@ -484,9 +484,9 @@ bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, b
 	Return value:
 		Whether the mapping update was successful.
 ***/
-bool MmMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions)
+bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions)
 {
-	PMMPTE Pte = MmGetPTEPointer(Mapping, Address, true);
+	PMMPTE Pte = MiGetPTEPointer(Mapping, Address, true);
 	
 	if (!Pte)
 		return false;
@@ -508,12 +508,12 @@ bool MmMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Addre
 	Return value:
 		None.
 ***/
-void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
+void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 {
 	// Step 1. Unset the PRESENT bit on all pages in the range.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
-		PMMPTE pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		PMMPTE pPTE = MiGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
 		
 		if (!pPTE)
 			continue;
@@ -538,7 +538,7 @@ void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 	// Step 3. If needed, free the PMM pages related to this page mapping.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
-		PMMPTE pPTE = MmGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
+		PMMPTE pPTE = MiGetPTEPointer(Mapping, Address + i * PAGE_SIZE, false);
 		
 		if (!pPTE)
 			continue;
@@ -644,13 +644,13 @@ uintptr_t MiGetTopOfPoolManagedArea()
 	Return value:
 		Whether the allocation was successful.
 ***/
-bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged)
+bool MiMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged)
 {
 	// As an optimization, we'll wait until the PML1 index rolls over to zero before reloading the PTE pointer.
 	uint64_t CurrentPml1 = PML1_IDX(Address);
 	size_t DonePages = 0;
 	
-	PMMPTE PtePtr = MmGetPTEPointer(Mapping, Address, true);
+	PMMPTE PtePtr = MiGetPTEPointer(Mapping, Address, true);
 	
 	for (size_t i = 0; i < SizePages; i++)
 	{
@@ -668,7 +668,7 @@ bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintp
 		if (CurrentPml1 % (PAGE_SIZE / sizeof(MMPTE)) == 0)
 		{
 			// We have rolled over.
-			PtePtr = MmGetPTEPointer(Mapping, Address, true);
+			PtePtr = MiGetPTEPointer(Mapping, Address, true);
 		}
 	}
 	
@@ -677,6 +677,6 @@ bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintp
 	
 ROLLBACK:
 	// Unmap all the pages that we have mapped.
-	MmUnmapPages(Mapping, Address, DonePages);
+	MiUnmapPages(Mapping, Address, DonePages);
 	return false;
 }

@@ -60,7 +60,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 		MmLockSpaceExclusive(FaultAddress);
 		
 		// The PTE was not marked present. Let's see what we're dealing with here
-		PMMPTE Pte = MmGetPTEPointer(MmGetCurrentPageMap(), FaultAddress, false);
+		PMMPTE Pte = MiGetPTEPointer(MiGetCurrentPageMap(), FaultAddress, false);
 		
 		// If we don't have a PTE here, that means that we didn't mess with anything around there,
 		// thus we should return..

@@ -17,6 +17,10 @@ Author:
 #include "acpi.h"
 #include "pio.h"
 
+// TODO: Add a way to do that without breaking into Mm's internal functions
+HPAGEMAP MiGetCurrentPageMap();
+bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
+
 static PRSDP_DESCRIPTION HalpRsdp;
 static PRSDT_TABLE       HalpRsdt;
 
@@ -96,7 +100,7 @@ void AcpiInitPmt()
 			KeCrashBeforeSMPInit("Could not map ACPI PMT timer as uncacheable");
 		}
 		
-		if (!MmMapPhysicalPage(MmGetCurrentPageMap(),
+		if (!MiMapPhysicalPage(MiGetCurrentPageMap(),
 		                       Addr,
 		                       (uintptr_t) PageAddress,
 		                       MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))

@@ -48,8 +48,8 @@ BIG_MEMORY_HANDLE MmAllocatePoolBig(int PoolFlags, size_t PageCount, void** Outp
 		MmLockKernelSpaceExclusive();
 		
 		// Map the memory in!  This will affect ALL page maps
-		if (!MmMapAnonPages(
-			MmGetCurrentPageMap(),
+		if (!MiMapAnonPages(
+			MiGetCurrentPageMap(),
 			(uintptr_t) *OutputAddress,
 			PageCount,
 			MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL,
@@ -75,7 +75,7 @@ void MmFreePoolBig(BIG_MEMORY_HANDLE Handle)
 		MmLockKernelSpaceExclusive();
 		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
-		MmUnmapPages(MmGetCurrentPageMap(),
+		MiUnmapPages(MiGetCurrentPageMap(),
 					 (uintptr_t)MmGetAddressFromBigHandle(Handle),
 					 MmGetSizeFromBigHandle(Handle));
 		

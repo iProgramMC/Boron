@@ -20,7 +20,7 @@ void MmUnmapPinnedPagesMdl(PMDL Mdl)
 	if (!Mdl->MappedStartVA)
 		return;
 	
-	MmUnmapPages(Mdl->Process->Pcb.PageMap, Mdl->MappedStartVA, Mdl->NumberPages);
+	MiUnmapPages(Mdl->Process->Pcb.PageMap, Mdl->MappedStartVA, Mdl->NumberPages);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
 
@@ -77,10 +77,10 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, uintptr_t* OutAddress, uintptr_t Permissio
 		// Add a reference to the page.
 		MmPageAddReference(Mdl->Pages[Index]);
 		
-		if (!MmMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions | MM_PTE_ISFROMPMM))
+		if (!MiMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions | MM_PTE_ISFROMPMM))
 		{
 			// Unmap everything mapped so far.
-			MmUnmapPages(PageMap, MapAddress, Index);
+			MiUnmapPages(PageMap, MapAddress, Index);
 			
 			// Unreference that page.
 			MmFreePhysicalPage(Mdl->Pages[Index]);
@@ -156,7 +156,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl)
 	size_t Index = 0;
 	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
 	{
-		PMMPTE PtePtr = MmGetPTEPointer(PageMap, Address, false);
+		PMMPTE PtePtr = MiGetPTEPointer(PageMap, Address, false);
 		
 		bool TryFault = false;
 		if (!PtePtr)
@@ -190,7 +190,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl)
 			}
 			
 			// Success, so re-fetch the PTE:
-			PtePtr = MmGetPTEPointer(PageMap, Address, false);
+			PtePtr = MiGetPTEPointer(PageMap, Address, false);
 		}
 		
 		MMPTE Ptr = *PtePtr;

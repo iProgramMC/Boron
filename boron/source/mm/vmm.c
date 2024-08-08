@@ -106,7 +106,7 @@ void MmIssueTLBShootDown(uintptr_t Address, size_t Length)
 	KeIssueTLBShootDown(Address, Length);
 }
 
-HPAGEMAP MmGetCurrentPageMap()
+HPAGEMAP MiGetCurrentPageMap()
 {
 	return (HPAGEMAP) KeGetCurrentPageTable();
 }

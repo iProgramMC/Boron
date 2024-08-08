@@ -555,7 +555,7 @@ void KiSwitchToNextThread()
 	// Switch to thread's process' address space.
 	PKPROCESS DestProcess = KepGetProcessToSwitchAddressSpaceTo(Thread);
 	
-	if (MmGetCurrentPageMap() != DestProcess->PageMap)
+	if (MiGetCurrentPageMap() != DestProcess->PageMap)
 		KiSwitchToAddressSpaceProcess(DestProcess);
 	
 	if (!IsListEmpty(&Thread->KernelApcQueue))

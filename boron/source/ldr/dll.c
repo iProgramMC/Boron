@@ -14,19 +14,20 @@ Author:
 #include "ldri.h"
 #include "elf.h"
 
+// This would be a layering violation, but this component is only active during system init, so it's OK, I think
+//
+// Note: DLL loading is done during UP initialization, so there is no need to acquire the kernel space's lock.
+#include "../mm/mi.h"
+
 // TODO: Update operations with regards to relocations in case we're porting to a 32-bit platform.
 
 // Big thanks to https://github.com/DeanoBurrito/northport for help implementing the dynamic linker.
-
-// Note: DLL loading is done during UP initialization, so there is no need to acquire the kernel space's lock.
 
 #ifdef DEBUG2
 #define DbgPrint2(...) DbgPrint(__VA_ARGS__)
 #else
 #define DbgPrint2(...)
 #endif
-
-extern uintptr_t MiAllocatePageFromMemMap();
 
 LOADED_DLL KeLoadedDLLs[256];
 int        KeLoadedDLLCount = 0;
@@ -54,7 +55,7 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 	
 	Permissions |= MM_PTE_READWRITE;
 	
-	HPAGEMAP PageMap = MmGetCurrentPageMap();
+	HPAGEMAP PageMap = MiGetCurrentPageMap();
 	
 	// Now map it in.
 	uintptr_t VirtAddrBackup = VirtAddr;
@@ -68,7 +69,7 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 		// care of zero-filling everything. But not here.
 		
 		// Some entries overlap. Check if there's already a PTE beforehand.
-		PMMPTE Pte = MmGetPTEPointer(PageMap, VirtAddr, false);
+		PMMPTE Pte = MiGetPTEPointer(PageMap, VirtAddr, false);
 		if (Pte && (*Pte & MM_PTE_PRESENT))
 		{
 			MMPTE OldPte = *Pte;
@@ -95,7 +96,7 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 		
 		uintptr_t Page = MmPFNToPhysPage(Pfn);
 		
-		if (!MmMapPhysicalPage(PageMap,
+		if (!MiMapPhysicalPage(PageMap,
 		                       Page,
 		                       VirtAddr,
 		                       Permissions))

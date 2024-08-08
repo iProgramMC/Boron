@@ -57,7 +57,7 @@ void HpetInitialize()
 		KeCrashBeforeSMPInit("Could not map HPET as uncacheable");
 	}
 	
-	if (!MmMapPhysicalPage(MmGetCurrentPageMap(),
+	if (!MiMapPhysicalPage(MiGetCurrentPageMap(),
 						   HpetAddress,
 						   (uintptr_t) Address,
 						   MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))

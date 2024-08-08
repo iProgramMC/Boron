@@ -75,7 +75,7 @@ void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffi
 {
 	KeInitializeDispatchHeader(&Process->Header, DISPATCH_PROCESS);
 	
-	Process->PageMap = MmCreatePageMapping(KeGetCurrentPageTable());
+	Process->PageMap = MiCreatePageMapping(KeGetCurrentPageTable());
 	
 	InitializeListHead(&Process->ThreadList);
 	

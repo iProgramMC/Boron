@@ -48,31 +48,31 @@ void MmLockSpaceExclusive(uintptr_t DecidingAddress);
 void MmUnlockSpace(uintptr_t DecidingAddress);
 
 // Gets the current page mapping.
-HPAGEMAP MmGetCurrentPageMap();
+HPAGEMAP MiGetCurrentPageMap();
 
 // Creates a page mapping.
-HPAGEMAP MmCreatePageMapping(HPAGEMAP OldPageMapping);
+HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping);
 
 // Deletes a page mapping.
-void MmFreePageMapping(HPAGEMAP OldPageMapping);
+void MiFreePageMapping(HPAGEMAP OldPageMapping);
 
 // Resolves a page table entry pointer (virtual address offset by HHDM) relative to an address.
 // Can allocate the missing page mapping levels on its way if the flag is set.
 // If on its way, it hits a higher page size, currently it will return null since it's not really
 // designed for that..
-PMMPTE MmGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
+PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
 // Attempts to map a physical page into the specified address space.
-bool MmMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
+bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
 
 // Attempts to map several anonymous pages into the specified address space.
-bool MmMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
+bool MiMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
 
 // Attempts to map a known physical page into the specified address space.
-bool MmMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
+bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
 
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
-void MmUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
+void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
 
 // Handles a page fault. Returns whether or not the page fault was handled.
 int MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
