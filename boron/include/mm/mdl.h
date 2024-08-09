@@ -16,15 +16,19 @@ Author:
 
 #include <mm/pfn.h>
 #include <status.h>
+#include <ke/mode.h>
 
 // XXX: This is completely arbitrary.
 #define MDL_MAX_SIZE (4*1024*1024)
 
-// If set, the MDL's Pages[] array has been allocated.
+// If set, the MDL's Pages[] array has been filled in.
 #define MDL_FLAG_CAPTURED (1 << 0)
 
 // If set, the MDL is mapped into kernel memory.
-#define MDL_FLAG_MAPPED (1 << 1)
+#define MDL_FLAG_MAPPED   (1 << 1)
+
+// If set, the MDL reflects a write operation.
+#define MDL_FLAG_WRITE    (1 << 2)
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
@@ -46,7 +50,7 @@ MDL, *PMDL;
 PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);
 
 // Probes the given virtual address and tries to pin all the buffer's pages.
-BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl);
+BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite);
 
 // Unpins the buffer's pages and releases the reference to them.
 void MmUnpinPagesMdl(PMDL Mdl);

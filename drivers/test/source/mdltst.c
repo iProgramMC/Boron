@@ -52,7 +52,7 @@ void PerformMdlTest()
 	if (!Mdl)
 		KeCrash("Mdl test: could not allocate MDL");
 	
-	BSTATUS Status = MmProbeAndPinPagesMdl(Mdl);
+	BSTATUS Status = MmProbeAndPinPagesMdl(Mdl, MODE_KERNEL, true);
 	
 	if (Status != STATUS_SUCCESS)
 		KeCrash("Mdl test: CaptureMDL returned %d", Status);

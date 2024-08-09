@@ -39,6 +39,12 @@ void MmFreePoolBig(void* Address);
 
 size_t MmGetSizeFromPoolAddress(void* Address);
 
+// Maps physical memory with certain caching attributes into pool space.  To free this I/O space,
+// simply call MmFreePoolBig.  This function is thread-safe.
+//
+// The PermissionsAndCaching parameter is ORed onto the PTEs that will map this physical area.
+void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t PermissionsAndCaching, int Tag);
+
 // ******* Little Pool *******
 // The little pool is a pool allocation system implemented on top
 // of the big pool. It is backed by a slab allocator.

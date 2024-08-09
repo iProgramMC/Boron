@@ -90,3 +90,30 @@ void MmFreePool(void* Pointer)
 {
 	MiSlabFree(Pointer);
 }
+
+void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t PermissionsAndCaching, int Tag)
+{
+	if (Tag == 0) Tag = POOL_TAG("MMIS");
+	
+	// Allocate some pool space.
+	void* Space = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, NumberOfPages, Tag);
+	uintptr_t VirtualAddress = (uintptr_t) Space;
+	
+	if (!Space)
+		return Space;
+	
+	HPAGEMAP PageMap = MiGetCurrentPageMap();
+	
+	for (size_t i = 0; i < NumberOfPages; i++, PhysicalAddress += PAGE_SIZE, VirtualAddress += PAGE_SIZE)
+	{
+		if (!MiMapPhysicalPage(PageMap, PhysicalAddress, VirtualAddress, PermissionsAndCaching))
+			goto Rollback;
+	}
+	
+	return Space;
+
+Rollback:
+	MiUnmapPages(PageMap, (uintptr_t) Space, NumberOfPages);
+	MmFreePoolBig(Space);
+	return NULL;
+}

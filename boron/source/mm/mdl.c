@@ -127,7 +127,7 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	return Mdl;
 }
 
-BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl)
+BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite)
 {
 	uintptr_t VirtualAddress = Mdl->SourceStartVA;
 	size_t Size = Mdl->ByteCount;
@@ -143,71 +143,122 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl)
 	if (!MmIsAddressRangeValid(VirtualAddress, Size))
 		return STATUS_INVALID_PARAMETER;
 	
+	if (AccessMode == MODE_USER && MM_USER_SPACE_END < EndPage)
+		return STATUS_INVALID_PARAMETER;
+	
 	HPAGEMAP PageMap = Mdl->Process->Pcb.PageMap;
 	
-	// TODO: Ensure proper failure if the whole buffer doesn't fit in system memory!
+	// Fault all the pages in.
+	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
+	{
+		BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite);
+		
+		if (ProbeStatus != STATUS_SUCCESS)
+		{
+			FailureReason = ProbeStatus;
+			break;
+		}
+	}
+	
+	if (FailureReason)
+		return FailureReason;
+	
+	// TODO(WORKINGSET): Check if the working set (when we add it) can even fit all of these pages.
+	// TODO(possibly related to above): Ensure proper failure if the whole buffer doesn't fit in system memory!
 	
 	size_t Index = 0;
 	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
 	{
-		PMMPTE PtePtr = MiGetPTEPointer(PageMap, Address, false);
-		
-		bool TryFault = false;
-		if (!PtePtr)
+		while (true)
 		{
-			TryFault = true;
-		}
-		else
-		{
-			MMPTE Pte = *PtePtr;
+			MmLockSpaceShared(Address);
+			PMMPTE PtePtr = MiGetPTEPointer(PageMap, Address, false);
 			
-			if (~Pte & MM_PTE_PRESENT)
+			bool TryFault = false;
+			if (!PtePtr)
 			{
+				// If there is no PTE, try faulting on that address.  But ideally, there should, as we
+				// faulted everything in previously.
 				TryFault = true;
 			}
-			else if (~Pte & MM_PTE_ISFROMPMM)
+			else
 			{
-				// Page isn't part of PMM, so fail
-				FailureReason = STATUS_INVALID_PARAMETER;
-				break;
+				MMPTE Pte = *PtePtr;
+				
+				if (~Pte & MM_PTE_PRESENT)
+				{
+					// Try to fault on this page.  We don't know what kind of non-present page this is.
+					TryFault = true;
+				}
+				else if (~Pte & MM_PTE_ISFROMPMM)
+				{
+					// This is MMIO space or the HHDM.  Disallow its capture.
+					FailureReason = STATUS_INVALID_PARAMETER;
+					MmUnlockSpace(Address);
+					break;
+				}
+				else if ((~Pte & MM_PTE_READWRITE) && IsWrite)
+				{
+					// This is a read-only page and we are trying to write to it.  
+					TryFault = true;
+				}
 			}
+			
+			if (TryFault)
+			{
+				MmUnlockSpace(Address);
+				
+				BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite);
+				
+				if (ProbeStatus != STATUS_SUCCESS)
+				{
+					FailureReason = ProbeStatus;
+					break;
+				}
+				
+				// Continue the loop.  This will re-lock the address space at the start of the next
+				// iteration, re-fetch the PTE and try this whole ordeal again.
+				continue;
+			}
+			
+			ASSERT(PtePtr);
+			
+			MMPTE Pte = *PtePtr;
+			
+			// Probe was successful and this is a proper page (writable if IsWrite is true).
+			ASSERT((Pte & MM_PTE_READWRITE) || !IsWrite);
+			ASSERT(Pte & MM_PTE_ISFROMPMM);
+			ASSERT(Pte & MM_PTE_PRESENT);
+			
+			// Fetch the page frame number.
+			int Pfn = (Pte & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
+			
+			// Let the PF database know that the page was pinned.
+			//
+			// This should be safe to do as is, because the MDL process takes place while the
+			// lock relevant to the part of the address space that the page belongs to is locked.
+			MmPageAddReference(Pfn);
+			
+			// Register it in the MDL.
+			ASSERT(Index < Mdl->NumberPages);
+			Mdl->Pages[Index] = Pfn;
+			Index++;
+			
+			// Unlock the address space and break out of the probe loop.  This will continue the
+			// capture process.
+			MmUnlockSpace(Address);
+			break;
 		}
 		
-		if (TryFault)
-		{
-			BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), true);
-			
-			if (ProbeStatus != STATUS_SUCCESS)
-			{
-				FailureReason = ProbeStatus;
-				break;
-			}
-			
-			// Success, so re-fetch the PTE:
-			PtePtr = MiGetPTEPointer(PageMap, Address, false);
-		}
-		
-		MMPTE Ptr = *PtePtr;
-		
-		// Fetch the page frame number.
-		int Pfn = (Ptr & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
-		
-		// Let the PF database know that the page was pinned.
-		//
-		// This should be safe to do as is, because the MDL process takes place while the
-		// lock relevant to the part of the address space that the page belongs to is locked.
-		MmPageAddReference(Pfn);
-		
-		// Register it in the MDL.
-		ASSERT(Index < Mdl->NumberPages);
-		Mdl->Pages[Index] = Pfn;
-		Index++;
+		if (FailureReason)
+			break;
 	}
 	
 	Mdl->Flags |= MDL_FLAG_CAPTURED;
 	
 	if (FailureReason)
 	{
+		// Unpin only up to the current index, the rest weren't filled in due to the failure.
 		Mdl->NumberPages = Index;
 		MmUnpinPagesMdl(Mdl);
 		return FailureReason;
