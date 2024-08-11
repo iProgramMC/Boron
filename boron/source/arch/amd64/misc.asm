@@ -107,7 +107,7 @@ MmProbeAddressSub:
 	; The "return" is just below...
 	
 ; void MmProbeAddressSubEarlyReturn()
-; Returns early from MmProbeAddressSub. Called by the invalid page fault handler.
+; Returns early from MmProbeAddressSub and MmSafeCopySub. Called by the invalid page fault handler.
 global MmProbeAddressSubEarlyReturn
 MmProbeAddressSubEarlyReturn:
 	ret

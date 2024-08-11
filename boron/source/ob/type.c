@@ -16,9 +16,22 @@ Author:
 
 KMUTEX ObpObjectTypeMutex;
 
-POBJECT_TYPE ObpObjectTypeType;
-POBJECT_TYPE ObpDirectoryType;
-POBJECT_TYPE ObpSymbolicLinkType;
+POBJECT_TYPE ObObjectTypeType;
+POBJECT_TYPE ObDirectoryType;
+POBJECT_TYPE ObSymbolicLinkType;
+
+static POBJECT_TYPE* ObpBuiltInTypes[] = {
+	&ObObjectTypeType,
+	&ObDirectoryType,
+	&ObSymbolicLinkType
+};
+static_assert(ARRAY_COUNT(ObpBuiltInTypes) == (size_t) __OB_BUILTIN_TYPE_COUNT);
+
+POBJECT_TYPE ObGetBuiltInType(int Id)
+{
+	ASSERT(Id >= 0 && Id < (int) __OB_BUILTIN_TYPE_COUNT);
+	return *ObpBuiltInTypes[Id];
+}
 
 extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
@@ -53,7 +66,7 @@ BSTATUS ObCreateObjectType(
 
 	// Allocate the object.
 	Status = ObpAllocateObject(
-		ObpObjectTypeType,
+		ObObjectTypeType,
 		sizeof(OBJECT_TYPE),
 		NULL,
 		OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT,
@@ -77,9 +90,9 @@ BSTATUS ObCreateObjectType(
 	ObpEnterObjectTypeMutex();
 	
 	// The first ever object type created MUST be the ObjectType object type.
-	if (!ObpObjectTypeType)
+	if (!ObObjectTypeType)
 	{
-		ObpObjectTypeType = NewType;
+		ObObjectTypeType = NewType;
 		
 		Hdr->NonPagedObjectHeader->ObjectType = NewType;
 		NewType->TotalObjectCount = 1;
@@ -144,15 +157,15 @@ extern OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo;
 
 bool ObpInitializeBasicTypes()
 {
-	if (FAILED(ObCreateObjectType("Type", &ObpObjectTypeTypeInfo, &ObpObjectTypeType))) {
+	if (FAILED(ObCreateObjectType("Type", &ObpObjectTypeTypeInfo, &ObObjectTypeType))) {
 		DbgPrint("Failed to create Type object type");
 		return false;
 	}
-	if (FAILED(ObCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObpDirectoryType))) {
+	if (FAILED(ObCreateObjectType("Directory", &ObpDirectoryTypeInfo, &ObDirectoryType))) {
 		DbgPrint("Failed to create Directory object type");
 		return false;
 	}
-	if (FAILED(ObCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObpSymbolicLinkType))) {
+	if (FAILED(ObCreateObjectType("SymbolicLink", &ObpSymbolicLinkTypeInfo, &ObSymbolicLinkType))) {
 		DbgPrint("Failed to create SymbolicLink object type");
 		return false;
 	}

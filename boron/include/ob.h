@@ -206,7 +206,7 @@ enum
 {
 	// Handle may be inherited by child processes.
 	OB_OPEN_INHERIT   = (1 << 0),
-	// No other process can open this handle while the current process maintains a handle.
+	// No other process may open this handle while the current process maintains a handle.
 	OB_OPEN_EXCLUSIVE = (1 << 1),
 	// If the final path component is a symbolic link, open the symbolic link object itself
 	// instead of its referenced object (the latter is the default behavior)
@@ -284,7 +284,7 @@ BSTATUS ObOpenObjectByName(
 
 // References an object by handle and returns its pointer.
 // The caller must call ObDereferenceObject when done with the returned object.
-BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject);
+BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject);
 
 // References an object by name and returns its pointer.
 // The caller must call ObDereferenceObject when done with the returned object.
@@ -306,3 +306,31 @@ BSTATUS ObClose(HANDLE Handle);
 
 // Gets the object's type.
 POBJECT_TYPE ObGetObjectType(void* Object);
+
+// Object manager provided object types:
+
+enum
+{
+	__OB_OBJECT_TYPE_TYPE,
+	__OB_DIRECTORY_TYPE,
+	__OB_SYMLINK_TYPE,
+	__OB_BUILTIN_TYPE_COUNT
+};
+
+#ifdef KERNEL
+
+extern POBJECT_TYPE ObObjectTypeType;
+extern POBJECT_TYPE ObDirectoryType;
+extern POBJECT_TYPE ObSymbolicLinkType;
+
+#else
+
+extern POBJECT_TYPE ObGetBuiltInType(int Id);
+
+#define ObObjectTypeType   ObGetBuiltInType(__OB_OBJECT_TYPE_TYPE)
+#define ObDirectoryType    ObGetBuiltInType(__OB_DIRECTORY_TYPE)
+#define ObSymbolicLinkType ObGetBuiltInType(__OB_SYMLINK_TYPE)
+
+#endif
+
+

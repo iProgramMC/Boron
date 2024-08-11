@@ -17,7 +17,7 @@ Author:
 
 extern POBJECT_DIRECTORY ObpRootDirectory;
 
-BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject)
+BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject)
 {
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
@@ -30,6 +30,13 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, void** OutObject)
 	
 	// If it returned STATUS_SUCCESS, it should have returned a valid object.
 	ASSERT(Object);
+	
+	// Check if the object is of the correct type.
+	if (ExpectedType && OBJECT_GET_HEADER(Object)->NonPagedObjectHeader->ObjectType != ExpectedType)
+	{
+		ExUnlockHandleTable(Process->HandleTable);
+		return STATUS_TYPE_MISMATCH;
+	}
 	
 	// Reference the object.
 	ObReferenceObjectByPointer(Object);

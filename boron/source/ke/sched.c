@@ -109,11 +109,7 @@ KPRIORITY KiAdjustPriorityBoost(KPRIORITY BasePriority, KPRIORITY PriorityBoost)
 void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 {
 	KiAssertOwnDispatcherLock();
-	
-	// If the thread is already ready, then it's also already a part of
-	// the execution queue, so get outta here.
-	if (Thread->Status == KTHREAD_STATUS_READY)
-		return;
+	ASSERT(Thread->Status != KTHREAD_STATUS_READY);
 	
 	PKSCHEDULER Scheduler = &KeProcessorList[Thread->LastProcessor]->Scheduler;
 	

@@ -187,7 +187,7 @@ BSTATUS IoPerformOperationFileHandle(
 	BSTATUS Status;
 	
 	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
@@ -234,7 +234,7 @@ BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
 	BSTATUS Status;
 	
 	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
 	
@@ -251,7 +251,7 @@ BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
 	BSTATUS Status;
 	
 	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, &FileObjectV);
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
 	

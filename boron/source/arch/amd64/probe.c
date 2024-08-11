@@ -106,9 +106,9 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
 }
 
 // Defined in arch/amd64/misc.asm
-int MmSafeCopySub(void* Address, void* Source, size_t Length);
+int MmSafeCopySub(void* Address, const void* Source, size_t Length);
 
-BSTATUS MmSafeCopy(void* Address, void* Source, size_t Length)
+BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length)
 {
 	// Let the page fault handler know we are probing.
 	KeGetCurrentThread()->Probing = true;

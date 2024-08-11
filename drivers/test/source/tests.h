@@ -26,3 +26,4 @@ void PerformApcTest(void);
 void PerformIntTest(void);
 void PerformKeyboardTest(void);
 void PerformStorageTest(void);
+void PerformExObTest(void);

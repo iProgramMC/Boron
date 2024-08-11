@@ -218,7 +218,7 @@ void AttemptCreateTestType()
 	
 	// Reference that object by handle.
 	void* Object;
-	Status = ObReferenceObjectByHandle(Handle, &Object);
+	Status = ObReferenceObjectByHandle(Handle, TstObjectTypeType, &Object);
 	
 	if (FAILED(Status))
 		KeCrash("Failed to reference object by handle %d, error %d", Handle, Status);
@@ -246,7 +246,7 @@ void ModifyEphemeralObject(void* _Object)
 	LogMsg("ModifyEphemeralObject: Handle is %d", Handle);
 	
 	void* ObjectV;
-	Status = ObReferenceObjectByHandle(Handle, &ObjectV);
+	Status = ObReferenceObjectByHandle(Handle, TstObjectType, &ObjectV);
 	if (FAILED(Status))
 		KeCrash("ModifyEphemeralObject: Cannot ObReferenceObjectByHandle(%d): error %d", Handle, Status);
 	

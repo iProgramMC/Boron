@@ -65,7 +65,7 @@ void ObpDeleteSymbolicLink(void* SymLinkVoid)
 	SymLink->DestPath = NULL;
 }
 
-extern POBJECT_TYPE ObpSymbolicLinkType;
+extern POBJECT_TYPE ObSymbolicLinkType;
 
 OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo =
 {
@@ -130,7 +130,7 @@ BSTATUS ObCreateSymbolicLinkObject(
 	Status = ObCreateObject(
 		&Object,
 		NULL, // ParentDirectory
-		ObpSymbolicLinkType,
+		ObSymbolicLinkType,
 		ObjectName,
 		Flags | OB_FLAG_NONPAGED, // <--- TODO: Right now, everything related to object directories is nonpaged.
 		NULL,

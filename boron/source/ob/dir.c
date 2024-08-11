@@ -14,8 +14,8 @@ Author:
 ***/
 #include "obp.h"
 
-extern POBJECT_TYPE ObpDirectoryType;
-extern POBJECT_TYPE ObpSymbolicLinkType;
+extern POBJECT_TYPE ObDirectoryType;
+extern POBJECT_TYPE ObSymbolicLinkType;
 
 KMUTEX ObpRootDirectoryMutex;
 
@@ -247,7 +247,7 @@ BSTATUS ObpLookUpObjectPath(
 		}
 		
 		// Check if the parse object is actually a directory.
-		if (ObpGetObjectType(InitialParseObject) != ObpDirectoryType)
+		if (ObpGetObjectType(InitialParseObject) != ObDirectoryType)
 		{
 			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
@@ -266,7 +266,7 @@ BSTATUS ObpLookUpObjectPath(
 	{
 		// If the object is a directory:
 		POBJECT_TYPE ObjectType = ObpGetObjectType(CurrentObject);
-		if (ObjectType == ObpDirectoryType)
+		if (ObjectType == ObDirectoryType)
 		{
 			// Check if we have any more path to parse.
 			if (*CurrentPath == 0)
@@ -307,7 +307,7 @@ BSTATUS ObpLookUpObjectPath(
 			continue;
 		}
 		
-		if (ObjectType == ObpSymbolicLinkType)
+		if (ObjectType == ObSymbolicLinkType)
 		{
 			// Check if this is the last path component, and if the OB_OPEN_SYMLINK flag was specified.
 			if (*CurrentPath == 0 && (OpenFlags & OB_OPEN_SYMLINK))
@@ -405,7 +405,7 @@ BSTATUS ObCreateDirectoryObject(
 	Status = ObCreateObject(
 		(void**) &NewDir,
 		ParentDirectory,
-		ObpDirectoryType,
+		ObDirectoryType,
 		Name,
 		Flags | OB_FLAG_NONPAGED,
 		NULL, // TODO
@@ -505,13 +505,13 @@ bool ObpInitializeRootDirectory()
 	)))
 		return false;
 	
-	extern POBJECT_TYPE ObpObjectTypeType;
-	extern POBJECT_TYPE ObpSymbolicLinkType;
+	extern POBJECT_TYPE ObObjectTypeType;
+	extern POBJECT_TYPE ObSymbolicLinkType;
 	
 	// Add all object types created so far to the object types directory.
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpObjectTypeType, NULL)))   return false;
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpDirectoryType, NULL)))    return false;
-	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObpSymbolicLinkType, NULL))) return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObObjectTypeType, NULL)))   return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObDirectoryType, NULL)))    return false;
+	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObSymbolicLinkType, NULL))) return false;
 	
 #ifdef DEBUG
 	ObpDebugDirectory(ObpRootDirectory);
@@ -589,7 +589,7 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 	BSTATUS Status = ObpLookUpObjectPath(
 		*ParentDirectory,
 		PathWithoutName,
-		ObpDirectoryType,
+		ObDirectoryType,
 		0,
 		0,
 		&ContainingDirectory

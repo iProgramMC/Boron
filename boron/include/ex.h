@@ -21,5 +21,6 @@ Author:
 #include <ex/handtab.h>
 #include <ex/rwlock.h>
 #include <ex/process.h>
+#include <ex/object.h>
 
 #endif//BORON_EX_H
