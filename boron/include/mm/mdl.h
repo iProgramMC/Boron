@@ -42,7 +42,7 @@ typedef struct _MDL
 	uintptr_t MappedStartVA;     // The virtual address where this MDL is mapped into system memory
 	PEPROCESS Process;           // Process these pages belong to
 	size_t NumberPages;          // Size of the page frame number list
-	int Pages[];
+	MMPFN Pages[];
 }
 MDL, *PMDL;
 

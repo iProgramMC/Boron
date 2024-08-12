@@ -149,7 +149,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	
 	// Figure out the number of pages to reserve the MDL for:
 	uintptr_t StartPage = VirtualAddress & ~0xFFF;
-	uintptr_t EndPage   = (VirtualAddress + Size + 0xFFF) & ~0xFFF;
+	uintptr_t EndPage   = (VirtualAddress + Mdl->ByteOffset + Size + 0xFFF) & ~0xFFF;
 	BSTATUS FailureReason = STATUS_SUCCESS;
 	
 	if (Size >= MDL_MAX_SIZE)
