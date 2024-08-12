@@ -119,6 +119,7 @@ void PerformStorageTest()
 		KeCrash("Failed to open %s, ObOpenDeviceByName returned %d", StorDeviceName, Status);
 	
 	LogMsg("Reading... %p", Buffer);
+	memset(Buffer, 0xCC, Alignment);
 	
 #ifdef PERFORMANCE_TEST
 	IopsPerformanceTest(DeviceHandle, Buffer, Alignment);
