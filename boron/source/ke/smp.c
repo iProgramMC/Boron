@@ -152,7 +152,7 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 
 int KeGetVersionNumber()
 {
-	return 5;
+	return 6;
 }
 
 void PsInitSystemProcess();
@@ -225,7 +225,7 @@ NO_RETURN void KeInitSMP()
 	PsInitSystemProcess();
 	
 	int VersionNumber = KeGetVersionNumber();
-	LogMsg("Boron (TM), June 2024 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);
+	LogMsg("Boron (TM), August 2024 - V%d.%02d", VersionNumber / 100, VersionNumber % 100);
 	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", pSMP->cpu_count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
 	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
