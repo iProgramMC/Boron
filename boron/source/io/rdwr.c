@@ -256,6 +256,12 @@ BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
 
 #define IO_STATUS(Iosb, Stat) ((Iosb)->Status = (Stat))
 
+// TODO: There are several limitations in place:
+// - the supporting device driver's max read size
+// - the MDL has a max size of like 4MB
+//
+// Perhaps it's a good idea to restrict IoReadFile/IoWriteFile to like 1MB, and have these issue multiple calls down below.
+
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Length, uint32_t Flags)
 {
 	BSTATUS Status;

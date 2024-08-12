@@ -35,7 +35,8 @@ void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
 		char Buffer[256];
 		Buffer[0] = 0;
 		
-		sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
+		//sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
+		sprintf(Buffer + strlen(Buffer), "%p: ", Data + i);
 		
 		for (size_t j = 0; j < PrintPerRow; j++) {
 			if (i + j >= DataSize)
@@ -111,13 +112,13 @@ void PerformStorageTest()
 	Status = IoGetAlignmentInfo(DeviceHandle, &Alignment);
 	ASSERT(SUCCEEDED(Status));
 	
-	Alignment *= 2;
+	Alignment = 1024;
 	void* Buffer = MmAllocatePool(POOL_NONPAGED, Alignment);
 	
 	if (FAILED(Status))
 		KeCrash("Failed to open %s, ObOpenDeviceByName returned %d", StorDeviceName, Status);
 	
-	LogMsg("Reading...");
+	LogMsg("Reading... %p", Buffer);
 	
 #ifdef PERFORMANCE_TEST
 	IopsPerformanceTest(DeviceHandle, Buffer, Alignment);
@@ -126,7 +127,8 @@ void PerformStorageTest()
 	if (FAILED(Status))
 		KeCrash("Failed to read, OSReadFile returned %d.", Status);
 	
-	DumpHex(Buffer, Alignment, true);
+	DumpHex(Buffer, Alignment > 1024 ? 1024 : Alignment, true);
+	//DumpHex(Buffer, Alignment, false);
 #endif
 	
 	// Close the device once a key has been pressed

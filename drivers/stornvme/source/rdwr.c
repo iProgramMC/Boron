@@ -120,10 +120,98 @@ BSTATUS NvmePerformIoOperationPagingIo(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t
 	return IO_STATUS(Iosb, STATUS_SUCCESS);
 }
 
-BSTATUS NvmePerformIoOperation(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Lba, uint64_t BlockCount, void* BufferDst, const void* BufferSrc, bool IsWrite)
+BSTATUS NvmePerformIoOperation(
+	PIO_STATUS_BLOCK Iosb,
+	PFCB Fcb,
+	uint64_t Lba,
+	uint64_t BlockCount,
+	PMDL Mdl,
+	bool IsWrite,
+	size_t PageOffsetInMdl,
+	size_t MdlSizeOverride
+)
 {
-	// TODO
-	return NvmePerformIoOperationPagingIo(Iosb, Fcb, Lba, BlockCount, BufferDst, BufferSrc, IsWrite);
+	BSTATUS Status = STATUS_SUCCESS;
+	QUEUE_ENTRY_PAIR Qep;
+	
+	size_t PageCount = Mdl->NumberPages;
+	
+	// TODO: The IO system needs to restrict this I believe
+	ASSERT(PageCount <= 512);
+	
+	if (MdlSizeOverride != 0)
+		PageCount = MdlSizeOverride;
+	
+	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) Fcb->Extension;
+	PDEVICE_EXTENSION DeviceExtension = FcbExtension->DeviceExtension;
+	
+	int BlockSizeLog = DeviceExtension->BlockSizeLog;
+	int PrpPfn = PFN_INVALID;
+	
+	uint64_t Prp[2];
+	
+	Prp[0] = MmPFNToPhysPage(Mdl->Pages[PageOffsetInMdl]) + Mdl->ByteOffset;
+	
+	if (PageCount > 2)
+	{
+		// We will need to allocate an extra page for the PRP list, as the PRP list only takes two pages
+		PrpPfn = MmAllocatePhysicalPage();
+		if (PrpPfn == PFN_INVALID)
+		{
+			// Invalid, so we may need to split this write up into parts.
+			// TODO: Test me!
+			// TESTME
+			for (size_t i = 0; i < PageCount; i += 2)
+			{
+				size_t Min = (i >= PageCount - 2) ? PageCount - i : 2;
+				size_t BlocksPerPage = PAGE_SIZE >> BlockSizeLog;
+				BSTATUS Status = NvmePerformIoOperation(
+					Iosb,
+					Fcb,
+					Lba + BlocksPerPage * i,
+					BlocksPerPage * Min,
+					Mdl,
+					IsWrite,
+					i,
+					2
+				);
+				
+				if (FAILED(Status))
+					return Status;
+			}
+			
+			return IO_STATUS(Iosb, STATUS_SUCCESS);
+		}
+		
+		// Copy the rest of the pages into the PRP.
+		uint64_t* PrpListAddr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(PrpPfn));
+		for (size_t Index = 1; Index < PageCount; Index++)
+		{
+			PrpListAddr[Index - 1] = MmPFNToPhysPage(Mdl->Pages[PageOffsetInMdl + Index]);
+		}
+		
+		Prp[1] = MmPFNToPhysPage(PrpPfn);
+	}
+	else if (PageCount == 2)
+	{
+		Prp[1] = MmPFNToPhysPage(Mdl->Pages[PageOffsetInMdl + 1]);
+	}
+	else
+	{
+		Prp[1] = 0;
+	}
+	
+	// Finally, send the read/write command.
+	if (IsWrite)
+		Status = NvmeSendWrite(DeviceExtension, Prp, Lba, BlockCount, true, &Qep);
+	else
+		Status = NvmeSendRead(DeviceExtension, Prp, Lba, BlockCount, true, &Qep);
+	
+	// If we had to allocate a PRP list, then free it.
+	if (PrpPfn != PFN_INVALID)
+		MmFreePhysicalPage(PrpPfn);
+	
+	return IO_STATUS(Iosb, Status);
 }
 
 // NOTE for reading and writing:
@@ -138,13 +226,7 @@ BSTATUS NvmePerformIoOperation(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Lba, ui
 
 BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uint32_t Flags)
 {
-	// TODO: This is interim code. This will soon be replaced by code that performs
-	// the read/write operation directly on the physical pages from the MDL.
-	void* Buffer = NULL;
-	BSTATUS Status;
-	Status = MmMapPinnedPagesMdl(Mdl, &Buffer);
-	if (FAILED(Status))
-		return IO_STATUS(Iosb, Status);
+	ASSERT(Mdl->Flags & MDL_FLAG_WRITE);
 	
 	size_t Length = Mdl->ByteCount;
 	
@@ -171,13 +253,7 @@ BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uin
 	if (Flags & IO_RW_NONBLOCK)
 		return IO_STATUS(Iosb, STATUS_INVALID_PARAMETER);
 	
-	if (Flags & IO_RW_PAGING)
-		return NvmePerformIoOperationPagingIo(Iosb, Fcb, Lba, BlockCount, Buffer, NULL, false);
-	else
-		return NvmePerformIoOperation(Iosb, Fcb, Lba, BlockCount, Buffer, NULL, false);
-	
-	// TODO
-	return IO_STATUS(Iosb, STATUS_UNIMPLEMENTED);
+	return NvmePerformIoOperation(Iosb, Fcb, Lba, BlockCount, Mdl, false, 0, 0);
 }
 
 BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, UNUSED uint64_t Offset, UNUSED PMDL Mdl, UNUSED uint32_t Flags)
