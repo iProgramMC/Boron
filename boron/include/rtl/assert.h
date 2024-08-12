@@ -25,8 +25,10 @@ bool RtlAssert(const char* Condition, const char* File, int Line, const char* Me
 #else
 
 // Define ASSERT and ASSERT2 as empty macros. A release build does not have assertions of any kind.
-#define ASSERT(...)
-#define ASSERT2(...)
+//
+// If the condition doesn't call any function then it's probably going to get optimized out.
+#define ASSERT(Condition)           ((void)(Condition))
+#define ASSERT2(Condition, Message) ((void)(Condition))
 
 #endif
 

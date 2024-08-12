@@ -93,15 +93,15 @@ MmProbeAddressSub:
 	; rdi - Address
 	; rsi - Length
 	; rcx - ProbeWrite
-	and  rsi, ~0x7        ; Forcefully align the length to 8 bytes.
+	and  rsi, ~0x3        ; Forcefully align the length to 4 bytes.
 .Continue:
-	mov  rax, [rdi]       ; Attempt to read a single qword from RDI.
+	mov  eax, [rdi]       ; Attempt to read a single qword from RDI.
 	test rcx, rcx         ; Check if we need to probe for writes.
 	jne  .SkipProbeWrite
-	mov  [rdi], rax       ; Write the qword back.
+	mov  [rdi], eax       ; Write the qword back.
 .SkipProbeWrite:
-	add  rdi, 8           ; Increment the pointer by 8.
-	sub  rsi, 8           ; Subtract 8 from the length.
+	add  rdi, 4           ; Increment the pointer by 4.
+	sub  rsi, 4           ; Subtract 4 from the length.
 	jnz  .Continue        ; Continue if it didn't hit zero.
 	xor  rax, rax         ; Return STATUS_SUCCESS.
 	; The "return" is just below...

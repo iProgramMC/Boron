@@ -102,7 +102,7 @@ BSTATUS OSWaitForMultipleObjects(
 	for (int i = 0; i < ObjectCount; i++)
 	{
 		HANDLE Handle;
-		Status = MmSafeCopy(&Handle, ObjectsArray + i, sizeof(HANDLE));
+		Status = MmSafeCopy(&Handle, ObjectsArray + i, sizeof(HANDLE), KeGetPreviousMode(), false);
 		if (FAILED(Status))
 			goto End;
 		

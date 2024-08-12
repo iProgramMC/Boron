@@ -38,14 +38,18 @@ bool MmIsAddressCanonical(uintptr_t Address)
 	return (~SignExt == 0) || (SignExt == 0);
 }
 
-bool MmIsAddressRangeValid(uintptr_t Address, size_t Size)
+bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode)
 {
+	// Size=0 is invalid.
+	if (Size == 0)
+		return false;
+	
+	// Check for overflow.
 	uintptr_t AddressEnd = Address + Size;
 	if (AddressEnd < Address)
 		return false;
 	
-	// Don't really think it should be valid
-	if (Size == 0)
+	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END)
 		return false;
 	
 	// If the upper 17 bits aren't identical, then the address crosses over into
@@ -61,15 +65,15 @@ int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 // is performed in assembly, because it's impossible to predict what
 // kind of stack layout the C version would use. (It could differ
 // depending on compiler version, for example.)
-BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
+BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite, KPROCESSOR_MODE AccessMode)
 {
 #ifdef DEBUG
 	// Some of the parameters are just not valid for now.
-	if (Length % sizeof(uintptr_t))
-		KeCrash("MmProbeAddress: Length %zu not aligned to 8 bytes");
+	if (Length % sizeof(uint32_t))
+		KeCrash("MmProbeAddress: Length %zu not aligned to %zu bytes", Length, sizeof(uint32_t));
 #endif
 	
-	if (!MmIsAddressRangeValid((uintptr_t)Address, Length))
+	if (!MmIsAddressRangeValid((uintptr_t)Address, Length, AccessMode))
 		return STATUS_INVALID_PARAMETER;
 
 	const uintptr_t MaxPtr     = (uintptr_t) ~0ULL; // 0b1111...1111
@@ -85,10 +89,6 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
 	// If the address and the address limit are in
 	// different halves of the address space
 	if (((uintptr_t)Address ^ AddressLimit) == MSBPtrSet)
-		return STATUS_INVALID_PARAMETER;
-	
-	// If the area is in kernel mode...
-	if ((uintptr_t)Address & MSBPtrSet)
 		return STATUS_INVALID_PARAMETER;
 	
 	KeGetCurrentThread()->Probing = true;
@@ -108,8 +108,19 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite)
 // Defined in arch/amd64/misc.asm
 int MmSafeCopySub(void* Address, const void* Source, size_t Length);
 
-BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length)
+BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length, KPROCESSOR_MODE AccessMode, bool VerifyDest)
 {
+	if (VerifyDest)
+	{
+		if (!MmIsAddressRangeValid((uintptr_t)Address, Length, AccessMode))
+			return STATUS_INVALID_PARAMETER;
+	}
+	else
+	{
+		if (!MmIsAddressRangeValid((uintptr_t)Source, Length, AccessMode))
+			return STATUS_INVALID_PARAMETER;
+	}
+	
 	// Let the page fault handler know we are probing.
 	KeGetCurrentThread()->Probing = true;
 	

@@ -17,7 +17,7 @@ BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size
 {
 	BSTATUS Status;
 	
-	Status = MmProbeAddress((void*) UserString, StringLength, false);
+	Status = MmProbeAddress((void*) UserString, StringLength, false, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
@@ -27,7 +27,7 @@ BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size
 	
 	Str[StringLength] = 0;
 	
-	Status = MmSafeCopy(Str, UserString, StringLength);
+	Status = MmSafeCopy(Str, UserString, StringLength, KeGetPreviousMode(), false);
 	if (FAILED(Status))
 	{
 		MmFreePool(Str);
@@ -42,10 +42,10 @@ BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTR
 {
 	BSTATUS Status;
 	
-	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->RootDirectory, &UserAttrs->RootDirectory, sizeof(HANDLE))))
+	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->RootDirectory, &UserAttrs->RootDirectory, sizeof(HANDLE), KeGetPreviousMode(), false)))
 		return false;
 	
-	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->ObjectNameLength, &UserAttrs->ObjectNameLength, sizeof(size_t))))
+	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->ObjectNameLength, &UserAttrs->ObjectNameLength, sizeof(size_t), KeGetPreviousMode(), false)))
 		return false;
 	
 	char* Name = NULL;
@@ -128,21 +128,20 @@ BSTATUS ExiCreateObjectUserCall(
 	if (FAILED(Status))
 		goto Fail;
 	
-	// OK, now insert this object into the handle table.  After insertion, dereferencing
-	// it (removing the initial reference) is mandatory in either case.
+	// OK, now insert this object into the handle table.
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObInsertObject(OutObject, &Handle);
-	
-	ObDereferenceObject(OutObject);
 	
 	if (FAILED(Status))
 		goto FailUndo;
 	
 	// Finally, copy the handle.
-	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE));
+	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 	{
-		// Yay! The creation went smoothly. Return success status.
+		// Yay! The creation went smoothly. Remove the initial reference (we still have
+		// one reference from the handle table!) and return a success status.
+		ObDereferenceObject(OutObject);
 		return Status;
 	}
 	
@@ -153,11 +152,13 @@ BSTATUS ExiCreateObjectUserCall(
 	(void) ObClose(Handle);
 
 FailUndo:
-	// The initial reference has been undone, we will also need to unlink the object if
-	// needed.  Note that the status is ignored.  This is because unlinking the object
-	// can only fail if the object was not linked to a directory, in which case it has
-	// no reference bias from the directory.
+	// Unlink the object, if possible.  Note that the status is ignored.  This is because
+	// unlinking the object can only fail if it isn't linked to a directory, in which case
+	// there's no reference count bias to undo.
 	(void) ObUnlinkObject(OutObject);
+	
+	// Finally, remove the initial (ObCreateObject given) reference.
+	ObDereferenceObject(OutObject);
 
 Fail:
 	// We will also need to dereference the parent directory if we referenced one.
@@ -178,12 +179,9 @@ BSTATUS ExiOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttrib
 	bool CopyAttrs = KeGetPreviousMode() == MODE_USER;
 	
 	if (!ObjectAttributes)
-	{
-		Attributes.ObjectName = NULL;
-		Attributes.ObjectNameLength = 0;
-		Attributes.RootDirectory = HANDLE_NONE;
-	}
-	else if (CopyAttrs)
+		return STATUS_INVALID_PARAMETER;
+	
+	if (CopyAttrs)
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
 		// a helper function to copy everything into kernel mode.
@@ -209,7 +207,7 @@ BSTATUS ExiOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttrib
 		goto Fail;
 	
 	// Finally, copy the handle.
-	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE));
+	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 	{
 		// Yay! The creation went smoothly. Return success status.
@@ -227,4 +225,9 @@ Fail:
 		ExiDisposeCopiedObjectAttributes(&Attributes);
 	
 	return Status;
+}
+
+BSTATUS OSClose(HANDLE Handle)
+{
+	return ObClose(Handle);
 }

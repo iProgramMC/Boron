@@ -106,7 +106,8 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	if (Length >= MDL_MAX_SIZE)
 		return NULL;
 	
-	if (!MmIsAddressRangeValid(VirtualAddress, Length))
+	// TODO: maybe this is inadequate... though MmProbeAndPinPagesMdl does do proper checks
+	if (!MmIsAddressRangeValid(VirtualAddress, Length, MODE_KERNEL))
 		return NULL;
 	
 	// Allocate enough space in pool memory.
@@ -140,7 +141,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	if (Size >= MDL_MAX_SIZE)
 		return STATUS_INVALID_PARAMETER;
 	
-	if (!MmIsAddressRangeValid(VirtualAddress, Size))
+	if (!MmIsAddressRangeValid(VirtualAddress, Size, AccessMode))
 		return STATUS_INVALID_PARAMETER;
 	
 	if (AccessMode == MODE_USER && MM_USER_SPACE_END < EndPage)
@@ -151,7 +152,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	// Fault all the pages in.
 	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
 	{
-		BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite);
+		BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite, AccessMode);
 		
 		if (ProbeStatus != STATUS_SUCCESS)
 		{
@@ -208,7 +209,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			{
 				MmUnlockSpace(Address);
 				
-				BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite);
+				BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite, AccessMode);
 				
 				if (ProbeStatus != STATUS_SUCCESS)
 				{

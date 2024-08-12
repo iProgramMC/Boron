@@ -15,6 +15,7 @@ Author:
 
 #include <main.h>
 #include <status.h>
+#include <ke/mode.h>
 
 // Rationale:
 //
@@ -38,13 +39,16 @@ Author:
 // invalid page fault.  Does not make any attempt to remap or anything.
 // An MDL can be used if remapping functionality is needed. See above note
 // for details.
-BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite);
+BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite, KPROCESSOR_MODE AccessMode);
 
 // Performs a memory copy in a safe way. Returns an error code if
 // copying was interrupted by an invalid page fault.
-BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length);
+//
+// If VerifyDest is true, then Address is checked for validity.
+// Otherwise, Source is checked for validity.
+BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length, KPROCESSOR_MODE AccessMode, bool VerifyDest);
 
 // Check if the specified address range can be used at all. For example, on AMD64,
 // the area between 0x0000800000000000 and 0xFFFF7FFFFFFFFFFF is considered
 // noncanonical, and any attempt to access it will actually throw a #GP, not a #PF.
-bool MmIsAddressRangeValid(uintptr_t Address, size_t Size);
+bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode);

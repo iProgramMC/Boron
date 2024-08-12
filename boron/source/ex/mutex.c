@@ -68,16 +68,18 @@ BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState)
 	BSTATUS Status;
 	void* MutexV;
 	
-	Status = MmProbeAddress(MutexState, sizeof(int), true);
-	if (FAILED(Status))
+	Status = MmProbeAddress(MutexState, sizeof(int), true, KeGetPreviousMode());
+	if (FAILED(Status)) {
+		DbgPrint("Failed to Probe");
 		return Status;
+	}
 	
 	Status = ObReferenceObjectByHandle(MutexHandle, ExMutexObjectType, &MutexV);
 	
 	if (SUCCEEDED(Status))
 	{
 		int State = KeReadStateMutex((PKMUTEX) MutexV);
-		Status = MmSafeCopy(MutexState, &State, sizeof(int));
+		Status = MmSafeCopy(MutexState, &State, sizeof(int), KeGetPreviousMode(), true);
 		ObDereferenceObject(MutexV);
 	}
 	

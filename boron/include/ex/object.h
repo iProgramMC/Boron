@@ -35,8 +35,26 @@ enum
 
 #define WAIT_TIMEOUT_INFINITE (0x7FFFFFFF)
 
-// ======== SYSTEM CALLS ========
-// Mutex:
+BSTATUS OSClose(HANDLE Handle);
+
+BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
+
+BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags);
+
 BSTATUS OSReleaseMutex(HANDLE MutexHandle);
+
 BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
+BSTATUS OSWaitForMultipleObjects(
+	int ObjectCount,
+	PHANDLE ObjectsArray,
+	int WaitType,
+	bool Alertable,
+	int TimeoutMS
+);
+
+BSTATUS OSWaitForSingleObject(
+	HANDLE Handle,
+	bool Alertable,
+	int TimeoutMS
+);
