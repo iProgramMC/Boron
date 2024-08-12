@@ -40,9 +40,9 @@ void IopsPerformanceTest(HANDLE DeviceHandle)
 		
 		char Buffer[2] = { 0, 0 };
 		
-		Status = IoReadFile(&Iosb, DeviceHandle, Buffer, 1, true);
+		Status = OSReadFile(&Iosb, DeviceHandle, Buffer, 1, true);
 		if (FAILED(Status))
-			KeCrash("Failed to read, IoReadFile returned %d.  Performed %d iops before fail", Status, iops);
+			KeCrash("Failed to read, OSReadFile returned %d.  Performed %d iops before fail", Status, iops);
 		
 		iops++;
 	}
@@ -174,9 +174,9 @@ void PerformKeyboardTest()
 	{
 		char Buffer[2] = { 0, 0 };
 		
-		Status = IoReadFile(&Iosb, DeviceHandle, Buffer, 1, true);
+		Status = OSReadFile(&Iosb, DeviceHandle, Buffer, 1, true);
 		if (FAILED(Status))
-			KeCrash("Failed to read, IoReadFile returned %d.", Status);
+			KeCrash("Failed to read, OSReadFile returned %d.", Status);
 		
 		*Buffer = TranslateKeyCode(*Buffer);
 		

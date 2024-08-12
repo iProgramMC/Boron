@@ -67,12 +67,6 @@ int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 // depending on compiler version, for example.)
 BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite, KPROCESSOR_MODE AccessMode)
 {
-#ifdef DEBUG
-	// Some of the parameters are just not valid for now.
-	if (Length % sizeof(uint32_t))
-		KeCrash("MmProbeAddress: Length %zu not aligned to %zu bytes", Length, sizeof(uint32_t));
-#endif
-	
 	if (!MmIsAddressRangeValid((uintptr_t)Address, Length, AccessMode))
 		return STATUS_INVALID_PARAMETER;
 

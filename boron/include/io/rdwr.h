@@ -17,22 +17,14 @@ Author:
 #include <ob.h>
 #include "iosb.h"
 
-BSTATUS IoReadFile(
-	PIO_STATUS_BLOCK Iosb,
-	HANDLE Handle,
-	void* Buffer,
-	size_t Length,
-	uint32_t Flags
-);
+BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
 
-BSTATUS IoWriteFile(
-	PIO_STATUS_BLOCK Iosb,
-	HANDLE Handle,
-	const void* Buffer,
-	size_t Length,
-	uint32_t Flags
-);
+BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite);
 
 BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut);
+
+BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Length, uint32_t Flags);
+
+BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, const void* Buffer, size_t Length, uint32_t Flags);

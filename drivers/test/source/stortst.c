@@ -79,9 +79,9 @@ void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t BufferSize)
 			iops = 0;
 		}
 		
-		Status = IoReadFile(&Iosb, DeviceHandle, Buffer, BufferSize, 0);
+		Status = OSReadFile(&Iosb, DeviceHandle, Buffer, BufferSize, 0);
 		if (FAILED(Status))
-			KeCrash("Failed to read, IoReadFile returned %d.  Performed %d iops before fail", Status, iops);
+			KeCrash("Failed to read, OSReadFile returned %d.  Performed %d iops before fail", Status, iops);
 		
 		iops++;
 	}
@@ -122,9 +122,9 @@ void PerformStorageTest()
 #ifdef PERFORMANCE_TEST
 	IopsPerformanceTest(DeviceHandle, Buffer, Alignment);
 #else
-	Status = IoReadFile(&Iosb, DeviceHandle, Buffer, Alignment, 0);
+	Status = OSReadFile(&Iosb, DeviceHandle, Buffer, Alignment, 0);
 	if (FAILED(Status))
-		KeCrash("Failed to read, IoReadFile returned %d.", Status);
+		KeCrash("Failed to read, OSReadFile returned %d.", Status);
 	
 	DumpHex(Buffer, Alignment, true);
 #endif

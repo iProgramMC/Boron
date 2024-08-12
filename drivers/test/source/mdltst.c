@@ -77,7 +77,7 @@ void PerformMdlTest()
 	
 	uintptr_t MapAddress = 0;
 	void* AddressV = NULL;
-	Status = MmMapPinnedPagesMdl(Mdl, &AddressV, MM_PTE_READWRITE | MM_PTE_SUPERVISOR);
+	Status = MmMapPinnedPagesMdl(Mdl, &AddressV);
 	
 	MapAddress = (uintptr_t) AddressV;
 	

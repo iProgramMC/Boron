@@ -15,7 +15,7 @@ Author:
 #include <ex.h>
 #include <ps.h>
 
-void MmUnmapPinnedPagesMdl(PMDL Mdl)
+void MmUnmapPagesMdl(PMDL Mdl)
 {
 	if (!Mdl->MappedStartVA)
 		return;
@@ -26,7 +26,7 @@ void MmUnmapPinnedPagesMdl(PMDL Mdl)
 
 void MmUnpinPagesMdl(PMDL Mdl)
 {
-	MmUnmapPinnedPagesMdl(Mdl);
+	MmUnmapPagesMdl(Mdl);
 	
 	if (~Mdl->Flags & MDL_FLAG_CAPTURED)
 		return;
@@ -39,15 +39,18 @@ void MmUnpinPagesMdl(PMDL Mdl)
 
 void MmFreeMdl(PMDL Mdl)
 {
-	MmUnmapPinnedPagesMdl(Mdl);
+	MmUnmapPagesMdl(Mdl);
 	MmUnpinPagesMdl(Mdl);
 	MmFreePool(Mdl);
 }
 
-BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions)
+BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 {
 	if (Mdl->MappedStartVA)
+	{
+		*OutAddress = (void*) (Mdl->MappedStartVA + Mdl->ByteOffset);
 		return STATUS_NO_REMAP;
+	}
 	
 	void* AddressV = MmAllocatePoolBig(
 		POOL_FLAG_CALLER_CONTROLLED,
@@ -55,28 +58,37 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions)
 		POOL_TAG("MdlM")
 	);
 	
-	uintptr_t MapAddress = (uintptr_t) AddressV;
-	
 	// If the memory couldn't be allocated, we don't have enough
 	// pool memory space, because the request was for a caller
 	// controlled region.
 	if (!AddressV)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
+	uintptr_t Permissions = MM_PTE_ISFROMPMM | MM_PTE_SUPERVISOR;
+	
+	if (Mdl->Flags & MDL_FLAG_WRITE)
+		Permissions |= MM_PTE_READWRITE;
+	
+	uintptr_t MapAddress = (uintptr_t) AddressV;
+	
 	uintptr_t Address = MapAddress;
 	size_t Index = 0;
 	
 	HPAGEMAP PageMap = Mdl->Process->Pcb.PageMap;
+	
+	MmLockKernelSpaceExclusive();
 	
 	for (; Index < Mdl->NumberPages; Address += PAGE_SIZE, Index++)
 	{
 		// Add a reference to the page.
 		MmPageAddReference(Mdl->Pages[Index]);
 		
-		if (!MiMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions | MM_PTE_ISFROMPMM))
+		if (!MiMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions))
 		{
 			// Unmap everything mapped so far.
 			MiUnmapPages(PageMap, MapAddress, Index);
+			
+			MmUnlockKernelSpace();
 			
 			// Unreference that page.
 			MmFreePhysicalPage(Mdl->Pages[Index]);
@@ -88,10 +100,12 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions)
 		}
 	}
 	
+	MmUnlockKernelSpace();
+	
 	Mdl->MappedStartVA = MapAddress;
 	Mdl->Flags        |= MDL_FLAG_MAPPED;
 	
-	*OutAddress = AddressV;
+	*OutAddress = (void*) (MapAddress + Mdl->ByteOffset);
 	
 	return STATUS_SUCCESS;
 }
@@ -256,6 +270,11 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	}
 	
 	Mdl->Flags |= MDL_FLAG_CAPTURED;
+	
+	if (IsWrite)
+		Mdl->Flags |= MDL_FLAG_WRITE;
+	else
+		Mdl->Flags &= ~MDL_FLAG_WRITE;
 	
 	if (FailureReason)
 	{

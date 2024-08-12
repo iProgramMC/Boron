@@ -55,11 +55,18 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 // Unpins the buffer's pages and releases the reference to them.
 void MmUnpinPagesMdl(PMDL Mdl);
 
-// Maps an MDL into pool space. Use MmUnmapMDL to unmap the MDL.
-BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress, uintptr_t Permissions);
+// Maps an MDL into pool space. Use MmUnmapPinnedPagesMdl to unmap the MDL.
+//
+// If the MDL is already mapped, the address of the already existing mapping
+// will simply be stored in OutAddress and a status code of STATUS_NO_REMAP
+// will be returned.
+//
+// The OutAddress specified will be offset by the page offset specified
+// at allocation time.
+BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress);
 
 // Unmaps an MDL from pool space.
-void MmUnmapPinnedPagesMdl(PMDL Mdl);
+void MmUnmapPagesMdl(PMDL Mdl);
 
 // Deallocates the MDL structure, unmaps the MDL, and unpins the buffer.
 void MmFreeMdl(PMDL Mdl);

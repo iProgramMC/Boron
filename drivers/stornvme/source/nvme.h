@@ -540,8 +540,8 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, void* CallbackContext);
 BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTROL_BLOCK Qcb, size_t Id);
 
 // ==== I/O Manager Functions ====
-BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, void* Buffer, uint32_t Flags);
-BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, size_t Length, const void* Buffer, uint32_t Flags);
+BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PMDL Mdl, uint32_t Flags);
+BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uintptr_t Offset, PMDL Mdl, uint32_t Flags);
 size_t  NvmeGetAlignmentInfo(PFCB Fcb);
 
 // ==== Utilities ====

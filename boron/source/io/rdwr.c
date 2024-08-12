@@ -50,9 +50,7 @@ static BSTATUS IopPerformOperationFileLocked(
 	PFILE_OBJECT FileObject,
 	PIO_STATUS_BLOCK Iosb,
 	int IoType,
-	void* BufferDst,
-	const void* BufferSrc,
-	size_t Length,
+	PMDL Mdl,
 	uint32_t Flags // See io/dispatch.h for information about this field
 )
 {
@@ -74,7 +72,7 @@ static BSTATUS IopPerformOperationFileLocked(
 			if (!ReadMethod)
 				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 			
-			Status = ReadMethod (Iosb, Fcb, FileObject->Offset, Length, BufferDst, Flags);
+			Status = ReadMethod (Iosb, Fcb, FileObject->Offset, Mdl, Flags);
 			break;
 		}
 		case IO_OP_WRITE:
@@ -84,7 +82,7 @@ static BSTATUS IopPerformOperationFileLocked(
 			if (!WriteMethod)
 				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 			
-			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Length, BufferSrc, Flags);
+			Status = WriteMethod (Iosb, Fcb, FileObject->Offset, Mdl, Flags);
 			break;
 		}
 		default:
@@ -112,9 +110,7 @@ BSTATUS IoPerformOperationFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	int IoType,
-	void* BufferDst,
-	const void* BufferSrc,
-	size_t Length,
+	PMDL Mdl,
 	uint32_t Flags
 )
 {
@@ -149,7 +145,7 @@ BSTATUS IoPerformOperationFile(
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
-	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, BufferDst, BufferSrc, Length, Flags);
+	Status = IopPerformOperationFileLocked(FileObject, Iosb, IoType, Mdl, Flags);
 	
 	IoUnlockFcb(Fcb);
 	
@@ -171,9 +167,7 @@ BSTATUS IoPerformOperationFileHandle(
 	PIO_STATUS_BLOCK Iosb, 
 	HANDLE Handle,
 	int IoType,
-	void* BufferDst,
-	const void* BufferSrc,
-	size_t Length,
+	PMDL Mdl,
 	uint32_t Flags
 )
 {
@@ -193,7 +187,7 @@ BSTATUS IoPerformOperationFileHandle(
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	Status = IoPerformOperationFile(Iosb, FileObject, IoType, BufferDst, BufferSrc, Length, Flags);
+	Status = IoPerformOperationFile(Iosb, FileObject, IoType, Mdl, Flags);
 	
 	ObDereferenceObject(FileObject);
 	
@@ -210,23 +204,21 @@ BSTATUS IoPerformOperationFileHandle(
 BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	HANDLE Handle,
-	void* Buffer,
-	size_t Length,
+	PMDL Mdl,
 	uint32_t Flags
 )
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Buffer, NULL, Length, Flags);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Mdl, Flags);
 }
 
 BSTATUS IoWriteFile(
 	PIO_STATUS_BLOCK Iosb,
 	HANDLE Handle,
-	const void* Buffer,
-	size_t Length,
+	PMDL Mdl,
 	uint32_t Flags
 )
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, NULL, Buffer, Length, Flags);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, Mdl, Flags);
 }
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
@@ -260,4 +252,40 @@ BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
 	
 	ObDereferenceObject(FileObject);
 	return STATUS_SUCCESS;
+}
+
+#define IO_STATUS(Iosb, Stat) ((Iosb)->Status = (Stat))
+
+BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Length, uint32_t Flags)
+{
+	BSTATUS Status;
+	
+	Status = MmProbeAddress(Iosb, sizeof(*Iosb), true, KeGetPreviousMode());
+	if (FAILED(Status))
+		return IO_STATUS(Iosb, Status);
+	
+	Status = MmProbeAddress(Buffer, Length, true, KeGetPreviousMode());
+	if (FAILED(Status))
+		return IO_STATUS(Iosb, Status);
+	
+	// Allocate the MDL.
+	PMDL Mdl = MmAllocateMdl((uintptr_t) Buffer, Length);
+	if (!Mdl)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	// Then probe and pin the pages.
+	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), true);
+	if (FAILED(Status))
+	{
+		MmFreeMdl(Mdl);
+		return IO_STATUS(Iosb, Status);
+	}
+	
+	// Finally, call the Io function.
+	Status = IoReadFile(Iosb, Handle, Mdl, Flags);
+	
+	// This unmaps and unpins the pages, and frees the MDL.
+	MmFreeMdl(Mdl);
+	
+	return Status;
 }

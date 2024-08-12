@@ -136,8 +136,18 @@ BSTATUS NvmePerformIoOperation(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Lba, ui
 //   a physical page written to by the controller, and DataPointer[1] points to a physical
 //   page which contains a list of physical pages written to by the controller.
 
-BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Length, void* Buffer, uint32_t Flags)
+BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uint32_t Flags)
 {
+	// TODO: This is interim code. This will soon be replaced by code that performs
+	// the read/write operation directly on the physical pages from the MDL.
+	void* Buffer = NULL;
+	BSTATUS Status;
+	Status = MmMapPinnedPagesMdl(Mdl, &Buffer);
+	if (FAILED(Status))
+		return IO_STATUS(Iosb, Status);
+	
+	size_t Length = Mdl->ByteCount;
+	
 	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) Fcb->Extension;
 	PDEVICE_EXTENSION DeviceExtension = FcbExtension->DeviceExtension;
 	
@@ -170,7 +180,7 @@ BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Leng
 	return IO_STATUS(Iosb, STATUS_UNIMPLEMENTED);
 }
 
-BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, UNUSED uint64_t Offset, UNUSED uint64_t Length, UNUSED const void* Buffer, UNUSED uint32_t Flags)
+BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, UNUSED uint64_t Offset, UNUSED PMDL Mdl, UNUSED uint32_t Flags)
 {
 	// TODO
 	return Iosb->Status = STATUS_UNIMPLEMENTED;

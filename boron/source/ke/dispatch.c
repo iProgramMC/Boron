@@ -201,12 +201,6 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	KiUnlockDispatcher(Ipl);
 }
 
-bool Active = false;
-
-bool IsActive() {
-	return Active;
-}
-
 // TODO: Add WaitMode parameter.
 int KeWaitForMultipleObjects(
 	int Count,

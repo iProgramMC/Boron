@@ -185,12 +185,22 @@ BSTATUS KbdRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
 	UNUSED uintptr_t Offset,
-	size_t Length,
-	void* Buffer,
+	PMDL Mdl,
 	uint32_t Flags
 )
 {
 	ASSERT(Extension(Fcb) == KbdFcbExtension);
+	
+	void* Buffer = NULL;
+	BSTATUS Status;
+	Status = MmMapPinnedPagesMdl(Mdl, &Buffer);
+	if (FAILED(Status))
+	{
+		Iosb->Status = Status;
+		return Status;
+	}
+	
+	size_t Length = Mdl->ByteCount;
 	
 	uint8_t* BufferBytes = Buffer;
 	
