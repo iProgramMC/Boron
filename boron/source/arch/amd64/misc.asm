@@ -93,18 +93,24 @@ MmProbeAddressSub:
 	; rdi - Address
 	; rsi - Length
 	; rcx - ProbeWrite
-	and  rsi, ~0x3        ; Forcefully align the length to 4 bytes.
-.Continue:
-	mov  eax, [rdi]       ; Attempt to read a single qword from RDI.
-	test rcx, rcx         ; Check if we need to probe for writes.
-	jne  .SkipProbeWrite
-	mov  [rdi], eax       ; Write the qword back.
-.SkipProbeWrite:
-	add  rdi, 4           ; Increment the pointer by 4.
-	sub  rsi, 4           ; Subtract 4 from the length.
-	jnz  .Continue        ; Continue if it didn't hit zero.
-	xor  rax, rax         ; Return STATUS_SUCCESS.
-	; The "return" is just below...
+	mov  r8, rdi          ; Load the address into r8, a scratch register.
+	add  r8, rsi          ; Add the length to r8.
+	dec  r8               ; Decrement r8.  This will be the final byte of the range we're probing.
+	mov  al, [r8]         ; Load a byte from that address.
+	test rcx, rcx         ; Check if ProbeWrite is zero.
+	jz   .StartLoop
+	mov  [r8], al         ; If not, then store that byte to that address.
+.StartLoop:
+	mov  al, [rdi]        ; Load a byte from the start address.
+	test rcx, rcx         ; Check if ProbeWrite is zero
+	jz   .DontWrite
+	mov  [rdi], al        ; If not, then store that byte to that address.
+.DontWrite:
+	add  rdi, 4096        ; Add a page size to rdi.
+	cmp  rdi, r8          ; Check if the end address has been reached.
+	jb   .StartLoop       ; If not, then probe another page.
+	xor  rax, rax         ; Return with an exit code of zero (STATUS_SUCCESS)
+	ret
 	
 ; void MmProbeAddressSubEarlyReturn()
 ; Returns early from MmProbeAddressSub and MmSafeCopySub. Called by the invalid page fault handler.
