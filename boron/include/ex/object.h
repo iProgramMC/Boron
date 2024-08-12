@@ -45,6 +45,18 @@ BSTATUS OSReleaseMutex(HANDLE MutexHandle);
 
 BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
+BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
+
+BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags);
+
+BSTATUS OSSetEvent(HANDLE EventHandle);
+
+BSTATUS OSResetEvent(HANDLE EventHandle);
+
+BSTATUS OSPulseEvent(HANDLE EventHandle);
+
+BSTATUS OSQueryEvent(HANDLE EventHandle, int* EventState);
+
 BSTATUS OSWaitForMultipleObjects(
 	int ObjectCount,
 	PHANDLE ObjectsArray,

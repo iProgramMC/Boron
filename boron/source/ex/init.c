@@ -19,10 +19,10 @@ bool ExInitSystem()
 	if (!ExpCreateMutexType())
 		return false;
 	
-#if 0
 	if (!ExpCreateEventType())
 		return false;
 	
+#if 0
 	if (!ExpCreateSemaphoreType())
 		return false;
 	

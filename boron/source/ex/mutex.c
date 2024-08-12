@@ -13,20 +13,14 @@ Author:
 ***/
 #include "exp.h"
 
-POBJECT_TYPE
-	ExMutexObjectType,
-	ExEventObjectType,
-	ExSemaphoreObjectType,
-	ExTimerObjectType,
-	ExThreadObjectType,
-	ExProcessObjectType;
+POBJECT_TYPE ExMutexObjectType;
 
 bool ExpCreateMutexType()
 {
 	OBJECT_TYPE_INFO ObjectInfo;
 	memset (&ObjectInfo, 0, sizeof ObjectInfo);
 	
-	ObjectInfo.NonPagedPool = false;
+	ObjectInfo.NonPagedPool = true;
 	ObjectInfo.MaintainHandleCount = true;
 	
 	BSTATUS Status = ObCreateObjectType(
@@ -69,10 +63,8 @@ BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState)
 	void* MutexV;
 	
 	Status = MmProbeAddress(MutexState, sizeof(int), true, KeGetPreviousMode());
-	if (FAILED(Status)) {
-		DbgPrint("Failed to Probe");
+	if (FAILED(Status))
 		return Status;
-	}
 	
 	Status = ObReferenceObjectByHandle(MutexHandle, ExMutexObjectType, &MutexV);
 	
