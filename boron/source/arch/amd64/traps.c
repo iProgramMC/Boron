@@ -107,7 +107,7 @@ int KiEnterHardwareInterrupt(int NewIpl, int OldCS)
 	
 	if (Prcb->Scheduler.CurrentThread)
 	{
-		Prcb->Scheduler.CurrentThread->Mode =  OldCS == SEG_RING_0_CODE;
+		Prcb->Scheduler.CurrentThread->Mode =  OldCS == SEG_RING_0_CODE ? MODE_KERNEL : MODE_USER;
 	}
 	
 	// grab old IPL
