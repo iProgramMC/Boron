@@ -5,8 +5,9 @@ but does not aim to be a total clone.
 
 Note! Boron is currently not even in a minimally usable state. Don't expect it to do anything.
 
-The project is wholly licensed under the three clause BSD license, **except the following**:
-- Flanterm (source/ha/flanterm): https://github.com/mintsuki/flanterm - Licensed under the two clause BSD license
+This project is licensed under the three clause BSD license, **except the following**:
+- Flanterm (drivers/halx86/source/flanterm): https://github.com/mintsuki/flanterm - Licensed under the 2 clause BSD license
+- The implementation of splay and RB trees from FreeBSD (boron/include/rtl/fbsdtree.h) - Licensed under the 2 clause BSD license
 
 #### Be advised that this is currently alpha-level software and you should not expect any stability from it.
 
