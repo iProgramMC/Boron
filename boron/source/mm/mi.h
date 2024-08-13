@@ -44,7 +44,7 @@ typedef struct MISLAB_ITEM_tag
 		struct
 		{
 			uint64_t Bitmap2[1];
-			AVLTREE_ENTRY TreeEntry;
+			RBTREE_ENTRY TreeEntry;
 		};
 	};
 	

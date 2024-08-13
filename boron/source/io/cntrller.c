@@ -44,7 +44,7 @@ BSTATUS IoCreateController(
 	// Initialize the controller object.
 	ControllerObject->DriverObject = DriverObject;
 	KeInitializeMutex(&ControllerObject->DeviceTreeMutex, 1);
-	InitializeAvlTree(&ControllerObject->DeviceTree);
+	InitializeRbTree(&ControllerObject->DeviceTree);
 	
 	return STATUS_SUCCESS;
 }
@@ -68,7 +68,7 @@ PDEVICE_OBJECT IoGetDeviceController(
 {
 	IopEnterControllerMutex(Controller);
 	
-	PAVLTREE_ENTRY Entry = LookUpItemAvlTree(&Controller->DeviceTree, Key);
+	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Controller->DeviceTree, Key);
 	if (!Entry)
 	{
 		IopLeaveControllerMutex(Controller);
@@ -88,7 +88,7 @@ BSTATUS IoAddDeviceController(
 	Device->DeviceTreeEntry.Key = Key;
 	
 	IopEnterControllerMutex(Controller);
-	bool Inserted = InsertItemAvlTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
+	bool Inserted = InsertItemRbTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
 	
 	if (Inserted)
 		AtStore(Device->ParentController, Controller);
@@ -104,7 +104,7 @@ BSTATUS IoRemoveDeviceController(
 )
 {
 	IopEnterControllerMutex(Controller);
-	bool Removed = RemoveItemAvlTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
+	bool Removed = RemoveItemRbTree(&Controller->DeviceTree, &Device->DeviceTreeEntry);
 	if (Removed)
 		AtStore(Device->ParentController, NULL);
 	IopLeaveControllerMutex(Controller);

@@ -46,7 +46,7 @@ struct _RBTREE
 
 #define InitializeRbTree(Tree) RB_INIT(&(Tree)->Head)
 #define IsEmptyRbTree(Tree)    RB_EMPTY(&(Tree)->Head)
-#define InitializeRbTreeEntry(EntryP) (memset(EntryP, 0, sizeof (*EntryP));)
+#define InitializeRbTreeEntry(EntryP)
 
 bool InsertItemRbTree(PRBTREE Tree, PRBTREE_ENTRY Item);
 

@@ -61,7 +61,7 @@ void DbgPrint(const char* msg, ...);
 #include <ke/crash.h>
 
 #include <rtl/list.h>
-#include <rtl/avltree.h>
+#include <rtl/rbtree.h>
 
 #ifdef IS_DRIVER
 

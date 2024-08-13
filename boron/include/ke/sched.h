@@ -61,7 +61,7 @@ typedef struct
 	
 	PKTHREAD IdleThread;
 	
-	AVLTREE TimerTree;
+	RBTREE TimerTree;
 	
 	void* IdleThreadStackTop;
 	

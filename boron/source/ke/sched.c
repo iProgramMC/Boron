@@ -157,7 +157,7 @@ void KeSchedulerInit()
 	
 	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
 	
-	InitializeAvlTree(&Scheduler->TimerTree);
+	InitializeRbTree(&Scheduler->TimerTree);
 	
 	for (int i = 0; i < PRIORITY_COUNT; i++)
 		InitializeListHead(&Scheduler->ExecQueue[i]);

@@ -13,7 +13,7 @@ Author:
 ***/
 #pragma once
 
-#include <rtl/avltree.h>
+#include <rtl/rbtree.h>
 
 typedef struct _CONTROLLER_OBJECT
 {
@@ -23,7 +23,7 @@ typedef struct _CONTROLLER_OBJECT
 	
 	// Keyed by a driver specific uintptr-sized key. For example,
 	// the slot number occupied by a device can be used as a key.
-	AVLTREE DeviceTree;
+	RBTREE DeviceTree;
 	
 	char Extension[];
 }
