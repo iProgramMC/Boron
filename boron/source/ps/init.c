@@ -21,6 +21,7 @@ PEPROCESS PsGetSystemProcess()
 	return &PsSystemProcess;
 }
 
+INIT
 void PsInitSystemProcess()
 {
 	KeInitializeProcess(

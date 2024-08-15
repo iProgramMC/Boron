@@ -90,6 +90,7 @@ static bool MmpRemoveSlabItemFromTree(PMISLAB_ITEM SlabItem)
 	return Removed;
 }
 
+INIT
 static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size, bool NonPaged)
 {
 	Container->ItemSize = Size;
@@ -98,6 +99,7 @@ static void MmpInitSlabContainer(PMISLAB_CONTAINER Container, int Size, bool Non
 	InitializeListHead(&Container->ListHead);
 }
 
+INIT
 void MiInitSlabs()
 {
 	for (int i = 0; i < MISLAB_SIZE_COUNT; i++)

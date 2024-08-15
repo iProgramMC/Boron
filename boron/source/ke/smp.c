@@ -47,7 +47,8 @@ void MmSwitchKernelSpaceLock();
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
-NO_RETURN void KiCPUBootstrap(struct limine_smp_info* pInfo)
+NO_RETURN INIT
+void KiCPUBootstrap(struct limine_smp_info* pInfo)
 {
 	PKPRCB Prcb = (PKPRCB)pInfo->extra_argument;
 	KeSetCPUPointer(Prcb);
@@ -107,6 +108,7 @@ bool KiSmpInitted = false;
 void DbgPrintString(const char* str);
 #endif
 
+INIT
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 {
 	if (KiSmpInitted) {
@@ -157,7 +159,8 @@ int KeGetVersionNumber()
 
 void PsInitSystemProcess();
 
-NO_RETURN void KeInitSMP()
+NO_RETURN INIT
+void KeInitSMP()
 {
 	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
 	struct limine_smp_info* pBSPInfo = NULL;

@@ -64,6 +64,7 @@ PMIPOOL_ENTRY MmpAllocateFromPoolEntrySlab(PMIPOOL_ENTRY_SLAB Slab)
 	return NULL;
 }
 
+INIT
 void MiInitPoolEntryAllocator()
 {
 	InitializeListHead(&MmpPoolSlabList);

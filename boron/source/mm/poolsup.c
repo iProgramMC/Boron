@@ -32,6 +32,7 @@ static LIST_ENTRY MmpPoolList;
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
+INIT
 void MiInitPool()
 {
 	InitializeListHead(&MmpPoolList);

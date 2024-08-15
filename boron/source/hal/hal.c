@@ -42,11 +42,13 @@ void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 	HalpVftable.RequestIpi(LapicId, Flags, Vector);
 }
 
+INIT
 void HalInitSystemUP()
 {
 	HalpVftable.InitSystemUP();
 }
 
+INIT
 void HalInitSystemMP()
 {
 	HalpVftable.InitSystemMP();

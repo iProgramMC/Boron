@@ -14,6 +14,7 @@ Author:
 ***/
 #include "obp.h"
 
+INIT
 bool ObpInitializeBasicMutexes()
 {
 	extern KMUTEX ObpObjectTypeMutex;
@@ -25,6 +26,7 @@ bool ObpInitializeBasicMutexes()
 	return true;
 }
 
+INIT
 bool ObInitSystem()
 {
 	if (!ObpInitializeBasicMutexes())

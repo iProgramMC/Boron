@@ -61,6 +61,7 @@ static PKREGISTERS KiInterruptDispatch(PKREGISTERS Regs)
 	return Regs;
 }
 
+INIT
 void KiInitializeInterruptSystem()
 {
 	for (int i = 0; i < 256; i++)

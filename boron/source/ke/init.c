@@ -21,7 +21,8 @@ Author:
 #include <rtl/symdefs.h>
 
 // The entry point to our kernel.
-NO_RETURN INIT void KiSystemStartup(void)
+NO_RETURN INIT
+void KiSystemStartup(void)
 {
 	MiInitPMM();
 	MmInitAllocators();

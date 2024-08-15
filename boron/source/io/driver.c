@@ -13,6 +13,7 @@ Author:
 ***/
 #include "iop.h"
 
+INIT
 bool IopInitializeDriversDir()
 {
 	BSTATUS Status = ObCreateDirectoryObject(

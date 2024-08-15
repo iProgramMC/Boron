@@ -487,6 +487,7 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 #endif
 };
 
+INIT
 bool ObpInitializeRootDirectory()
 {	
 	if (FAILED(ObCreateDirectoryObject(

@@ -50,34 +50,6 @@ KeOnUpdateIPL:
 	mov cr8, rdi
 	ret
 
-; void KepLoadGdt(GdtDescriptor* desc);
-global KepLoadGdt
-KepLoadGdt:
-	mov rax, rdi
-	lgdt [rax]
-	
-	; update the code segment
-	push 0x08           ; code segment
-	lea rax, [rel .a]   ; jump address
-	push rax
-	retfq               ; return far - will go to .a now
-.a:
-	; update the segments
-	mov ax, 0x10
-	mov ds, ax
-	mov es, ax
-	mov fs, ax
-	mov gs, ax
-	mov ss, ax
-	ret
-
-; void KepLoadTss(int descriptor)
-global KepLoadTss
-KepLoadTss:
-	mov ax, di
-	ltr ax
-	ret
-
 ; int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 global MmProbeAddressSub
 MmProbeAddressSub:
@@ -182,13 +154,6 @@ KiPopEverythingAndReturn:
 	popfq
 	ret
 
-; Used for the init phase of the scheduler, when no thread
-; was selected.
-global KiSwitchThreadStackForever
-KiSwitchThreadStackForever:
-	mov rsp, rdi
-	jmp KiPopEverythingAndReturn
-
 extern KiUnlockDispatcher
 
 ; Arguments:
@@ -201,4 +166,40 @@ KiThreadEntryPoint:
 	mov  rdi, r12
 	jmp  rbx
 
-section .bss
+section .text.init
+
+; Used for the init phase of the scheduler, before a thread
+; is scheduled in.
+global KiSwitchThreadStackForever
+KiSwitchThreadStackForever:
+	mov rsp, rdi
+	jmp KiPopEverythingAndReturn
+
+
+; void KepLoadGdt(GdtDescriptor* desc);
+global KepLoadGdt
+KepLoadGdt:
+	mov rax, rdi
+	lgdt [rax]
+	
+	; update the code segment
+	push 0x08           ; code segment
+	lea rax, [rel .a]   ; jump address
+	push rax
+	retfq               ; return far - will go to .a now
+.a:
+	; update the segments
+	mov ax, 0x10
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+	ret
+
+; void KepLoadTss(int descriptor)
+global KepLoadTss
+KepLoadTss:
+	mov ax, di
+	ltr ax
+	ret

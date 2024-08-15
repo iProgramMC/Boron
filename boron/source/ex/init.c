@@ -14,6 +14,7 @@ Author:
 ***/
 #include "exp.h"
 
+INIT
 bool ExInitSystem()
 {
 	if (!ExpCreateMutexType())
@@ -47,6 +48,7 @@ bool ExInitSystem()
 
 // This routine initializes the executive layer, that is, the part
 // of the kernel that's implemented on top of the kernel core.
+INIT
 NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 {
 	if (!ObInitSystem())

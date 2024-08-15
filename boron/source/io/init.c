@@ -33,6 +33,7 @@ void* IoGetBuiltInData(int Number)
 	}
 }
 
+INIT
 bool IopInitializeObjectTypes()
 {
 	BSTATUS Status;
@@ -90,6 +91,7 @@ bool IopInitializeObjectTypes()
 	return true;
 }
 
+INIT
 bool IoInitSystem()
 {
 	if (!IopInitializeDevicesDir())

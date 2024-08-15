@@ -67,6 +67,7 @@ static NO_RETURN void ObpReaperThreadRoutine(UNUSED void* Context)
 	}
 }
 
+INIT
 bool ObpInitializeReaperThread()
 {
 	BSTATUS Status;

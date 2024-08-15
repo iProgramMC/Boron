@@ -33,6 +33,7 @@ int KeGetSystemInterruptVector(int Number)
 
 void KiSetupIdt();
 
+INIT
 void KeInitArchUP()
 {
 	KiSetupIdt();
@@ -47,6 +48,7 @@ void KeInitArchUP()
 	KiInitializeInterruptSystem();
 }
 
+INIT
 void KeInitArchMP()
 {
 	KeInitCPU();

@@ -160,11 +160,13 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	}
 }
 
+INIT
 void KeSchedulerInitUP()
 {
 	InitializeListHead(&KiGlobalThreadList);
 }
 
+INIT
 void KeSchedulerInit()
 {
 	KIPL Ipl = KiLockDispatcher();

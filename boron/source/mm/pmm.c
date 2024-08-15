@@ -47,6 +47,7 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
 
 // Allocates a page from the memmap for eternity during init.  Used to prepare the PFN database.
 // Also used in the initial DLL loader.
+INIT
 uintptr_t MiAllocatePageFromMemMap()
 {
 	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
@@ -77,7 +78,7 @@ uintptr_t MiAllocatePageFromMemMap()
 }
 
 // Allocate a contiguous area of memory from the memory map.
-// Used only by the terminal.
+INIT
 uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 {
 	size_t Size = SizeInPages * PAGE_SIZE;
@@ -109,6 +110,7 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
+INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
 #ifdef TARGET_AMD64
@@ -183,6 +185,7 @@ static MMPFN MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
 static KSPIN_LOCK MmPfnLock;
 
 // Note! Initialization is done on the BSP. So no locking needed
+INIT
 void MiInitPMM()
 {
 	if (!KeLimineMemMapRequest.response || !KeLimineHhdmRequest.response)

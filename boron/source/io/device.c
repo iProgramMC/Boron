@@ -13,6 +13,7 @@ Author:
 ***/
 #include "iop.h"
 
+INIT
 bool IopInitializeDevicesDir()
 {
 	BSTATUS Status = ObCreateDirectoryObject(

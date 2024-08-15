@@ -79,6 +79,8 @@ KARCH_DATA* KeGetData()
 }
 
 extern void* KiIdtDescriptor;
+
+INIT
 void KepLoadIdt()
 {
 	ASM("lidt (%0)"::"r"(&KiIdtDescriptor));
@@ -96,6 +98,7 @@ static uint64_t KepGdtEntries[] =
 extern void KepLoadGdt(void* desc);
 extern void KepLoadTss(int descriptor);
 
+INIT
 static void KepSetupGdt(KARCH_DATA* Data)
 {
 	KGDT* Gdt = &Data->Gdt;
@@ -133,12 +136,14 @@ static void KepSetupGdt(KARCH_DATA* Data)
 	KepLoadTss(offsetof(KGDT, TssEntry));
 }
 
+INIT
 static void KepSetupTss(KTSS* Tss)
 {
 	// we'll set it up later..
 	memset(Tss, 0, sizeof * Tss);
 }
 
+INIT
 void KeInitCPU()
 {
 	KiSwitchToAddressSpaceProcess(KeGetSystemProcess());

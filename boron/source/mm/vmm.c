@@ -70,6 +70,7 @@ static volatile int MmSyncLockSwitch;
 static volatile int MmSyncLockSwitch2;
 
 // Called from ExpInitializeExecutive.
+INIT
 void MmSwitchKernelSpaceLock()
 {
 	extern int KeProcessorCount;
@@ -113,6 +114,7 @@ HPAGEMAP MiGetCurrentPageMap()
 
 void MiInitPoolEntryAllocator();
 
+INIT
 void MmInitAllocators()
 {
 	MiInitPoolEntryAllocator();
