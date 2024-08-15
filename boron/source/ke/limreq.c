@@ -52,6 +52,16 @@ volatile struct limine_rsdp_request KeLimineRsdpRequest =
 	.revision = 0,
 	.response = NULL,
 };
+volatile struct limine_kernel_file_request KeLimineKernelFileRequest =
+{
+	.id       = LIMINE_KERNEL_FILE_REQUEST,
+	.revision = 0,
+	.response = NULL,
+};
+
+// NOTE: Requesting the kernel file for two reasons:
+// - 1. It's a possibility that I'll be phasing out the existing symbol table system and
+// - 2. It seems like Limine unconditionally occupies bootloader reclaimable memory with the kernel file.
 
 // Note: This MUST match the order of the KLGR enum.
 static volatile void* const KepLimineRequestTable[] =
@@ -63,6 +73,7 @@ static volatile void* const KepLimineRequestTable[] =
 	&KeLimineSmpRequest,
 	&KeLimineRsdpRequest,
 	&KeLimineModuleRequest,
+	&KeLimineKernelFileRequest,
 };
 
 volatile void* KeLimineGetRequest(int RequestId)

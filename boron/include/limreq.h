@@ -27,6 +27,7 @@ enum
 	KLGR_MODULE,
 	KLGR_RSDP,
 	KLGR_SMP,
+	KLGR_KERNELFILE,
 	KLGR_COUNT,
 };
 
@@ -38,6 +39,7 @@ extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 extern volatile struct limine_smp_request KeLimineSmpRequest;
 extern volatile struct limine_rsdp_request KeLimineRsdpRequest;
 extern volatile struct limine_module_request KeLimineModuleRequest;
+extern volatile struct limine_kernel_file_request KeLimineKernelFileRequest;
 
 #else
 
@@ -49,6 +51,7 @@ volatile void* KeLimineGetRequest(int RequestId);
 #define KeLimineSmpRequest         (*(volatile struct limine_smp_request        *)KeLimineGetRequest(KLGR_SMP))
 #define KeLimineRsdpRequest        (*(volatile struct limine_rsdp_request       *)KeLimineGetRequest(KLGR_RSDP))
 #define KeLimineModuleRequest      (*(volatile struct limine_module_request     *)KeLimineGetRequest(KLGR_MODULE))
+#define KeLimineKernelFileRequest  (*(volatile struct limine_kernel_file_request*)KeLimineGetRequest(KLGR_KERNELFILE))
 
 #endif
 
