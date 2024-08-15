@@ -35,6 +35,28 @@ Author:
 #define BIT(x) (1ULL << (x))
 #define ASM __asm__ __volatile__
 
+//
+// Functions are by default non-paged. Thus, they are resident at all times.
+// However, two special classes of functions, defined below, may not be resident at all times:
+//
+// - Init.  Only resident during system initialization.  Is reclaimed by system once init is complete.
+//
+// - Page.  Is added to the kernel's working set.  May be paged out to the swap file, and restored.
+//          Page faults may be taken during execution in this function.
+//
+#define INIT __attribute__((section(".text.init")))
+#define PAGE __attribute__((section(".text.page")))
+
+#ifdef DEBUG
+#define CHECK_PAGED do {           \
+	if (KeGetIPL() >= IPL_APC) {   \
+		KeCrash("%s: Running at IPL %d > IPL_APC", KeGetIPL(), IPL_APC); \
+	}                              \
+} while (0)
+#else
+#define CHECK_PAGED
+#endif
+
 // We're using C11
 #define static_assert _Static_assert
 

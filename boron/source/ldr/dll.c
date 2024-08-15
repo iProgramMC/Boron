@@ -35,6 +35,7 @@ int        KeLoadedDLLCount = 0;
 static DRIVER_OBJECT LdrpHalReservedDriverObject;
 
 // Note! BaseOffset - The offset at which the ELF was loaded.  It's equal to VirtualAddr - AddressOfLowestPHDR
+INIT
 static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, uintptr_t BaseVirtAddr)
 {
 	if (Phdr->SizeInMemory == 0)
@@ -116,6 +117,7 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 	       Phdr->SizeInFile);
 }
 
+INIT
 static void LdrpGetLimits(PLIMINE_FILE File, uintptr_t* BaseAddr, uintptr_t* LargestAddr)
 {
 	*BaseAddr = ~0U;
@@ -136,6 +138,7 @@ static void LdrpGetLimits(PLIMINE_FILE File, uintptr_t* BaseAddr, uintptr_t* Lar
 	}
 }
 
+INIT
 static bool LdrpParseDynamicTable(PLIMINE_FILE File, PELF_PROGRAM_HEADER DynamicPhdr, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase)
 {
 	memset(Info, 0, sizeof *Info);
@@ -195,6 +198,7 @@ static bool LdrpParseDynamicTable(PLIMINE_FILE File, PELF_PROGRAM_HEADER Dynamic
 	return true;
 }
 
+INIT
 static bool LdrpComputeRelocation(
 	uint32_t Type,
 	uintptr_t Addend,
@@ -243,6 +247,7 @@ static bool LdrpComputeRelocation(
 	return true;
 }
 
+INIT
 static bool LdrpApplyRelocation(PELF_DYNAMIC_INFO DynInfo, PELF_REL PtrRel, PELF_RELA PtrRela, uintptr_t LoadBase, uintptr_t ResolvedSymbol)
 {
 	if (!PtrRel && !PtrRela)
@@ -332,6 +337,7 @@ static bool LdrpPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase
 	return true;
 }
 
+INIT
 static bool LdrpLinkPlt(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 {
 	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
@@ -368,6 +374,7 @@ static bool LdrpLinkPlt(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t 
 	return true;
 }
 
+INIT
 static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *LoadBase, size_t *LoadSize)
 {
 	PELF_HEADER Header = (PELF_HEADER) File->address;
@@ -414,6 +421,7 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 	return Dynamic;
 }
 
+INIT
 static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 {
 	PELF_SECTION_HEADER GotSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
@@ -460,6 +468,7 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 		DynInfo->StringTable = (const char*)(File->address + StrTabSection->OffsetInFile);
 }
 
+INIT
 static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 {
 	// Note! A check for 0 here would be redundant as the contents of the
@@ -473,6 +482,7 @@ static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t Loa
 	return true;
 }
 
+INIT
 void LdriLoadDll(PLIMINE_FILE File)
 {
 	if (KeLoadedDLLCount >= (int) ARRAY_COUNT(KeLoadedDLLs))
@@ -528,6 +538,7 @@ void LdriLoadDll(PLIMINE_FILE File)
 	DbgPrint("Module %s was loaded at base %p", File->path, LoadBase);
 }
 
+INIT
 const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress)
 {
 	if (!LoadedDll->StringTable || !LoadedDll->SymbolTable)
@@ -556,6 +567,7 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 	return LoadedDll->StringTable + NameOffset;
 }
 
+INIT
 static size_t LdrpGetBareNameLength(const char* Name)
 {
 	size_t Length = strlen(Name);
@@ -571,6 +583,7 @@ static size_t LdrpGetBareNameLength(const char* Name)
 	return LengthCopy;
 }
 
+INIT
 static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 {
 	// Create a driver object.
@@ -628,11 +641,13 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
 }
 
+INIT
 void LdrInitializeHal()
 {
 	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
 }
 
+INIT
 void LdrInitializeDrivers()
 {
 	for (int i = 1; i < KeLoadedDLLCount; i++)

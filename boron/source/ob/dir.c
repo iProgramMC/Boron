@@ -155,6 +155,7 @@ static size_t ObpMatchPathName(const char* FileName, const char* Path)
 // in the example above, "TEST\SOMETHING" and "SOMETHING" will be looked up
 // next.
 //
+PAGE
 BSTATUS ObpLookUpDirectoryEntry(
 	POBJECT_DIRECTORY Directory,
 	const char* PathToMatch,

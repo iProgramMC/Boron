@@ -17,8 +17,15 @@ Author:
 
 #include <mm/pfn.h>
 
+#ifdef KERNEL
+
 // Initialize the physical memory manager.
 void MiInitPMM(void);
+
+// Reclaims the init text section.  This may be performed only once.
+void MiReclaimInitText();
+
+#endif
 
 // Get the base address of the HHDM (higher half direct map)
 uint8_t* MmGetHHDMBase(void);

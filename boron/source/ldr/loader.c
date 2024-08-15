@@ -22,6 +22,7 @@ static const char* LdrpHalPath = "halx86.sys";
 #error Define your HAL path here.
 #endif
 
+INIT
 uintptr_t LdrAllocateRange(size_t Size)
 {
 	// note: Atomic operations aren't really needed in this case.
@@ -29,6 +30,7 @@ uintptr_t LdrAllocateRange(size_t Size)
 	return AtFetchAdd(LdrpCurrentBase, Size * PAGE_SIZE);
 }
 
+INIT
 static bool LdriEndsWith(const char* String, const char* EndsWith)
 {
 	size_t Length = strlen(String);
@@ -41,8 +43,7 @@ static bool LdriEndsWith(const char* String, const char* EndsWith)
 }
 
 // Fix up the path - i.e. get just the file name, not the entire path.
-// ExtensionOut - the TAG()'d version of the zero-padded extension, or the last 4 characters of the extension
-// ex. "x.so" -> 'os',  "x.dll" -> 'lld',  "x.stuff" -> 'ffut'
+INIT
 static void LdriFixUpPath(PLIMINE_FILE File)
 {
 	size_t PathLength = strlen(File->path);
@@ -60,6 +61,7 @@ static void LdriFixUpPath(PLIMINE_FILE File)
 	File->path = PathPtr;
 }
 
+INIT
 static void LdriLoadFile(PLIMINE_FILE File)
 {
 	if (LdriEndsWith(File->path, ".sys") || LdriEndsWith(File->path, ".dll"))
@@ -75,6 +77,7 @@ static void LdriLoadFile(PLIMINE_FILE File)
 static PLIMINE_FILE HalFile = NULL;
 
 // Initializes the DLL loader and loads the boot modules.
+INIT
 void LdrInit()
 {
 	struct limine_module_response* Response = KeLimineModuleRequest.response;
@@ -105,6 +108,7 @@ void LdrInit()
 	LdriLoadFile(HalFile);
 }
 
+INIT
 static void LdrpReclaimFile(PLIMINE_FILE File)
 {
 	if ((uintptr_t)File->address < (uintptr_t)MmGetHHDMBase() ||
@@ -123,6 +127,7 @@ static void LdrpReclaimFile(PLIMINE_FILE File)
 }
 
 // NOTE: For now, selectively reclaim certain pages.  At some point, we'll reclaim everything, and scrap this function
+INIT
 static void LdrpReclaimAllModules()
 {
 	struct limine_module_response* Response = KeLimineModuleRequest.response;
@@ -132,11 +137,13 @@ static void LdrpReclaimAllModules()
 	}
 }
 
+INIT
 static void LdrpReclaimKernelFile()
 {
 	LdrpReclaimFile(KeLimineKernelFileRequest.response->kernel_file);
 }
 
+INIT
 void LdrInitAfterHal()
 {
 	struct limine_module_response* Response = KeLimineModuleRequest.response;

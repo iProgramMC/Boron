@@ -21,7 +21,7 @@ Author:
 #include <rtl/symdefs.h>
 
 // The entry point to our kernel.
-NO_RETURN void KiSystemStartup(void)
+NO_RETURN INIT void KiSystemStartup(void)
 {
 	MiInitPMM();
 	MmInitAllocators();
@@ -31,11 +31,5 @@ NO_RETURN void KiSystemStartup(void)
 	LdrInitializeHal();
 	HalInitSystemUP();
 	LdrInitAfterHal();
-	
-#ifdef DEBUG
-	extern size_t MmReclaimedPageCount; // mm/pmm.c
-	DbgPrint("Reclaimed pages: %zu", MmReclaimedPageCount);
-#endif
-	
 	KeInitSMP(); // no return
 }

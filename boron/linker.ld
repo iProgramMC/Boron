@@ -20,9 +20,33 @@ SECTIONS
 	/* Any address in this region will do, but often 0xffffffff80000000 is chosen as that is the beginning of the region. */
 	. = 0xffffffff80000000;
 
+	/* Define the regular text section. */
 	.text : {
-		*(.text .text.*)
+		*(.text)
 	} :text
+	. = ALIGN(CONSTANT(MAXPAGESIZE));
+	
+	/* Define the initialization text section, which will be permanently reclaimed after system initialization. */
+	KiTextInitStart = .;
+	.text.init : {
+		*(.text.init)
+	} :text
+	. = ALIGN(CONSTANT(MAXPAGESIZE));
+	KiTextInitEnd   = .;
+	
+	/* Define the paged text section, which may not be resident at all times, pages may be swapped out and
+	   back in at the memory manager's discretion.  */
+	KiTextPageStart = .;
+	.text.page : {
+		*(.text.page)
+	} :text
+	. = ALIGN(CONSTANT(MAXPAGESIZE));
+	KiTextPageEnd   = .;
+	
+	/* Glob all of the other text sections into .text. */
+	.text : {
+		*(.text.*)
+	} : text
 
 	/* Move to the next memory page for .rodata */
 	. = ALIGN(CONSTANT(MAXPAGESIZE));

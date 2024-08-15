@@ -67,6 +67,20 @@ void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 
 static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 {
+	if (KeGetCurrentPRCB()->IsBootstrap)
+	{
+		// Wait approximately 2 seconds such that all remaining init jobs have completed.
+		//
+		// TODO ^^ This is an arbitrary quantity.  Also it's possible that the init jobs
+		// haven't actually completed by 2 seconds later!
+		
+		uint64_t TimeIn2Seconds = HalGetTickCount() + HalGetTickFrequency() * 2;
+		while (HalGetTickCount() < TimeIn2Seconds)
+			KeWaitForNextInterrupt();
+		
+		MiReclaimInitText();
+	}
+	
 	while (true)
 		KeWaitForNextInterrupt();
 }

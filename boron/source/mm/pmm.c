@@ -332,24 +332,11 @@ void MiInitPMM()
 		MmZeroOutFirstPFN();
 	
 	DbgPrint("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
-	DbgPrint("Total pages usable by the system: %d pages.  Free pages: %d  Reclaim pages: %d", TotalPageCount, FreePageCount, ReclaimPageCount);
 	
-	// final evaluation of the current amount of memory:
-	size_t TotalMemory = 0;
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
-	{
-		// if the entry isn't usable, skip it
-		struct limine_memmap_entry* pEntry = pResponse->entries[i];
-		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
-			continue;
-		
-		TotalMemory += pEntry->length;
-	}
+	MmTotalFreePages = FreePageCount;
+	MmTotalAvailablePages = TotalPageCount;
 	
-	DbgPrint("MiInitPMM: %zu Kb Available Memory", TotalMemory / 1024);
-	
-	MmTotalFreePages = MmTotalAvailablePages = TotalMemory / PAGE_SIZE;
+	DbgPrint("MiInitPMM: %zu Kb Available Memory", MmTotalAvailablePages * PAGE_SIZE / 1024);
 }
 
 // TODO: Add locking
