@@ -105,6 +105,30 @@ void LdrInit()
 	LdriLoadFile(HalFile);
 }
 
+// NOTE: For now, selectively reclaim certain pages.  At some point, we'll reclaim everything, and scrap this function
+void LdriReclaimAllModules()
+{
+	struct limine_module_response* Response = KeLimineModuleRequest.response;
+	for (uint64_t i = 0; i < Response->module_count; i++)
+	{
+		PLIMINE_FILE File = Response->modules[i];
+		
+		if ((uintptr_t)File->address < (uintptr_t)MmGetHHDMBase() ||
+		    (uintptr_t)File->address >= MM_PFNDB_BASE)
+		{
+			DbgPrint("Warning: file %s can't be reclaimed as it's not part of the HHDM", File->path);
+		}
+		
+		uintptr_t Address = (uintptr_t)File->address;
+		for (size_t j = 0; j < File->size; j += PAGE_SIZE)
+		{
+			int Pfn = MmPhysPageToPFN(MmGetHHDMOffsetFromAddr((void*)Address));
+			MmFreePhysicalPage(Pfn);
+			Address += PAGE_SIZE;
+		}
+	}
+}
+
 void LdrInitAfterHal()
 {
 	struct limine_module_response* Response = KeLimineModuleRequest.response;
@@ -116,4 +140,6 @@ void LdrInitAfterHal()
 		
 		LdriLoadFile(File);
 	}
+	
+	LdriReclaimAllModules();
 }

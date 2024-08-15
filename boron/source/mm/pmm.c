@@ -21,6 +21,10 @@ extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 size_t MmTotalAvailablePages;
 size_t MmTotalFreePages;
 
+#ifdef DEBUG
+size_t MmReclaimedPageCount;
+#endif
+
 size_t MmGetTotalFreePages()
 {
 	return MmTotalFreePages;
@@ -204,7 +208,9 @@ void MiInitPMM()
 		// if the entry isn't usable, skip it
 		struct limine_memmap_entry* pEntry = pResponse->entries[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
+			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
+			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
 			continue;
 		
 		DbgPrint("%p-%p (%d pages)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE);
@@ -217,7 +223,7 @@ void MiInitPMM()
 		// if the entry isn't usable, skip it
 		struct limine_memmap_entry *pEntry = pResponse->entries[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+		if (pEntry->type != LIMINE_MEMMAP_USABLE && pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE)
 			continue;
 		
 		// make a copy since we might tamper with this
@@ -245,52 +251,77 @@ void MiInitPMM()
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	
+	int TotalPageCount = 0, FreePageCount = 0, ReclaimPageCount = 0;
+	
 	for (uint64_t i = 0; i < pResponse->entry_count; i++)
 	{
 		// if the entry isn't usable, skip it
 		struct limine_memmap_entry* pEntry = pResponse->entries[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
+			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
+			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
 			continue;
 		
 		for (uint64_t j = 0; j < pEntry->length; j += PAGE_SIZE)
 		{
+			bool isUsed = pEntry->type != LIMINE_MEMMAP_USABLE;
+			
 			int currPFN = MmPhysPageToPFN(pEntry->base + j);
 			
-			if (MiFirstFreePFN == PFN_INVALID)
-				MiFirstFreePFN =  currPFN;
+			TotalPageCount++;
 			
-			MMPFDBE* pPF = MmGetPageFrameFromPFN(currPFN);
-			
-			// initialize this PFN
-			memset(pPF, 0, sizeof *pPF);
-			
-			if (j == 0)
+			if (isUsed)
 			{
-				pPF->PrevFrame = lastPfnOfPrevBlock;
+				// This is used but reclaimable memory.  This means we should make its PFDBE used.
+				PMMPFDBE pPF = MmGetPageFrameFromPFN(currPFN);
 				
-				// also update the last PF's next frame idx
-				if (lastPfnOfPrevBlock != PFN_INVALID)
+				memset(pPF, 0, sizeof *pPF);
+				
+				pPF->Type = PF_TYPE_RECLAIM;
+				pPF->RefCount = 1;
+				
+				ReclaimPageCount++;
+			}
+			else
+			{
+				if (MiFirstFreePFN == PFN_INVALID)
+					MiFirstFreePFN =  currPFN;
+				
+				PMMPFDBE pPF = MmGetPageFrameFromPFN(currPFN);
+				
+				// initialize this PFN
+				memset(pPF, 0, sizeof *pPF);
+				
+				if (j == 0)
 				{
-					MMPFDBE* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
-					pPrevPF->NextFrame = currPFN;
+					pPF->PrevFrame = lastPfnOfPrevBlock;
+					
+					// also update the last PF's next frame idx
+					if (lastPfnOfPrevBlock != PFN_INVALID)
+					{
+						MMPFDBE* pPrevPF = MmGetPageFrameFromPFN(lastPfnOfPrevBlock);
+						pPrevPF->NextFrame = currPFN;
+					}
 				}
+				else
+				{
+					pPF->PrevFrame = currPFN - 1;
+				}
+				
+				if (j + PAGE_SIZE >= pEntry->length)
+				{
+					pPF->NextFrame = PFN_INVALID; // it's going to be updated by the next block if there's one
+				}
+				else
+				{
+					pPF->NextFrame = currPFN + 1;
+				}
+				
+				lastPfnOfPrevBlock = currPFN;
+				
+				FreePageCount++;
 			}
-			else
-			{
-				pPF->PrevFrame = currPFN - 1;
-			}
-			
-			if (j + PAGE_SIZE >= pEntry->length)
-			{
-				pPF->NextFrame = PFN_INVALID; // it's going to be updated by the next block if there's one
-			}
-			else
-			{
-				pPF->NextFrame = currPFN + 1;
-			}
-			
-			lastPfnOfPrevBlock = currPFN;
 		}
 	}
 	
@@ -301,6 +332,7 @@ void MiInitPMM()
 		MmZeroOutFirstPFN();
 	
 	DbgPrint("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
+	DbgPrint("Total pages usable by the system: %d pages.  Free pages: %d  Reclaim pages: %d", TotalPageCount, FreePageCount, ReclaimPageCount);
 	
 	// final evaluation of the current amount of memory:
 	size_t TotalMemory = 0;
@@ -419,13 +451,18 @@ void MmFreePhysicalPage(MMPFN pfn)
 	
 	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(pfn);
 	
-	ASSERT(PageFrame->Type == PF_TYPE_USED);
+	ASSERT(PageFrame->Type == PF_TYPE_USED || PageFrame->Type == PF_TYPE_RECLAIM);
 	
 	int RefCount = --PageFrame->RefCount;
 	ASSERT(RefCount >= 0);
 	
 	if (RefCount <= 0)
 	{
+#ifdef DEBUG
+		if (PageFrame->Type == PF_TYPE_RECLAIM)
+			MmReclaimedPageCount++;
+#endif
+		
 		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 		PageFrame->Type = PF_TYPE_FREE;
 		MmTotalFreePages++;

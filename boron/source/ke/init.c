@@ -31,5 +31,11 @@ NO_RETURN void KiSystemStartup(void)
 	LdrInitializeHal();
 	HalInitSystemUP();
 	LdrInitAfterHal();
+	
+#ifdef DEBUG
+	extern size_t MmReclaimedPageCount; // mm/pmm.c
+	DbgPrint("Reclaimed pages: %zu", MmReclaimedPageCount);
+#endif
+	
 	KeInitSMP(); // no return
 }
