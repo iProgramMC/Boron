@@ -22,8 +22,11 @@ PageMapLevel;
 #include <mm/pt.h>
 #include <mm/probe.h>
 #include <mm/mdl.h>
+#include <mm/cache.h>
 
+#ifdef KERNEL
 // Initialize the allocators.
 void MmInitAllocators();
+#endif
 
 #endif//NS64_MM_H

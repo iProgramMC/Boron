@@ -46,11 +46,10 @@ typedef struct
 	
 	// Prototype PTE.  This points to the entry in an FCB's page cache, if this
 	// page is found on the standby list.
-	// TODO: Use this
-	//uint64_t PrototypePte;
+	uint64_t PrototypePte;
 	
 	// Unused for now.
-	//uint64_t qword3;
+	uint64_t qword3;
 }
 MMPFDBE, *PMMPFDBE;
 
@@ -62,6 +61,7 @@ enum
 	PF_TYPE_ZEROED,
 	PF_TYPE_USED,
 	PF_TYPE_RECLAIM,
+	PF_TYPE_STANDBY,
 };
 
 #define PFN_INVALID ((MMPFN)-1)

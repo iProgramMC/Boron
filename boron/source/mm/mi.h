@@ -21,6 +21,14 @@ Author:
 #include <ke.h>
 #include <_limine.h>
 
+// ===== Physical Memory Manager =====
+
+// Locks the page frame database's spinlock.
+KIPL MiLockPfdb();
+
+// Unlocks the page frame database's spinlock.
+void MiUnlockPfdb(KIPL Ipl);
+
 // ===== Slab Allocator =====
 
 struct MISLAB_CONTAINER_tag;

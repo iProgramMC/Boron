@@ -176,13 +176,38 @@ MMPFDBE* MmGetPageFrameFromPFN(MMPFN Pfn)
 
 void MmZeroOutFirstPFN();
 
-// Two lists: a list of "ZERO" pfns and a list of "FREE" pfns.
+// Three lists:
+// - a list of "zero" PFs which contain only pages that have been
+//   zeroed out
+// - a list of "free" PFs which have no references at all to them and
+// - a list of "standby" PFs, whose reference count is zero but they
+//   are still referenced in a cache control block (io/cache).  When
+//   a page is removed from the standby list, its prototype PTE will
+//   be zeroed out atomically (the prototype PTE, in the case of stand-
+//   by pages, is the pointer to the entry in the CCB)
+//
 // The zeroed PFN list will be prioritised for speed. If there
 // are no free zero pfns, then a free PFN will be zeroed before
 // being issued.
+//
+// If both the zero and free PFN lists are invalid, a page is withdrawn
+// from the standby list (also if available).
 static MMPFN MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
 static MMPFN MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
+static MMPFN MiFirstStandbyPFN = PFN_INVALID, MiLastStandbyPFN = PFN_INVALID;
 static KSPIN_LOCK MmPfnLock;
+
+KIPL MiLockPfdb()
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MmPfnLock, &Ipl);
+	return Ipl;
+}
+
+void MiUnlockPfdb(KIPL Ipl)
+{
+	KeReleaseSpinLock(&MmPfnLock, Ipl);
+}
 
 // Note! Initialization is done on the BSP. So no locking needed
 INIT
@@ -402,6 +427,15 @@ static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 	int currPFN = *First;
 	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
 	
+	if (pPF->Type == PF_TYPE_STANDBY)
+	{
+		// This is a standby page.  Zero out what's at the prototype PTE's address.
+		ASSERT(pPF->PrototypePte);
+		
+		uintptr_t* Ptr = (uintptr_t*) pPF->PrototypePte;
+		AtClear(*Ptr);
+	}
+	
 	pPF->Type = PF_TYPE_USED;
 	pPF->RefCount = 1;
 	MmpRemovePfnFromList(First, Last, *First);
@@ -419,6 +453,8 @@ MMPFN MmAllocatePhysicalPage()
 	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
 	if (currPFN == PFN_INVALID)
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
+	if (currPFN == PFN_INVALID)
+		currPFN = MmpAllocateFromFreeList(&MiFirstStandbyPFN, &MiLastStandbyPFN);
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
@@ -455,6 +491,39 @@ void MmFreePhysicalPage(MMPFN pfn)
 		
 		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 		PageFrame->Type = PF_TYPE_FREE;
+		MmTotalFreePages++;
+	}
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
+void MmFreePhysicalPageIntoStandby(MMPFN pfn, uintptr_t* PrototypePte)
+{
+	KIPL OldIpl;
+	
+#ifdef DEBUG2
+	DbgPrint("MmFreePhysicalPageIntoStandby()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
+#endif
+	
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(pfn);
+	
+	ASSERT(PageFrame->Type == PF_TYPE_USED || PageFrame->Type == PF_TYPE_RECLAIM);
+	
+	int RefCount = --PageFrame->RefCount;
+	ASSERT(RefCount >= 0);
+	
+	if (RefCount <= 0)
+	{
+#ifdef DEBUG
+		if (PageFrame->Type == PF_TYPE_RECLAIM)
+			MmReclaimedPageCount++;
+#endif
+		
+		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+		PageFrame->Type = PF_TYPE_STANDBY;
+		PageFrame->PrototypePte = (uint64_t) PrototypePte;
 		MmTotalFreePages++;
 	}
 	
