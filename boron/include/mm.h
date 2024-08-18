@@ -23,6 +23,7 @@ PageMapLevel;
 #include <mm/probe.h>
 #include <mm/mdl.h>
 #include <mm/cache.h>
+#include <mm/vad.h>
 
 #ifdef KERNEL
 // Initialize the allocators.

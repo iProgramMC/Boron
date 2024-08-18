@@ -102,18 +102,25 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t Pe
 	if (!Space)
 		return Space;
 	
+	MmLockKernelSpaceExclusive();
+	
 	HPAGEMAP PageMap = MiGetCurrentPageMap();
 	
 	for (size_t i = 0; i < NumberOfPages; i++, PhysicalAddress += PAGE_SIZE, VirtualAddress += PAGE_SIZE)
 	{
 		if (!MiMapPhysicalPage(PageMap, PhysicalAddress, VirtualAddress, PermissionsAndCaching))
+		{
+			NumberOfPages = i;
 			goto Rollback;
+		}
 	}
 	
+	MmUnlockKernelSpace();
 	return Space;
 
 Rollback:
 	MiUnmapPages(PageMap, (uintptr_t) Space, NumberOfPages);
+	MmUnlockKernelSpace();
 	MmFreePoolBig(Space);
 	return NULL;
 }
