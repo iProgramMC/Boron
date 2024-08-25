@@ -18,7 +18,7 @@ Author:
 // TODO: Can't allow recursive page fault in kernel space. Need to fix that!
 
 // Returns: Whether the page fault was fixed or not
-int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
+BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
 	bool IsKernelSpace = false;
 	
@@ -31,12 +31,12 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 	
 	if (KeGetIPL() >= IPL_DPC)
 	{
-		// Page faults may only be taken at IPL_APC and lower, to prevent deadlocks
+		// Page faults may only be taken at IPL_APC and lower, to prevent deadlock
 		// and data corruption.
 		
 		// So we don't handle the page fault, just return immediately.
 		
-		return FAULT_HIGHIPL;
+		return STATUS_IPL_TOO_HIGH;
 	}
 	
 	// However, page faults aren't handled at IPL_DPC, but at the IPL of the thread.
@@ -53,7 +53,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 		
 		// TODO
 		
-		return FAULT_UNSUPPORTED;
+		return STATUS_UNIMPLEMENTED;
 	}
 	else
 	{
@@ -67,7 +67,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 		if (!Pte)
 		{
 			MmUnlockSpace(FaultAddress);
-			return FAULT_UNMAPPED;
+			return STATUS_ACCESS_VIOLATION;
 		}
 		
 		// Is the PTE demand paged?
@@ -84,7 +84,7 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 				
 				MmUnlockSpace(FaultAddress);
 				
-				return FAULT_OUTOFMEMORY;
+				return STATUS_INSUFFICIENT_MEMORY;
 			}
 			
 			// Create a new, valid, PTE that will replace the current one.
@@ -98,13 +98,13 @@ int MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t Faul
 			MmUnlockSpace(FaultAddress);
 			
 			// Fault was handled successfully.
-			return FAULT_HANDLED;
+			return STATUS_SUCCESS;
 		}
 		
 		if (IsKernelSpace)
 			MmUnlockSpace(FaultAddress);
 		
 		// TODO
-		return FAULT_UNSUPPORTED;
+		return STATUS_UNIMPLEMENTED;
 	}
 }

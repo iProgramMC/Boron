@@ -21,16 +21,6 @@ Author:
 // handle to a page mapping.
 typedef uintptr_t HPAGEMAP;
 
-// List of reasons why a page fault can fail.
-enum
-{
-	FAULT_HANDLED,
-	FAULT_UNSUPPORTED,
-	FAULT_UNMAPPED,
-	FAULT_OUTOFMEMORY,
-	FAULT_HIGHIPL,
-};
-
 // WARNING! The HPAGEMAP object is not thread safe! So please take care of thread safety yourself.
 // Ideally the address space of a process will be managed by some other structure.
 
@@ -75,7 +65,7 @@ bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Addre
 void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
 
 // Handles a page fault. Returns whether or not the page fault was handled.
-int MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
+BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
 
 // Issue a TLB shootdown request. This is the official API for this purpose.
 void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);

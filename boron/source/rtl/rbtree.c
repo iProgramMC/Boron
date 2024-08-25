@@ -33,7 +33,7 @@ int RtlCompareRbTreeNodes(PRBTREE_ENTRY EntryA, PRBTREE_ENTRY EntryB)
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #pragma GCC diagnostic push
 
-RB_GENERATE_INTERNAL(_RBTREE_HEAD, _RBTREE_ENTRY, Entry, RtlCompareRbTreeNodes, );
+RB_GENERATE_INTERNAL(_RBTREE_HEAD, _RBTREE_ENTRY, Entry, RtlCompareRbTreeNodes, static inline ALWAYS_INLINE);
 
 #pragma GCC diagnostic pop
 

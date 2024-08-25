@@ -62,9 +62,9 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
 	
-	int FaultReason = MmPageFault(FaultPC, FaultAddress, FaultMode);
+	BSTATUS FaultReason = MmPageFault(FaultPC, FaultAddress, FaultMode);
 	
-	if (FaultReason == FAULT_HANDLED)
+	if (SUCCEEDED(FaultReason))
 		return;
 	
 	// Invalid page fault!
