@@ -244,6 +244,7 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 			if (Table->MaxIndex < i)
 				Table->MaxIndex = i;
 			
+			ExUnlockHandleTable(Table);
 			return STATUS_SUCCESS;
 		}
 	}
@@ -272,12 +273,12 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 	
 	// Allocate it!
 	Table->HandleMap[NewIndex].Pointer = Pointer;
-	ExUnlockHandleTable(Table);
 	
 	if (Table->MaxIndex < NewIndex)
 		Table->MaxIndex = NewIndex;
 	
 	*OutHandle = INDEX_TO_HANDLE(NewIndex);
+	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
 }
 
@@ -299,9 +300,15 @@ BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
 		return STATUS_INVALID_HANDLE;
 	}
 	
-	// Just return the pointer, if it's NULL, that means that it's
-	// already allocated and we were going to return NULL anyway.
-	*OutObject = Table->HandleMap[Handle].Pointer;
+	void* Object = Table->HandleMap[Handle].Pointer;
+	*OutObject = Object;
+	
+	if (!Object)
+	{
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
 	return STATUS_SUCCESS;
 }
 
