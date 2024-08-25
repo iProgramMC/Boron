@@ -62,6 +62,10 @@ static_assert(sizeof(CCB_INDIRECTION) == PAGE_SIZE);
 
 typedef struct _CCB
 {
+	// This mutex is locked when:
+	//
+	// This mutex is NOT locked when:
+	// - Setting an entry (instead, an atomic compare exchange is performed)
 	KMUTEX Mutex;
 	
 	uint64_t FirstModifiedPage;

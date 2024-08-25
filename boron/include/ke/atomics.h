@@ -38,7 +38,7 @@ Author:
 #define AtLoadMO(var, mo)            __atomic_load_n (&(var), mo)
 #define AtStore(var, val)            __atomic_store_n(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
 #define AtStoreMO(var, val, mo)      __atomic_store_n(&(var), (val), mo)
-#define AtTestAndSet(var)            __atomic_test_and_set(&(var), ATOMIC_DEFAULT_MEMORDER)             // test and set
+#define AtTestAndSet(var)            __atomic_test_and_set(&(var), ATOMIC_DEFAULT_MEMORDER)
 #define AtTestAndSetMO(var,mo)       __atomic_test_and_set(&(var), mo)
 #define AtClear(var)                 __atomic_clear(&(var), ATOMIC_DEFAULT_MEMORDER)
 #define AtClearMO(var, mo)           __atomic_clear(&(var), mo)
@@ -54,5 +54,13 @@ Author:
 #define AtXorFetchMO(var, val, mo)   __atomic_xor_fetch(&(var), (val), mo)
 #define AtOrFetch(var, val)          __atomic_or_fetch(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
 #define AtOrFetchMO(var, val, mo)    __atomic_or_fetch(&(var), (val), mo)
+#define AtCompareExchange(var, exp, des)             __atomic_compare_exchange_n(var, exp, des, ATOMIC_DEFAULT_MEMORDER, ATOMIC_DEFAULT_MEMORDER)
+#define AtCompareExchangeMO(var, exp, des, smo, fmo) __atomic_compare_exchange_n(var, exp, des, smo, fmo)
+
+// Note for AtCompareExchange*:  exp = expected, des = desired
+// Note for AtCompareExchangeMO: smo = Success memory order, fmo = Failure memory order
+//
+// Compares the contents of *var with the contents of *exp.  If they match, des is written to *var and true is returned.
+// Otherwise, the contents of *var are written to *exp and false is returned.
 
 #endif//BORON_KE_ATOMICS_H
