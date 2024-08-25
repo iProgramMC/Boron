@@ -238,7 +238,6 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 		{
 			// We found a spot!
 			Table->HandleMap[i].Pointer = Pointer;
-			ExUnlockHandleTable(Table);
 			*OutHandle = INDEX_TO_HANDLE(i);
 			
 			if (Table->MaxIndex < i)
