@@ -62,16 +62,20 @@ static_assert(sizeof(CCB_INDIRECTION) == PAGE_SIZE);
 
 typedef struct _CCB
 {
-	// This mutex is locked when:
+	// This mutex is locked when allocating indirection tables.
 	//
-	// This mutex is NOT locked when:
-	// - Setting an entry (instead, an atomic compare exchange is performed)
+	// This mutex is NOT locked when setting or clearing an entry
+	// (instead, an atomic operation is performed)
+	//
+	// Note: the PFN lock is held while mutating an entry, to prevent
+	// the physical page it describes from being freed during the
+	// operation.
 	KMUTEX Mutex;
 	
 	uint64_t FirstModifiedPage;
 	uint64_t LastModifiedPage;
 	
-	MMPTE Direct[MM_DIRECT_PAGE_COUNT];
+	CCB_ENTRY Direct[MM_DIRECT_PAGE_COUNT];
 	PCCB_INDIRECTION Level1Indirect;
 	PCCB_INDIRECTION Level2Indirect;
 	PCCB_INDIRECTION Level3Indirect;
@@ -84,4 +88,23 @@ CCB, *PCCB;
 
 void MmInitializeCcb(PCCB Ccb);
 
+ALWAYS_INLINE static inline
+void MmLockCcb(PCCB Ccb)
+{
+	BSTATUS Status = KeWaitForSingleObject(&Ccb->Mutex, false, TIMEOUT_INFINITE);
+	ASSERT(Status == STATUS_SUCCESS);
+}
 
+ALWAYS_INLINE static inline
+void MmUnlockCcb(PCCB Ccb)
+{
+	KeReleaseMutex(&Ccb->Mutex);
+}
+
+// Gets a pointer to an entry in the CCB.
+// If TryAllocateLowerLevels is true, it will attempt to allocate levels if they aren't
+// allocated.  However, this might fail if out of memory, in which case NULL will be
+// returned.
+//
+// NOTE: The CCB must be locked.
+PCCB_ENTRY MmGetEntryPointerCcb(PCCB Ccb, uint64_t PageOffset, bool TryAllocateLowerLevels);

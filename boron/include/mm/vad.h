@@ -20,10 +20,16 @@ Author:
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
+enum
+{
+	ACCESS_FLAG_READ    = 1,
+	ACCESS_FLAG_WRITE   = 2,
+	ACCESS_FLAG_EXECUTE = 4,
+};
+
 typedef struct _MMVAD_FLAGS
 {
-	uint32_t IsFile    : 1;
-	uint32_t Spare     : 31;
+	
 }
 MMVAD_FLAGS;
 

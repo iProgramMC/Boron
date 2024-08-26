@@ -27,3 +27,4 @@ void PerformIntTest(void);
 void PerformKeyboardTest(void);
 void PerformStorageTest(void);
 void PerformExObTest(void);
+void PerformCcbTest(void);
