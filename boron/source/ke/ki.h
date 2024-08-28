@@ -77,6 +77,9 @@ void KiSwitchThreadStack(void** OldStack, void* NewStack);
 // initialization of the scheduler when no thread was switched to before.
 void KiSwitchThreadStackForever(void* NewStack);
 
+// Gets the current scheduler.  IPL must be raised to IPL_DPC.
+PKSCHEDULER KiGetCurrentScheduler();
+
 // Define KiAssertOwnDispatcherLock
 // Note: this has chances to fail if the current processor
 // doesn't own it, but another processor does. However, it's

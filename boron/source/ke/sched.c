@@ -25,26 +25,53 @@ Author:
 //#define SCHED_DISABLE_WORKSTEALING
 
 static int KepNextProcessorToStealWorkFrom;
-extern KPRCB** KeProcessorList;
+extern PKPRCB* KeProcessorList;
 
 LIST_ENTRY KiGlobalThreadList;
 KSPIN_LOCK KiGlobalThreadListLock;
 
-PKSCHEDULER KeGetCurrentScheduler()
+PKSCHEDULER KiGetCurrentScheduler()
 {
+#ifdef DEBUG
+	if (KeGetIPL() < IPL_DPC)
+	{
+		bool Restore = KeDisableInterrupts();
+		KeRestoreInterrupts(Restore);
+		if (Restore)
+			ASSERT(!"Interrupts not disabled OR IPL < IPL_DPC in KiGetCurrentScheduler");
+	}
+#endif
+	
 	return &KeGetCurrentPRCB()->Scheduler;
 }
 
 PKTHREAD KeGetCurrentThread()
 {
-	return KeGetCurrentScheduler()->CurrentThread;
+	// Disable interrupts in order to prevent being scheduled out.
+	// This can also be done by raising and lowering IPL, but this
+	// is expensive relative to simply disabling interrupts.
+	//
+	// We might end up on a different processor, and that PRCB might
+	// have already had its CurrentThread pointer overwritten to what
+	// we don't expect.
+	//
+	// TODO: For GS Base, we should, instead of using the PRCB,
+	// use the current THREAD, and have the current THREAD point back
+	// to the PRCB.  This avoids the need to disable interrupts when
+	// fetching the current thread.
+	
+	bool Restore = KeDisableInterrupts();
+	PKTHREAD Thread = KiGetCurrentScheduler()->CurrentThread;
+	KeRestoreInterrupts(Restore);
+	
+	return Thread;
 }
 
 void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 {
 	if (!IsListEmpty(&Thread->EntryQueue))
 	{
-		PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+		PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 		
 		// Remove from the old place in its queue, and assign it to the new place in the queue.
 		RemoveEntryList(&Thread->EntryQueue);
@@ -92,7 +119,7 @@ void KiReadyThread(PKTHREAD Thread)
 	
 	Thread->Status = KTHREAD_STATUS_READY;
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	KIPL Ipl;
 	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl);
@@ -171,7 +198,7 @@ void KeSchedulerInit()
 {
 	KIPL Ipl = KiLockDispatcher();
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	InitializeRbTree(&Scheduler->TimerTree);
 	
@@ -281,7 +308,7 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 	uint64_t QuantumUntil = HalGetTickCount() + QuantumTicks;
 	
 	Thread->QuantumUntil = QuantumUntil;
-	KeGetCurrentScheduler()->QuantumUntil = QuantumUntil;
+	KiGetCurrentScheduler()->QuantumUntil = QuantumUntil;
 	
 	if (HalUseOneShotIntTimer())
 	{
@@ -309,7 +336,7 @@ void KiEndThreadQuantum()
 	// Thus, there's always going to be something running at at least that thread's
 	// priority, including the current thread itself.
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
 	PKTHREAD NextThread = KiGetNextThread(false);
@@ -425,7 +452,7 @@ static PKTHREAD KepTryStealThread(int MinPriority)
 PKTHREAD KiGetNextThread(bool MayDowngrade)
 {
 	KiAssertOwnDispatcherLock();
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
 	int MinPriority = 0;
@@ -477,7 +504,7 @@ void KiPerformYield()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
 	// If the current thread was "running" when it yielded, its quantum has
@@ -513,7 +540,7 @@ bool KiNeedToSwitchThread()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	return Scheduler->NextThread != NULL;
 }
@@ -532,7 +559,7 @@ void KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	// Load other properties about the thread.
 	if (!Scheduler->NextThread)
@@ -600,7 +627,7 @@ void KiHandleQuantumEnd()
 	
 	KiPerformYield();
 	
-	if (KeGetCurrentScheduler()->NextThread) {
+	if (KiGetCurrentScheduler()->NextThread) {
 		KiSwitchToNextThread();
 	}
 	
@@ -617,7 +644,7 @@ void KeTimerTick()
 	//    I mean that it may have interrupted normal execution _while_
 	//    the dispatcher is locked.
 	// 2. You really don't need it!
-	PKSCHEDULER Scheduler = KeGetCurrentScheduler();
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	SchedDebug("Scheduler->QuantumUntil: %lld  HalGetTickCount: %lld", Scheduler->QuantumUntil, HalGetTickCount());
 	

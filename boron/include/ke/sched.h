@@ -71,8 +71,6 @@ typedef struct
 }
 KSCHEDULER, *PKSCHEDULER;
 
-PKSCHEDULER KeGetCurrentScheduler();
-
 PKTHREAD KeGetCurrentThread();
 
 void KeSetPriorityThread(PKTHREAD Thread, int Priority);

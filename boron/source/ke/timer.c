@@ -19,7 +19,7 @@ Author:
 
 bool KiRemoveTimerTree(PKTIMER Timer)
 {
-	return RemoveItemRbTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	return RemoveItemRbTree(&KiGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
 }
 
 bool KiInsertTimerTree(PKTIMER Timer)
@@ -27,7 +27,7 @@ bool KiInsertTimerTree(PKTIMER Timer)
 	// XXX: What if the key is 32-bit for some reason? Should the key stay 64-bit instead?
 	Timer->EntryTree.Key = Timer->ExpiryTick;
 	
-	return InsertItemRbTree(&KeGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	return InsertItemRbTree(&KiGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
 }
 
 bool KiCancelTimer(PKTIMER Timer)
@@ -74,7 +74,7 @@ uint64_t KiGetNextTimerExpiryTick()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PRBTREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
+	PRBTREE TimerTree = &KiGetCurrentScheduler()->TimerTree;
 	
 	uint64_t Expiry = 0;
 	
@@ -92,7 +92,7 @@ uint64_t KiGetNextTimerExpiryItTick()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PRBTREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
+	PRBTREE TimerTree = &KiGetCurrentScheduler()->TimerTree;
 	
 	uint64_t Expiry = 0;
 	
@@ -117,7 +117,7 @@ void KiDispatchTimerObjects()
 {
 	KiAssertOwnDispatcherLock();
 	
-	PRBTREE TimerTree = &KeGetCurrentScheduler()->TimerTree;
+	PRBTREE TimerTree = &KiGetCurrentScheduler()->TimerTree;
 	
 	while (!IsEmptyRbTree(TimerTree))
 	{
