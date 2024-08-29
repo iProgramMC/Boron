@@ -20,7 +20,8 @@ NO_RETURN void KiThreadEntryPoint();
 
 void KiSetupRegistersThread(PKTHREAD Thread)
 {
-	uintptr_t StackBottom = ((uintptr_t) Thread->Stack.Top + (uintptr_t) Thread->Stack.Size) & ~0xF;
+	// Subtract 10 from the stack pointer to keep the final stack frame valid.
+	uintptr_t StackBottom = ((uintptr_t) Thread->Stack.Top + (uintptr_t) Thread->Stack.Size - 0x10) & ~0xF;
 	
 	uint64_t* StackPointer = (uint64_t*) StackBottom;
 	
