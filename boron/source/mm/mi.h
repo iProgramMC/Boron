@@ -19,7 +19,11 @@ Author:
 #include <string.h>
 #include <hal.h>
 #include <ke.h>
+#include <ps.h>
 #include <_limine.h>
+
+// If out of memory, let other threads run on the system for this many milliseconds to hopefully free up some memory.
+#define MI_REFAULT_SLEEP_MS (50)
 
 // ===== Physical Memory Manager =====
 
@@ -28,6 +32,9 @@ KIPL MiLockPfdb();
 
 // Unlocks the page frame database's spinlock.
 void MiUnlockPfdb(KIPL Ipl);
+
+// Gets the reference count of a page by PFN.
+int MiGetReferenceCountPfn(MMPFN Pfn);
 
 // ===== Slab Allocator =====
 

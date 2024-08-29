@@ -62,32 +62,64 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
 	
-	BSTATUS FaultReason = MmPageFault(FaultPC, FaultAddress, FaultMode);
-	
-	if (SUCCEEDED(FaultReason))
-		return;
-	
-	// Invalid page fault!
+	BSTATUS FaultReason = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();
 	
-	// Check if we are probing.
-	if (Thread && Thread->Probing)
+	if (KeGetPreviousMode() == MODE_USER && FaultAddress > MM_USER_SPACE_END)
+		FaultReason = STATUS_ACCESS_VIOLATION;
+	
+	if (KeGetIPL() >= IPL_DPC)
 	{
-		// Yeah, so instead of crashing, just modify the trap frame to point to the
-		// return instruction of MmProbeAddressSub, and RAX to return STATUS_FAULT.
-	#ifdef TARGET_AMD64
+		// Page faults may only be taken at IPL_APC or lower.  This is to prevent
+		// deadlock and synchronization issues.  Don't handle the page fault, but
+		// instead, immediately return the specific status.
+		FaultReason = STATUS_IPL_TOO_HIGH;
+	}
+	else
+	{
+		// If there are any other immediately observable bad accesses, handle them here.
+		// For example, perhaps we might force the first page (0-0xFFF) to always be
+		// invalid, so this condition may be added here.
 		
-		TrapFrame->rip = (uint64_t) MmProbeAddressSubEarlyReturn;
-		TrapFrame->rax = (uint64_t) STATUS_FAULT;
+		if (SUCCEEDED(FaultReason))
+		{
+			do
+			{
+				FaultReason = MmPageFault(FaultPC, FaultAddress, FaultMode);
+			}
+			while (FaultReason == STATUS_REFAULT);
+		}
 		
-		return;
+		if (SUCCEEDED(FaultReason))
+			return;
 		
-	#else
+		if (KeGetPreviousMode() == MODE_USER)
+		{
+			// TODO: Send a segmentation fault signal?
+			// TODO: Kill this thread immediately?
+		}
 		
-		#error Hey!
+		// Invalid page fault!
 		
-	#endif
+		// Check if we are probing.
+		if (Thread && Thread->Probing)
+		{
+			// Instead of crashing, just modify the trap frame to point to the return
+			// instruction of MmProbeAddressSubEarlyReturn, and RAX to return STATUS_FAULT.
+		#ifdef TARGET_AMD64
+			
+			TrapFrame->rip = (uint64_t) MmProbeAddressSubEarlyReturn;
+			TrapFrame->rax = (uint64_t) STATUS_FAULT;
+			
+			return;
+			
+		#else
+			
+			#error Hey!
+			
+		#endif
+		}
 	}
 	
-	KeCrash("unhandled fault thread=%p, ip=%p, faultaddr=%p, faultmode=%p, reason=%d", Thread, FaultPC, FaultAddress, FaultMode, FaultReason);
+	KeCrash("invalid page fault thread=%p, ip=%p, faultaddr=%p, faultmode=%p, status=%d", Thread, FaultPC, FaultAddress, FaultMode, FaultReason);
 }

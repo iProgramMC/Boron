@@ -28,3 +28,4 @@ void PerformKeyboardTest(void);
 void PerformStorageTest(void);
 void PerformExObTest(void);
 void PerformCcbTest(void);
+void PerformMm1Test(void);

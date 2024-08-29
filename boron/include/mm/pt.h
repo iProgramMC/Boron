@@ -33,6 +33,12 @@ void MmUnlockKernelSpace();
 
 // Locks either the user space lock or the kernel space lock, depending on the address.
 // Pass 0 to lock the user space lock.
+//
+// Note: If you *must* hold the VAD list lock, always acquire the space lock first to avoid deadlock.
+//
+// TODO: The space lock should be superseded by the VAD list lock, and the latter should be the only
+// thing responsible for userspace memory management, or kernel side memory management outside of
+// pool space.
 void MmLockSpaceShared(uintptr_t DecidingAddress);
 void MmLockSpaceExclusive(uintptr_t DecidingAddress);
 void MmUnlockSpace(uintptr_t DecidingAddress);

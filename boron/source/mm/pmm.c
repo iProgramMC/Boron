@@ -608,3 +608,14 @@ void MmPageAddReference(MMPFN Pfn)
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
+
+int MiGetReferenceCountPfn(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	if (Pfdbe->Type != PF_TYPE_USED)
+		return 0;
+	
+	return Pfdbe->RefCount;
+}

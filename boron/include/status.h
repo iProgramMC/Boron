@@ -26,6 +26,8 @@ enum
 	STATUS_INSUFFICIENT_MEMORY,
 	STATUS_UNIMPLEMENTED,       // N.B. Ideally you'd only see this when using an incomplete version of the system.
 	STATUS_IPL_TOO_HIGH,        // The operation was attempted at high IPL.
+	STATUS_REFAULT,             // The page fault should be re-attempted.
+	STATUS_REFAULT_SLEEP,       // The page fault should be re-attempted and the thread should sleep for a bit.
 	
 	// Wait for object(s) errors
 	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.

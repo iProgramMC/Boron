@@ -14,7 +14,7 @@ Author:
 ***/
 #include <ps.h>
 
-static EPROCESS PsSystemProcess;
+EPROCESS PsSystemProcess;
 
 PEPROCESS PsGetSystemProcess()
 {
