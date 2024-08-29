@@ -16,8 +16,11 @@ Author:
 
 KIPL KeGetIPL()
 {
+	bool Restore = KeDisableInterrupts();
 	KPRCB* me = KeGetCurrentPRCB();
-	return me->Ipl;
+	KIPL Ipl = me->Ipl;
+	KeRestoreInterrupts(Restore);
+	return Ipl;
 }
 
 // Note! KeRaiseIPL and KeLowerIPL must only be called to manage IPLs on the software side.
