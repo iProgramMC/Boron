@@ -71,6 +71,7 @@ bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Addre
 void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
 
 // Handles a page fault. Returns whether or not the page fault was handled.
+// TODO make it MiPageFault and export it only to ke/except
 BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
 
 // Issue a TLB shootdown request. This is the official API for this purpose.

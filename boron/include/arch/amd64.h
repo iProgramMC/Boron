@@ -42,7 +42,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
 #define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write
-#define MM_PTE_DEMAND     (1ULL << 11) // is waiting for an allocation (demand paging)
+// bit 11 free
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
 #define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
 #define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
@@ -111,8 +111,6 @@ struct KREGISTERS_tag
 	uint64_t rdx;
 	
 	uint64_t rcx, rbx, rax;
-	
-	
 	
 	// Registers pushed by each trap handler
 	uint64_t IntNumber; // the interrupt vector

@@ -18,11 +18,43 @@ Author:
 
 // NOTE: This is not ideal.  The test penetrates into internal functions.
 
-void PerformCopyOnWriteTest()
+void PerformDemandPageTest()
 {
+	LogMsg(">> Demand page test");
 	HPAGEMAP Map = MiGetCurrentPageMap();
 	
-	void* PoolAddr = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 2, POOL_TAG("Mtst"));
+	void* PoolAddr = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("Mts1"));
+	ASSERT(PoolAddr);
+	
+	uintptr_t Va = (uintptr_t) PoolAddr;
+	
+	// Make the PTE a demand page PTE.
+	MmLockKernelSpaceExclusive();
+	
+	PMMPTE Pte = MiGetPTEPointer(Map, Va, true);
+	ASSERT(Pte);
+	*Pte = MM_DPTE_DEMANDPAGED | MM_PTE_READWRITE;
+	
+	MmUnlockKernelSpace();
+	
+	// This should work.
+	*((volatile uint32_t*)Va) = 0x87654321;
+	
+	LogMsg("Va read: %08x", *((uint32_t*)Va));
+	
+	MmLockKernelSpaceExclusive();
+	MiUnmapPages(Map, Va, 1);
+	MmUnlockKernelSpace();
+	
+	MmFreePoolBig(PoolAddr);
+}
+
+void PerformCopyOnWriteTest()
+{
+	LogMsg(">> Copy on write test");
+	HPAGEMAP Map = MiGetCurrentPageMap();
+	
+	void* PoolAddr = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 2, POOL_TAG("Mts2"));
 	ASSERT(PoolAddr);
 	
 	uintptr_t Va1 = (uintptr_t) PoolAddr;
@@ -34,7 +66,7 @@ void PerformCopyOnWriteTest()
 	MmPageAddReference(Pfn);
 	
 	// Place something in that page
-	*((uint32_t*)MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn))) = 0x12345678;
+	*((volatile uint32_t*)MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn))) = 0x12345678;
 	
 	// Now map them in.
 	MmLockKernelSpaceExclusive();
@@ -50,14 +82,23 @@ void PerformCopyOnWriteTest()
 	LogMsg("Va2 read 1: %08x", *((uint32_t*)Va2));
 	
 	// Write a value to Va2.  It shouldn't reflect in Va1.
-	*((uint32_t*)Va2) = 0x87654321;
+	*((volatile uint32_t*)Va2) = 0x87654321;
 	
 	// Read from them again.
 	LogMsg("Va1 read 2: %08x", *((uint32_t*)Va1));
 	LogMsg("Va2 read 2: %08x", *((uint32_t*)Va2));
+	
+	// Unmap everything.
+	MmLockKernelSpaceExclusive();
+	MiUnmapPages(Map, Va1, 2);
+	MmUnlockKernelSpace();
+	
+	// Free the pool space.
+	MmFreePoolBig(PoolAddr);
 }
 
 void PerformMm1Test()
 {
+	PerformDemandPageTest();
 	PerformCopyOnWriteTest();
 }

@@ -16,9 +16,42 @@ Author:
 
 extern EPROCESS PsSystemProcess;
 
-BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va)
+BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PtePtr)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
+	
+	if (PtePtr)
+	{
+		// This PTE is here, but it's not present.  Figure out what's going on.
+		if (*PtePtr == 0)
+		{
+			// This PTE is zero. TODO
+			return STATUS_ACCESS_VIOLATION;
+		}
+		
+		if (*PtePtr & MM_DPTE_DEMANDPAGED)
+		{
+			// This PTE is demand paged.  Allocate a page.
+			int Pfn = MmAllocatePhysicalPage();
+			
+			if (Pfn == PFN_INVALID)
+			{
+				// TODO: This is probably bad
+				return STATUS_REFAULT_SLEEP;
+			}
+			
+			// Create a new, valid, PTE that will replace the current one.
+			MMPTE NewPte = *PtePtr;
+			NewPte &= ~MM_DPTE_DEMANDPAGED;
+			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
+			NewPte |=  MmPFNToPhysPage(Pfn);
+			NewPte &= ~MM_PTE_PKMASK;
+			*PtePtr = NewPte;
+			
+			// Fault was handled successfully.
+			return STATUS_SUCCESS;
+		}
+	}
 	
 	// TODO
 	return STATUS_ACCESS_VIOLATION;
@@ -61,7 +94,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			if (NewPfn == PFN_INVALID)
 			{
 				// TODO: This is probably bad
-				return STATUS_INSUFFICIENT_MEMORY;
+				return STATUS_REFAULT_SLEEP;
 			}
 			
 			void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
@@ -147,7 +180,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		}
 	}
 	
-	Status = MiNormalFault(Process, FaultAddress);
+	Status = MiNormalFault(Process, FaultAddress, PtePtr);
 	
 	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE))
 	{
@@ -163,6 +196,12 @@ EarlyExit:
 	{
 		// The page fault could not be serviced due to an out of memory condition.
 		// It will be retried in a few milliseconds.
+		//
+		// TODO: Signal to the correct body that they should start trimming working sets
+		// and paging stuff out.
+		//
+		// TODO: Instead of waiting on a timer, perhaps wait on some other dispatcher
+		// object that's signaled when there's enough memory.
 		//
 		// NOTE: This probably sucks and I should really think of a different solution.
 		KTIMER Timer;
