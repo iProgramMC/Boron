@@ -28,12 +28,6 @@ void KiOnKillProcess(PKPROCESS Process)
 	// to a different process' address space.
 	ASSERT(KeGetCurrentProcess() != Process);
 	
-	// Delete the page mapping.
-	// TODO
-	
-	// Close any open resources.
-	// TODO
-	
 	// Signal all threads that are waiting on this process.
 	// Here it's simpler because this IS where the process is killed!
 	Process->Header.Signaled = true;

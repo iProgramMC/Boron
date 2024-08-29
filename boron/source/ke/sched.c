@@ -375,9 +375,8 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	
 	PKTHREAD Thread = ContextV;
 	
-	// Free the thread's kernel stack.
-	ASSERT(Thread->Stack.Top);
-	MmFreePoolBig(Thread->Stack.Top);
+	void* StackTop = Thread->Stack.Top;
+	ASSERT(StackTop);
 	Thread->Stack.Top = NULL;
 	
 	// Remove the thread from the global list of threads.
@@ -410,17 +409,39 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	
 	// TODO: If the main thread died, send a kernel APC to all other threads to also terminate.
 	
+	// These need to be called with the dispatcher lock NOT held.
+	//
+	// TODO: The whole "detach" system needs to be rearchitected.
+	PKPROCESS_TERMINATE_METHOD ProcessTerminate = NULL;
+	PKTHREAD_TERMINATE_METHOD  ThreadTerminate  = NULL;
+	PKPROCESS Process = NULL;
+	
+	if (Thread->Detached)
+		ThreadTerminate = Thread->TerminateMethod;
+	
 	if (IsListEmpty(&Thread->Process->ThreadList))
 	{
+		if (Thread->Process->Detached)
+		{
+			ProcessTerminate = Thread->Process->TerminateMethod;
+			Process = Thread->Process;
+		}
+		
 		KiOnKillProcess(Thread->Process);
 		Thread->Process = NULL;
 	}
 	
-	// If the thread is detached, deallocate it.
-	if (Thread->Detached)
-		Thread->TerminateMethod(Thread);
-	
 	KiUnlockDispatcher(Ipl);
+	
+	// Free the thread's kernel stack.
+	MmFreePoolBig(StackTop);
+	
+	if (ProcessTerminate)
+		ProcessTerminate(Process);
+	
+	// If the thread is detached, deallocate it.
+	if (ThreadTerminate)
+		ThreadTerminate(Thread);
 }
 
 // I dub this "work stealing", although I'm pretty sure I've heard this somewhere before.

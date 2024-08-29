@@ -33,11 +33,15 @@ KIPL KeGetIPL()
 
 KIPL KeRaiseIPLIfNeeded(KIPL NewIpl)
 {
+	bool Restore = KeDisableInterrupts();
 	KPRCB* Prcb = KeGetCurrentPRCB();
 	
 	// TODO: Remove the cases where Prcb can be NULL.
 	if (!Prcb)
+	{
+		KeRestoreInterrupts(Restore);
 		return NewIpl;
+	}
 	
 	KIPL OldIpl = Prcb->Ipl;
 	
@@ -47,66 +51,63 @@ KIPL KeRaiseIPLIfNeeded(KIPL NewIpl)
 		Prcb->Ipl = NewIpl;
 	}
 	
+	KeRestoreInterrupts(Restore);
 	return OldIpl;
 }
 
 KIPL KeRaiseIPL(KIPL NewIpl)
 {
+	// TODO: Perhaps it's not even necessary to reprogram the interrupt controller.
+	// No hardware interrupt is going to come in at IPL_DPC or below... (well, at
+	// least when I wean off my hacky solution of sending the self processor an IPI)
+	bool Restore = KeDisableInterrupts();
+	
 	KPRCB* Prcb = KeGetCurrentPRCB();
 	ASSERT(Prcb);
 	
 	KIPL OldIpl = Prcb->Ipl;
 	
 	if (OldIpl == NewIpl)
+	{
+		KeRestoreInterrupts(Restore);
 		return OldIpl; // no change
+	}
 	
 	ASSERT(OldIpl < NewIpl);
-	
-	// TODO: Perhaps it's not even necessary to reprogram the interrupt controller.
-	// No hardware interrupt is going to come in at IPL_DPC or below... (well, at
-	// least when I wean off my hacky solution of sending the self processor an IPI)
-	bool Restore = KeDisableInterrupts();
 	KeOnUpdateIPL(NewIpl, OldIpl);
 	Prcb->Ipl = NewIpl;
-	KeRestoreInterrupts(Restore);
 	
+	KeRestoreInterrupts(Restore);
 	return OldIpl;
 }
 
 // similar logic, except we will also call DPCs if needed
 KIPL KeLowerIPL(KIPL NewIpl)
 {
+	bool Restore = KeDisableInterrupts();
 	KPRCB* Prcb = KeGetCurrentPRCB();
 	
 	// TODO: Remove the cases where Prcb can be NULL.
 	if (!Prcb)
+	{
+		KeRestoreInterrupts(Restore);
 		return NewIpl;
+	}
 	
 	KIPL OldIpl = Prcb->Ipl;
 	
 	if (OldIpl == NewIpl)
+	{
+		KeRestoreInterrupts(Restore);
 		return OldIpl; // no changes
+	}
 	
 	ASSERT(OldIpl > NewIpl);
 	
-	// If we fell below DPC level, check if we have any pending events and issue a self IPI.
-#if 0
-	if (NewIpl < IPL_DPC)
-	{
-		bool Restore = KeDisableInterrupts();
-		
-		// TODO: Don't use an IPI to do this. Huge overhead
-		if (KeGetPendingEvents())
-			HalRequestIpi(0, HAL_IPI_SELF, KiVectorDpcIpi);
-		
-		KeRestoreInterrupts(Restore);
-	}
-#endif
-	
 	// Set the current IPL
-	bool Restore = KeDisableInterrupts();
 	Prcb->Ipl = NewIpl;
 	KeOnUpdateIPL(NewIpl, OldIpl);
+	
 	KeRestoreInterrupts(Restore);
 	
 	// Check if any pending software interrupts are at this level or above

@@ -18,6 +18,29 @@ Author:
 
 // NOTE: This is not ideal.  The test penetrates into internal functions.
 
+uint8_t PortReadByte(uint16_t portNo)
+{
+    uint8_t rv;
+    ASM("inb %1, %0" : "=a" (rv) : "dN" (portNo));
+    return rv;
+}
+
+void PortWriteByte(uint16_t portNo, uint8_t data)
+{
+	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
+}
+
+void Reboot() {
+	
+    uint8_t good = 0x02;
+    while (good & 0x02)
+        good = PortReadByte(0x64);
+    PortWriteByte(0x64, 0xFE);
+	
+	(void) KeDisableInterrupts();
+	while (true) KeWaitForNextInterrupt();
+}
+
 void PerformDemandPageTest()
 {
 	LogMsg(">> Demand page test");
@@ -101,4 +124,8 @@ void PerformMm1Test()
 {
 	PerformDemandPageTest();
 	PerformCopyOnWriteTest();
+	
+	// I needed this code to reboot the VM when I was finding some race conditions
+	//DbgPrint("REBOOT!");
+	//Reboot();
 }
