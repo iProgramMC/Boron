@@ -109,12 +109,17 @@ void ObpReapObject(void* Object)
 void ObReferenceObjectByPointer(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	
+	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
+	
 	AtAddFetch(Hdr->NonPagedObjectHeader->PointerCount, 1);
 }
 
 void ObDereferenceObject(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
+	
+	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
 	
 	int OldCount = AtFetchAdd(Hdr->NonPagedObjectHeader->PointerCount, -1);
 	

@@ -129,6 +129,20 @@ struct _NONPAGED_OBJECT_HEADER
 
 struct _OBJECT_HEADER
 {
+#ifdef DEBUG
+#define OBJECT_HEADER_SIGNATURE 0x6953624F // 'ObSi'
+	// Signature.  In debug mode, this is checked against for reference/dereference operations,
+	// among other things, to ensure that non-object-manager-managed objects aren't accidentally
+	// used.
+	int Signature;
+#endif
+	
+	// Object behavior flags.
+	int Flags;
+	
+	// Pool-allocated pointer to characters - the object's name.
+	// May be NULL, in which case the object is nameless and does not belong to
+	// the global object namespace.
 	char* ObjectName;
 	
 	// Entry into the parent directory's list of entries.
@@ -149,9 +163,6 @@ struct _OBJECT_HEADER
 	// itself, but passed into calls to the type's Parse method.
 	void* ParseContext;
 	
-	// Object behavior flags.
-	int Flags;
-	
 	PNONPAGED_OBJECT_HEADER NonPagedObjectHeader;
 	
 	// The size of the body.
@@ -165,6 +176,8 @@ struct _OBJECT_SYMLINK
 	// The path of the object that this symbolic link links to.
 	// If NULL, the symbolic link is considered invalid and will
 	// throw errors when a lookup is attempted on it.
+	//
+	// This pointer is pool-allocated.
 	char* DestPath;
 };
 
