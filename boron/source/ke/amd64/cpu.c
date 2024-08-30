@@ -19,16 +19,6 @@ Author:
 #include <string.h>
 #include "../../ke/ki.h"
 
-void KeWaitForNextInterrupt()
-{
-	ASM("hlt":::"memory");
-}
-
-void KeInvalidatePage(void* page)
-{
-	ASM("invlpg (%0)"::"r"((uintptr_t)page):"memory");
-}
-
 extern void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL); // defined in x.asm
 
 static UNUSED uint64_t KepGetRflags()
@@ -37,11 +27,6 @@ static UNUSED uint64_t KepGetRflags()
 	ASM("pushfq\n"
 	    "popq %0":"=r"(rflags));
 	return rflags;
-}
-
-void KeSpinningHint()
-{
-	ASM("pause":::"memory");
 }
 
 // Model specific registers
@@ -71,11 +56,6 @@ void KeSetCPUPointer(void* pGS)
 void* KeGetCPUPointer(void)
 {
 	return (void*) KeGetMSR(MSR_GS_BASE);
-}
-
-KARCH_DATA* KeGetData()
-{
-	return &KeGetCurrentPRCB()->ArchData;
 }
 
 extern void* KiIdtDescriptor;
@@ -133,6 +113,10 @@ static void KepSetupGdt(KARCH_DATA* Data)
 	void* Prcb = KeGetCPUPointer();
 	KepLoadGdt(&GdtDescriptor);
 	
+	// Because reloading GDT also reloads the segment registers,
+	// GS base is cleared, so we must reload it.
+	//
+	// Also clear kernel GS base while we're at it.
 	KeSetCPUPointer(NULL);
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Prcb);
 	ASM("swapgs":::"memory");
@@ -162,7 +146,7 @@ void KeInitCPU()
 		KeStopCurrentCPU();
 	}
 	
-	KARCH_DATA* Data = KeGetData();
+	PKARCH_DATA Data = &KeGetCurrentPRCB()->ArchData;
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
 	
 	void* intStack = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ispPFN));

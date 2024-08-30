@@ -215,7 +215,7 @@ typedef struct
 	KGDT Gdt;
 	KTSS Tss;
 }
-KARCH_DATA;
+KARCH_DATA, *PKARCH_DATA;
 
 // Manual interrupt disabling functions. Should instead use
 // KeDisableInterrupts and KeRestoreInterrupts, but these have
