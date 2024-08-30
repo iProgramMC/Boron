@@ -63,35 +63,10 @@ KeRestoreInterrupts:
 	push rdi
 	mov  rax, cr2
 	push rax
-	mov  ax,  gs
-	push ax
-	mov  ax,  fs
-	push ax
-	mov  ax,  es
-	push ax
-	mov  ax,  ds
-	push ax
-	cmp  ax,  SEG_RING_3_DATA     ; If the data segment is in user mode...
-	jne  .a1
-	swapgs                        ; Swap to the kernel GS.
-.a1:
-	nop
 %endmacro
 
 ; Pop the entire state except RAX and RBX
 %macro POP_STATE 0
-	pop  ax
-	mov  ds, ax
-	cmp  ax,  SEG_RING_3_DATA     ; If the data segment is in user mode...
-	jne  .a2
-	swapgs                        ; Swap to the user's GS.
-.a2:
-	pop  ax
-	mov  es, ax
-	pop  ax
-	mov  fs, ax
-	pop  ax
-	mov  gs, ax
 	add  rsp, 8    ; the space occupied by the cr2 register
 	pop  rdi
 	pop  rsi
@@ -118,11 +93,6 @@ KiTrapCommon:
 	; does it load the address of certain things into a register. We then
 	; defer actually loading those until after DS was changed.
 	PUSH_STATE                             ; Push the state, except for the old ipl
-	mov   rax, SEG_RING_0_DATA             ; Use ring 0 segment for kernel mode use. We have backed the old values up
-	mov   ds,  ax
-	mov   es,  ax
-	mov   fs,  ax
-	mov   gs,  ax
 	mov   rbx, [rbx]                       ; Retrieve the interrupt number and RIP from interrupt frame. These were deferred
 	mov   rcx, [rcx]                       ; so that we wouldn't attempt to access the kernel stack using the user's data segment.
 	mov   rdx, [rdx]                       ; Load CS, to determine the previous mode when entering a hardware interrupt

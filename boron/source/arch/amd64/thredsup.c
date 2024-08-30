@@ -27,10 +27,6 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	
 	*(--StackPointer) = (uint64_t) KiThreadEntryPoint; // Set return address
 	*(--StackPointer) = 0x200; // Set IF when entering the thread
-	*(--StackPointer) = SEG_RING_0_DATA; // Set DS
-	*(--StackPointer) = SEG_RING_0_DATA; // Set ES
-	*(--StackPointer) = SEG_RING_0_DATA; // Set FS
-	*(--StackPointer) = SEG_RING_0_DATA; // Set GS
 	*(--StackPointer) = 0; // Set RBP
 	*(--StackPointer) = (uint64_t) Thread->StartRoutine; // Set RBX
 	*(--StackPointer) = (uint64_t) Thread->StartContext; // Set R12

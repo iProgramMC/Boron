@@ -50,6 +50,7 @@ enum
 
 typedef struct
 {
+	
 	// Execution queue mask. If a bit is set, that means that a thread
 	// of the priority corresponding to that bit exists in the queue.
 	QUEUE_MASK ExecQueueMask;
@@ -70,8 +71,6 @@ typedef struct
 	uint64_t QuantumUntil;
 }
 KSCHEDULER, *PKSCHEDULER;
-
-PKTHREAD KeGetCurrentThread();
 
 void KeSetPriorityThread(PKTHREAD Thread, int Priority);
 

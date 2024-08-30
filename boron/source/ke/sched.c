@@ -45,6 +45,8 @@ PKSCHEDULER KiGetCurrentScheduler()
 	return &KeGetCurrentPRCB()->Scheduler;
 }
 
+#ifndef TARGET_AMD64 // On AMD64, this is optimized into an inline GS-relative access.
+
 PKTHREAD KeGetCurrentThread()
 {
 	// Disable interrupts in order to prevent being scheduled out.
@@ -54,11 +56,6 @@ PKTHREAD KeGetCurrentThread()
 	// We might end up on a different processor, and that PRCB might
 	// have already had its CurrentThread pointer overwritten to what
 	// we don't expect.
-	//
-	// TODO: For GS Base, we should, instead of using the PRCB,
-	// use the current THREAD, and have the current THREAD point back
-	// to the PRCB.  This avoids the need to disable interrupts when
-	// fetching the current thread.
 	
 	bool Restore = KeDisableInterrupts();
 	PKTHREAD Thread = KiGetCurrentScheduler()->CurrentThread;
@@ -66,6 +63,8 @@ PKTHREAD KeGetCurrentThread()
 	
 	return Thread;
 }
+
+#endif
 
 void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 {

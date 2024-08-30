@@ -33,7 +33,4 @@ KIPL KeRaiseIPLIfNeeded(KIPL newIPL);
 // Lower the IPL of the current processor back to the level before KeRaiseIPL.
 KIPL KeLowerIPL(KIPL newIPL);
 
-// Get the current IPL of the processor.
-KIPL KeGetIPL();
-
 #endif//BORON_KE_IPL_H

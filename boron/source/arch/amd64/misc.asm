@@ -111,14 +111,6 @@ KiSwitchThreadStack:
 	; TODO: Do we really need to push and pop rflags?
 	; TODO: Do we really need to push the segment registers?
 	pushfq
-	mov  rax, ds
-	push rax
-	mov  rax, es
-	push rax
-	mov  rax, fs
-	push rax
-	mov  rax, gs
-	push rax
 	push rbp
 	push rbx
 	push r12
@@ -140,14 +132,6 @@ KiPopEverythingAndReturn:
 	pop  r12
 	pop  rbx
 	pop  rbp
-	pop  rax
-	mov  gs, rax
-	pop  rax
-	mov  fs, rax
-	pop  rax
-	mov  es, rax
-	pop  rax
-	mov  ds, rax
 	xor  rax, rax
 	
 	; Pop RFLAGS and return

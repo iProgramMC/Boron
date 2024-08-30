@@ -77,6 +77,34 @@ typedef struct KPRCB_tag
 }
 KPRCB, *PKPRCB;
 
+#ifdef TARGET_AMD64
+
+ALWAYS_INLINE static inline
+KIPL KeGetIPL()
+{
+	KIPL Result;
+	ASM("mov %%gs:%c1, %0" : "=r" (Result) : "i" (offsetof(KPRCB, Ipl)));
+	return Result;
+}
+
+ALWAYS_INLINE static inline
+PKTHREAD KeGetCurrentThread()
+{
+	PKTHREAD Thread;
+	ASM("mov %%gs:%c1, %0" : "=r" (Thread) : "i" (offsetof(KPRCB, Scheduler.CurrentThread)));
+	return Thread;
+}
+
+#else
+
+// Get the current IPL of the processor.
+KIPL KeGetIPL();
+
+// Get the pointer to the current thread.
+PKTHREAD KeGetCurrentThread();
+
+#endif
+
 PKPRCB KeGetCurrentPRCB();
 
 int KeGetProcessorCount();

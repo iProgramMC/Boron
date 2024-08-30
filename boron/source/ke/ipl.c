@@ -14,6 +14,8 @@ Author:
 ***/
 #include "ki.h"
 
+#ifndef TARGET_AMD64 // On AMD64, this function is optimized into a GS-relative access.
+
 KIPL KeGetIPL()
 {
 	bool Restore = KeDisableInterrupts();
@@ -22,6 +24,8 @@ KIPL KeGetIPL()
 	KeRestoreInterrupts(Restore);
 	return Ipl;
 }
+
+#endif
 
 // Note! KeRaiseIPL and KeLowerIPL must only be called to manage IPLs on the software side.
 // The hardware interrupts modify the IPL by using KeEnterHardwareInterrupt and

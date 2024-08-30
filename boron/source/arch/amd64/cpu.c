@@ -65,12 +65,12 @@ void KeSetMSR(uint32_t msr, uint64_t value)
 
 void KeSetCPUPointer(void* pGS)
 {
-	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) pGS);
+	KeSetMSR(MSR_GS_BASE, (uint64_t) pGS);
 }
 
 void* KeGetCPUPointer(void)
 {
-	return (void*) KeGetMSR(MSR_GS_BASE_KERNEL);
+	return (void*) KeGetMSR(MSR_GS_BASE);
 }
 
 KARCH_DATA* KeGetData()
@@ -130,7 +130,12 @@ static void KepSetupGdt(KARCH_DATA* Data)
 	GdtDescriptor.Length  = sizeof   * Gdt;
 	GdtDescriptor.Pointer = (uint64_t) Gdt;
 	
+	void* Prcb = KeGetCPUPointer();
 	KepLoadGdt(&GdtDescriptor);
+	
+	KeSetCPUPointer(NULL);
+	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Prcb);
+	ASM("swapgs":::"memory");
 	
 	// also load the TSS
 	KepLoadTss(offsetof(KGDT, TssEntry));
