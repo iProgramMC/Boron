@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/probe.c
+	ke/amd64/probe.c
 	
 Abstract:
 	This module implements the high level routines for address probing.

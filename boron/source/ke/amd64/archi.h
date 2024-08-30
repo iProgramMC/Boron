@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/archi.h
+	ke/amd64/archi.h
 	
 Abstract:
 	This header file contains the internal definitions for

@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/cpu.c
+	ke/amd64/cpu.c
 	
 Abstract:
 	This module implements certain utility functions,

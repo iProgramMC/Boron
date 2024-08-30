@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/traps.c
+	ke/amd64/traps.c
 	
 Abstract:
 	This header file implements support for the IDT (Interrupt

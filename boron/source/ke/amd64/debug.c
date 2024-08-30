@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/debug.c
+	ke/amd64/debug.c
 	
 Abstract:
 	This module implements architecture specific debugging

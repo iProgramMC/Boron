@@ -3,7 +3,7 @@
 ;    Copyright (C) 2023 iProgramInCpp
 ; 
 ; Module name:
-;    arch/amd64/trap.asm
+;    ke/amd64/trap.asm
 ; 	
 ; Abstract:
 ;    This module contains the implementation for each of the
@@ -35,14 +35,14 @@ KiTestTrap%1:
 	jmp KiTrapCommon      ; Jump to the common trap handler
 %endmacro
 
-%include "arch/amd64/intlist.inc"
+%include "ke/amd64/intlist.inc"
 
 %unmacro INT 2
 
 %macro INT 2
 extern KiTestTrap%1
 %endmacro
-%include "arch/amd64/intlist.inc"
+%include "ke/amd64/intlist.inc"
 %unmacro INT 2
 
 
@@ -53,5 +53,5 @@ KiTrapList:
 %macro INT 2
 	dq KiTestTrap%1
 %endmacro
-%include "arch/amd64/intlist.inc"
+%include "ke/amd64/intlist.inc"
 %unmacro INT 2

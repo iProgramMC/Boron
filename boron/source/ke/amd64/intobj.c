@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	arch/amd64/intobj.c
+	ke/amd64/intobj.c
 	
 Abstract:
 	This module implements the interrupt object for

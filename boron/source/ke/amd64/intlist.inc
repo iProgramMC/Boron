@@ -3,7 +3,7 @@
 ;    Copyright (C) 2023 iProgramInCpp
 ; 
 ; Module name:
-;    arch/amd64/intlist.inc
+;    ke/amd64/intlist.inc
 ; 	
 ; Abstract:
 ;    This is a define file.  It is used to loop through all

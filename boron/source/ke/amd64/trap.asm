@@ -3,7 +3,7 @@
 ;    Copyright (C) 2023 iProgramInCpp
 ; 
 ; Module name:
-;    arch/amd64/trap.asm
+;    ke/amd64/trap.asm
 ; 	
 ; Abstract:
 ;    This module contains the implementation for the common

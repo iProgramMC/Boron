@@ -241,7 +241,7 @@ void MiInitPMM()
 			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
 			continue;
 		
-		DbgPrint("%p-%p (%d pages)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE);
+		DbgPrint("%p-%p (%d pages, %d)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE, pEntry->type);
 	}
 	
 	// pass 1: mapping the pages themselves

@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/init.c
+	ke/amd64/init.c
 	
 Abstract:
 	This module implements the architecture specific UP-init

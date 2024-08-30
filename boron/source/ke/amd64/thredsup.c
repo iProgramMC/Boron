@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	arch/amd64/thredsup.c
+	ke/amd64/thredsup.c
 	
 Abstract:
 	This module implements the architecture specific
