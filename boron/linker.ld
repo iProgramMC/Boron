@@ -81,6 +81,9 @@ SECTIONS
 	.bss : {
 		*(COMMON)
 		*(.bss .bss.*)
+		
+		/* Hack to keep the PsSystemProcess symbol while adding an object header on top */
+		PROVIDE(PsSystemProcess = PspSystemProcessObject + 64);
 	} :data
 	
 	/* Discard .note.* and .eh_frame since they may cause issues on some hosts. */

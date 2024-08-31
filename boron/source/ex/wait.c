@@ -12,6 +12,7 @@ Author:
 	iProgramInCpp - 11 August 2024
 ***/
 #include "exp.h"
+#include <ps.h>
 
 // Ensure the Ex definitions match the Ke definitions.
 static_assert((int)WAIT_ALL_OBJECTS == (int) WAIT_TYPE_ALL);
@@ -26,8 +27,8 @@ static bool ExpIsDispatchObject(void* Object)
 	       Type == ExEventObjectType     ||
 	       Type == ExSemaphoreObjectType ||
 	       Type == ExTimerObjectType     ||
-	       Type == ExThreadObjectType    ||
-	       Type == ExProcessObjectType;
+	       Type == PsThreadObjectType    ||
+	       Type == PsProcessObjectType;
 }
 
 BSTATUS OSWaitForSingleObject(

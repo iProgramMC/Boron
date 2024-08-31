@@ -13,6 +13,8 @@ Author:
 	iProgramInCpp - 18 December 2023
 ***/
 #include "exp.h"
+#include <io.h>
+#include <ps.h>
 
 INIT
 bool ExInitSystem()
@@ -28,12 +30,6 @@ bool ExInitSystem()
 		return false;
 	
 	if (!ExpCreateTimerType())
-		return false;
-	
-	if (!ExpCreateThreadType())
-		return false;
-	
-	if (!ExpCreateProcessType())
 		return false;
 #endif
 	
@@ -56,6 +52,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	
 	if (!ExInitSystem())
 		KeCrash("Could not initialize executive");
+	
+	if (!PsInitSystem())
+		KeCrash("Could not initialize process manager");
 	
 	if (!IoInitSystem())
 		KeCrash("Could not initialize I/O manager");

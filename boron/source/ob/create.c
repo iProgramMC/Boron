@@ -71,7 +71,7 @@ BSTATUS ObpAllocateObject(
 		memset(ObjectHeader, 0, sizeof(OBJECT_HEADER));
 	}
 	
-	// Initializes the object.
+	// Initialize the object.
 	ObjectHeader->Flags = Flags;
 	ObjectHeader->ParseContext = ParseContext;
 	
@@ -88,6 +88,10 @@ BSTATUS ObpAllocateObject(
 	// We will have a pointer to this object, so set its pointer count to 1.
 	NonPagedObjectHeader->PointerCount = 1;
 	NonPagedObjectHeader->HandleCount  = 0;
+	
+#ifdef DEBUG
+	ObjectHeader->Signature = OBJECT_HEADER_SIGNATURE;
+#endif
 	
 	*OutObjectHeader = ObjectHeader;
 	return STATUS_SUCCESS;

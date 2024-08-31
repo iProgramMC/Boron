@@ -17,7 +17,7 @@ Author:
 #include <ke.h>
 #include <mm.h>
 #include <status.h>
-#include <ex.h>
+#include <ex/handtab.h>
 
 typedef enum _OB_OPEN_REASON
 {

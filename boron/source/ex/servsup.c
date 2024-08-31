@@ -12,6 +12,7 @@ Author:
 	iProgramInCpp - 9 August 2024
 ***/
 #include "exp.h"
+#include <ps.h>
 
 BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
 {
@@ -64,6 +65,35 @@ void ExiDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes)
 	Attributes->ObjectName = NULL;
 	Attributes->ObjectNameLength = 0;
 	Attributes->RootDirectory = HANDLE_NONE;
+}
+
+// Does the same operation as ObReferenceObjectByHandle, except translates
+// special handle values to references to the actual object.
+//
+// (e.g. CURRENT_PROCESS_HANDLE is translated to the current process)
+//
+// NOTE: ExReferenceObjectByHandle(CURRENT_THREAD_HANDLE) is not defined for threads that weren't created via Ps.
+//
+// NOTE: ExReferenceObjectByHandle(CURRENT_PROCESS_HANDLE) is defined for the System process.
+BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject)
+{
+	if (ExpectedType == PsThreadObjectType && Handle == CURRENT_THREAD_HANDLE)
+	{
+		void* Thrd = KeGetCurrentThread();
+		*OutObject = Thrd;
+		ObReferenceObjectByPointer(Thrd);
+		return STATUS_SUCCESS;
+	}
+	
+	if (ExpectedType == PsProcessObjectType && Handle == CURRENT_PROCESS_HANDLE)
+	{
+		void* Proc = PsGetCurrentProcess();
+		*OutObject = Proc;
+		ObReferenceObjectByPointer(Proc);
+		return STATUS_SUCCESS;
+	}
+	
+	return ObReferenceObjectByHandle(Handle, ExpectedType, OutObject);
 }
 
 // Creates an object from a user system service call.  This ensures that code is not duplicated.

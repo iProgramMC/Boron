@@ -16,6 +16,15 @@ Author:
 
 #include <ob.h>
 
+#ifdef KERNEL
+
+// Does the same operation as ObReferenceObjectByHandle, except translates
+// special handle values to references to the actual object.
+// (e.g. CURRENT_PROCESS_HANDLE is translated to the current process)
+BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject);
+
+#endif
+
 typedef struct
 {
 	HANDLE RootDirectory;

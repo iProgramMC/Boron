@@ -15,6 +15,10 @@ Author:
 
 #include <ke/process.h>
 #include <mm/vad.h>
+#include <ex/rwlock.h>
+
+#define CURRENT_PROCESS_HANDLE ((HANDLE) 0xFFFFFFFF)
+#define CURRENT_THREAD_HANDLE  ((HANDLE) 0xFFFFFFFE)
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 

@@ -14,9 +14,10 @@ Author:
 ***/
 #pragma once
 
-#include <ex/rwlock.h>
 #include <ex/process.h>
 
 PEPROCESS PsGetSystemProcess();
 
 void PsInitSystemProcess();
+
+bool PsInitSystem();

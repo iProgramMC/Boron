@@ -16,7 +16,6 @@ Author:
 #include <ex.h>
 #include <ke.h>
 #include <ob.h>
-#include <io.h>
 #include <string.h>
 
 #define EX_MUTEX_LEVEL 0
@@ -25,9 +24,7 @@ extern POBJECT_TYPE
 	ExMutexObjectType,
 	ExEventObjectType,
 	ExSemaphoreObjectType,
-	ExTimerObjectType,
-	ExThreadObjectType,
-	ExProcessObjectType;
+	ExTimerObjectType;
 
 bool ExpCreateMutexType();
 bool ExpCreateEventType();

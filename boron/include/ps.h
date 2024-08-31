@@ -16,3 +16,17 @@ Author:
 
 #include <ke.h>
 #include <ex.h>
+#include <ps/process.h>
+#include <ps/thread.h>
+
+#ifdef KERNEL
+
+extern POBJECT_TYPE
+	PsThreadObjectType,
+	PsProcessObjectType;
+
+#else
+
+// TODO: PsGetBuiltInType, ExGetBuiltInType
+
+#endif

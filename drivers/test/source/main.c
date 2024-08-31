@@ -62,9 +62,9 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformIntTest();
 	//PerformKeyboardTest();
 	//PerformStorageTest();
-	//PerformExObTest();
+	PerformExObTest();
 	//PerformCcbTest();
-	PerformMm1Test();
+	//PerformMm1Test();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);

@@ -16,9 +16,7 @@ Author:
 POBJECT_TYPE
 	ExEventObjectType,
 	ExSemaphoreObjectType,
-	ExTimerObjectType,
-	ExThreadObjectType,
-	ExProcessObjectType;
+	ExTimerObjectType;
 
 bool ExpCreateEventType()
 {
