@@ -171,6 +171,12 @@ struct _OBJECT_HEADER
 	char Body[0];
 };
 
+// Because the object handle table manager requires that pointers stored
+// inside MUST be aligned to 8 bytes, we should do this.  The header will
+// most likely be aligned to 8 bytes due to pool allocation semantics, but
+// we need to make it a given that the body is also aligned to 8 bytes.
+static_assert((sizeof(OBJECT_HEADER) & 0x7) == 0);
+
 struct _OBJECT_SYMLINK
 {
 	// The path of the object that this symbolic link links to.

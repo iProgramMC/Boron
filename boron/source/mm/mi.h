@@ -70,6 +70,12 @@ typedef struct MISLAB_ITEM_tag
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
 
+// Assert that the Data of a MISLAB_ITEM is aligned to 8 bytes.
+// This must be the case because of alignment reasons, and also
+// because the object handle table manager requires 8 byte aligned
+// pointers to be passed into ObpInsertObject.
+static_assert((sizeof(MISLAB_ITEM) & 0x7) == 0);
+
 typedef struct MISLAB_CONTAINER_tag
 {
 	int          ItemSize;

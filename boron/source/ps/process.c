@@ -52,3 +52,10 @@ bool PsCreateProcessType()
 	
 	return true;
 }
+
+/*
+BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ParentProcess, bool InheritHandles)
+{
+	
+}
+*/

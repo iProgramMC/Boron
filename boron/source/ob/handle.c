@@ -17,19 +17,43 @@ Author:
 
 extern POBJECT_DIRECTORY ObpRootDirectory;
 
+typedef union
+{
+	struct
+	{
+	#ifdef IS_64_BIT
+		uintptr_t Inherit     : 1;
+		uintptr_t Spare       : 2;
+		uintptr_t AddressBits : 62;
+	#else
+		uintptr_t Inherit     : 1;
+		uintptr_t Spare       : 2;
+		uintptr_t AddressBits : 30;
+	#endif
+	} U;
+	
+	void* Pointer;
+}
+OB_HANDLE_ITEM;
+
 BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject)
 {
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
 	
 	// Look for the handle in the table.
-	void* Object = NULL;
-	Status = ExGetPointerFromHandle(Process->HandleTable, Handle, &Object);
+	OB_HANDLE_ITEM HandleItem;
+	HandleItem.Pointer = NULL;
+	HandleItem.U.AddressBits = 0; // simply to ignore a warning
+	
+	Status = ExGetPointerFromHandle(Process->HandleTable, Handle, &HandleItem.Pointer);
 	if (FAILED(Status))
 		return Status;
 	
 	// If it returned STATUS_SUCCESS, it should have returned a valid object.
-	ASSERT(Object);
+	ASSERT(HandleItem.U.AddressBits);
+	
+	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
 	
 	// Check if the object is of the correct type.
 	if (ExpectedType && OBJECT_GET_HEADER(Object)->NonPagedObjectHeader->ObjectType != ExpectedType)
@@ -49,8 +73,13 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 	return STATUS_SUCCESS;
 }
 
-bool ObpCloseHandle(void* Object, UNUSED void* Context)
+bool ObpCloseHandle(void* HandleItemV, UNUSED void* Context)
 {
+	OB_HANDLE_ITEM HandleItem;
+	HandleItem.U.AddressBits = 0; // simply to ignore a warning
+	HandleItem.Pointer = HandleItemV;
+	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
+	
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	POBJECT_TYPE Type = Header->NonPagedObjectHeader->ObjectType;
 	
@@ -78,10 +107,17 @@ BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReas
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
 	
+	// Ensure the 3 LS bits are clear. This is usually the case if 
+	ASSERT(((uintptr_t) Object & 0x7) == 0);
+	
 	// Add a reference to this object, because it is now also referenced in the handle table.
 	ObReferenceObjectByPointer(Object);
 	
-	Status = ExCreateHandle(Process->HandleTable, Object, OutHandle);
+	OB_HANDLE_ITEM HandleItem;
+	HandleItem.Pointer = 0;
+	HandleItem.U.AddressBits = (uintptr_t)Object >> 3;
+	
+	Status = ExCreateHandle(Process->HandleTable, HandleItem.Pointer, OutHandle);
 	if (FAILED(Status))
 	{
 		// Couldn't add it. Then dereference the object.
