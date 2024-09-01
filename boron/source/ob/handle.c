@@ -102,7 +102,7 @@ BSTATUS ObClose(HANDLE Handle)
 	return ExDeleteHandle(Process->HandleTable, Handle, ObpCloseHandle, NULL);
 }
 
-BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReason)
+BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReason, int OpenFlags)
 {
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
@@ -116,6 +116,9 @@ BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReas
 	OB_HANDLE_ITEM HandleItem;
 	HandleItem.Pointer = 0;
 	HandleItem.U.AddressBits = (uintptr_t)Object >> 3;
+	
+	if (OpenFlags & OB_OPEN_INHERIT)
+		HandleItem.U.Inherit = 1;
 	
 	Status = ExCreateHandle(Process->HandleTable, HandleItem.Pointer, OutHandle);
 	if (FAILED(Status))
@@ -144,9 +147,9 @@ BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReas
 	return Status;
 }
 
-BSTATUS ObInsertObject(void* Object, PHANDLE OutHandle)
+BSTATUS ObInsertObject(void* Object, PHANDLE OutHandle, int OpenFlags)
 {
-	return ObpInsertObject(Object, OutHandle, OB_CREATE_HANDLE);
+	return ObpInsertObject(Object, OutHandle, OB_CREATE_HANDLE, OpenFlags);
 }
 
 BSTATUS ObReferenceObjectByName(
@@ -202,7 +205,7 @@ BSTATUS ObOpenObjectByName(
 		return Status;
 	
 	// OK, the object was found.
-	Status = ObpInsertObject(Object, OutHandle, OB_OPEN_HANDLE);
+	Status = ObpInsertObject(Object, OutHandle, OB_OPEN_HANDLE, OpenFlags);
 
 	// De-reference the object because ObReferenceObjectByName adds a reference to the object.
 	ObDereferenceObject(Object);

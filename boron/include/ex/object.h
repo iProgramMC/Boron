@@ -30,6 +30,7 @@ typedef struct
 	HANDLE RootDirectory;
 	const char* ObjectName;
 	size_t ObjectNameLength;
+	int OpenFlags;
 }
 OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
 

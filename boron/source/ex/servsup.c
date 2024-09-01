@@ -43,10 +43,10 @@ BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTR
 {
 	BSTATUS Status;
 	
-	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->RootDirectory, &UserAttrs->RootDirectory, sizeof(HANDLE), KeGetPreviousMode(), false)))
-		return false;
+	// Copy the entire struct.  Note that any pointers will be invalid to access (since they're potentially
+	// provided from windows), so we will replace them below.
 	
-	if (FAILED(Status = MmSafeCopy(&OutNewAttrs->ObjectNameLength, &UserAttrs->ObjectNameLength, sizeof(size_t), KeGetPreviousMode(), false)))
+	if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
 		return false;
 	
 	char* Name = NULL;
@@ -65,6 +65,7 @@ void ExiDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes)
 	Attributes->ObjectName = NULL;
 	Attributes->ObjectNameLength = 0;
 	Attributes->RootDirectory = HANDLE_NONE;
+	Attributes->OpenFlags = 0;
 }
 
 // Does the same operation as ObReferenceObjectByHandle, except translates
@@ -160,7 +161,7 @@ BSTATUS ExiCreateObjectUserCall(
 	
 	// OK, now insert this object into the handle table.
 	HANDLE Handle = HANDLE_NONE;
-	Status = ObInsertObject(OutObject, &Handle);
+	Status = ObInsertObject(OutObject, &Handle, Attributes.OpenFlags);
 	
 	if (FAILED(Status))
 		goto FailUndo;

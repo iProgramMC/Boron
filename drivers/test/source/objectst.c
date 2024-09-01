@@ -239,7 +239,7 @@ void ModifyEphemeralObject(void* _Object)
 	BSTATUS Status;
 	HANDLE Handle;
 	
-	Status = ObInsertObject(_Object, &Handle);
+	Status = ObInsertObject(_Object, &Handle, 0);
 	if (FAILED(Status))
 		KeCrash("ModifyEphemeralObject: Cannot ObInsertObject(%p): error %d", _Object, Status);
 	
