@@ -359,7 +359,7 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 		
 		// While we can bite GrowBy entries off of the handle map, we should.
 		// TODO: Redundant conditions maybe?
-		while (Table->MaxIndex + Table->GrowBy <= NewCapacity &&
+		while (Table->MaxIndex + 1 + Table->GrowBy <= NewCapacity &&
 		       Table->InitialSize + Table->GrowBy <= NewCapacity &&
 		       Table->GrowBy < NewCapacity)
 		{
