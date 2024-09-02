@@ -42,6 +42,8 @@ EHANDLE_TABLE, *PEHANDLE_TABLE;
 
 typedef bool(*EX_KILL_HANDLE_ROUTINE)(void* Pointer, void* Context);
 
+typedef void*(EX_DUPLICATE_HANDLE_METHOD)(void* Handle, void* Context);
+
 // Creates a handle table.
 // If GrowBySize is equal to zero, the handle table cannot grow, so attempts to
 // ExCreateHandle will return HANDLE_NONE.
@@ -53,9 +55,7 @@ void ExLockHandleTable(void* HandleTable);
 // Releases the handle table's mutex.
 void ExUnlockHandleTable(void* HandleTable);
 
-// Creates a handle within the handle table. May return HANDLE_NONE if:
-// - The table already has the maximal amount of handles and GrowBySize is equal to zero, and
-// - The table already has the maximal amount of handles and the table could not be grown.
+// Creates a handle within the handle table.
 BSTATUS ExCreateHandle(void* HandleTable, void* Pointer, PHANDLE OutHandle);
 
 // Maps a handle into a pointer, using the specified handle table.  If a pointer was returned
@@ -79,3 +79,32 @@ BSTATUS ExDeleteHandleTable(void* HandleTable);
 // a caller specific routine to destroy each handle separately. Returns false if one of the
 // handles could not be deleted.
 BSTATUS ExKillHandleTable(void* HandleTable, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context);
+
+// Creates a new handle table with the same initial conditions as the old one.
+// Does not duplicate any handles.
+BSTATUS ExCreateHandleTableInherit(void** NewHandleTable, void* HandleTable);
+
+// Duplicates a handle table.
+//
+// Creates a handle table of the same size as the provided handle table, and calls the
+// EX_DUPLICATE_HANDLE_METHOD on each one.
+//
+// NOTE that DuplicateMethod will be called with the old handle table locked.
+BSTATUS ExDuplicateHandleTable(void** NewHandleTable, void* HandleTable, EX_DUPLICATE_HANDLE_METHOD DuplicateMethod, void* Context);
+
+// Duplicates a handle in the handle table.
+//
+// NOTE that DuplicateMethod will be called with the old handle table locked.
+BSTATUS ExDuplicateHandle(void* HandleTable, HANDLE Handle, PHANDLE OutHandle, EX_DUPLICATE_HANDLE_METHOD DuplicateMethod, void* Context);
+
+// Duplicates a handle in the handle table by specifying the new handle's value.
+//
+// This function exists to support the implementation of the dup2() standard C library call.
+BSTATUS ExDuplicateHandleToHandle(
+	void* HandleTable,
+	HANDLE Handle,
+	HANDLE NewHandle,
+	EX_DUPLICATE_HANDLE_METHOD DuplicateMethod,
+	EX_KILL_HANDLE_ROUTINE KillHandleMethod,
+	void* DuplicateContext,
+	void* KillContext);

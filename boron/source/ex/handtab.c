@@ -219,16 +219,9 @@ static BSTATUS ExpResizeHandleTable(PEHANDLE_TABLE Table, size_t NewSize)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
+BSTATUS ExpCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 {
-	if (!Pointer)
-	{
-		// You can't use a NULL pointer in a handle.
-		return STATUS_INVALID_PARAMETER;
-	}
-	
 	PEHANDLE_TABLE Table = TableV;
-	ExLockHandleTable(Table);
 	
 	// TODO: Use a free list instead.
 	// Look for a free entry in the handle table:
@@ -243,7 +236,6 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 			if (Table->MaxIndex < i)
 				Table->MaxIndex = i;
 			
-			ExUnlockHandleTable(Table);
 			return STATUS_SUCCESS;
 		}
 	}
@@ -252,10 +244,7 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 	
 	// If the table may not be grown, return a none handle.
 	if (!Table->GrowBy)
-	{
-		ExUnlockHandleTable(Table);
 		return STATUS_TOO_MANY_HANDLES;
-	}
 	
 	// Get the first unallocated handle. All handles 0 to the old capacity are allocated,
 	// and all handles from the old capacity to the new one aren't, so the old capacity
@@ -264,11 +253,8 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 	
 	BSTATUS Status = ExpResizeHandleTable(Table, Table->Capacity + Table->GrowBy);
 	if (FAILED(Status))
-	{
 		// Error, can't expand! Out of memory!!
-		ExUnlockHandleTable(Table);
 		return Status;
-	}
 	
 	// Allocate it!
 	Table->HandleMap[NewIndex].Pointer = Pointer;
@@ -277,8 +263,23 @@ BSTATUS ExCreateHandle(void* TableV, void* Pointer, PHANDLE OutHandle)
 		Table->MaxIndex = NewIndex;
 	
 	*OutHandle = INDEX_TO_HANDLE(NewIndex);
-	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
+}
+
+BSTATUS ExCreateHandle(void* Table, void* Pointer, PHANDLE OutHandle)
+{
+	if (!Pointer)
+	{
+		// NULL is used as a "free" marker, so don't allow it to be a valid handle.
+		return STATUS_INVALID_PARAMETER;
+	}
+	
+	ExLockHandleTable(Table);
+	
+	BSTATUS Status = ExpCreateHandle(Table, Pointer, OutHandle);
+	
+	ExUnlockHandleTable(Table);
+	return Status;
 }
 
 BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
@@ -376,4 +377,168 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 	
 	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
+}
+
+BSTATUS ExCreateHandleTableInherit(void** NewHandleTable, void* HandleTable)
+{
+	PEHANDLE_TABLE Table = HandleTable;
+	ExLockHandleTable(Table);
+	
+	BSTATUS Status = ExCreateHandleTable(Table->InitialSize, Table->GrowBy, Table->Limit, Table->Mutex.Level, NewHandleTable);
+	
+	ExUnlockHandleTable(Table);
+	return Status;
+}
+
+BSTATUS ExDuplicateHandleToHandle(
+	void* HandleTable,
+	HANDLE Handle,
+	HANDLE NewHandle,
+	EX_DUPLICATE_HANDLE_METHOD DuplicateMethod,
+	EX_KILL_HANDLE_ROUTINE KillHandleMethod,
+	void* DuplicateContext,
+	void* KillContext)
+{
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle) ||
+		!ExpCheckHandleCorrectness(NewHandle))
+		return STATUS_INVALID_HANDLE;
+	
+	Handle = HANDLE_TO_INDEX(Handle);
+	NewHandle = HANDLE_TO_INDEX(NewHandle);
+	
+	PEHANDLE_TABLE Table = HandleTable;
+	ExLockHandleTable(Table);
+	
+	if (Handle >= Table->Capacity || NewHandle >= Table->Capacity)
+	{
+		// Handle index is bigger than the table's size.
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	// Check if the new handle is already occupied.  If so, we will need to close the handle.
+	if (Table->HandleMap[NewHandle].Pointer)
+	{
+		bool Result = KillHandleMethod(Table->HandleMap[NewHandle].Pointer, KillContext);
+		if (!Result)
+		{
+			ExUnlockHandleTable(Table);
+			return STATUS_DELETE_CANCELED;
+		}
+	}
+	
+	// Duplicate the pointer.
+	void* NewPointer = DuplicateMethod(Table->HandleMap[Handle].Pointer, DuplicateContext);
+	
+	if (!NewPointer)
+	{
+		// The handle could not be duplicated because the DuplicateMethod refused.
+		//
+		// TODO: Perhaps DuplicateMethod should instead return a BSTATUS and the duplicated
+		// item through a pointer?
+		ExUnlockHandleTable(Table);
+		return STATUS_UNSUPPORTED_FUNCTION;
+	}
+	
+	Table->HandleMap[NewHandle].Pointer = NewPointer;
+	ExUnlockHandleTable(Table);
+	return STATUS_SUCCESS;
+}
+
+BSTATUS ExDuplicateHandle(void* HandleTable, HANDLE Handle, PHANDLE OutHandle, EX_DUPLICATE_HANDLE_METHOD DuplicateMethod, void* Context)
+{
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle))
+		return STATUS_INVALID_HANDLE;
+	
+	Handle = HANDLE_TO_INDEX(Handle);
+	
+	PEHANDLE_TABLE Table = HandleTable;
+	ExLockHandleTable(Table);
+	
+	if (Handle >= Table->Capacity)
+	{
+		// Handle index is bigger than the table's size.
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	// Insert a fake sentinel value.  This will reserve the spot which we will overwrite later.
+	// Note that the handle table remains locked throughout the procedure.
+	HANDLE Hndl = HANDLE_NONE;
+	BSTATUS Status = ExpCreateHandle(HandleTable, (void*) 0x1, &Hndl);
+	if (FAILED(Status))
+	{
+		ExUnlockHandleTable(Table);
+		return Status;
+	}
+	
+	// Duplicate the pointer.
+	void* NewPointer = DuplicateMethod(Table->HandleMap[Handle].Pointer, Context);
+	
+	if (!NewPointer)
+	{
+		// The handle could not be duplicated because the DuplicateMethod refused.
+		//
+		// TODO: Perhaps DuplicateMethod should instead return a BSTATUS and the duplicated
+		// item through a pointer?
+		ExUnlockHandleTable(Table);
+		return STATUS_UNSUPPORTED_FUNCTION;
+	}
+	
+	Table->HandleMap[Hndl].Pointer = NewPointer;
+	*OutHandle = Hndl;
+	ExUnlockHandleTable(Table);
+	return STATUS_SUCCESS;
+}
+
+// Duplicates a handle table.
+//
+// Creates a handle table of the same size as the provided handle table, and calls the
+// EX_DUPLICATE_HANDLE_METHOD on each one.
+BSTATUS ExDuplicateHandleTable(void** NewHandleTable, void* HandleTable, EX_DUPLICATE_HANDLE_METHOD DuplicateMethod, void* Context)
+{
+	PEHANDLE_TABLE Table = HandleTable;
+	BSTATUS Status;
+	
+	Status = ExCreateHandleTableInherit(NewHandleTable, HandleTable);
+	if (FAILED(Status))
+		return Status;
+	
+	ExLockHandleTable(Table);
+	
+	// Resize the handle table to the current capacity of the old one.
+	PEHANDLE_TABLE NewTable = *NewHandleTable;
+	Status = ExpResizeHandleTable(NewTable, Table->Capacity);
+	if (FAILED(Status))
+		goto Fail;
+	
+	ASSERT(NewTable->Capacity == Table->Capacity);
+	
+	// Now start cloning handles.
+	for (size_t i = 0; i < Table->MaxIndex; i++)
+	{
+		if (Table->HandleMap[i].Pointer != NULL)
+		{
+			// Duplicate it if needed.
+			NewTable->HandleMap[i].Pointer = DuplicateMethod(Table->HandleMap[i].Pointer, Context);
+		}
+	}
+	
+#ifdef DEBUG
+	for (size_t i = Table->MaxIndex; i < Table->Capacity; i++)
+	{
+		if (Table->HandleMap[i].Pointer != NULL)
+			KeCrash("Handle table shouldn't have items above MaxIndex");
+	}
+#endif
+
+	ExUnlockHandleTable(Table);
+	return STATUS_SUCCESS;
+Fail:
+	// Delete the handle table we allocated.
+	ExUnlockHandleTable(Table);
+	ExDeleteHandleTable(NewTable);
+	return Status;
 }

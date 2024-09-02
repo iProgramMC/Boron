@@ -42,7 +42,7 @@ Currently, the OS's source is structured into the following:
 
 * `drivers/` - The actual drivers themselves.
 
-Kernel DLL exports will use the prefix `Brn`. I know this isn't the chemical symbol for boron (that being B),
+Kernel DLL exports will use the prefix `OS`. I know this isn't the chemical symbol for boron (that being B),
 but it is what it is.
 
 #### Basic features

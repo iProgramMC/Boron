@@ -211,3 +211,43 @@ BSTATUS ObOpenObjectByName(
 	ObDereferenceObject(Object);
 	return Status;
 }
+
+void* ObpDuplicateHandle(void* HandleItemV, void* Context)
+{
+	int OpenReason = *((int*) Context);
+	OB_HANDLE_ITEM HandleItem;
+	HandleItem.U.AddressBits = 0; // simply to ignore a warning
+	HandleItem.Pointer = HandleItemV;
+	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
+	
+	if (HandleItem.U.Inherit == 0 && OpenReason == OB_INHERIT_HANDLE)
+	{
+		// This handle is NOT to be inherited as it wasn't opened with OB_FLAG_INHERIT.
+		return NULL;
+	}
+	
+	// Reference the object and add 1 to its handle count if needed.
+	ObReferenceObjectByPointer(Object);
+	
+	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	PNONPAGED_OBJECT_HEADER NPHeader = Header->NonPagedObjectHeader;
+	
+	bool MaintainHandleCount = NPHeader->ObjectType->TypeInfo.MaintainHandleCount;
+	int HandleCount = 0;
+	
+	if (MaintainHandleCount)
+		HandleCount = AtAddFetch(NPHeader->HandleCount, 1);
+	
+	// Call the object type's Open method.
+	OBJ_OPEN_FUNC OpenMethod = NPHeader->ObjectType->TypeInfo.Open;
+	if (OpenMethod)
+		OpenMethod(Object, HandleCount, OpenReason);
+	
+	return HandleItemV;
+}
+
+BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable)
+{
+	int OpenReason = OB_INHERIT_HANDLE;
+	return ExDuplicateHandleTable(NewHandleTable, OldHandleTable, ObpDuplicateHandle, &OpenReason);
+}

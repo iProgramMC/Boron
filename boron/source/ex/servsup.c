@@ -44,7 +44,7 @@ BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTR
 	BSTATUS Status;
 	
 	// Copy the entire struct.  Note that any pointers will be invalid to access (since they're potentially
-	// provided from windows), so we will replace them below.
+	// provided from userspace), so we will replace them below.
 	
 	if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
 		return false;
