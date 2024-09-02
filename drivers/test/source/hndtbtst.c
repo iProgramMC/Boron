@@ -19,6 +19,18 @@ bool OnKillHandle(void* HandleToKill, UNUSED void* Context)
 	return true;
 }
 
+bool OnKillHandle2(void* HandleToKill, UNUSED void* Context)
+{
+	LogMsg("Killing2 handle with pointer: %p", HandleToKill);
+	return true;
+}
+
+void* OnDuplicateHandle(void* Object, UNUSED void* Context)
+{
+	LogMsg("OnDuplicateHandle: %p", Object);
+	return Object;
+}
+
 void PerformHandleTest()
 {
 	void* HanTab;
@@ -74,9 +86,33 @@ void PerformHandleTest()
 	else
 		LogMsg("Deleting handle 4 failed.");
 	
+	// Try to clone the handle table.
+	void* NewHanTab = NULL;
+	BSTATUS Status = ExDuplicateHandleTable(&NewHanTab, HanTab, OnDuplicateHandle, NULL);
+	if (FAILED(Status))
+		KeCrash("Failed to duplicate handle table: %d", Status);
+	
+	// In this new handle table, duplicate handle number 2.
+	Status = ExDuplicateHandle(NewHanTab, Hand2, &Hand5, OnDuplicateHandle, NULL);
+	if (FAILED(Status))
+		KeCrash("Failed to duplicate handle 2: %d", Status);
+	
+	// Try to do that again, this time it should fail
+	Status = ExDuplicateHandle(NewHanTab, Hand1, &Hand5, OnDuplicateHandle, NULL);
+	if (Status != STATUS_TOO_MANY_HANDLES)
+		KeCrash("ExDuplicateHandle should not have succeeded (status %d)", Status);
+	else
+		LogMsg("ExDuplicateHandle failed properly this time");
+	
 	// Kill the handle table.
 	if (SUCCEEDED(ExKillHandleTable(HanTab, OnKillHandle, NULL)))
 		LogMsg("Handle table was destroyed");
 	else
 		LogMsg("Handle table could not be destroyed");
+	
+	// Kill the other handle table.
+	if (SUCCEEDED(ExKillHandleTable(NewHanTab, OnKillHandle2, NULL)))
+		LogMsg("New handle table was destroyed");
+	else
+		LogMsg("New handle table could not be destroyed");
 }

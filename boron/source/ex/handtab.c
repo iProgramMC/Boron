@@ -312,35 +312,13 @@ BSTATUS ExGetPointerFromHandle(void* TableV, HANDLE Handle, void** OutObject)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
+void ExpDeleteHandle(void* TableV, HANDLE Index)
 {
-	// Check if the handle is valid.
-	if (!ExpCheckHandleCorrectness(Handle))
-		return STATUS_INVALID_HANDLE;
-	
-	Handle = HANDLE_TO_INDEX(Handle);
-	
 	PEHANDLE_TABLE Table = TableV;
-	ExLockHandleTable(Table);
 	
-	if (Handle >= Table->Capacity)
-	{
-		// Handle index is bigger than the table's size.
-		ExUnlockHandleTable(Table);
-		return STATUS_INVALID_HANDLE;
-	}
+	Table->HandleMap[Index].Pointer = NULL;
 	
-	// Try to delete the handle.
-	if (!KillHandleRoutine(Table->HandleMap[Handle].Pointer, Context))
-	{
-		// Nope, couldn't delete it.
-		ExUnlockHandleTable(Table);
-		return STATUS_DELETE_CANCELED;
-	}
-	
-	Table->HandleMap[Handle].Pointer = NULL;
-	
-	if (Table->MaxIndex == Handle)
+	if (Table->MaxIndex == Index)
 	{
 		// Find a lower max index.
 		for (; Table->MaxIndex > 0 && Table->HandleMap[Table->MaxIndex].Pointer == NULL; Table->MaxIndex--);
@@ -374,6 +352,35 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 			(void) ExpResizeHandleTable(Table, NewCapacity);
 		}
 	}
+}
+
+BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
+{
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle))
+		return STATUS_INVALID_HANDLE;
+	
+	Handle = HANDLE_TO_INDEX(Handle);
+	
+	PEHANDLE_TABLE Table = TableV;
+	ExLockHandleTable(Table);
+	
+	if (Handle >= Table->Capacity)
+	{
+		// Handle index is bigger than the table's size.
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	// Try to delete the handle.
+	if (!KillHandleRoutine(Table->HandleMap[Handle].Pointer, Context))
+	{
+		// Nope, couldn't delete it.
+		ExUnlockHandleTable(Table);
+		return STATUS_DELETE_CANCELED;
+	}
+	
+	ExpDeleteHandle(Table, Handle);
 	
 	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
@@ -442,6 +449,10 @@ BSTATUS ExDuplicateHandleToHandle(
 	}
 	
 	Table->HandleMap[NewHandle].Pointer = NewPointer;
+	
+	if (Table->MaxIndex < NewHandle)
+		Table->MaxIndex = NewHandle;
+	
 	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
 }
@@ -479,15 +490,19 @@ BSTATUS ExDuplicateHandle(void* HandleTable, HANDLE Handle, PHANDLE OutHandle, E
 	
 	if (!NewPointer)
 	{
+		DbgPrint("Damn...");
 		// The handle could not be duplicated because the DuplicateMethod refused.
 		//
 		// TODO: Perhaps DuplicateMethod should instead return a BSTATUS and the duplicated
 		// item through a pointer?
+		
+		ExpDeleteHandle(Table, HANDLE_TO_INDEX(Hndl));
+		
 		ExUnlockHandleTable(Table);
 		return STATUS_UNSUPPORTED_FUNCTION;
 	}
 	
-	Table->HandleMap[Hndl].Pointer = NewPointer;
+	Table->HandleMap[HANDLE_TO_INDEX(Hndl)].Pointer = NewPointer;
 	*OutHandle = Hndl;
 	ExUnlockHandleTable(Table);
 	return STATUS_SUCCESS;
@@ -517,17 +532,22 @@ BSTATUS ExDuplicateHandleTable(void** NewHandleTable, void* HandleTable, EX_DUPL
 	ASSERT(NewTable->Capacity == Table->Capacity);
 	
 	// Now start cloning handles.
-	for (size_t i = 0; i < Table->MaxIndex; i++)
+	for (size_t i = 0; i <= Table->MaxIndex; i++)
 	{
 		if (Table->HandleMap[i].Pointer != NULL)
 		{
 			// Duplicate it if needed.
-			NewTable->HandleMap[i].Pointer = DuplicateMethod(Table->HandleMap[i].Pointer, Context);
+			void* Object = DuplicateMethod(Table->HandleMap[i].Pointer, Context);
+			NewTable->HandleMap[i].Pointer = Object;
+			if (Object) {
+				DbgPrint("A MaxIndex: %zu", i);
+				NewTable->MaxIndex = i;
+			}
 		}
 	}
 	
 #ifdef DEBUG
-	for (size_t i = Table->MaxIndex; i < Table->Capacity; i++)
+	for (size_t i = Table->MaxIndex + 1; i < Table->Capacity; i++)
 	{
 		if (Table->HandleMap[i].Pointer != NULL)
 			KeCrash("Handle table shouldn't have items above MaxIndex");
