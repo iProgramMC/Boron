@@ -107,6 +107,9 @@ void PerformExObMutexTest()
 	OSClose(gMutexHandle);
 	gMutexHandle = HANDLE_NONE;
 	
+	for (int i = 0; i < (int)ARRAY_COUNT(Threads); i++)
+		ObDereferenceObject(Threads[i]);
+	
 	LogMsg(ANSI_GREEN ">> ExObMutexTest done." ANSI_RESET);
 }
 
@@ -161,6 +164,8 @@ void PerformExObEventTest()
 	LogMsg("Thr0: Done");
 	
 	KeWaitForSingleObject(Thread, false, TIMEOUT_INFINITE);
+	
+	ObDereferenceObject(Thread);
 	
 	LogMsg(ANSI_GREEN ">> ExObEventTest done." ANSI_RESET);
 }

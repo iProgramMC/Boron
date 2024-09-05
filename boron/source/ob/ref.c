@@ -16,7 +16,7 @@ Author:
 
 void ObpDeleteObject(void* Object)
 {
-	DbgPrint("Deleting object %p", Object);
+	//DbgPrint("Deleting object %p", Object);
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
 	if (Hdr->Flags & OB_FLAG_PERMANENT)
@@ -26,7 +26,7 @@ void ObpDeleteObject(void* Object)
 	
 	// Invoke the object type's delete function.
 	OBJ_DELETE_FUNC DeleteMethod = Hdr->NonPagedObjectHeader->ObjectType->TypeInfo.Delete;
-	DbgPrint("Delete Method: %p", DeleteMethod);
+	//DbgPrint("Delete Method: %p", DeleteMethod);
 	if (DeleteMethod)
 		DeleteMethod(Object);
 	
@@ -74,10 +74,10 @@ bool ObpInitializeReaperThread()
 	
 	Status = KeInitializeThread(
 		&ObpReaperThread,
-		NULL,                   // KernelStack
-		ObpReaperThreadRoutine, // StartRoutine
-		NULL,                   // StartContext
-		KeGetSystemProcess()    // Process
+		MmAllocateKernelStack(), // KernelStack
+		ObpReaperThreadRoutine,  // StartRoutine
+		NULL,                    // StartContext
+		KeGetSystemProcess()     // Process
 	);
 	
 	if (FAILED(Status))
@@ -113,6 +113,7 @@ void ObReferenceObjectByPointer(void* Object)
 	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
 	
 	AtAddFetch(Hdr->NonPagedObjectHeader->PointerCount, 1);
+	//DbgPrint("Ref  (%p) -> %d (%p)", Object, Hdr->NonPagedObjectHeader->PointerCount, CallerAddress());
 }
 
 void ObDereferenceObject(void* Object)
@@ -122,6 +123,7 @@ void ObDereferenceObject(void* Object)
 	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
 	
 	int OldCount = AtFetchAdd(Hdr->NonPagedObjectHeader->PointerCount, -1);
+	//DbgPrint("Deref(%p) -> %d (%p)", Object, OldCount - 1, CallerAddress());
 	
 	ASSERT(OldCount >= 1 && "Underflow error");
 	if (OldCount != 1)

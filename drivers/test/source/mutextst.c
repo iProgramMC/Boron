@@ -71,8 +71,8 @@ void PerformMutexTest()
 	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL);
 	
 	// Get rid of the threads.
-	KeDeallocateThread(Thrd1);
-	KeDeallocateThread(Thrd2);
+	ObDereferenceObject(Thrd1);
+	ObDereferenceObject(Thrd2);
 	
 	LogMsg("*** All threads have exited.");
 }

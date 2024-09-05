@@ -19,8 +19,6 @@ Author:
 
 typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
 
-typedef void(*PKPROCESS_TERMINATE_METHOD)(PKPROCESS Process);
-
 struct KPROCESS_tag
 {
 	// Dispatch object header.
@@ -40,14 +38,6 @@ struct KPROCESS_tag
 	
 	// Default thread affinity
 	KAFFINITY DefaultAffinity;
-	
-	// Whether the process was detached or not.
-	bool Detached;
-	
-	// Method called when the process terminates, in detached mode.
-	// The method is called at IPL_DPC with the dispatcher database
-	// locked.
-	PKPROCESS_TERMINATE_METHOD TerminateMethod;
 };
 
 // Allocate an uninitialized process instance.  Use when you want to detach the process.
@@ -67,19 +57,6 @@ void KeAttachToProcess(PKPROCESS Process);
 
 // Detach from the attached process' address space.
 void KeDetachFromProcess();
-
-// Detaches a child process from the managing process. This involves automatic cleanup
-// through the terminate method specified in the respective function parameter.
-//
-// Notes:
-// - If TerminateMethod is NULL, then the process will use KeDeallocateProcess as the
-//   terminate method.  In that case, you must NOT use a pointer to a process which
-//   wasn't allocated using KeAllocateThread.  Thus, you should ideally discard the
-//   pointer as soon as this function finishes.
-//
-// - The process pointer is only guaranteed to be accessible (with the rigorous dis-
-//   patcher database locking of course) until `TerminateMethod' is called.
-void KeDetachProcess(PKPROCESS Process, PKPROCESS_TERMINATE_METHOD TerminateMethod);
 
 // Return the current process.
 PKPROCESS KeGetCurrentProcess();

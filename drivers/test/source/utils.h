@@ -15,8 +15,11 @@ Author:
 #pragma once
 
 #include <ke.h>
+#include <ob.h>
 
 // Create a simple thread.
+//
+// Use ObDereferenceObject on the thread pointer to detach and/or free!
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter);
 
 // Performs a small delay.

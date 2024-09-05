@@ -108,9 +108,9 @@ void PerformRwlockTest()
 	KeWaitForMultipleObjects(5, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, WaitBlockStorage);
 	
 	// get rid of the threads
-	KeDeallocateThread(Excl);
-	KeDeallocateThread(Rdr1);
-	KeDeallocateThread(Rdr2);
-	KeDeallocateThread(Rdr3);
-	KeDeallocateThread(Rdr4);
+	ObDereferenceObject(Excl);
+	ObDereferenceObject(Rdr1);
+	ObDereferenceObject(Rdr2);
+	ObDereferenceObject(Rdr3);
+	ObDereferenceObject(Rdr4);
 }

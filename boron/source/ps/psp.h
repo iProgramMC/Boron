@@ -21,3 +21,5 @@ Author:
 bool PsCreateThreadType();
 
 bool PsCreateProcessType();
+
+#include <ex/internal.h>

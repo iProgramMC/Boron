@@ -24,17 +24,19 @@ typedef union
 	#ifdef IS_64_BIT
 		uintptr_t Inherit     : 1;
 		uintptr_t Spare       : 2;
-		uintptr_t AddressBits : 62;
+		uintptr_t AddressBits : 61;
 	#else
 		uintptr_t Inherit     : 1;
 		uintptr_t Spare       : 2;
-		uintptr_t AddressBits : 30;
+		uintptr_t AddressBits : 29;
 	#endif
 	} U;
 	
 	void* Pointer;
 }
 OB_HANDLE_ITEM;
+
+static_assert(sizeof(OB_HANDLE_ITEM) == sizeof(void*));
 
 BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject)
 {
@@ -107,7 +109,7 @@ BSTATUS ObpInsertObject(void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReas
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
 	
-	// Ensure the 3 LS bits are clear. This is usually the case if 
+	// Ensure the 3 LS bits are clear. This is enforced to be the case.
 	ASSERT(((uintptr_t) Object & 0x7) == 0);
 	
 	// Add a reference to this object, because it is now also referenced in the handle table.

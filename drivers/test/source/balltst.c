@@ -227,5 +227,8 @@ void PerformBallTest()
 	// Wait for the threads to quit (will never)
 	// The WaitBlockArray is a required parameter for anything above THREAD_WAIT_OBJECTS.
 	KeWaitForMultipleObjects(THREADCOUNT, (void**)Threads, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, WaitBlockStorage);
+	
+	for (int i = 0; i < (int)ARRAY_COUNT(Threads); i++)
+		ObDereferenceObject(Threads[i]);
 }
 

@@ -20,11 +20,7 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START St
 	if (!Thread)
 		return STATUS_INVALID_PARAMETER;
 	
-	if (!KernelStack)
-		KernelStack = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, POOL_TAG("ThSt"));
-	
-	if (!KernelStack)
-		return STATUS_INSUFFICIENT_MEMORY;
+	ASSERT(KernelStack);
 	
 	memset (Thread, 0, sizeof *Thread);
 	
@@ -97,24 +93,9 @@ void KeDeallocateThread(PKTHREAD Thread)
 	MmFreePool(Thread);
 }
 
-void KeDetachThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod)
+void KeSetTerminateMethodThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod)
 {
-	// Just like with events, we don't lock the dispatcher to make sure
-	// that the write is atomic - we lock the dispatcher to make sure we
-	// don't actually interfere with its operation.
-	KIPL Ipl = KiLockDispatcher();
-	
-	// TODO: Handle already terminated thread
-	
-	ASSERT(!Thread->Detached);
-	Thread->Detached = true;
-	
-	if (!TerminateMethod)
-		TerminateMethod = KeDeallocateThread;
-	
 	Thread->TerminateMethod = TerminateMethod;
-	
-	KiUnlockDispatcher(Ipl);
 }
 
 void KeYieldCurrentThread()

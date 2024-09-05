@@ -23,3 +23,12 @@ typedef struct ETHREAD_tag
 	// TODO
 }
 ETHREAD, *PETHREAD;
+
+
+BSTATUS PsCreateSystemThread(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ProcessHandle,
+	PKTHREAD_START StartRoutine,
+	void* StartContext
+);

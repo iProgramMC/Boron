@@ -26,6 +26,10 @@ KPRCB**  KeProcessorList;
 int      KeProcessorCount = 0;
 uint32_t KeBootstrapLapicId = 0;
 
+// TODO: an "init data" section.  Currently there's not much in the data segment
+// that can be considered worthy of being purged after system initialization.
+KTHREAD  KiExInitThread;
+
 int KeGetProcessorCount()
 {
 	return KeProcessorCount;
@@ -44,6 +48,12 @@ NO_RETURN void ExpInitializeExecutive(void* Context);
 
 void MmSwitchKernelSpaceLock();
 
+INIT
+static void KepFreeExInitThreadStack(PKTHREAD Thread)
+{
+	MmFreeThreadStack(Thread->Stack.Top);
+}
+
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
@@ -60,7 +70,7 @@ void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	KeInitCPU();
 	KeLowerIPL(IPL_NORMAL);
 	
-	KeSchedulerInit();
+	KeSchedulerInit(MmAllocateKernelStack());
 	
 	HalInitSystemMP();
 	
@@ -68,19 +78,16 @@ void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	{
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
-		PKTHREAD Thread = KeAllocateThread();
-		if (FAILED(KeInitializeThread(
-				Thread,
-				NULL,
-				ExpInitializeExecutive,
-				NULL,
-				KeGetSystemProcess()
-			)))
-			KeCrash("cannot spawn executive initialization thread");
-		
-		KeSetPriorityThread(Thread, PRIORITY_NORMAL);
-		KeDetachThread(Thread, NULL);
-		KeReadyThread(Thread);
+		KeInitializeThread(
+			&KiExInitThread,
+			MmAllocateKernelStack(),
+			ExpInitializeExecutive,
+			NULL,
+			KeGetSystemProcess()
+		);
+		KeSetTerminateMethodThread(&KiExInitThread, KepFreeExInitThreadStack);
+		KeSetPriorityThread(&KiExInitThread, PRIORITY_NORMAL);
+		KeReadyThread(&KiExInitThread);
 	}
 	
 	// Perform switch to Rwlock for kernel space. This can wait a small amount of time.

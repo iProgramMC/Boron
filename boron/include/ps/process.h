@@ -21,3 +21,9 @@ PEPROCESS PsGetSystemProcess();
 void PsInitSystemProcess();
 
 bool PsInitSystem();
+
+#ifdef KERNEL
+extern EPROCESS PsSystemProcess;
+#else
+#define PsSystemProcess (*PsGetSystemProcess())
+#endif

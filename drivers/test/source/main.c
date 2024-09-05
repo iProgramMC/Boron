@@ -14,28 +14,23 @@ Author:
 ***/
 #include "utils.h"
 #include "tests.h"
+#include <ps.h>
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
-	PKTHREAD Thread = KeAllocateThread();
-	if (!Thread)
-		return NULL;
+	HANDLE Handle = HANDLE_NONE;
+	BSTATUS Status = PsCreateSystemThread(&Handle, NULL, HANDLE_NONE, StartRoutine, Parameter);
 	
-	if (FAILED(KeInitializeThread(
-		Thread,
-		NULL,
-		StartRoutine,
-		Parameter,
-		KeGetSystemProcess())))
-	{
-		KeDeallocateThread(Thread);
-		return NULL;
-	}
+	if (FAILED(Status))
+		KeCrash("Failed to CreateThread(%p): status %d", StartRoutine, Status);
 	
-	KeSetPriorityThread(Thread, PRIORITY_NORMAL);
+	void* Thrd = NULL;
+	Status = ObReferenceObjectByHandle(Handle, NULL, &Thrd);
+	if (FAILED(Status))
+		KeCrash("Failed to reference handle while creating thread: status %d", Status);
 	
-	KeReadyThread(Thread);
-	return Thread;
+	ObClose(Handle);
+	return Thrd;
 }
 
 void PerformDelay(int Ms, PKDPC Dpc)
@@ -53,8 +48,8 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformProcessTest();
 	//PerformMutexTest();
 	//PerformBallTest();
-	//PerformFireworksTest();
-	PerformHandleTest();
+	PerformFireworksTest();
+	//PerformHandleTest();
 	//PerformApcTest();
 	//PerformRwlockTest();
 	//PerformObjectTest();
@@ -77,6 +72,6 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	if (!Thread)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	KeDetachThread(Thread, NULL);
+	ObDereferenceObject(Thread);
 	return STATUS_SUCCESS;
 }

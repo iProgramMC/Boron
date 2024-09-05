@@ -6,7 +6,8 @@ Module name:
 	ex/servsup.c
 	
 Abstract:
-	This module defines helper Executive functions.
+	This module defines routines to support the implementation
+	of system services.
 	
 Author:
 	iProgramInCpp - 9 August 2024
@@ -110,12 +111,17 @@ BSTATUS ExiCreateObjectUserCall(
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
 	bool CopyAttrs = KeGetPreviousMode() == MODE_USER;
+	int Flags = 0;
+	
+	if (!CopyAttrs)
+		Flags |= OB_FLAG_KERNEL;
 	
 	if (!ObjectAttributes)
 	{
 		Attributes.ObjectName = NULL;
 		Attributes.ObjectNameLength = 0;
 		Attributes.RootDirectory = HANDLE_NONE;
+		Attributes.OpenFlags = 0;
 	}
 	else if (CopyAttrs)
 	{
@@ -129,6 +135,9 @@ BSTATUS ExiCreateObjectUserCall(
 	{
 		Attributes = *ObjectAttributes;
 	}
+	
+	if (!Attributes.ObjectNameLength)
+		Flags |= OB_FLAG_NO_DIRECTORY;
 	
 	void* ParentDirectory = NULL;
 	
@@ -146,7 +155,7 @@ BSTATUS ExiCreateObjectUserCall(
 		ParentDirectory,
 		ObjectType,
 		Attributes.ObjectName,
-		(KeGetPreviousMode() == MODE_KERNEL) ? OB_FLAG_KERNEL : 0,
+		Flags,
 		NULL,
 		ObjectBodySize
 	);

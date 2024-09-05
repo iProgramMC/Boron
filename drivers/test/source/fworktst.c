@@ -332,13 +332,18 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 
 void SpawnParticle(PFIREWORK_DATA Data)
 {
-	if (!CreateThread(T_Particle, Data))
+	PKTHREAD Thrd = CreateThread(T_Particle, Data);
+	if (!Thrd)
 		MmFreePool(Data);
+	else
+		ObDereferenceObject(Thrd);
 }
 
 void SpawnExplodeable()
 {
-	CreateThread(T_Explodeable, NULL);
+	PKTHREAD Thrd = CreateThread(T_Explodeable, NULL);
+	if (Thrd)
+		ObDereferenceObject(Thrd);
 }
 
 // ####### MAIN PROGRAM #######

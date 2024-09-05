@@ -14,8 +14,6 @@ Author:
 ***/
 #include "mi.h"
 
-extern EPROCESS PsSystemProcess;
-
 BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PtePtr)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.

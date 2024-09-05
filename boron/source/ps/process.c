@@ -54,8 +54,33 @@ bool PsCreateProcessType()
 }
 
 /*
+typedef struct
+{
+	HANDLE ParentProcess;
+	bool InheritHandles;
+}
+PROCESS_INIT_CONTEXT;
+
+BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
+{
+	BSTATUS Status;
+	PROCESS_INIT_CONTEXT* Pic = Context;
+	bool InheritHandles = Pic.InheritHandles;
+	HANDLE ParentProcessHandle = Pic.ParentProcess;
+	
+	void* ParentProcessV;
+	Status = ExReferenceObjectByHandle(ParentProcessHandle, PsProcessObjectType, &ParentProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	// TODO
+}
+
 BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ParentProcess, bool InheritHandles)
 {
-	
+	PROCESS_INIT_CONTEXT Pic;
+	Pic.InheritHandles = InheritHandles;
+	Pic.ParentProcess = ParentProcess;
+	return ExiCreateObjectUserCall(OutHandle, ObjectAttributes, PsProcessObjectType, sizeof(EPROCESS), PspInitializeProcessObject, &Pic);
 }
 */

@@ -193,10 +193,11 @@ void KeSchedulerInitUP()
 }
 
 INIT
-void KeSchedulerInit()
+void KeSchedulerInit(void* IdleThreadStack)
 {
-	KIPL Ipl = KiLockDispatcher();
+	ASSERT(IdleThreadStack);
 	
+	KIPL Ipl = KiLockDispatcher();
 	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	InitializeRbTree(&Scheduler->TimerTree);
@@ -210,7 +211,7 @@ void KeSchedulerInit()
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
-	if (FAILED(KiInitializeThread(Thread, NULL, KiIdleThreadEntry, NULL, KeGetSystemProcess())))
+	if (FAILED(KiInitializeThread(Thread, IdleThreadStack, KiIdleThreadEntry, NULL, KeGetSystemProcess())))
 		KeCrash("cannot create idle thread");
 	
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
@@ -374,10 +375,6 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	
 	PKTHREAD Thread = ContextV;
 	
-	void* StackTop = Thread->Stack.Top;
-	ASSERT(StackTop);
-	Thread->Stack.Top = NULL;
-	
 	// Remove the thread from the global list of threads.
 	KIPL Ipl2;
 	KeAcquireSpinLock(&KiGlobalThreadListLock, &Ipl2);
@@ -406,39 +403,18 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	Thread->Header.Signaled = true;
 	KiWaitTest(&Thread->Header, Thread->IncrementTerminated);
 	
-	// TODO: If the main thread died, send a kernel APC to all other threads to also terminate.
+	// TODO: If the main thread died, send a kernel APC to all other threads to also terminate?
 	
-	// These need to be called with the dispatcher lock NOT held.
-	//
-	// TODO: The whole "detach" system needs to be rearchitected.
-	PKPROCESS_TERMINATE_METHOD ProcessTerminate = NULL;
-	PKTHREAD_TERMINATE_METHOD  ThreadTerminate  = NULL;
-	PKPROCESS Process = NULL;
+	// This needs to be called with the dispatcher lock NOT held.
+	PKTHREAD_TERMINATE_METHOD ThreadTerminate = Thread->TerminateMethod;
 	
-	if (Thread->Detached)
-		ThreadTerminate = Thread->TerminateMethod;
-	
-	if (IsListEmpty(&Thread->Process->ThreadList))
-	{
-		if (Thread->Process->Detached)
-		{
-			ProcessTerminate = Thread->Process->TerminateMethod;
-			Process = Thread->Process;
-		}
-		
+	// If the process' list of threads is empty, signal the process object.
+	if (Thread->Process && IsListEmpty(&Thread->Process->ThreadList))
 		KiOnKillProcess(Thread->Process);
-		Thread->Process = NULL;
-	}
 	
 	KiUnlockDispatcher(Ipl);
 	
-	// Free the thread's kernel stack.
-	MmFreePoolBig(StackTop);
-	
-	if (ProcessTerminate)
-		ProcessTerminate(Process);
-	
-	// If the thread is detached, deallocate it.
+	// If the thread has a terminate method, call it.
 	if (ThreadTerminate)
 		ThreadTerminate(Thread);
 }

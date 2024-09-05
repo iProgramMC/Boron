@@ -22,8 +22,6 @@ Author:
 #define MAXIMUM_WAIT_BLOCKS (64)
 #define THREAD_WAIT_BLOCKS (4)
 
-#define KERNEL_STACK_SIZE (8192) // Note: Must be a multiple of PAGE_SIZE.
-
 #define MAX_QUANTUM_US (10000)
 
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
@@ -64,8 +62,6 @@ struct KTHREAD_tag
 	KPRIORITY Priority; // base priority + priority boost
 	KPRIORITY BasePriority;
 	KPRIORITY PriorityBoost; // boosts for exactly one quantum
-	
-	bool Detached;
 	
 	PKPROCESS Process;
 	
@@ -134,14 +130,9 @@ struct KTHREAD_tag
 	// Priority increment after thread is terminated.
 	KPRIORITY IncrementTerminated;
 	
-	// Method called when the thread terminates, in detached mode.
-	// The method is called at IPL_DPC with the dispatcher database
-	// locked.
+	// Method called when the thread terminates.
+	// The method is called in a DPC context.
 	PKTHREAD_TERMINATE_METHOD TerminateMethod;
-	
-	// TODO: This doesn't belong in KTHREAD, but rather ETHREAD. This
-	// layering violation will be fixed later.
-	LIST_ENTRY DeferredIrpList;
 };
 
 // Creates an empty, uninitialized, thread object.
@@ -154,19 +145,7 @@ void KeDeallocateThread(PKTHREAD Thread);
 // Reads the state of a thread.
 int KeReadStateThread(PKTHREAD Thread);
 
-// Detaches a child thread from the managing thread. This involves automatic cleanup
-// through the terminate method specified in the respective function parameter.
-//
-// Notes:
-// - If TerminateMethod is NULL, then the thread will use KeDeallocateThread as the
-//   terminate method.  In that case, you must NOT use a pointer to a thread which
-//   wasn't allocated using KeAllocateThread.  Thus, you should ideally discard the
-//   pointer as soon as this function finishes, or as soon as you call KeReadyThread,
-//   whichever comes last.
-//
-// - The thread pointer is only guaranteed to be accessible (with the rigorous dis-
-//   patcher database locking of course) until `TerminateMethod' is called.
-void KeDetachThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod);
+void KeSetTerminateMethodThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod);
 
 // Initializes the thread object.
 NO_DISCARD BSTATUS KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);

@@ -56,3 +56,12 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t Pe
 void* MmAllocatePool(int PoolFlags, size_t Size);
 
 void MmFreePool(void* Pointer);
+
+// Shorthand function to allocate a thread's kernel stack using default parameters.
+FORCE_INLINE
+void* MmAllocateKernelStack()
+{
+	return MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, POOL_TAG("ThSt"));
+}
+
+#define MmFreeThreadStack(p) MmFreePoolBig(p)

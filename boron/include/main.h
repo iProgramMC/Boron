@@ -85,6 +85,9 @@ void DbgPrint(const char* msg, ...);
 #include <rtl/list.h>
 #include <rtl/rbtree.h>
 
+// TODO: not sure this belongs here, but we'll take it.
+#define KERNEL_STACK_SIZE (PAGE_SIZE * 2) // Note: Must be a multiple of PAGE_SIZE.
+
 #ifdef IS_DRIVER
 
 // Force the driver entry prototype.
