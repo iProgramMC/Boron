@@ -100,15 +100,12 @@ KiTrapCommon:
 	push  rbp
 	mov   rbp, rsp
 	cld                                    ; Clear direction flag, will be restored by iretq
-	lea   rax, [KiTrapIplList + rbx]       ; Retrieve the IPL for the respective interrupt vector
-	movsx rdi, byte [rax]                  ; Get the IPL itself
+	movsx rdi, byte [KiTrapIplList + rbx]  ; Get the IPL for the respective interrupt vector
 	mov   rsi, rdx                         ; Pass in as second parameter the previous CS. This will determine the PreviousMode.
 	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
 	push  rax                              ; Push the old IPL that we obtained from the function
 	mov   rdi, rsp                         ; Retrieve the PKREGISTERS to call the trap handler
-	lea   rax, [KiTrapCallList + 8 * rbx]  ; Retrieve the address to the pointer to the function to call
-	mov   rax, [rax]                       ; Retrieve the pointer to the function to call...
-	call  rax                              ; And call the function!!
+	call  [KiTrapCallList + 8 * rbx]       ; Call the trap handler. It returns the new RSP.
 	mov   rsp, rax                         ; Use the new PKREGISTERS instance as what to pull
 	pop   rdi                              ; Pop the old IPL that was pushed before
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
