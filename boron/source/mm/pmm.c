@@ -192,9 +192,14 @@ void MmZeroOutFirstPFN();
 //
 // If both the zero and free PFN lists are invalid, a page is withdrawn
 // from the standby list (also if available).
+//
+// The modified list is NOT a list of free PFNs.  However, the
+// modified page writer will continuously write pages and turn them
+// into standby pages.
 static MMPFN MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
 static MMPFN MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
 static MMPFN MiFirstStandbyPFN = PFN_INVALID, MiLastStandbyPFN = PFN_INVALID;
+static MMPFN MiFirstModifiedPFN = PFN_INVALID, MiLastModifiedPFN = PFN_INVALID;
 static KSPIN_LOCK MmPfnLock;
 
 KIPL MiLockPfdb()
@@ -367,22 +372,24 @@ void MiInitPMM()
 	DbgPrint("MiInitPMM: %zu Kb Available Memory", MmTotalAvailablePages * PAGE_SIZE / 1024);
 }
 
-// TODO: Add locking
-
-static void MmpRemovePfnFromList(PMMPFN First, PMMPFN Last, MMPFN Current)
+// This is split into two parts to allow for use in a function other than MmpRemovePfnFromList
+FORCE_INLINE
+void MmpUnlinkPfn(PMMPFDBE Pfdbe)
 {
-	PMMPFDBE pPF = MmGetPageFrameFromPFN(Current);
-	
 	// disconnect its neighbors from this one
-	if (pPF->NextFrame != PFN_INVALID)
-		MmGetPageFrameFromPFN(pPF->NextFrame)->PrevFrame = pPF->PrevFrame;
-	if (pPF->PrevFrame != PFN_INVALID)
-		MmGetPageFrameFromPFN(pPF->PrevFrame)->NextFrame = pPF->NextFrame;
-	
+	if (Pfdbe->NextFrame != PFN_INVALID)
+		MmGetPageFrameFromPFN(Pfdbe->NextFrame)->PrevFrame = Pfdbe->PrevFrame;
+	if (Pfdbe->PrevFrame != PFN_INVALID)
+		MmGetPageFrameFromPFN(Pfdbe->PrevFrame)->NextFrame = Pfdbe->NextFrame;
+}
+
+FORCE_INLINE
+void MmpEnsurePfnIsntEndsOfList(PMMPFN First, PMMPFN Last, PMMPFDBE Pfdbe, MMPFN Current)
+{
 	if (*First == Current)
 	{
 		// set the first PFN of the list to the next PFN
-		*First = pPF->NextFrame;
+		*First = Pfdbe->NextFrame;
 		
 		// if the next frame is PFN_INVALID, we're done with the list entirely...
 		if (*First == PFN_INVALID)
@@ -391,12 +398,36 @@ static void MmpRemovePfnFromList(PMMPFN First, PMMPFN Last, MMPFN Current)
 	if (*Last == Current)
 	{
 		// set the last PFN of the list to the prev PFN
-		*Last = pPF->PrevFrame;
+		*Last = Pfdbe->PrevFrame;
 		
 		// if the prev frame is PFN_INVALID, we're done with the list entirely...
 		if (*Last  == PFN_INVALID)
 			*First =  PFN_INVALID;
 	}
+}
+
+static void MmpRemovePfnFromList(PMMPFN First, PMMPFN Last, MMPFN Current)
+{
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Current);
+	MmpUnlinkPfn(Pfdbe);
+	MmpEnsurePfnIsntEndsOfList(First, Last, Pfdbe, Current);
+}
+
+void MiDetransitionPfn(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	MmpUnlinkPfn(Pfdbe);
+	MmpEnsurePfnIsntEndsOfList(&MiFirstStandbyPFN, &MiLastStandbyPFN, Pfdbe, Pfn);
+	MmpEnsurePfnIsntEndsOfList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfdbe, Pfn);
+	
+	// Now that the PFN is unlinked, we can turn it into a used PFN.
+	Pfdbe->PrototypePte = 0;
+	Pfdbe->RefCount = 1;
+	Pfdbe->NextFrame = 0;
+	Pfdbe->PrevFrame = 0;
+	Pfdbe->Type = PF_TYPE_USED;
 }
 
 static void MmpAddPfnToList(PMMPFN First, PMMPFN Last, MMPFN Current)
@@ -427,9 +458,24 @@ static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 	int currPFN = *First;
 	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
 	
-	if (pPF->Type == PF_TYPE_STANDBY)
+	if (pPF->Type == PF_TYPE_TRANSITION)
 	{
-		// This is a standby page.  Zero out what's at the prototype PTE's address.
+		// This is a transition page.  Zero out what's at the prototype PTE's address to reclaim.
+		//
+		// If any code wants to modify a transitional PTE, they must acquire the PFDB lock to ensure
+		// that it isn't reclaimed by this part of the code.
+		//
+		// Something like this to de-transition a PTE:
+		//   pte - The PTE in question
+		//   if (pte & TRANSITION) {
+		//       acquire PTE lock
+		//       if (pte == 0) {   // awe damn we missed it
+		//           release PTE lock
+		//           // gotta fault it back in...
+		//       }
+		//       MiDetransitionPfn(PFN(pte))
+		//       release PTE lock
+		//   }
 		ASSERT(pPF->PrototypePte);
 		
 		uintptr_t* Ptr = (uintptr_t*) pPF->PrototypePte;
@@ -522,7 +568,7 @@ void MmFreePhysicalPageIntoStandby(MMPFN pfn, uintptr_t* PrototypePte)
 #endif
 		
 		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
-		PageFrame->Type = PF_TYPE_STANDBY;
+		PageFrame->Type = PF_TYPE_TRANSITION;
 		PageFrame->PrototypePte = (uint64_t) PrototypePte;
 		MmTotalFreePages++;
 	}

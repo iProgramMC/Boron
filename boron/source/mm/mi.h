@@ -34,7 +34,12 @@ KIPL MiLockPfdb();
 void MiUnlockPfdb(KIPL Ipl);
 
 // Gets the reference count of a page by PFN.
+// The PFN lock must be held.
 int MiGetReferenceCountPfn(MMPFN Pfn);
+
+// Remove a page from the standby or modified list and make it used.
+// The PFN lock must be held.
+void MiDetransitionPfn(MMPFN Pfn);
 
 // ===== Slab Allocator =====
 

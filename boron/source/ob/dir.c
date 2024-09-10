@@ -165,6 +165,7 @@ BSTATUS ObpLookUpDirectoryEntry(
 {
 	PLIST_ENTRY Entry = Directory->ListHead.Flink;
 	
+	// TODO: Instead of using a list, use an AVL tree or a hash table.
 	while (Entry != &Directory->ListHead)
 	{
 		POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
@@ -176,7 +177,7 @@ BSTATUS ObpLookUpDirectoryEntry(
 			*OutObject = Header->Body;
 			*OutMatchLength = MatchLength;
 			
-			return STATUS_SUCCESS;;
+			return STATUS_SUCCESS;
 		}
 		
 		// Didn't match, so continue.

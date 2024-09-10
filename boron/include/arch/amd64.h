@@ -42,7 +42,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
 #define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write
-// bit 11 free
+#define MM_PTE_TRANSITION (1ULL << 11) // if this page is in transition (3)
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
 #define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
 #define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
@@ -59,10 +59,14 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 // bit  10          - Was swapped to pagefile (2)
 // bit  62          - used by the unmap code, see (1)
 
+// NOTES:
+//
 // (1) - If MM_DPTE_WASPRESENT is set, it's treated as a regular PTE in terms of flags, except that MM_PTE_PRESENT is zero.
 //       It contains a valid PMM address which should be freed.
 //
 // (2) - If MM_DPTE_SWAPPED is set, bits 52...12 represent the offset into the pagefile, and bits 57...53 mean the pagefile index.
+//
+// (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
 
 #define MM_DPTE_DEMANDPAGED  (1ULL << 8)
 #define MM_DPTE_BACKEDBYFILE (1ULL << 9)

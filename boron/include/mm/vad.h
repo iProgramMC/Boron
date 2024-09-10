@@ -29,7 +29,14 @@ enum
 
 typedef struct _MMVAD_FLAGS
 {
+	// Access flags, as defined in the above enum.
+	int AccessFlags : 3;
 	
+	// Whether or not the current VAD entry is a file.
+	bool IsFile : 1;
+	
+	// Whether or not the current VAD entry is a section.
+	bool IsSection : 1;
 }
 MMVAD_FLAGS;
 
