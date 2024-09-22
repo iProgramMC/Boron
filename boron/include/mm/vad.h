@@ -16,6 +16,8 @@ Author:
 #include <main.h>
 #include <io/fileobj.h>
 
+#include <mm/addrnode.h>
+
 #define MM_VAD_MUTEX_LEVEL (1)
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;

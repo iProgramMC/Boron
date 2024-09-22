@@ -80,7 +80,6 @@ void PspTerminateThread(PKTHREAD Tcb)
 
 BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
 {
-	BSTATUS Status;
 	THREAD_START_CONTEXT* Tsc = Context;
 	PEPROCESS Process = Tsc->Process;
 	PKTHREAD_START StartRoutine = Tsc->StartRoutine;
@@ -96,8 +95,7 @@ BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
 	// Initialize the kernel core thread object.
 	// TODO: After the removal of the Mm references in the kernel core the status should be removed as it can
 	// only ever fail if unable to allocate the kernel stack.
-	Status = KeInitializeThread(&Thread->Tcb, ThreadStack, StartRoutine, StartContext, &Process->Pcb);
-	ASSERT(SUCCEEDED(Status));
+	KeInitializeThread(&Thread->Tcb, ThreadStack, StartRoutine, StartContext, &Process->Pcb);
 	
 	// Assign the Ps specific thread termination method.
 	Thread->Tcb.TerminateMethod = PspTerminateThread;

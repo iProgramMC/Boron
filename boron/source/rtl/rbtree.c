@@ -106,3 +106,13 @@ void TraverseRbTree(
 	RB_FOREACH(Entry, _RBTREE_HEAD, &Tree->Head)
 		Function(Context, Entry);
 }
+
+PRBTREE_ENTRY GetNextEntryRbTree(PRBTREE_ENTRY Entry)
+{
+	return RB_NEXT(_RBTREE_HEAD, NULL, Entry);
+}
+
+PRBTREE_ENTRY GetPrevEntryRbTree(PRBTREE_ENTRY Entry)
+{
+	return RB_PREV(_RBTREE_HEAD, NULL, Entry);
+}

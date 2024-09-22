@@ -211,8 +211,10 @@ void KeSchedulerInit(void* IdleThreadStack)
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
-	if (FAILED(KiInitializeThread(Thread, IdleThreadStack, KiIdleThreadEntry, NULL, KeGetSystemProcess())))
-		KeCrash("cannot create idle thread");
+	if (!Thread)
+		KeCrash("cannot allocate idle thread");
+	
+	KiInitializeThread(Thread, IdleThreadStack, KiIdleThreadEntry, NULL, KeGetSystemProcess());
 	
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
 	KiReadyThread(Thread);

@@ -15,11 +15,8 @@ Author:
 ***/
 #include "ki.h"
 
-BSTATUS KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+void KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
-	if (!Thread)
-		return STATUS_INVALID_PARAMETER;
-	
 	ASSERT(KernelStack);
 	
 	memset (Thread, 0, sizeof *Thread);
@@ -65,8 +62,6 @@ BSTATUS KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START St
 	
 	Thread->ApcDisableCount = 0;
 	Thread->ApcInProgress = 0;
-	
-	return STATUS_SUCCESS;
 }
 
 PKTHREAD KeAllocateThread()
@@ -105,13 +100,9 @@ void KeYieldCurrentThread()
 	KiHandleQuantumEnd(Ipl);
 }
 
-BSTATUS KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+void KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
-	if (!Thread)
-		return STATUS_INVALID_PARAMETER;
-	
 	KIPL Ipl = KiLockDispatcher();
-	BSTATUS Status = KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
+	KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
 	KiUnlockDispatcher(Ipl);
-	return Status;
 }

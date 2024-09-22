@@ -26,6 +26,8 @@ KPRCB**  KeProcessorList;
 int      KeProcessorCount = 0;
 uint32_t KeBootstrapLapicId = 0;
 
+KPRCB** KiGetProcessorList() { return KeProcessorList; }
+
 // TODO: an "init data" section.  Currently there's not much in the data segment
 // that can be considered worthy of being purged after system initialization.
 KTHREAD  KiExInitThread;

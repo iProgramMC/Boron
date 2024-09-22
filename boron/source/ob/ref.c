@@ -70,18 +70,13 @@ static NO_RETURN void ObpReaperThreadRoutine(UNUSED void* Context)
 INIT
 bool ObpInitializeReaperThread()
 {
-	BSTATUS Status;
-	
-	Status = KeInitializeThread(
+	KeInitializeThread(
 		&ObpReaperThread,
 		MmAllocateKernelStack(), // KernelStack
 		ObpReaperThreadRoutine,  // StartRoutine
 		NULL,                    // StartContext
 		KeGetSystemProcess()     // Process
 	);
-	
-	if (FAILED(Status))
-		return false;
 	
 	KeSetPriorityThread(&ObpReaperThread, PRIORITY_REALTIME);
 	KeReadyThread(&ObpReaperThread);

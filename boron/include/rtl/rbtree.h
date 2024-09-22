@@ -66,3 +66,6 @@ void TraverseRbTree(
 	PRBTREE Tree,
 	PRBTREE_TRAVERSAL_FUNCTION Function,
 	void* Context);
+	
+PRBTREE_ENTRY GetNextEntryRbTree(PRBTREE_ENTRY);
+PRBTREE_ENTRY GetPrevEntryRbTree(PRBTREE_ENTRY);

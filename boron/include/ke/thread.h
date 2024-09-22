@@ -148,7 +148,7 @@ int KeReadStateThread(PKTHREAD Thread);
 void KeSetTerminateMethodThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD TerminateMethod);
 
 // Initializes the thread object.
-NO_DISCARD BSTATUS KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+void KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 // Readies the thread object for execution.
 // Note. Don't call this more than once per thread! Bad things will happen!!
