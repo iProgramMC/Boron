@@ -35,6 +35,9 @@ Author:
 #define BIT(x) (1ULL << (x))
 #define ASM __asm__ __volatile__
 
+#define LIKELY(x)   __builtin_expect(!!(x), 1)
+#define UNLIKELY(x) __builtin_expect(!!(x), 0)
+
 //
 // Functions are by default non-paged. Thus, they are resident at all times.
 // However, two special classes of functions, defined below, may not be resident at all times:

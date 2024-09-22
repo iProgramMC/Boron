@@ -61,7 +61,15 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 	Timer->ExpiryTick = ExpiryTick;
 	
 	// Enqueue the timer in the timer tree.
-	KiInsertTimerTree(Timer);
+	bool InsertStatus = KiInsertTimerTree(Timer);
+	
+	while (UNLIKELY(!InsertStatus))
+	{
+		// Wow! The timer couldn't be inserted due to a clash. Surprising as
+		// the TSC's resolution is quite fine.  Give it an ever so slight upper hand.
+		Timer->ExpiryTick++;
+		InsertStatus = KiInsertTimerTree(Timer);
+	}
 	
 	Timer->IsEnqueued = true;
 	
