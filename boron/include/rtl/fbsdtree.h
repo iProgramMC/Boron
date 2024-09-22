@@ -31,8 +31,6 @@
 #ifndef	_SYS_TREE_H_
 #define	_SYS_TREE_H_
 
-#include <sys/cdefs.h>
-
 /*
  * This file defines data structures for different types of trees:
  * splay trees and rank-balanced trees.
