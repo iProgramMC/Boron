@@ -73,9 +73,8 @@ void PsInitSystemProcess()
 		AFFINITY_ALL
 	);
 	
-	// Initialize this process' VAD list.
-	KeInitializeMutex(&PsSystemProcess.Vad.Mutex, MM_VAD_MUTEX_LEVEL);
-	InitializeRbTree(&PsSystemProcess.Vad.Tree);
+	MmInitializeVadList(&PsSystemProcess.VadList);
+	MmInitializeHeap(&PsSystemProcess.Heap);
 	
 	// Initialize the address lock.
 	ExInitializeRwLock(&PsSystemProcess.AddressLock);

@@ -44,8 +44,7 @@ MMVAD_FLAGS;
 
 typedef struct _MMVAD_ENTRY
 {
-	RBTREE_ENTRY Entry; // Key == StartVA
-	uintptr_t EndVA;
+	MMADDRESS_NODE Node;
 	
 	MMVAD_FLAGS Flags;
 	
@@ -62,20 +61,22 @@ typedef struct _MMVAD_ENTRY
 	uint64_t OffsetInFile;
 }
 MMVAD_ENTRY, *PMMVAD_ENTRY;
-#define StartVA Entry.Key
 
-typedef struct _VAD
+typedef struct _MMVAD_LIST
 {
 	KMUTEX Mutex;
 	RBTREE Tree;
 }
-MMVAD, *PMMVAD;
+MMVAD_LIST, *PMMVAD_LIST;
+
+// Initialize the VAD list for a process.
+void MmInitializeVadList(PMMVAD_LIST VadList);
 
 // Lock the VAD list of a specified process and returns a pointer to it.
-PMMVAD MmLockVadListProcess(PEPROCESS Process);
+PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process);
 
 // Lock the VAD list of the current process and returns a pointer to it.
 #define MmLockVadList()  MmLockVadList(PsGetCurrentProcess())
 
 // Unlock the VAD list specified.
-void MmUnlockVadList(PMMVAD);
+void MmUnlockVadList(PMMVAD_LIST);

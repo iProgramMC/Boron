@@ -27,8 +27,11 @@ struct EPROCESS_tag
 	// The kernel side process.
 	KPROCESS Pcb;
 	
-	// The Virtual Address Descriptor of this process.
-	MMVAD Vad;
+	// The Virtual Address Descriptor list of this process.
+	MMVAD_LIST VadList;
+	
+	// The heap manager for this process.
+	MMHEAP Heap;
 	
 	// Rwlock that guards the address space of the process.
 	// TODO:  Perhaps this should be replaced by the VAD list lock?

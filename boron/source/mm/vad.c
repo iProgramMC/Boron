@@ -14,15 +14,21 @@ Author:
 #include <mm.h>
 #include <ex.h>
 
-PMMVAD MmLockVadListProcess(PEPROCESS Process)
+PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process)
 {
-	UNUSED BSTATUS Status = KeWaitForSingleObject(&Process->Vad.Mutex, false, TIMEOUT_INFINITE);
+	UNUSED BSTATUS Status = KeWaitForSingleObject(&Process->VadList.Mutex, false, TIMEOUT_INFINITE);
 	ASSERT(Status == STATUS_SUCCESS);
 	
-	return &Process->Vad;
+	return &Process->VadList;
 }
 
-void MmUnlockVadList(PMMVAD Vad)
+void MmUnlockVadList(PMMVAD_LIST VadList)
 {
-	KeReleaseMutex(&Vad->Mutex);
+	KeReleaseMutex(&VadList->Mutex);
+}
+
+void MmInitializeVadList(PMMVAD_LIST VadList)
+{
+	KeInitializeMutex(&VadList->Mutex, MM_VAD_MUTEX_LEVEL);
+	InitializeRbTree(&VadList->Tree);
 }

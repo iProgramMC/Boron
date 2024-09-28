@@ -29,23 +29,6 @@ typedef struct
 
 	// VAD/heap node common fields
 	size_t Size;
-
-	union
-	{
-		// Heap Node specific fields
-		struct
-		{
-			int A;
-		}
-		Heap;
-		
-		// VAD specific fields
-		struct
-		{
-			int B;
-		}
-		Vad;
-	};
 }
 MMADDRESS_NODE, *PMMADDRESS_NODE;
 
