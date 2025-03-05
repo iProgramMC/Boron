@@ -21,13 +21,17 @@ typedef struct
 	union {
 		RBTREE_ENTRY Entry;
 		struct {
-			// these correspond to the three rbe_link members of the tree
+			// These correspond to the three rbe_link members of the tree.
 			uintptr_t A, B, C;
+			
+			// The StartVa is a virtual address (not a VPN).
 			uintptr_t StartVa;
 		};
 	};
 
 	// VAD/heap node common fields
+	
+	// The size is represented in pages.
 	size_t Size;
 }
 MMADDRESS_NODE, *PMMADDRESS_NODE;

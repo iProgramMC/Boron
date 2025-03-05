@@ -14,16 +14,9 @@ Author:
 ***/
 #include "mi.h"
 
-void MmInitializeHeap(PMMHEAP Heap)
-{
-	InitializeRbTree(&Heap->Tree);
-	KeInitializeMutex(&Heap->Mutex, 0);
-}
-
-// Used during initialization.  Don't call otherwise
 bool MmpCreateRegionHeap(PMMHEAP Heap, uintptr_t StartVa, size_t Size)
 {
-	PMMADDRESS_NODE Mem = MmAllocatePool(POOL_NONPAGED, sizeof(MMADDRESS_NODE));
+	PMMADDRESS_NODE Mem = MmAllocatePool(POOL_NONPAGED, Heap->ItemSize);
 	if (!Mem)
 		return false;
 
@@ -35,7 +28,18 @@ bool MmpCreateRegionHeap(PMMHEAP Heap, uintptr_t StartVa, size_t Size)
 	return true;
 }
 
-PMMADDRESS_NODE MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages)
+void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t InitialSize)
+{
+	InitializeRbTree(&Heap->Tree);
+	KeInitializeMutex(&Heap->Mutex, 0);
+	
+	Heap->ItemSize = ItemSize;
+	ASSERT(ItemSize >= sizeof(MMADDRESS_NODE));
+	
+	MmpCreateRegionHeap(Heap, InitialVa, InitialSize);
+}
+
+BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, PMMADDRESS_NODE* OutNode)
 {
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
@@ -53,14 +57,17 @@ PMMADDRESS_NODE MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages)
 	{
 		PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		
-		if (Node->Size == SizePages) {
+		if (Node->Size == SizePages)
+		{
 			// This node fits exactly. Remove it from the tree and return.
 			RemoveItemRbTree(&Heap->Tree, &Node->Entry);
 			KeReleaseMutex(&Heap->Mutex);
-			return Node;
+			*OutNode = Node;
+			return STATUS_SUCCESS;
 		}
 
-		if (Node->Size < SizePages) {
+		if (Node->Size < SizePages)
+		{
 			// The size requested does not fit this node. 
 			continue;
 		}
@@ -71,21 +78,22 @@ PMMADDRESS_NODE MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages)
 		size_t NewSize = Node->Size - SizePages;
 		if (!MmpCreateRegionHeap(Heap, NewVa, NewSize))
 		{
-			// Well, this didn't work. TODO
+			// Well, this didn't work. TODO: Do we just need to refuse?
 			ASSERT(!"uh oh");
 			KeReleaseMutex(&Heap->Mutex);
-			return NULL;
+			return STATUS_INSUFFICIENT_MEMORY;
 		}
 
 		Node->Size = SizePages;
 		RemoveItemRbTree(&Heap->Tree, &Node->Entry);
 		KeReleaseMutex(&Heap->Mutex);
-		return Node;
+		*OutNode = Node;
+		return STATUS_SUCCESS;
 	}
 
 	// No big enough ranges exist, so bail.
 	KeReleaseMutex(&Heap->Mutex);
-	return NULL;
+	return STATUS_INSUFFICIENT_VA_SPACE;
 }
 
 void MmpTryMergeNext(PMMHEAP Heap, PMMADDRESS_NODE Node)
@@ -95,7 +103,8 @@ void MmpTryMergeNext(PMMHEAP Heap, PMMADDRESS_NODE Node)
 		return;
 
 	PMMADDRESS_NODE Next = CONTAINING_RECORD(NextEntry, MMADDRESS_NODE, Entry);
-	if (Next->StartVa == Node_EndVa(Node)) {
+	if (Next->StartVa == Node_EndVa(Node))
+	{
 		// We can merge.
 		RemoveItemRbTree(&Heap->Tree, &Next->Entry);
 		Node->Size += Next->Size;
@@ -103,7 +112,7 @@ void MmpTryMergeNext(PMMHEAP Heap, PMMADDRESS_NODE Node)
 	}
 }
 
-bool MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
+BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 {
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
 
@@ -113,18 +122,19 @@ bool MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 	// If the node couldn't be inserted, this is an error.
 	if (!Inserted) {
 		KeReleaseMutex(&Heap->Mutex);
-		return false;
+		return STATUS_INVALID_PARAMETER;
 	}
 
 	// Now, look for the "next" and "previous" entries.  If they are directly adjacent, then merge.
 	MmpTryMergeNext(Heap, Node);
 
 	PRBTREE_ENTRY Entry = GetPrevEntryRbTree(&Node->Entry);
-	if (Entry) {
+	if (Entry)
+	{
 		Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		MmpTryMergeNext(Heap, Node);
 	}
 
 	KeReleaseMutex(&Heap->Mutex);
-	return true;
+	return STATUS_SUCCESS;
 }

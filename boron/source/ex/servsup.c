@@ -267,6 +267,7 @@ Fail:
 	return Status;
 }
 
+// Closes a handle to an object.
 BSTATUS OSClose(HANDLE Handle)
 {
 	return ObClose(Handle);

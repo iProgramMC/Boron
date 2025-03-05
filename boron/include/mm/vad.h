@@ -1,12 +1,13 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2024 iProgramInCpp
+	Copyright (C) 2024-2025 iProgramInCpp
 
 Module name:
 	mm/vad.h
 	
 Abstract:
-	
+	This header defines function prototypes related to the VAD
+	(Virtual Address Descriptor) and its list.
 	
 Author:
 	iProgramInCpp - 18 August 2024
@@ -29,16 +30,24 @@ enum
 	ACCESS_FLAG_EXECUTE = 4,
 };
 
-typedef struct _MMVAD_FLAGS
+typedef union
 {
-	// Access flags, as defined in the above enum.
-	int AccessFlags : 3;
+	struct
+	{
+		// Whether this VAD's default state is "committed".
+		// If true, any page fault inside this range refers to a "committed"
+		// address. Otherwise, the PTEs have to be specifically marked "committed"
+		// to be committed.
+		int Committed : 1;
+		
+		// Protection flags, see the ACCESS_FLAG enum.
+		int Protection : 3;
+		
+		// If this region is private (so, not duplicated across forks for example)
+		int Private : 1;
+	};
 	
-	// Whether or not the current VAD entry is a file.
-	bool IsFile : 1;
-	
-	// Whether or not the current VAD entry is a section.
-	bool IsSection : 1;
+	uint32_t LongFlags;
 }
 MMVAD_FLAGS;
 
@@ -60,7 +69,7 @@ typedef struct _MMVAD_ENTRY
 	// If this is a file, then the offset within the file.
 	uint64_t OffsetInFile;
 }
-MMVAD_ENTRY, *PMMVAD_ENTRY;
+MMVAD, *PMMVAD;
 
 typedef struct _MMVAD_LIST
 {
@@ -80,3 +89,12 @@ PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process);
 
 // Unlock the VAD list specified.
 void MmUnlockVadList(PMMVAD_LIST);
+
+// Reserves a bunch of virtual memory and returns a VAD.
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad);
+
+// Reserves a bunch of virtual memory and returns an address.
+BSTATUS MmReserveVirtualMemore(size_t SizePages, void** OutAddress);
+
+// Releases a region of virtual memory.
+BSTATUS MmReleaseVirtualMemory(void* Address);

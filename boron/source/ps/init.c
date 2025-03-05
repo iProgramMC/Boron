@@ -14,6 +14,10 @@ Author:
 ***/
 #include "psp.h"
 
+// Initial Virtual Address Range
+#define INITIAL_BEG_VA 0x0000000000001000
+#define INITIAL_END_VA 0x00007FFFFFFFF000
+
 NONPAGED_OBJECT_HEADER PspSystemProcessNpHeader;
 
 // To keep the PsSystemProcess symbol working, we'll use a linker script hack.
@@ -74,7 +78,9 @@ void PsInitSystemProcess()
 	);
 	
 	MmInitializeVadList(&PsSystemProcess.VadList);
-	MmInitializeHeap(&PsSystemProcess.Heap);
+	
+	// Initialize the heap with a default range.
+	MmInitializeHeap(&PsSystemProcess.Heap, sizeof(MMVAD), INITIAL_BEG_VA, INITIAL_END_VA - INITIAL_BEG_VA);
 	
 	// Initialize the address lock.
 	ExInitializeRwLock(&PsSystemProcess.AddressLock);

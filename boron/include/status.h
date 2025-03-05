@@ -76,6 +76,10 @@ enum
 	STATUS_UNALIGNED_OPERATION, // Unaligned operation was attempted.  Use IoGetOperationAlignment to find the alignment required to write to this device.
 	
 	// Memory manager error codes
+	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space
+	STATUS_VA_NOT_AT_BASE,      // The virtual address given is not the beginning of a reserved region
+	STATUS_MEMORY_NOT_RESERVED, // There is no memory reserved at that address
+	STATUS_MEMORY_COMMITTED,    // There is committed memory but decommit wasn't explicitly requested.
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
