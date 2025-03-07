@@ -434,7 +434,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 		return true;
 	}
 	
-	*Pte = MM_DPTE_DEMANDPAGED | Permissions;
+	*Pte = MM_DPTE_COMMITTED | Permissions;
 	
 	return true;
 }
@@ -518,7 +518,7 @@ void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		*pPTE &= ~MM_DPTE_DEMANDPAGED;
+		*pPTE &= ~MM_DPTE_COMMITTED;
 		
 		if (*pPTE & MM_PTE_PRESENT)
 		{

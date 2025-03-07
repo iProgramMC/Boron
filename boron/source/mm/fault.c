@@ -27,7 +27,7 @@ BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PteP
 			return STATUS_ACCESS_VIOLATION;
 		}
 		
-		if (*PtePtr & MM_DPTE_DEMANDPAGED)
+		if (*PtePtr & MM_DPTE_COMMITTED)
 		{
 			// This PTE is demand paged.  Allocate a page.
 			int Pfn = MmAllocatePhysicalPage();
@@ -40,7 +40,7 @@ BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PteP
 			
 			// Create a new, valid, PTE that will replace the current one.
 			MMPTE NewPte = *PtePtr;
-			NewPte &= ~MM_DPTE_DEMANDPAGED;
+			NewPte &= ~MM_DPTE_COMMITTED;
 			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
 			NewPte |=  MmPFNToPhysPage(Pfn);
 			NewPte &= ~MM_PTE_PKMASK;
@@ -248,7 +248,7 @@ EarlyExit:
 		}
 		
 		// Is the PTE demand paged?
-		if (*Pte & MM_DPTE_DEMANDPAGED)
+		if (*Pte & MM_DPTE_COMMITTED)
 		{
 			// Okay! Let's allocate a page.
 			int Pfn = MmAllocatePhysicalPage();
@@ -266,7 +266,7 @@ EarlyExit:
 			
 			// Create a new, valid, PTE that will replace the current one.
 			MMPTE NewPte = *Pte;
-			NewPte &= ~MM_DPTE_DEMANDPAGED;
+			NewPte &= ~MM_DPTE_COMMITTED;
 			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
 			NewPte |=  MmPFNToPhysPage(Pfn);
 			NewPte &= ~MM_PTE_PKMASK;

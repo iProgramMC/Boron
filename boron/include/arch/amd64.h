@@ -68,7 +68,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 //
 // (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
 
-#define MM_DPTE_DEMANDPAGED  (1ULL << 8)
+#define MM_DPTE_COMMITTED    (1ULL << 8)
 #define MM_DPTE_BACKEDBYFILE (1ULL << 9)
 #define MM_DPTE_SWAPPED      (1ULL << 10)
 #define MM_DPTE_WASPRESENT   (1ULL << 62)
