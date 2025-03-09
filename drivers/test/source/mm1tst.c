@@ -56,7 +56,7 @@ void PerformDemandPageTest()
 	
 	PMMPTE Pte = MiGetPTEPointer(Map, Va, true);
 	ASSERT(Pte);
-	*Pte = MM_DPTE_DEMANDPAGED | MM_PTE_READWRITE;
+	*Pte = MM_DPTE_COMMITTED | MM_PTE_READWRITE;
 	
 	MmUnlockKernelSpace();
 	

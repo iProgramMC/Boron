@@ -186,7 +186,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	{
 		while (true)
 		{
-			MmLockSpaceShared(Address);
+			KIPL OldIpl = MmLockSpaceShared(Address);
 			PMMPTE PtePtr = MiGetPTEPointer(PageMap, Address, false);
 			
 			bool TryFault = false;
@@ -209,7 +209,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 				{
 					// This is MMIO space or the HHDM.  Disallow its capture.
 					FailureReason = STATUS_INVALID_PARAMETER;
-					MmUnlockSpace(Address);
+					MmUnlockSpace(OldIpl, Address);
 					break;
 				}
 				else if ((~Pte & MM_PTE_READWRITE) && IsWrite)
@@ -221,7 +221,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			
 			if (TryFault)
 			{
-				MmUnlockSpace(Address);
+				MmUnlockSpace(OldIpl, Address);
 				
 				BSTATUS ProbeStatus = MmProbeAddress((void*) Address, sizeof(uintptr_t), IsWrite, AccessMode);
 				
@@ -261,7 +261,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			
 			// Unlock the address space and break out of the probe loop.  This will continue the
 			// capture process.
-			MmUnlockSpace(Address);
+			MmUnlockSpace(OldIpl, Address);
 			break;
 		}
 		

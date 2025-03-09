@@ -38,10 +38,14 @@ void MmUnlockKernelSpace();
 //
 // TODO: The space lock should be superseded by the VAD list lock, and the latter should be the only
 // thing responsible for userspace memory management, or kernel side memory management outside of
-// pool space.
-void MmLockSpaceShared(uintptr_t DecidingAddress);
-void MmLockSpaceExclusive(uintptr_t DecidingAddress);
-void MmUnlockSpace(uintptr_t DecidingAddress);
+// pool space. (update 9/3/25: should we?!  This rwlock guards the page table structures in general)
+//
+// NOTE: Raises the IPL to IPL_APC level.  This is because APCs may also take page faults.  We don't
+// want a situation where the page fault handler is interrupted by an APC *while* it is handling
+// a page fault and modifying the current process' memory management structures.
+NO_DISCARD KIPL MmLockSpaceShared(uintptr_t DecidingAddress);
+NO_DISCARD KIPL MmLockSpaceExclusive(uintptr_t DecidingAddress);
+void MmUnlockSpace(KIPL OldIpl, uintptr_t DecidingAddress);
 
 // Gets the current page mapping.
 HPAGEMAP MiGetCurrentPageMap();

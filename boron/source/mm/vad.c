@@ -160,3 +160,32 @@ BSTATUS MmReleaseVirtualMemory(void* Address)
 	// VAD list.
 	return MiReleaseVad(Vad);
 }
+
+PMMVAD MiLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
+{
+	// Look up the item in the VAD.
+	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&VadList->Tree, Address);
+	
+	if (!Entry)
+	{
+		// No entry found.
+		return NULL;
+	}
+	
+	PMMVAD Vad = (PMMVAD) Entry;
+	
+	// If the address is outside of the range of this VAD, then it doesn't
+	// correspond to it. (In that case, really, LookUpItemApproximateRbTree
+	// failed, since it's supposed to return items whose key is the greatest,
+	// yet <= the starting address).
+	//
+	// Also check if the address is on the other side of the range.
+	if (Address < Vad->Node.StartVa ||
+		Address >= Vad->Node.StartVa + Vad->Node.Size * PAGE_SIZE)
+	{
+		// Nope, this VAD doesn't correspond to this region.
+		return NULL;
+	}
+	
+	return Vad;
+}

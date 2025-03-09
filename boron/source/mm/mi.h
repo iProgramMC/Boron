@@ -231,4 +231,9 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap);
 // Get the top of the area managed by the pool allocator.
 uintptr_t MiGetTopOfPoolManagedArea();
 
+// ===== VAD List =====
+
+// Looks up a VAD in an 
+PMMVAD MiLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address);
+
 #endif//NS64_MI_H

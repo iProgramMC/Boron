@@ -122,8 +122,10 @@ void MmInitAllocators()
 	MiInitSlabs();
 }
 
-void MmLockSpaceShared(uintptr_t DecidingAddress)
+KIPL MmLockSpaceShared(uintptr_t DecidingAddress)
 {
+	KIPL Ipl = KeRaiseIPL(IPL_APC);
+	
 	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
 	{
 		MmLockKernelSpaceShared();
@@ -134,10 +136,14 @@ void MmLockSpaceShared(uintptr_t DecidingAddress)
 		BSTATUS Status = ExAcquireSharedRwLock(Lock, false, false, false);
 		ASSERT(Status == STATUS_SUCCESS);
 	}
+	
+	return Ipl;
 }
 
-void MmLockSpaceExclusive(uintptr_t DecidingAddress)
+KIPL MmLockSpaceExclusive(uintptr_t DecidingAddress)
 {
+	KIPL Ipl = KeRaiseIPL(IPL_APC);
+	
 	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
 	{
 		MmLockKernelSpaceExclusive();
@@ -148,12 +154,16 @@ void MmLockSpaceExclusive(uintptr_t DecidingAddress)
 		BSTATUS Status = ExAcquireExclusiveRwLock(Lock, false, false);
 		ASSERT(Status == STATUS_SUCCESS);
 	}
+	
+	return Ipl;
 }
 
-void MmUnlockSpace(uintptr_t DecidingAddress)
+void MmUnlockSpace(KIPL Ipl, uintptr_t DecidingAddress)
 {
 	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
 		MmUnlockKernelSpace();
 	else
 		ExReleaseRwLock(&PsGetCurrentProcess()->AddressLock);
+	
+	KeLowerIPL(Ipl);
 }

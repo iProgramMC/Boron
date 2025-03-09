@@ -14,43 +14,86 @@ Author:
 ***/
 #include "mi.h"
 
+static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
+{
+	// This PTE is demand paged.  Allocate a page.
+	int Pfn = MmAllocatePhysicalPage();
+	
+	if (Pfn == PFN_INVALID)
+	{
+		// TODO: This is probably bad
+		return STATUS_REFAULT_SLEEP;
+	}
+	
+	// Create a new, valid, PTE that will replace the current one.
+	MMPTE NewPte = *PtePtr;
+	NewPte &= ~MM_DPTE_COMMITTED;
+	NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
+	NewPte |=  MmPFNToPhysPage(Pfn);
+	NewPte &= ~MM_PTE_PKMASK;
+	*PtePtr = NewPte;
+	
+	// Fault was handled successfully.
+	return STATUS_SUCCESS;
+}
+
 BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PtePtr)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
 	
-	if (PtePtr)
+	// If there is no PTE or it's zero.
+	if (!PtePtr || !*PtePtr)
 	{
-		// This PTE is here, but it's not present.  Figure out what's going on.
-		if (*PtePtr == 0)
+		// Check if there is a VAD with the Committed flag set to 1.
+		PMMVAD_LIST VadList = MmLockVadListProcess(PsGetCurrentProcess());
+		PMMVAD Vad = MiLookUpVadByAddress(VadList, Va);
+		
+		if (!Vad)
 		{
-			// This PTE is zero. TODO
+			// There is no VAD at this address.
+			MmUnlockVadList(VadList);
 			return STATUS_ACCESS_VIOLATION;
 		}
 		
-		if (*PtePtr & MM_DPTE_COMMITTED)
+		if (!Vad->Flags.Committed)
 		{
-			// This PTE is demand paged.  Allocate a page.
-			int Pfn = MmAllocatePhysicalPage();
+			// The PTE is NULL yet the VAD isn't fully committed (they didn't request
+			// memory with MEM_RESERVE | MEM_COMMIT). Therefore, access violation it is.
+			MmUnlockVadList(VadList);
+			return STATUS_ACCESS_VIOLATION;
+		}
+		
+		// VAD is committed, so this page fault can be resolved.  But first, try to allocate
+		// the PTE itself.
+		if (!PtePtr)
+		{
+			PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Va, true);
 			
-			if (Pfn == PFN_INVALID)
+			// If the PTE couldn't be allocated, return with STATUS_REFAULT_SLEEP, waiting for more
+			// memory.
+			if (!PtePtr)
 			{
-				// TODO: This is probably bad
+				MmUnlockVadList(VadList);
 				return STATUS_REFAULT_SLEEP;
 			}
-			
-			// Create a new, valid, PTE that will replace the current one.
-			MMPTE NewPte = *PtePtr;
-			NewPte &= ~MM_DPTE_COMMITTED;
-			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
-			NewPte |=  MmPFNToPhysPage(Pfn);
-			NewPte &= ~MM_PTE_PKMASK;
-			*PtePtr = NewPte;
-			
-			// Fault was handled successfully.
-			return STATUS_SUCCESS;
 		}
+		
+		// Well, the PTE could be allocated, so let's mark it as committed, and continue.
+		*PtePtr = Vad->Flags.Protection | MM_DPTE_COMMITTED;
+		
+		// (Access to the VAD is no longer required now)
+		MmUnlockVadList(VadList);
+		return MmpHandleFaultCommittedPage(PtePtr);
 	}
 	
+	// There is a PTE pointer, check if it's committed.
+	if (PtePtr)
+	{
+		if (*PtePtr & MM_DPTE_COMMITTED)
+			return MmpHandleFaultCommittedPage(PtePtr);
+	}
+	
+	DbgPrint("MiNormalFault: page fault at address %p!", Va);
 	// TODO
 	return STATUS_ACCESS_VIOLATION;
 }
@@ -114,7 +157,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	return STATUS_ACCESS_VIOLATION;
 }
 
-// Returns: Whether the page fault was fixed or not
+// Returns: If the page fault failed to be handled, then the reason why.
 BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
 	UNUSED bool IsKernelSpace = false;
@@ -130,14 +173,12 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	// TODO: There may be conditions where accesses to kernel space are done on
 	// behalf of a user process.
 	
-	// Avoid recursive page faults by raising IPL to IPL_APC.  APCs may take page faults too.
-	KIPL Ipl = KeRaiseIPL(IPL_APC);
-	
 	// Attempt to interpret the PTE.
-	MmLockSpaceExclusive(FaultAddress);
+	KIPL OldIpl = MmLockSpaceExclusive(FaultAddress);
 	
 	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), FaultAddress, false);
 	
+	// If the PTE is present.
 	if (PtePtr && (*PtePtr & MM_PTE_PRESENT))
 	{
 		// The PTE exists and is present.
@@ -162,22 +203,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		goto EarlyExit;
 	}
 	
-	if (!PtePtr)
-	{
-		// TODO: In which situations would the PTE pointer not exist?
-	}
-	else
-	{
-		// The PTE exists but it's not marked present.  Figure out why that is.
-		//
-		// If the PTE is zero, handle the fault normally.  If it's not zero,
-		// we don't know what to do right now.  But it'll be figured out later!
-		if (*PtePtr)
-		{
-			// TODO
-		}
-	}
-	
+	// The PTE is not present.
 	Status = MiNormalFault(Process, FaultAddress, PtePtr);
 	
 	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE))
@@ -210,79 +236,6 @@ EarlyExit:
 		Status = STATUS_REFAULT;
 	}
 	
-	MmUnlockSpace(FaultAddress);
-	KeLowerIPL(Ipl);
+	MmUnlockSpace(OldIpl, FaultAddress);
 	return Status;
-	
-	// This code is still useful to see what the old boron page fault handler did
-#if 0
-	// However, page faults aren't handled at IPL_DPC, but at the IPL of the thread.
-	// Think of a page fault like a sort of forced, and often unexpected, system call.
-	
-	// Check the fault reason.
-	if (FaultMode & MM_FAULT_PROTECTION)
-	{
-		// The page is present but we aren't allowed to touch it currently.
-		
-		// What's handled here:
-		// - CoW (copy-on-write)
-		// - Shared mappings that get demoted to private when written (such as when loading a relocatable dll)
-		
-		// TODO
-		
-		return STATUS_UNIMPLEMENTED;
-	}
-	else
-	{
-		MmLockSpaceExclusive(FaultAddress);
-		
-		// The PTE was not marked present. Let's see what we're dealing with here
-		PMMPTE Pte = MiGetPTEPointer(MiGetCurrentPageMap(), FaultAddress, false);
-		
-		// If we don't have a PTE here, that means that we didn't mess with anything around there,
-		// thus we should return..
-		if (!Pte)
-		{
-			MmUnlockSpace(FaultAddress);
-			return STATUS_ACCESS_VIOLATION;
-		}
-		
-		// Is the PTE demand paged?
-		if (*Pte & MM_DPTE_COMMITTED)
-		{
-			// Okay! Let's allocate a page.
-			int Pfn = MmAllocatePhysicalPage();
-			
-			if (Pfn == PFN_INVALID)
-			{
-				// Error: Out of memory! This is bad, but we can check if we can do anything to fix it.
-				// TODO
-				DbgPrint("ERROR! Out of memory trying to handle page fault at %p (mode %d) at PC=%p", FaultAddress, FaultMode, FaultPC);
-				
-				MmUnlockSpace(FaultAddress);
-				
-				return STATUS_INSUFFICIENT_MEMORY;
-			}
-			
-			// Create a new, valid, PTE that will replace the current one.
-			MMPTE NewPte = *Pte;
-			NewPte &= ~MM_DPTE_COMMITTED;
-			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
-			NewPte |=  MmPFNToPhysPage(Pfn);
-			NewPte &= ~MM_PTE_PKMASK;
-			*Pte = NewPte;
-			
-			MmUnlockSpace(FaultAddress);
-			
-			// Fault was handled successfully.
-			return STATUS_SUCCESS;
-		}
-		
-		if (IsKernelSpace)
-			MmUnlockSpace(FaultAddress);
-		
-		// TODO
-		return STATUS_UNIMPLEMENTED;
-	}
-#endif
 }

@@ -265,7 +265,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			int pfn = MmAllocatePhysicalPage();
 			if (pfn == PFN_INVALID)
 			{
-				//DbgPrint("MiGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
+				DbgPrint("MiGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
 				
 				// rollback
 				for (int i = 0; i < NumPfnsAllocated; i++)

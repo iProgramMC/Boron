@@ -53,7 +53,8 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 	// 58..52 - more available bits
 
 // Disabled PTE (present bit is zero):
-// bits 0..7 and 63 - Permission bits as usual
+// bits 0..2 and 63 - Permission bits as usual
+// bit  3           - Is decommitted (was previously committed but is no longer)
 // bit  8           - Is demand paged
 // bit  9           - 0 if from PMM (anonymous), 1 if mapped from a file
 // bit  10          - Was swapped to pagefile (2)
@@ -68,6 +69,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 //
 // (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
 
+#define MM_DPTE_DECOMMITTED  (1ULL << 3)
 #define MM_DPTE_COMMITTED    (1ULL << 8)
 #define MM_DPTE_BACKEDBYFILE (1ULL << 9)
 #define MM_DPTE_SWAPPED      (1ULL << 10)
