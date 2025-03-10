@@ -77,6 +77,9 @@ void PsInitSystemProcess()
 		AFFINITY_ALL
 	);
 	
+	// Use the new page mapping.
+	KeSetCurrentPageTable(PsSystemProcess.Pcb.PageMap);
+	
 	MmInitializeVadList(&PsSystemProcess.VadList);
 	
 	// Initialize the heap with a default range.

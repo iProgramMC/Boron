@@ -300,8 +300,12 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	// Enable the software progress marker feature, if available
 	Status = NvmeSetFeature(ContExtension, NVME_FEAT_SOFTWARE_PROGRESS, 0);
-	if (FAILED(Status) && Status != STATUS_HARDWARE_IO_ERROR)
-		KeCrash("Stornvme TODO handle set feature failure nicely. Status %d", Status);
+	if (FAILED(Status))
+	{
+		if (Status != STATUS_HARDWARE_IO_ERROR)
+			KeCrash("StorNvme TODO handle set feature failure nicely. Status %d", Status);
+		DbgPrint("StorNvme couldn't set software progress flag.");
+	}
 	
 	ContExtension->SoftwareProgressMarkerEnabled = SUCCEEDED(Status);
 	

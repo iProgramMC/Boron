@@ -64,7 +64,14 @@ PRBTREE_ENTRY LookUpItemApproximateRbTree(PRBTREE Tree, RBTREE_KEY Key)
 	
 	PRBTREE_ENTRY Found = RB_NFIND(_RBTREE_HEAD, &Tree->Head, &Find);
 	if (!Found)
-		return Found;
+	{
+		// No entry.  Maybe we're looking for the last one?
+		Found = RB_MAX(_RBTREE_HEAD, &Tree->Head);
+		if (Found->Key <= Key)
+			return Found;
+		
+		return NULL;
+	}
 	
 	// RB_NFIND finds the LEAST element >= the key, whereas LookUpItemApproximateRbTree
 	// should find the GREATEST element <= the key.  If the keys don't match, right before

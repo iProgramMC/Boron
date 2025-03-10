@@ -22,7 +22,7 @@ Author:
 //
 BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection)
 {
-	if ((Protection & ~(MM_PTE_READWRITE | MM_PTE_NOEXEC)) != 0)
+	if ((Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE)) != 0)
 		return STATUS_INVALID_PARAMETER;
 	
 	// Check if the provided address range is valid.
@@ -40,6 +40,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	if (Vad != VadEnd || Vad == NULL)
 	{
 		MmUnlockVadList(VadList);
+		DbgPrint("VAD %p doesn't match VAD end %p", Vad, VadEnd);
 		return STATUS_CONFLICTING_ADDRESSES;
 	}
 	
@@ -64,6 +65,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 				// this means all the PTEs on this page are committed, therefore break.
 				if (Vad->Flags.Committed)
 				{
+					DbgPrint("VAD committed but PTE doesn't exist");
 					Status = STATUS_CONFLICTING_ADDRESSES;
 					break;
 				}
@@ -83,6 +85,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 		// Ditto if the PTE is marked committed.
 		if (*Pte & (MM_PTE_PRESENT | MM_DPTE_COMMITTED))
 		{
+			DbgPrint("PTE is present or marked committed");
 			Status = STATUS_CONFLICTING_ADDRESSES;
 			break;
 		}
@@ -91,6 +94,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 		// decommitted, there is overlap.
 		if (Vad->Flags.Committed && (~*Pte & MM_DPTE_DECOMMITTED))
 		{
+			DbgPrint("VAD is committed but PTE is not decommitted");
 			Status = STATUS_CONFLICTING_ADDRESSES;
 			break;
 		}
@@ -126,14 +130,24 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 				// Uh oh! We ran out of memory!
 				// TODO: Roll back our changes, maybe?
 				MmUnlockSpace(Ipl, StartVa);
+				DbgPrint("Ran out of pages for PTE allocation");
 				return STATUS_INSUFFICIENT_MEMORY;
 			}
 		}
 		
 		*Pte = MM_DPTE_COMMITTED | PteFlags;
+		Pte++;
+		CurrentVa += PAGE_SIZE;
 	}
 	
 	// Okay, everything's committed. Success!
 	MmUnlockSpace(Ipl, StartVa);
 	return STATUS_SUCCESS;
+}
+
+// Decommits a range of virtual memory.
+BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
+{
+	// TODO
+	return STATUS_UNIMPLEMENTED;
 }

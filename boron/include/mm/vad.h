@@ -101,3 +101,9 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress);
 
 // Releases a region of virtual memory.
 BSTATUS MmReleaseVirtualMemory(void* Address);
+
+// Commits a range of virtual memory.
+BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection);
+
+// Decommits a range of virtual memory.
+BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages);

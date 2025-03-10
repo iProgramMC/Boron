@@ -41,21 +41,26 @@ bool MmIsAddressCanonical(uintptr_t Address)
 bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode)
 {
 	// Size=0 is invalid.
-	if (Size == 0)
+	if (Size == 0) {
+		DbgPrint("Size 0");
 		return false;
+	}
 	
 	// Check for overflow.
 	uintptr_t AddressEnd = Address + Size;
-	if (AddressEnd < Address)
+	if (AddressEnd < Address) {
+		DbgPrint("AddressEnd %p < Address %p", AddressEnd, Address);
 		return false;
+	}
 	
-	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END)
+	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END) {
+		DbgPrint("AccessMode==MODEUSER   AddressEnd %p", AddressEnd);
 		return false;
+	}
 	
-	// If the upper 17 bits aren't identical, then the address crosses over into
-	// non-canonical space. Since the addresses are unsigned, the upper bit won't
-	// get "smeared" - not like that matters anyway :)
-	return (Address >> 17) == (AddressEnd >> 17);
+#define MASK 0xFFFF800000000000
+	return (Address & MASK) == (AddressEnd & MASK);
+#undef  MASK
 }
 
 // Defined in arch/amd64/misc.asm

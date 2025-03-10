@@ -168,6 +168,7 @@ PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
 	
 	if (!Entry)
 	{
+		DbgPrint("No entry for address %p", Address);
 		// No entry found.
 		return NULL;
 	}

@@ -32,8 +32,9 @@ Author:
 #define MI_PML2_LOCATION ((uintptr_t)0xFFFFA150A8400000ULL)
 #define MI_PML1_LOCATION ((uintptr_t)0xFFFFA10000000000ULL)
 #define MI_PML1_LOC_END  ((uintptr_t)0xFFFFA18000000000ULL)
+#define MI_PML_ADDRMASK  ((uintptr_t)0x0000FFFFFFFFF000ULL)
 
-#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MM_PTE_ADDRESSMASK) >> 12) * sizeof(MMPTE))
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {
 	return (PMMPTE)MI_PTE_LOC(Address);
@@ -70,6 +71,8 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 			PMMPTE Pte = MiGetPTEPointer(MiGetCurrentPageMap(), Address, GenerateMissingLevels);
 			return Pte != NULL;
 		}
+		
+		return false;
 	}
 	
 	return true;
@@ -105,7 +108,8 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	}
 	
 	// For recursive paging
-	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingAccess | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
+	DbgPrint("Creating pm %p", NewPageMappingResult);
+	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 	
 	MmUnlockKernelSpace();
 	
