@@ -110,6 +110,14 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
+typedef struct
+{
+	uint64_t entries[512];
+}
+PageMapLevel;
+
+#define PTE_ADDRESS(pte) ((pte) & MM_PTE_ADDRESSMASK)
+
 INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {

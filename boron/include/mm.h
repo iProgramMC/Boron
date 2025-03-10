@@ -1,4 +1,17 @@
-// Boron - Memory Manager
+/***
+	The Boron Operating System
+	Copyright (C) 2023-2025 iProgramInCpp
+
+Module name:
+	mm.h
+	
+Abstract:
+	This header file includes every subsystem of the
+	Boron Memory Manager.
+	
+Author:
+	iProgramInCpp - 28 August 2023
+***/
 #ifndef NS64_MM_H
 #define NS64_MM_H
 
@@ -7,14 +20,6 @@
 
 // Debug flags. Use if something's gone awry
 #define MM_DBG_NO_DEMAND_PAGING (0)
-
-typedef struct
-{
-	uint64_t entries[512];
-}
-PageMapLevel;
-
-#define PTE_ADDRESS(pte) ((pte) & MM_PTE_ADDRESSMASK)
 
 #include <mm/pfn.h>
 #include <mm/pmm.h>

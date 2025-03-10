@@ -233,6 +233,9 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 				
 				// Continue the loop.  This will re-lock the address space at the start of the next
 				// iteration, re-fetch the PTE and try this whole ordeal again.
+				
+				// Ensure the Address stays the same across the continue.
+				Address -= PAGE_SIZE;
 				continue;
 			}
 			
