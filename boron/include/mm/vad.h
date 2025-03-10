@@ -25,9 +25,9 @@ typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
 enum
 {
-	ACCESS_FLAG_READ    = 1,
-	ACCESS_FLAG_WRITE   = 2,
-	ACCESS_FLAG_EXECUTE = 4,
+	PAGE_READ    = 1,
+	PAGE_WRITE   = 2,
+	PAGE_EXECUTE = 4,
 };
 
 typedef union
@@ -85,16 +85,19 @@ void MmInitializeVadList(PMMVAD_LIST VadList);
 PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process);
 
 // Lock the VAD list of the current process and returns a pointer to it.
-#define MmLockVadList()  MmLockVadList(PsGetCurrentProcess())
+#define MmLockVadList()  MmLockVadListProcess(PsGetCurrentProcess())
 
 // Unlock the VAD list specified.
 void MmUnlockVadList(PMMVAD_LIST);
+
+// Looks up a VAD by address in a VAD list previously locked with MmLockVadListProcess.
+PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address);
 
 // Reserves a bunch of virtual memory and returns a VAD.
 BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad);
 
 // Reserves a bunch of virtual memory and returns an address.
-BSTATUS MmReserveVirtualMemore(size_t SizePages, void** OutAddress);
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress);
 
 // Releases a region of virtual memory.
 BSTATUS MmReleaseVirtualMemory(void* Address);

@@ -31,10 +31,48 @@ Author:
 #define MI_PML3_LOCATION ((uintptr_t)0xFFFFA150A8542000ULL)
 #define MI_PML2_LOCATION ((uintptr_t)0xFFFFA150A8400000ULL)
 #define MI_PML1_LOCATION ((uintptr_t)0xFFFFA10000000000ULL)
+#define MI_PML1_LOC_END  ((uintptr_t)0xFFFFA18000000000ULL)
 
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MM_PTE_ADDRESSMASK) >> 12) * sizeof(MMPTE))
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {
-	return (PMMPTE)(MI_PML1_LOCATION + ((Address & MM_PTE_ADDRESSMASK) >> 12));
+	return (PMMPTE)MI_PTE_LOC(Address);
+}
+
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+{
+	ASSERT(Address < MI_PML1_LOCATION || Address >= MI_PML1_LOC_END);
+	
+	// Check PML4, that's always accessible.
+	PMMPTE Pte;
+	
+	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(MI_PTE_LOC(Address))));
+	if (~(*Pte) & MM_PTE_PRESENT)
+		goto Missing;
+	
+	// PML4 exists, check PML3
+	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(Address)));
+	if (~(*Pte) & MM_PTE_PRESENT)
+		goto Missing;
+	
+	// PML3 exists, check PML2
+	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
+	if (~(*Pte) & MM_PTE_PRESENT)
+		goto Missing;
+	
+	// PML2 exists, check PML1
+	Pte = MmGetPteLocation(Address);
+	if (~(*Pte) & MM_PTE_PRESENT)
+	{
+	Missing:
+		if (GenerateMissingLevels)
+		{
+			PMMPTE Pte = MiGetPTEPointer(MiGetCurrentPageMap(), Address, GenerateMissingLevels);
+			return Pte != NULL;
+		}
+	}
+	
+	return true;
 }
 
 // Creates a page mapping.
@@ -74,6 +112,7 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	return (HPAGEMAP) NewPageMappingResult;
 }
 
+// TODO: this will most likely be rewritten
 bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 {
 	New[Index] = 0;
@@ -123,6 +162,7 @@ bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 	return true;
 }
 
+// TODO: this will most likely be rewritten
 // Clones a user page mapping
 HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
 {
@@ -630,6 +670,8 @@ uintptr_t MiGetTopOfPoolManagedArea()
 		If NonPaged is clear, memory is not instantly reserved, and accessing each
 		corresponding page will incur one minor page fault.
 	
+	XXX OUTDATED: See MmCommitVirtualMemory for a newer implementation.
+	
 	Parameters:
 		Mapping  - The handle to the page table to be modified
 		
@@ -679,4 +721,17 @@ ROLLBACK:
 	// Unmap all the pages that we have mapped.
 	MiUnmapPages(Mapping, Address, DonePages);
 	return false;
+}
+
+MMPTE MmGetPteBitsFromProtection(int Protection)
+{
+	MMPTE Pte = 0;
+	
+	if (Protection & PAGE_WRITE)
+		Pte |= MM_PTE_READWRITE;
+	
+	if (~Protection & PAGE_EXECUTE)
+		Pte |= MM_PTE_NOEXEC;
+	
+	return Pte;
 }

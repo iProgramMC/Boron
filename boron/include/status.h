@@ -80,6 +80,7 @@ enum
 	STATUS_VA_NOT_AT_BASE,      // The virtual address given is not the beginning of a reserved region
 	STATUS_MEMORY_NOT_RESERVED, // There is no memory reserved at that address
 	STATUS_MEMORY_COMMITTED,    // There is committed memory but decommit wasn't explicitly requested.
+	STATUS_CONFLICTING_ADDRESSES, // The given address range conflicts with existing address space, or overlaps multiple reserved regions, or overlaps unreserved regions.
 	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS

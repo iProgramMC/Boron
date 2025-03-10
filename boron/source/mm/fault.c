@@ -46,7 +46,7 @@ BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PteP
 	{
 		// Check if there is a VAD with the Committed flag set to 1.
 		PMMVAD_LIST VadList = MmLockVadListProcess(PsGetCurrentProcess());
-		PMMVAD Vad = MiLookUpVadByAddress(VadList, Va);
+		PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
 		
 		if (!Vad)
 		{

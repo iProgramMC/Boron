@@ -231,9 +231,25 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap);
 // Get the top of the area managed by the pool allocator.
 uintptr_t MiGetTopOfPoolManagedArea();
 
-// ===== VAD List =====
+// Gets the PTE's location in the recursive PTE.
+PMMPTE MmGetPteLocation(uintptr_t Address);
 
-// Looks up a VAD in an 
-PMMVAD MiLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address);
+// Check if the PTE for a certain VA exists at the recursive PTE address, in the
+// current page mapping.
+//
+// If it doesn't, and GenerateMissingLevels is true, then this function attempts
+// to construct the page tables up to that point.
+//
+// NOTE: This does NOT work with addresses within the recursive PTE range itself.
+//
+// Returns false if:
+//   If GenerateMissingLevels is true, then the system ran out of memory trying to
+//   generate the missing levels and memory should be freed.
+//   If GenerateMissingLevels is false, then the PTE location is currently
+//   inaccessible and should be regenerated.
+//
+// Returns true if the PTE location is accessible after the call (the PTEs may have
+// been generated if GenerateMissingLevels is true).
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 
 #endif//NS64_MI_H

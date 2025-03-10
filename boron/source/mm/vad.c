@@ -161,7 +161,7 @@ BSTATUS MmReleaseVirtualMemory(void* Address)
 	return MiReleaseVad(Vad);
 }
 
-PMMVAD MiLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
+PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
 {
 	// Look up the item in the VAD.
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&VadList->Tree, Address);

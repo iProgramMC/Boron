@@ -59,8 +59,30 @@ void MiFreePageMapping(HPAGEMAP OldPageMapping);
 // Resolves a page table entry pointer (virtual address offset by HHDM) relative to an address.
 // Can allocate the missing page mapping levels on its way if the flag is set.
 // If on its way, it hits a higher page size, currently it will return null since it's not really
-// designed for that..
+// designed for that.
 PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
+
+// Gets the PTE's location in the recursive PTE. This doesn't care whether the PTEs
+// actually exist down to that address. Also this works with higher page mapping levels too.
+PMMPTE MmGetPteLocation(uintptr_t Address);
+
+// Check if the PTE for a certain VA exists at the recursive PTE address, in the
+// current page mapping.
+//
+// If it doesn't, and GenerateMissingLevels is true, then this function attempts
+// to construct the page tables up to that point.
+//
+// NOTE: This does NOT work with addresses within the recursive PTE range itself.
+//
+// Returns false if:
+//   If GenerateMissingLevels is true, then the system ran out of memory trying to
+//   generate the missing levels and memory should be freed.
+//   If GenerateMissingLevels is false, then the PTE location is currently
+//   inaccessible and should be regenerated.
+//
+// Returns true if the PTE location is accessible after the call (the PTEs may have
+// been generated if GenerateMissingLevels is true).
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 
 // Attempts to map a physical page into the specified address space.
 bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
@@ -80,5 +102,8 @@ BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMo
 
 // Issue a TLB shootdown request. This is the official API for this purpose.
 void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);
+
+// Turn access flags (PAGE_X) into PTE protection bits.
+MMPTE MmGetPteBitsFromProtection(int Protection);
 
 #endif//BORON_MM_PT_H
