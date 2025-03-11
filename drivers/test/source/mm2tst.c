@@ -25,13 +25,13 @@ void Mm2BasicReserveTest()
 	void* Address = NULL;
 	BSTATUS Status;
 	
-	Status = MmReserveVirtualMemory(400, &Address);
+	Status = MmReserveVirtualMemory(400, &Address, MEM_RESERVE, 0);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
 	
 	// Let's reserve another!
 	void* Address2 = NULL;
-	Status = MmReserveVirtualMemory(40000, &Address2);
+	Status = MmReserveVirtualMemory(40000, &Address2, MEM_RESERVE, 0);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
 	
@@ -42,7 +42,7 @@ void Mm2BasicReserveTest()
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
 	
-	Status = MmReserveVirtualMemory(400000, &Address);
+	Status = MmReserveVirtualMemory(400000, &Address, MEM_RESERVE, 0);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
 	
@@ -53,11 +53,13 @@ void Mm2BasicReserveTest()
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
 	
-	Status = MmReserveVirtualMemory(40000, &Address2);
+	Status = MmReserveVirtualMemory(40000, &Address2, MEM_RESERVE, 0);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
 	
 	LogMsg("New #2 address: %p", Address2);
+	
+	MmDebugDumpVad();
 	
 	// The end
 	Status = MmReleaseVirtualMemory(Address);
@@ -77,13 +79,13 @@ void Mm2BasicCommitTest()
 	void* Address = NULL;
 	BSTATUS Status;
 	
-	Status = MmReserveVirtualMemory(PageCount, &Address);
+	Status = MmReserveVirtualMemory(PageCount, &Address, MEM_RESERVE, PAGE_READ | PAGE_WRITE);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
 	
 	LogMsg("Reserved at %p", Address);
 	
-	Status = MmCommitVirtualMemory((uintptr_t) Address, PageCount, PAGE_READ | PAGE_WRITE);
+	Status = MmCommitVirtualMemory((uintptr_t) Address, PageCount);
 	if (FAILED(Status))
 		KeCrash("MM2[%d]: Failed to commit virtual memory with status %d", __LINE__, Status);
 	
@@ -99,6 +101,7 @@ void Mm2BasicCommitTest()
 	
 	// Dump the first U64 again
 	LogMsg("First U64: %p", *((uintptr_t*)Address));
+	MmDebugDumpVad();
 	
 	Status = MmDecommitVirtualMemory((uintptr_t) Address, PageCount);
 	if (FAILED(Status))
@@ -109,8 +112,17 @@ void Mm2BasicCommitTest()
 		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
 }
 
+void Mm2AnotherCommitTest()
+{
+	
+}
+
 void PerformMm2Test()
 {
 	Mm2BasicReserveTest();
 	Mm2BasicCommitTest();
+	Mm2AnotherCommitTest();
+	
+	DbgPrint("Dumping vad");
+	MmDebugDumpVad();
 }

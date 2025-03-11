@@ -23,6 +23,15 @@ Author:
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
+// Allocation Types
+enum
+{
+	MEM_RESERVE  = 0x0001, // The memory range is reserved.
+	MEM_COMMIT   = 0x0002, // The memory range is committed.
+	MEM_SHARED   = 0x0004, // The memory range is shared and will be passed down in forks.
+	MEM_TOP_DOWN = 0x0008, // Addresses near the top of the user address space are preferred.
+};
+
 enum
 {
 	PAGE_READ    = 1,
@@ -94,16 +103,19 @@ void MmUnlockVadList(PMMVAD_LIST);
 PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address);
 
 // Reserves a bunch of virtual memory and returns a VAD.
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad);
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad, int AllocationType, int Protection);
 
 // Reserves a bunch of virtual memory and returns an address.
-BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress);
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection);
 
 // Releases a region of virtual memory.
 BSTATUS MmReleaseVirtualMemory(void* Address);
 
-// Commits a range of virtual memory.
-BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection);
+// Commits a range of virtual memory that has been previously reserved.
+BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages);
 
-// Decommits a range of virtual memory.
+// Decommits a range of virtual memory that has been previously reserved.
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages);
+
+// Debug the VAD.
+void MmDebugDumpVad();

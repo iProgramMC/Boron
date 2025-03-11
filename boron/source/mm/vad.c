@@ -39,12 +39,18 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 }
 
 // Reserves a range of virtual memory.
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad)
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad, int AllocationType, int Protection)
 {
+	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
+		return STATUS_INVALID_PARAMETER;
+	
+	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+		return STATUS_INVALID_PARAMETER;
+	
 	PEPROCESS Process = PsGetCurrentProcess();
 	PMMADDRESS_NODE AddrNode;
 	
-	BSTATUS Status = MmAllocateAddressSpace(&Process->Heap, SizePages, &AddrNode);
+	BSTATUS Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
 	if (FAILED(Status))
 		return Status;
 	
@@ -62,9 +68,12 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad)
 	}
 	
 	// Clear all the fields in the VAD.
-	Vad->Flags.LongFlags = 0;
-	Vad->Mapped.Object   = NULL;
-	Vad->OffsetInFile    = 0;
+	Vad->Flags.LongFlags  = 0;
+	Vad->Mapped.Object    = NULL;
+	Vad->OffsetInFile     = 0;
+	Vad->Flags.Committed  = AllocationType & MEM_COMMIT;
+	Vad->Flags.Private    = ~AllocationType & MEM_SHARED;
+	Vad->Flags.Protection = Protection;
 	
 	MmUnlockVadList(&Process->VadList);
 	
@@ -72,10 +81,10 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress)
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
 {
 	PMMVAD Vad;
-	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, &Vad);
+	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, &Vad, AllocationType, Protection);
 	if (FAILED(Status))
 		return Status;
 	

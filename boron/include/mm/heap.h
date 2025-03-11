@@ -46,7 +46,7 @@ void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t
 //
 // Returns the MMADDRESS_NODE associated with that address, or the reason why virtual address
 // allocation failed.  It should be reused for the VAD list.
-BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, PMMADDRESS_NODE* OutNode);
+BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMMADDRESS_NODE* OutNode);
 
 // Returns a segment of memory back to the heap, marking it free.  Does not unmap the pages
 // or anything like that.

@@ -39,10 +39,13 @@ void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t
 	MmpCreateRegionHeap(Heap, InitialVa, InitialSize);
 }
 
-BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, PMMADDRESS_NODE* OutNode)
+BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMMADDRESS_NODE* OutNode)
 {
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
+	
+	if (TopDown)
+		Entry = GetLastEntryRbTree(&Heap->Tree);
 
 	// TODO: An optimization *could* be performed here, although it would probably not deliver
 	// much performance gain.
@@ -53,7 +56,7 @@ BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, PMMADDRESS_NODE* 
 	// The "start address" tree entry should not be repurposed for the "size" tree entry because
 	// the heap manager uses it to merge contiguous free segments.
 
-	for (; Entry != NULL; Entry = GetNextEntryRbTree(Entry))
+	for (; Entry != NULL; Entry = TopDown ? GetPrevEntryRbTree(Entry) : GetNextEntryRbTree(Entry))
 	{
 		PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		
@@ -74,12 +77,40 @@ BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, PMMADDRESS_NODE* 
 
 		// This node is bigger than the requested size.  Split it into two, remove this node
 		// from the tree and return it.
-		uintptr_t NewVa = Node->StartVa + SizePages * PAGE_SIZE;
-		size_t NewSize = Node->Size - SizePages;
-		if (!MmpCreateRegionHeap(Heap, NewVa, NewSize))
+		uintptr_t NewNodeVa;
+		uintptr_t AllocatedVa;
+		size_t NewSize;
+		
+		if (TopDown)
+		{
+			AllocatedVa = Node->StartVa + (Node->Size - SizePages) * PAGE_SIZE;
+			NewNodeVa = Node->StartVa;
+			NewSize = Node->Size - SizePages;
+		}
+		else
+		{
+			AllocatedVa = Node->StartVa;
+			NewNodeVa = Node->StartVa + SizePages * PAGE_SIZE;
+			NewSize = Node->Size - SizePages;
+		}
+		
+		// NOTE: We can do this, because the order of the heap nodes will not actually change.
+		uintptr_t OldVa = Node->StartVa;
+		Node->StartVa = AllocatedVa;
+
+#ifdef DEBUG
+		// However, in debug/check mode, we will actually assert that.
+		PMMADDRESS_NODE DebugAddressNode = (PMMADDRESS_NODE) GetNextEntryRbTree(&Node->Entry);
+		if (DebugAddressNode)
+			ASSERT(DebugAddressNode->StartVa >= Node->StartVa);
+#endif
+
+		if (!MmpCreateRegionHeap(Heap, NewNodeVa, NewSize))
 		{
 			// Well, this didn't work. TODO: Do we just need to refuse?
 			ASSERT(!"uh oh");
+			
+			Node->StartVa = OldVa;
 			KeReleaseMutex(&Heap->Mutex);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}

@@ -20,11 +20,8 @@ Author:
 //
 // The entire memory region must be uncommitted.
 //
-BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection)
+BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 {
-	if ((Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE)) != 0)
-		return STATUS_INVALID_PARAMETER;
-	
 	// Check if the provided address range is valid.
 	if (!MmIsAddressRangeValid(StartVa, StartVa + SizePages * PAGE_SIZE, MODE_USER))
 		return STATUS_INVALID_PARAMETER;
@@ -49,7 +46,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	// If this range is committed, check if the PTEs are marked decommitted.
 	// Otherwise, check if they are null.
 	BSTATUS Status = STATUS_SUCCESS;
-	KIPL Ipl = MmLockSpaceShared(StartVa);
+	KIPL Ipl = MmLockSpaceExclusive(StartVa);
 	
 	PMMPTE Pte = MmGetPteLocation(StartVa);
 	uintptr_t CurrentVa = StartVa;
@@ -113,7 +110,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	}
 	
 	// The range is safe to commit.
-	uintptr_t PteFlags = MmGetPteBitsFromProtection(Protection);
+	uintptr_t PteFlags = MmGetPteBitsFromProtection(Vad->Flags.Protection);
 	
 	// TODO: Enforce W^X here if the user doesn't have the relevant permissions
 	
@@ -148,6 +145,127 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 // Decommits a range of virtual memory.
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 {
-	// TODO
-	return STATUS_UNIMPLEMENTED;
+	// Check if the provided address range is valid.
+	if (!MmIsAddressRangeValid(StartVa, StartVa + SizePages * PAGE_SIZE, MODE_USER))
+		return STATUS_INVALID_PARAMETER;
+	
+	// Check if the range passed in overlaps two or more VADs, or none
+	PMMVAD_LIST VadList = MmLockVadList();
+	
+	PMMVAD Vad = MmLookUpVadByAddress(VadList, StartVa);
+	PMMVAD VadEnd = MmLookUpVadByAddress(VadList, StartVa + SizePages * PAGE_SIZE - 1);
+	
+	// If the ranges do not match, or if any of them is NULL,
+	// then a commit operation cannot happen.
+	if (Vad != VadEnd || Vad == NULL)
+	{
+		MmUnlockVadList(VadList);
+		DbgPrint("VAD %p doesn't match VAD end %p", Vad, VadEnd);
+		return STATUS_CONFLICTING_ADDRESSES;
+	}
+	
+	MmUnlockVadList(VadList);
+	
+	// For this function, it doesn't actually matter if the region is partly decommitted.
+	
+	// Check if the range can be entirely decommitted.
+	if (Vad->Node.StartVa == StartVa && Vad->Node.Size == SizePages)
+	{
+		// Yes, just mark it as uncommitted.
+		Vad->Flags.Committed = false;
+	}
+	
+	// Acquire the address space lock.  This prevents the address space from being mutated.
+	KIPL Ipl = MmLockSpaceExclusive(StartVa);
+	
+	uintptr_t CurrentVa = StartVa;
+	PMMPTE Pte = MmGetPteLocation(CurrentVa);
+	for (size_t i = 0; i < SizePages; )
+	{
+		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		{
+			// If Vad->Flags.Committed is true, then we would need allocate new PTs
+			// to mark the page as decommitted.  I am slightly embarrassed about this,
+			// but it turns out that with some WinDbg magic I realized that Windows XP
+			// does this exact same thing. So it'll be fine here too.
+			if (!MmCheckPteLocation(CurrentVa, Vad->Flags.Committed))
+			{
+				// If the VAD isn't committed, then nothing to decommit, skip this page of
+				// PTEs entirely and try again.
+				size_t OldVa = CurrentVa;
+				CurrentVa = (CurrentVa + PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE)) & ~(PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE) - 1);
+				Pte = MmGetPteLocation(CurrentVa);
+				i += (CurrentVa - OldVa) / PAGE_SIZE;
+				
+			#ifdef DEBUG
+				if (Vad->Flags.Committed)
+					DbgPrint("Warning: VAD is committed but can't allocate a PT to mark pages as decommitted... :(");
+			#endif
+				
+				continue;
+			}
+		}
+		
+		if (*Pte & MM_PTE_PRESENT)
+		{
+			// The PTE is present. If it doesn't come from the PMM, then
+			// it doesn't belong here, as far as this code knows.
+			ASSERT(*Pte & MM_PTE_ISFROMPMM);
+			
+			// Free the physical page.
+			MMPFN Pfn = MmPhysPageToPFN(*Pte & MM_PTE_ADDRESSMASK);
+			MmFreePhysicalPage(Pfn);
+		}
+		else if (*Pte != 0)
+		{
+			// If the pte is not zero, then it must have been committed. 
+			// Otherwise it's an unknown type which we don't know how to handle.
+			ASSERT(*Pte & MM_DPTE_COMMITTED);
+		}
+		
+		*Pte = MM_DPTE_DECOMMITTED;
+		
+		Pte++;
+		CurrentVa += PAGE_SIZE;
+		i++;
+	}
+	
+	// Finally, issue a TLB shootdown.
+	MmIssueTLBShootDown(StartVa, SizePages);
+	
+	MmUnlockSpace(Ipl, StartVa);
+	return STATUS_SUCCESS;
+}
+
+// DEBUG
+void MmDebugDumpVad()
+{
+	PMMVAD_LIST VadList = MmLockVadList();
+	
+	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
+	
+	DbgPrint("VAD              Start            End              Commit Priv Prot Object");
+	if (!Entry)
+		DbgPrint("There are no VADs.");
+	
+	while (Entry)
+	{
+		PMMVAD Vad = (PMMVAD) Entry;
+		
+		DbgPrint("%p %p %p %6d %4d %c%c%c  %p",
+			Vad,
+			Vad->Node.StartVa,
+			Vad->Node.StartVa + Vad->Node.Size * PAGE_SIZE,
+			Vad->Flags.Committed,
+			Vad->Flags.Private,
+			(Vad->Flags.Protection & PAGE_READ)    ? 'R' : '-',
+			(Vad->Flags.Protection & PAGE_WRITE)   ? 'W' : '-',
+			(Vad->Flags.Protection & PAGE_EXECUTE) ? 'X' : '-',
+			Vad->Mapped.Object
+		);
+		
+		Entry = GetNextEntryRbTree(Entry);
+	}
+	
+	MmUnlockVadList(VadList);
 }
