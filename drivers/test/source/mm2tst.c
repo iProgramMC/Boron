@@ -17,6 +17,8 @@ Author:
 #include <mm.h>
 #include "utils.h"
 
+#define CHECK_FAIL(desc) do { if (FAILED(Status)) KeCrash("MM2[%d]: Failed to %s with status %d", __LINE__, desc, Status); } while (0)
+
 // Note : These aren't the actual APIs userspace sees.
 
 void Mm2BasicReserveTest()
@@ -26,36 +28,30 @@ void Mm2BasicReserveTest()
 	BSTATUS Status;
 	
 	Status = MmReserveVirtualMemory(400, &Address, MEM_RESERVE, 0);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("reserve virtual memory");
 	
 	// Let's reserve another!
 	void* Address2 = NULL;
 	Status = MmReserveVirtualMemory(40000, &Address2, MEM_RESERVE, 0);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("reserve virtual memory");
 	
 	LogMsg("Memory reserved at %p(#1) and %p(#2)", Address, Address2);
 	
 	// Free the first one and try to reserve a bigger one in its place.
 	Status = MmReleaseVirtualMemory(Address);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("release virtual memory");
 	
 	Status = MmReserveVirtualMemory(400000, &Address, MEM_RESERVE, 0);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("reserve virtual memory");
 	
 	LogMsg("New #1 address: %p", Address);
 	
 	// Reallocate the second one with the same size.
 	Status = MmReleaseVirtualMemory(Address2);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("release virtual memory");
 	
 	Status = MmReserveVirtualMemory(40000, &Address2, MEM_RESERVE, 0);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("reserve virtual memory");
 	
 	LogMsg("New #2 address: %p", Address2);
 	
@@ -63,12 +59,10 @@ void Mm2BasicReserveTest()
 	
 	// The end
 	Status = MmReleaseVirtualMemory(Address);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("release virtual memory");
 	
 	Status = MmReleaseVirtualMemory(Address2);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("release virtual memory");
 }
 
 void Mm2BasicCommitTest()
@@ -80,14 +74,12 @@ void Mm2BasicCommitTest()
 	BSTATUS Status;
 	
 	Status = MmReserveVirtualMemory(PageCount, &Address, MEM_RESERVE, PAGE_READ | PAGE_WRITE);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to reserve virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("reserve virtual memory");
 	
 	LogMsg("Reserved at %p", Address);
 	
 	Status = MmCommitVirtualMemory((uintptr_t) Address, PageCount);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to commit virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("commit virtual memory");
 	
 	// Dump the first U64
 	LogMsg("First U64: %p", *((uintptr_t*)Address));
@@ -104,25 +96,55 @@ void Mm2BasicCommitTest()
 	MmDebugDumpVad();
 	
 	Status = MmDecommitVirtualMemory((uintptr_t) Address, PageCount);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to decommit virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("decommit virtual memory");
 	
 	Status = MmReleaseVirtualMemory(Address);
-	if (FAILED(Status))
-		KeCrash("MM2[%d]: Failed to release virtual memory with status %d", __LINE__, Status);
+	CHECK_FAIL("release virtual memory");
+}
+
+void Mm2TopDownMemoryTest()
+{
+	void *Address1, *Address2;
+	BSTATUS Status;
+	
+	Status = MmReserveVirtualMemory(400, &Address1, MEM_RESERVE | MEM_TOP_DOWN, 0);
+	CHECK_FAIL("reserve virtual memory");
+	
+	Status = MmReserveVirtualMemory(400, &Address2, MEM_RESERVE | MEM_TOP_DOWN, 0);
+	CHECK_FAIL("reserve virtual memory");
+	
+	LogMsg("Address 1: %p, Address 2: %p", Address1, Address2);
+	MmDebugDumpVad();
+	MmDebugDumpHeap();
+	
+	Status = MmReleaseVirtualMemory(Address1);
+	CHECK_FAIL("release virtual memory");
+	
+	Status = MmReleaseVirtualMemory(Address2);
+	CHECK_FAIL("release virtual memory");
 }
 
 void Mm2AnotherCommitTest()
 {
-	
+	// TODO
 }
 
 void PerformMm2Test()
 {
+	DbgPrint("Waiting for logs to calm down.");
+	PerformDelay(2000, NULL);
+	
+	DbgPrint("Mm2 test started.  Dumping VAD List and Heap.");
+	MmDebugDumpVad();
+	MmDebugDumpHeap();
+	
+	DbgPrint("Mm2 test doing the tests now.");
 	Mm2BasicReserveTest();
 	Mm2BasicCommitTest();
+	Mm2TopDownMemoryTest();
 	Mm2AnotherCommitTest();
 	
-	DbgPrint("Dumping vad");
+	DbgPrint("Mm2 test complete.  Dumping VAD List and Heap.");
 	MmDebugDumpVad();
+	MmDebugDumpHeap();
 }

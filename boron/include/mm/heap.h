@@ -54,3 +54,5 @@ BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMM
 // The segment passed in MUST have been REMOVED from the VAD list.
 BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node);
 
+// Debug dump heap.
+void MmDebugDumpHeap();

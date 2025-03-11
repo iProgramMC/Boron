@@ -169,3 +169,30 @@ BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 	KeReleaseMutex(&Heap->Mutex);
 	return STATUS_SUCCESS;
 }
+
+void MmDebugDumpHeap()
+{
+	PMMHEAP Heap = &PsGetCurrentProcess()->Heap;
+	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
+	
+	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
+	
+	DbgPrint("HeapPtr          Start            End");
+	if (!Entry)
+		DbgPrint("There are no heap entries.");
+	
+	while (Entry)
+	{
+		PMMADDRESS_NODE Node = (PMMADDRESS_NODE) Entry;
+		
+		DbgPrint("%p %p %p",
+			Node,
+			Node->StartVa,
+			Node->StartVa + Node->Size * PAGE_SIZE
+		);
+		
+		Entry = GetNextEntryRbTree(Entry);
+	}
+	
+	KeReleaseMutex(&Heap->Mutex);
+}

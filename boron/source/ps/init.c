@@ -83,7 +83,7 @@ void PsInitSystemProcess()
 	MmInitializeVadList(&PsSystemProcess.VadList);
 	
 	// Initialize the heap with a default range.
-	MmInitializeHeap(&PsSystemProcess.Heap, sizeof(MMVAD), INITIAL_BEG_VA, INITIAL_END_VA - INITIAL_BEG_VA);
+	MmInitializeHeap(&PsSystemProcess.Heap, sizeof(MMVAD), INITIAL_BEG_VA, (INITIAL_END_VA - INITIAL_BEG_VA) / PAGE_SIZE);
 	
 	// Initialize the address lock.
 	ExInitializeRwLock(&PsSystemProcess.AddressLock);
