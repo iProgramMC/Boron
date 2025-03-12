@@ -78,7 +78,7 @@ void Mm2BasicCommitTest()
 	
 	LogMsg("Reserved at %p", Address);
 	
-	Status = MmCommitVirtualMemory((uintptr_t) Address, PageCount);
+	Status = MmCommitVirtualMemory((uintptr_t) Address, PageCount, 0);
 	CHECK_FAIL("commit virtual memory");
 	
 	// Dump the first U64
@@ -126,7 +126,7 @@ void Mm2TopDownMemoryTest()
 
 void Mm2AnotherCommitTest()
 {
-	// TODO
+	
 }
 
 void PerformMm2Test()

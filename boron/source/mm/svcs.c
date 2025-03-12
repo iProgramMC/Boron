@@ -3,7 +3,7 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	mm/calls.c
+	mm/svcs.c
 	
 Abstract:
 	This module defines system service functions pertaining
@@ -19,10 +19,6 @@ Author:
 // Either reserves, commits, or reserves and commits, a region of virtual memory.
 //
 // Parameters:
-//     ProcessObject - The handle to the process whose virtual memory is to be modified.
-//                     Note that the current process must have the permissions required
-//                     to modify the virtual address space of the process object.
-//
 //     BaseAddressInOut - The base address of the region.
 //
 //     RegionSizeInOut  - The region's size.
@@ -45,20 +41,81 @@ Author:
 //   as in MEM_RESERVE's case, except the round down rule conforms to MEM_COMMIT's rule.
 //   (The rule for MEM_RESERVE may change in the future.)
 //
+//   If AllocationType is MEM_COMMIT and not MEM_RESERVE, then Protection may be 0, in which
+//   case the pages will take the Protection from the reserved region.  One of them must be
+//   non zero.
+//
 BSTATUS OSAllocateVirtualMemory(
-	HANDLE ProcessObject,
 	void** BaseAddressInOut,
 	size_t* RegionSizeInOut,
-	int AllocationType,         // either MEM_RESERVE, MEM_COMMIT, or MEM_COMMIT | MEM_RESERVE
-	int Protection              // protection type (R, W, X)
+	int AllocationType,
+	int Protection
 )
 {
-	(void) ProcessObject;
-	(void) BaseAddressInOut;
-	(void) RegionSizeInOut;
-	(void) AllocationType;
-	(void) Protection;
-	return STATUS_UNIMPLEMENTED;
+	// Check parameters.
+	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
+		return STATUS_INVALID_PARAMETER;
+	
+	if (AllocationType & ~(MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN | MEM_SHARED))
+		return STATUS_INVALID_PARAMETER;
+	
+	// One of these needs to be set.
+	if (~AllocationType & (MEM_COMMIT | MEM_RESERVE))
+		return STATUS_INVALID_PARAMETER;
+	
+	bool HasAddressPointer = BaseAddressInOut != NULL;
+	void* BaseAddress = NULL;
+	size_t RegionSize = 0;
+	BSTATUS Status;
+	
+	if (HasAddressPointer)
+	{
+		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
+		if (FAILED(Status))
+			return Status;
+	}
+	
+	Status = MmSafeCopy(&RegionSize, RegionSizeInOut, sizeof(size_t), KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return Status;
+	
+	// Step 1: Reserve the range.
+	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
+	if (SizePages == 0)
+		return STATUS_INVALID_PARAMETER;
+	
+	if (AllocationType & MEM_RESERVE)
+	{
+		// TODO: Receiving a base address.
+		if (HasAddressPointer)
+		{
+			ASSERT(!"TODO");
+			return STATUS_UNIMPLEMENTED;
+		}
+		
+		// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
+		Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
+	}
+	else if (AllocationType & MEM_COMMIT)
+	{
+		if (!HasAddressPointer)
+			return STATUS_INVALID_PARAMETER;
+		
+		Status = MmCommitVirtualMemory((uintptr_t) BaseAddress, SizePages, Protection);
+	}
+	
+	RegionSize = SizePages * PAGE_SIZE;
+	
+	if (SUCCEEDED(Status))
+	{
+		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
+		if (FAILED(Status))
+			return Status;
+		
+		Status = MmSafeCopy(RegionSizeInOut, &RegionSize, sizeof(size_t), KeGetPreviousMode(), true);
+	}
+	
+	return Status;
 }
 
 //
@@ -66,10 +123,6 @@ BSTATUS OSAllocateVirtualMemory(
 //
 //
 // Parameters:
-//     ProcessObject - The handle to the process whose virtual memory is to be modified.
-//                     Note that the current process must have the permissions required
-//                     to modify the virtual address space of the process object.
-//
 //     BaseAddressInOut - The base address of the region.
 //
 //     RegionSizeInOut  - The region's size.
@@ -86,13 +139,11 @@ BSTATUS OSAllocateVirtualMemory(
 //   the committed regions are decommitted before releasing the memory region.
 //
 BSTATUS OSFreeVirtualMemory(
-	HANDLE ProcessObject,
 	void** BaseAddressInOut,
 	size_t* RegionSizeInOut,
 	int FreeType
 )
 {
-	(void) ProcessObject;
 	(void) BaseAddressInOut;
 	(void) RegionSizeInOut;
 	(void) FreeType;

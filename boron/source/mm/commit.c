@@ -20,7 +20,7 @@ Author:
 //
 // The entire memory region must be uncommitted.
 //
-BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
+BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection)
 {
 	// Check if the provided address range is valid.
 	if (!MmIsAddressRangeValid(StartVa, StartVa + SizePages * PAGE_SIZE, MODE_USER))
@@ -41,7 +41,20 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		return STATUS_CONFLICTING_ADDRESSES;
 	}
 	
+	bool IsVadCommitted = Vad->Flags.Committed;
+	
+	if (!Protection)
+		Protection = Vad->Flags.Protection;
+	
+#ifdef DEBUG
+	Vad = NULL;
+	VadEnd = NULL;
+#endif
+	
 	MmUnlockVadList(VadList);
+	
+	if (!Protection)
+		return STATUS_INVALID_PARAMETER;
 	
 	// If this range is committed, check if the PTEs are marked decommitted.
 	// Otherwise, check if they are null.
@@ -60,7 +73,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 			{
 				// There is no PTE page.  If the VAD has the committed flag active,
 				// this means all the PTEs on this page are committed, therefore break.
-				if (Vad->Flags.Committed)
+				if (IsVadCommitted)
 				{
 					DbgPrint("VAD committed but PTE doesn't exist");
 					Status = STATUS_CONFLICTING_ADDRESSES;
@@ -89,7 +102,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		
 		// If the VAD is marked committed and the page we're looking at hasn't been
 		// decommitted, there is overlap.
-		if (Vad->Flags.Committed && (~*Pte & MM_DPTE_DECOMMITTED))
+		if (IsVadCommitted && (~*Pte & MM_DPTE_DECOMMITTED))
 		{
 			DbgPrint("VAD is committed but PTE is not decommitted");
 			Status = STATUS_CONFLICTING_ADDRESSES;
@@ -110,7 +123,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 	}
 	
 	// The range is safe to commit.
-	uintptr_t PteFlags = MmGetPteBitsFromProtection(Vad->Flags.Protection);
+	uintptr_t PteFlags = MmGetPteBitsFromProtection(Protection);
 	
 	// TODO: Enforce W^X here if the user doesn't have the relevant permissions
 	
@@ -164,16 +177,22 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		return STATUS_CONFLICTING_ADDRESSES;
 	}
 	
-	MmUnlockVadList(VadList);
-	
-	// For this function, it doesn't actually matter if the region is partly decommitted.
-	
 	// Check if the range can be entirely decommitted.
 	if (Vad->Node.StartVa == StartVa && Vad->Node.Size == SizePages)
 	{
 		// Yes, just mark it as uncommitted.
 		Vad->Flags.Committed = false;
 	}
+	
+	bool IsVadCommitted = Vad->Flags.Committed;
+	
+#ifdef DEBUG
+	Vad = NULL;
+#endif
+	
+	MmUnlockVadList(VadList);
+	
+	// For this function, it doesn't actually matter if the region is partly decommitted.
 	
 	// Acquire the address space lock.  This prevents the address space from being mutated.
 	KIPL Ipl = MmLockSpaceExclusive(StartVa);
@@ -184,11 +203,11 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 	{
 		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
 		{
-			// If Vad->Flags.Committed is true, then we would need allocate new PTs
+			// If IsVadCommitted is true, then we would need allocate new PTs
 			// to mark the page as decommitted.  I am slightly embarrassed about this,
 			// but it turns out that with some WinDbg magic I realized that Windows XP
 			// does this exact same thing. So it'll be fine here too.
-			if (!MmCheckPteLocation(CurrentVa, Vad->Flags.Committed))
+			if (!MmCheckPteLocation(CurrentVa, IsVadCommitted))
 			{
 				// If the VAD isn't committed, then nothing to decommit, skip this page of
 				// PTEs entirely and try again.
@@ -198,7 +217,7 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 				i += (CurrentVa - OldVa) / PAGE_SIZE;
 				
 			#ifdef DEBUG
-				if (Vad->Flags.Committed)
+				if (IsVadCommitted)
 					DbgPrint("Warning: VAD is committed but can't allocate a PT to mark pages as decommitted... :(");
 			#endif
 				

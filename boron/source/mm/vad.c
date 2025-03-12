@@ -39,7 +39,7 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 }
 
 // Reserves a range of virtual memory.
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad, int AllocationType, int Protection)
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
 {
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
@@ -75,21 +75,10 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, PMMVAD* OutVad, int Allocati
 	Vad->Flags.Private    = ~AllocationType & MEM_SHARED;
 	Vad->Flags.Protection = Protection;
 	
-	MmUnlockVadList(&Process->VadList);
-	
-	*OutVad = Vad;
-	return STATUS_SUCCESS;
-}
-
-BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
-{
-	PMMVAD Vad;
-	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, &Vad, AllocationType, Protection);
-	if (FAILED(Status))
-		return Status;
-	
 	*OutAddress = (void*) Vad->Node.StartVa;
-	return Status;
+	
+	MmUnlockVadList(&Process->VadList);
+	return STATUS_SUCCESS;
 }
 
 // Releases a range of virtual memory represented by a VAD.
