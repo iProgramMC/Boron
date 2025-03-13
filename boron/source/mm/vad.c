@@ -126,6 +126,7 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 
 // This releases a range of virtual memory allocated using MmReserveVirtualMemoryVad.
 // The address must point to the base of the region.
+// Note that the entire range must have been decommitted first.
 BSTATUS MmReleaseVirtualMemory(void* Address)
 {
 	uintptr_t AddressI = (uintptr_t) Address;
@@ -151,7 +152,7 @@ BSTATUS MmReleaseVirtualMemory(void* Address)
 		return STATUS_VA_NOT_AT_BASE;
 	}
 	
-	// First, ensure everything is decommitted.
+	ASSERT(!Vad->Flags.Committed);
 	
 	// It does! This means that the region can be dereserved with
 	// this function.  Note that it does the job of unlocking the

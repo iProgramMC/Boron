@@ -14,6 +14,7 @@ Author:
 ***/
 #include <mm.h>
 #include <ex.h>
+#include "mi.h"
 
 //
 // Either reserves, commits, or reserves and commits, a region of virtual memory.
@@ -79,7 +80,6 @@ BSTATUS OSAllocateVirtualMemory(
 	if (FAILED(Status))
 		return Status;
 	
-	// Step 1: Reserve the range.
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
@@ -138,14 +138,42 @@ BSTATUS OSAllocateVirtualMemory(
 //   the region passed in as parameter must not be committed in any place.  Otherwise,
 //   the committed regions are decommitted before releasing the memory region.
 //
+//   If MEM_DECOMMIT | MEM_RELEASE is specified, but the memory range does not cover an
+//   entire reserved region, the memory will still be decommitted, but an error status
+//   will be returned.
+//
 BSTATUS OSFreeVirtualMemory(
-	void** BaseAddressInOut,
-	size_t* RegionSizeInOut,
+	void* BaseAddress,
+	size_t RegionSize,
 	int FreeType
 )
 {
-	(void) BaseAddressInOut;
-	(void) RegionSizeInOut;
-	(void) FreeType;
-	return STATUS_UNIMPLEMENTED;
+	// Check parameters.
+	if (FreeType & ~(MEM_DECOMMIT | MEM_RELEASE))
+		return STATUS_INVALID_PARAMETER;
+	
+	// One of these must be set.
+	if (~FreeType & (MEM_DECOMMIT | MEM_RELEASE))
+		return STATUS_INVALID_PARAMETER;
+	
+	// But not both.
+	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == (MEM_DECOMMIT | MEM_RELEASE))
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	
+	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
+	if (SizePages == 0)
+		return STATUS_INVALID_PARAMETER;
+	
+	Status = MmDecommitVirtualMemory((uintptr_t) BaseAddress, SizePages);
+	if (FAILED(Status))
+		return Status;
+	
+	if (FreeType == MEM_RELEASE)
+	{
+		Status = MmReleaseVirtualMemory(BaseAddress);
+	}
+	
+	return Status;
 }
