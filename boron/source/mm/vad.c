@@ -71,9 +71,11 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 	Vad->Flags.LongFlags  = 0;
 	Vad->Mapped.Object    = NULL;
 	Vad->OffsetInFile     = 0;
-	Vad->Flags.Committed  = AllocationType & MEM_COMMIT;
-	Vad->Flags.Private    = ~AllocationType & MEM_SHARED;
+	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
+	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;
+	
+	DbgPrint("Vad->Flags.Committed: %d   AllT: %d", Vad->Flags.Committed, AllocationType);
 	
 	*OutAddress = (void*) Vad->Node.StartVa;
 	

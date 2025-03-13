@@ -30,8 +30,8 @@ Author:
 //
 //
 // Operation:
-//   If AllocationType is MEM_RESERVE, then BaseAddressInOut may be NULL, in which case the
-//   address of the reserved region is determined automatically. Otherwise, the address is
+//   If AllocationType is MEM_RESERVE, then BaseAddressInOut may point to NULL, in which case
+//   the address of the reserved region is determined automatically. Otherwise, the address is
 //   loaded from BaseAddressInOut, and rounded down to the lowest page size boundary.
 //
 //   If AllocationType is MEM_COMMIT and not MEM_RESERVE, then BaseAddressInOut may not be
@@ -64,21 +64,19 @@ BSTATUS OSAllocateVirtualMemory(
 	if (~AllocationType & (MEM_COMMIT | MEM_RESERVE))
 		return STATUS_INVALID_PARAMETER;
 	
-	bool HasAddressPointer = BaseAddressInOut != NULL;
 	void* BaseAddress = NULL;
 	size_t RegionSize = 0;
 	BSTATUS Status;
 	
-	if (HasAddressPointer)
-	{
-		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
-		if (FAILED(Status))
-			return Status;
-	}
+	Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return Status;
 	
 	Status = MmSafeCopy(&RegionSize, RegionSizeInOut, sizeof(size_t), KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		return Status;
+	
+	bool HasAddressPointer = BaseAddress != NULL;
 	
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
@@ -153,7 +151,7 @@ BSTATUS OSFreeVirtualMemory(
 		return STATUS_INVALID_PARAMETER;
 	
 	// One of these must be set.
-	if (~FreeType & (MEM_DECOMMIT | MEM_RELEASE))
+	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == 0)
 		return STATUS_INVALID_PARAMETER;
 	
 	// But not both.
@@ -171,9 +169,7 @@ BSTATUS OSFreeVirtualMemory(
 		return Status;
 	
 	if (FreeType == MEM_RELEASE)
-	{
 		Status = MmReleaseVirtualMemory(BaseAddress);
-	}
 	
 	return Status;
 }

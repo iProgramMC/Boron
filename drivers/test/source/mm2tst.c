@@ -124,27 +124,56 @@ void Mm2TopDownMemoryTest()
 	CHECK_FAIL("release virtual memory");
 }
 
-void Mm2AnotherCommitTest()
+void Mm2ExposedApiTest()
 {
+	BSTATUS Status;
+	void* Address = NULL;
+	size_t RegionSize = 40000000;
 	
+	Status = OSAllocateVirtualMemory(&Address, &RegionSize, MEM_RESERVE | MEM_COMMIT, PAGE_READ | PAGE_WRITE);
+	CHECK_FAIL("allocate virtual memory");
+	
+	LogMsg("OSAllocateVirtualMemory returned address %p and reg size %zu", Address, RegionSize);
+	
+	MmDebugDumpVad();
+	
+	uint8_t* AddressB = Address;
+	for (size_t i = 0; i < RegionSize; i++)
+	{
+		AddressB[i] = i + i * i + i * i * i;
+	}
+	
+	LogMsg("First UPtr: %p", *((uintptr_t*) AddressB));
+	
+	Status = OSFreeVirtualMemory(Address, RegionSize, MEM_RELEASE);
+	CHECK_FAIL("release virtual memory");
 }
 
 void PerformMm2Test()
 {
 	DbgPrint("Waiting for logs to calm down.");
-	PerformDelay(2000, NULL);
+	//PerformDelay(2000, NULL);
 	
-	DbgPrint("Mm2 test started.  Dumping VAD List and Heap.");
+	// also wait a bit more for the init reclaimer to finish because it might affect our memory readings
+	DbgPrint("Waiting for logs to calm down 2.");
+	//PerformDelay(200, NULL);
+	
+	// note: the first time you run this the PTEs might need to be allocated and so you "leak" 3 pages.
+	// but run the test again and it will reuse those pages.
+	//
+	// in the future, I plan on adding a feature which deallocates empty PTs.
+	
+	DbgPrint("Mm2 test started.  Dumping VAD List and Heap.  There are %zu pages free.", MmGetTotalFreePages());
 	MmDebugDumpVad();
 	MmDebugDumpHeap();
 	
 	DbgPrint("Mm2 test doing the tests now.");
-	Mm2BasicReserveTest();
-	Mm2BasicCommitTest();
-	Mm2TopDownMemoryTest();
-	Mm2AnotherCommitTest();
+	//Mm2BasicReserveTest();
+	//Mm2BasicCommitTest();
+	//Mm2TopDownMemoryTest();
+	Mm2ExposedApiTest();
 	
-	DbgPrint("Mm2 test complete.  Dumping VAD List and Heap.");
+	DbgPrint("Mm2 test complete.  Dumping VAD List and Heap.  There are %zu pages free.", MmGetTotalFreePages());
 	MmDebugDumpVad();
 	MmDebugDumpHeap();
 }

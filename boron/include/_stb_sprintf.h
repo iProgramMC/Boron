@@ -1300,7 +1300,7 @@ STBSP__PUBLICDEF int STB_SPRINTF_DECORATE(vsprintfcb)(STBSP_SPRINTFCB *callback,
             stbsp__int32 i;
             stbsp__cb_buf_clamp(i, tail[0]);
             tail[0] -= (char)i;
-            while (i) {
+            while (i > 0) {
                *bf++ = *sn++;
                --i;
             }

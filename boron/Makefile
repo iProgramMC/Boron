@@ -63,7 +63,7 @@ endif
 ifeq ($(DWARF_SYMBOLS), yes)
 	DEFINES += -gdwarf-4 -O0
 else
-	DEFINES += -O2
+	DEFINES += -O3
 endif
 
 # It is highly recommended to use a custom built cross toolchain to build a kernel.

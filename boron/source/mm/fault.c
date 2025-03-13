@@ -44,14 +44,12 @@ BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PteP
 	// If there is no PTE or it's zero.
 	if (!PtePtr || !*PtePtr)
 	{
-		DbgPrint("No pte or pte zero");
 		// Check if there is a VAD with the Committed flag set to 1.
 		PMMVAD_LIST VadList = MmLockVadListProcess(PsGetCurrentProcess());
 		PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
 		
 		if (!Vad)
 		{
-			DbgPrint("No vad");
 			// There is no VAD at this address.
 			MmUnlockVadList(VadList);
 			return STATUS_ACCESS_VIOLATION;

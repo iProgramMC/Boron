@@ -31,6 +31,7 @@ Author:
 #include <mm/vad.h>
 #include <mm/section.h>
 #include <mm/heap.h>
+#include <mm/services.h>
 
 #ifdef KERNEL
 // Initialize the allocators.

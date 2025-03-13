@@ -15,6 +15,10 @@ Author:
 
 #include "mi.h"
 
+#ifdef DEBUG2
+#define PMMDEBUG
+#endif
+
 extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
@@ -512,7 +516,7 @@ MMPFN MmAllocatePhysicalPage()
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
-#ifdef DEBUG2
+#ifdef PMMDEBUG
 	DbgPrint("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
 #endif
 	
@@ -523,7 +527,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 {
 	KIPL OldIpl;
 	
-#ifdef DEBUG2
+#ifdef PMMDEBUG
 	DbgPrint("MmFreePhysicalPage()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 	
@@ -555,7 +559,7 @@ void MmFreePhysicalPageIntoStandby(MMPFN pfn, uintptr_t* PrototypePte)
 {
 	KIPL OldIpl;
 	
-#ifdef DEBUG2
+#ifdef PMMDEBUG
 	DbgPrint("MmFreePhysicalPageIntoStandby()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 	
