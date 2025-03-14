@@ -90,9 +90,46 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 {
 	PEPROCESS Process = PsGetCurrentProcess();
 
+	// Step 1.  Remove the VAD from the VAD list tree.
 	RemoveItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry);
 	MmUnlockVadList(&Process->VadList);
 	
+	// Step 2.  Zero out all of the PTEs.
+	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
+	
+	uintptr_t CurrentVa = Vad->Node.StartVa;
+	PMMPTE Pte = MmGetPteLocation(CurrentVa);
+	for (size_t i = 0; i < Vad->Node.Size; i++)
+	{
+		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		{
+			if (!MmCheckPteLocation(CurrentVa, false))
+			{
+				// Nothing to zero out here.
+				size_t OldVa = CurrentVa;
+				CurrentVa = (CurrentVa + PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE)) & ~(PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE) - 1);
+				Pte = MmGetPteLocation(CurrentVa);
+				i += (CurrentVa - OldVa) / PAGE_SIZE;
+			}
+		}
+		
+		// Assume that the page is present.
+		ASSERT(~*Pte & MM_PTE_PRESENT);
+		
+		*Pte = 0;
+		Pte++;
+		CurrentVa += PAGE_SIZE;
+	}
+	
+	
+	// Step 3.
+	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
+	
+	MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size);
+	
+	MmUnlockSpace(Ipl, Vad->Node.StartVa);
+	
+	// Step 4. Finally, add the range into the heap/free list.
 	BSTATUS Status = MmFreeAddressSpace(&Process->Heap, &Vad->Node);
 	if (FAILED(Status))
 	{

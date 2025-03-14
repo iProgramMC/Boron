@@ -152,11 +152,11 @@ void Mm2ExposedApiTest()
 void PerformMm2Test()
 {
 	DbgPrint("Waiting for logs to calm down.");
-	//PerformDelay(2000, NULL);
+	PerformDelay(2000, NULL);
 	
 	// also wait a bit more for the init reclaimer to finish because it might affect our memory readings
 	DbgPrint("Waiting for logs to calm down 2.");
-	//PerformDelay(200, NULL);
+	PerformDelay(200, NULL);
 	
 	// note: the first time you run this the PTEs might need to be allocated and so you "leak" 3 pages.
 	// but run the test again and it will reuse those pages.

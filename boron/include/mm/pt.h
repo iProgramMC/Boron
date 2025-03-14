@@ -106,4 +106,7 @@ void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);
 // Turn access flags (PAGE_X) into PTE protection bits.
 MMPTE MmGetPteBitsFromProtection(int Protection);
 
+// Self explanatory
+void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages);
+
 #endif//BORON_MM_PT_H

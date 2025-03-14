@@ -19,6 +19,43 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 
 // ======== used by the Memory Manager ========
 
+#ifdef KERNEL
+
+// start PML4 index will be 321. The PFN database's is 320
+#define MI_GLOBAL_AREA_START (321ULL)
+
+// for recursive paging, PML4 index will be 322 - 101000010b.
+#define MI_RECURSIVE_PAGING_START (322ULL)
+// Note: The PML4 itself will be accessible at the address:
+// 1111111111111111 101000010 101000010 101000010 101000010 000000000000
+// Which translates to 0xFFFFA150A8542000.
+
+#define MI_PML3_LOCATION ((uintptr_t)0xFFFFA150A8542000ULL)
+#define MI_PML2_LOCATION ((uintptr_t)0xFFFFA150A8400000ULL)
+#define MI_PML1_LOCATION ((uintptr_t)0xFFFFA10000000000ULL)
+#define MI_PML1_LOC_END  ((uintptr_t)0xFFFFA18000000000ULL)
+#define MI_PML_ADDRMASK  ((uintptr_t)0x0000FFFFFFFFF000ULL)
+
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+
+typedef union
+{
+	struct
+	{
+		uintptr_t PageOffset : 12;
+		uintptr_t Level1 : 9;
+		uintptr_t Level2 : 9;
+		uintptr_t Level3 : 9;
+		uintptr_t Level4 : 9;
+		uintptr_t SignExtension : 16;
+	};
+	
+	uintptr_t Long;
+}
+MMADDRESS_CONVERT;
+
+#endif
+
 // Note! Most of these are going to be present everywhere we'll port to.
 
 #define MM_KERNEL_SPACE_BASE (0xFFFF800000000000)
