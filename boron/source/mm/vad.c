@@ -75,8 +75,6 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;
 	
-	DbgPrint("Vad->Flags.Committed: %d   AllT: %d", Vad->Flags.Committed, AllocationType);
-	
 	*OutAddress = (void*) Vad->Node.StartVa;
 	
 	MmUnlockVadList(&Process->VadList);
@@ -110,6 +108,7 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 				CurrentVa = (CurrentVa + PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE)) & ~(PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE) - 1);
 				Pte = MmGetPteLocation(CurrentVa);
 				i += (CurrentVa - OldVa) / PAGE_SIZE;
+				continue;
 			}
 		}
 		
