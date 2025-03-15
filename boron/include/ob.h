@@ -29,7 +29,10 @@ typedef enum _OB_OPEN_REASON
 OB_OPEN_REASON;
 
 // Lets the object know a handle to it was opened.
-typedef void(*OBJ_OPEN_FUNC)  (void* Object, int HandleCount, OB_OPEN_REASON OpenReason);
+//
+// Can return an error status in which case the opening
+// of the object can be interrupted.
+typedef BSTATUS(*OBJ_OPEN_FUNC)(void* Object, int HandleCount, OB_OPEN_REASON OpenReason);
 
 // Lets the object know a handle to it was closed.
 typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
@@ -231,6 +234,15 @@ enum
 	// instead of its referenced object (the latter is the default behavior)
 	OB_OPEN_SYMLINK   = (1 << 2),
 };
+
+typedef struct
+{
+	HANDLE RootDirectory;
+	const char* ObjectName;
+	size_t ObjectNameLength;
+	int OpenFlags;
+}
+OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
 
 // ========== Initialization ==========
 bool ObInitSystem();

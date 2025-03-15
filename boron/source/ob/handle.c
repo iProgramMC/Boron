@@ -206,6 +206,17 @@ BSTATUS ObOpenObjectByName(
 	if (FAILED(Status))
 		return Status;
 	
+	OBJ_OPEN_FUNC OpenFunc = ObGetObjectType(Object)->TypeInfo.Open;
+	if (OpenFunc)
+	{
+		Status = OpenFunc(Object, OBJECT_GET_HEADER(Object)->NonPagedObjectHeader->HandleCount + 1, OB_OPEN_HANDLE);
+		if (FAILED(Status))
+		{
+			ObDereferenceObject(Object);
+			return Status;
+		}
+	}
+	
 	// OK, the object was found.
 	Status = ObpInsertObject(Object, OutHandle, OB_OPEN_HANDLE, OpenFlags);
 

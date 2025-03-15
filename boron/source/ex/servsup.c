@@ -99,7 +99,7 @@ BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 }
 
 // Creates an object from a user system service call.  This ensures that code is not duplicated.
-BSTATUS ExiCreateObjectUserCall(
+BSTATUS ExCreateObjectUserCall(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	POBJECT_TYPE ObjectType,
@@ -212,7 +212,7 @@ Fail:
 }
 
 // Opens an object from a user system service call.  This ensures that code is not duplicated.
-BSTATUS ExiOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, int OpenFlags)
+BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, int OpenFlags)
 {
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;

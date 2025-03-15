@@ -23,16 +23,29 @@ Author:
 // (e.g. CURRENT_PROCESS_HANDLE is translated to the current process)
 BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void** OutObject);
 
-#endif
+typedef BSTATUS(*EX_OBJECT_CREATE_METHOD)(void* Object, void* Context);
 
-typedef struct
-{
-	HANDLE RootDirectory;
-	const char* ObjectName;
-	size_t ObjectNameLength;
-	int OpenFlags;
-}
-OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
+// Create an object based on a user system service call.  This handles safety in all aspects, including
+// copying the object attributes to kernel pool, dereferencing the root directory, copying the handle into
+// the OutHandle pointer, etc.
+BSTATUS ExCreateObjectUserCall(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	size_t ObjectBodySize,
+	EX_OBJECT_CREATE_METHOD CreateMethod,
+	void* CreateContext
+);
+
+// Opens an object from a user system service call.  This ensures that code is not duplicated.
+BSTATUS ExOpenObjectUserCall(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	int OpenFlags
+);
+
+#endif
 
 #define EX_DISPATCH_BOOST ((KPRIORITY) 1)
 

@@ -86,10 +86,10 @@ static BSTATUS ExpInitializeMutexObject(void* MutexV, UNUSED void* Context)
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExiCreateObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, sizeof(KMUTEX), ExpInitializeMutexObject, NULL);
+	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, sizeof(KMUTEX), ExpInitializeMutexObject, NULL);
 }
 
 BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags)
 {
-	return ExiOpenObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, OpenFlags);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, OpenFlags);
 }

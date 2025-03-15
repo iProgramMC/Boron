@@ -3,6 +3,7 @@
 #include <io.h>
 #include <mm.h>
 #include <ob.h>
+#include <ex.h>
 #include <ldr.h>
 #include <string.h>
 
@@ -19,7 +20,7 @@ BSTATUS IopParseDevice(void* Object, const char** Name, void* Context, int LoopC
 void IopDeleteController(void* Object);
 
 // File object operations
-void IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason);
+BSTATUS IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason);
 void IopDeleteFile(void* Object);
 void IopCloseFile(void* Object, int HandleCount);
 BSTATUS IopParseFile(void* Object, const char** Name, void* Context, int LoopCount, void** OutObject);

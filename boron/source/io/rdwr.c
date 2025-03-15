@@ -296,10 +296,7 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	return Status;
 }
 
-BSTATUS OSOpenFile(const char* Path, HANDLE RootDirectory, int OpenFlags, PHANDLE OutHandle)
+BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags)
 {
-	// TODO: Check Path and OutHandle.
-	
-	return STATUS_UNIMPLEMENTED;
-	//return ObOpenObjectByName(Path, RootDirectory, OpenFlags, IoFileType, OutHandle);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType, OpenFlags);
 }

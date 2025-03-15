@@ -149,7 +149,7 @@ BSTATUS PsCreateSystemThread(
 	Tsc.StartRoutine = StartRoutine;
 	Tsc.StartContext = StartContext;
 	
-	Status = ExiCreateObjectUserCall(
+	Status = ExCreateObjectUserCall(
 		OutHandle,
 		ObjectAttributes,
 		PsThreadObjectType,

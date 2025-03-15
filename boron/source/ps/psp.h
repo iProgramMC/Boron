@@ -16,10 +16,9 @@ Author:
 
 #include <ke.h>
 #include <ps.h>
+#include <ex.h>
 #include <string.h>
 
 bool PsCreateThreadType();
 
 bool PsCreateProcessType();
-
-#include <ex/internal.h>

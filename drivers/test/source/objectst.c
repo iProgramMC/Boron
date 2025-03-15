@@ -25,7 +25,7 @@ typedef struct
 }
 TEST_OBJECT, *PTEST_OBJECT;
 
-void TstOpen(void* Object, int HandleCount, OB_OPEN_REASON OpenReason)
+BSTATUS TstOpen(void* Object, int HandleCount, OB_OPEN_REASON OpenReason)
 {
 	PTEST_OBJECT TestObject = Object;
 	
@@ -38,6 +38,8 @@ void TstOpen(void* Object, int HandleCount, OB_OPEN_REASON OpenReason)
 		TestObject->Bar,
 		TestObject->Baz
 	);
+	
+	return STATUS_SUCCESS;
 }
 
 void TstClose(void* Object, int HandleCount)

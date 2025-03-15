@@ -57,20 +57,16 @@ BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, u
 	return STATUS_SUCCESS;
 }
 
-void IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason)
+BSTATUS IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason)
 {
+	BSTATUS Status = STATUS_SUCCESS;
 	PFILE_OBJECT File = Object;
 	IO_OPEN_METHOD OpenMethod = File->Fcb->DispatchTable->Open;
 	
 	if (OpenMethod)
-	{
-		BSTATUS Status = OpenMethod(File->Fcb, File->OpenFlags);
-		
-	#ifdef DEBUG
-		if (FAILED(Status))
-			KeCrash("IopOpenFile WARNING: FCB open routine returned status %d on object %p", Status, Object);
-	#endif
-	}
+		Status = OpenMethod(File->Fcb, File->OpenFlags);
+	
+	return Status;
 }
 
 void IopCloseFile(void* Object, int HandleCount)
