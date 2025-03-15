@@ -120,11 +120,8 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 		CurrentVa += PAGE_SIZE;
 	}
 	
-	
 	// Step 3.
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
-	
-	MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size);
 	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	

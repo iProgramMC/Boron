@@ -43,10 +43,10 @@ typedef union
 	struct
 	{
 		uintptr_t PageOffset : 12;
-		uintptr_t Level1 : 9;
-		uintptr_t Level2 : 9;
-		uintptr_t Level3 : 9;
-		uintptr_t Level4 : 9;
+		uintptr_t Level1Index : 9;
+		uintptr_t Level2Index : 9;
+		uintptr_t Level3Index : 9;
+		uintptr_t Level4Index : 9;
 		uintptr_t SignExtension : 16;
 	};
 	
