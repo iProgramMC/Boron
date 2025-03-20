@@ -19,6 +19,7 @@ Author:
 #pragma once
 
 #include <ex/rwlock.h>
+#include <mm/cache.h>
 
 // Supported types of files:
 enum FILE_TYPE
@@ -37,6 +38,8 @@ typedef struct _FCB
 	PIO_DISPATCH_TABLE DispatchTable;
 	
 	EX_RW_LOCK RwLock;
+	
+	CCB CacheBlock;
 	
 	// FILE_TYPE
 	uint8_t FileType;

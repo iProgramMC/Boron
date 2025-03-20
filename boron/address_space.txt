@@ -1,0 +1,58 @@
+BORON Operating System Address Space (AMD64)
+
+** Kernel Mode **
+
++------------------------------+ - 0xFFFFFFFFFFFFFFFF
+|      kernel code & data      |
++------------------------------+ - 0xFFFFFFFF80000000
+|                              |
++------------------------------+ - 0xFFFFF08000000000
+|      system module DLLs      |
++------------------------------+ - 0xFFFFF00000000000
+|                              |
+|                              |
+|            unused            |
+|                              |
+|                              |
++------------------------------+ - 0xFFFFA20000000000
+|     file system caching      |
++------------------------------+ - 0xFFFFA18000000000
+| virtually linear page tables |
++------------------------------+ - 0xFFFFA10000000000
+|      dynamic pool space      |
++------------------------------+ - 0xFFFFA08000000000
+|     page frame data base     |
++------------------------------+ - 0xFFFFA00000000000
+|    higher half direct map    |
++------------------------------+ - 0xFFFF800000000000
+
+NOTE: file system caching will be implemented in the future
+
+** User Mode **
+
+Currently this is nothing more than a plan.
+Now, a user process has complete control over its own
+address space. (They will even be able to unmap the
+PEB/TEBs if they want as well!)
+
+However, this is the plan for normal user processes.
+
++-----------------------------+ - 0x0000800000000000
+|  process environment block  |
++-----------------------------+ - 0x00007ffffffff000
+|    operating system DLLs    |
++-----------------------------+ - 0x00007fff00000000
+|  thread environment blocks  |
++-----------------------------+ - 0x00007ffe00000000
+|        thread stacks        |
++-----------------------------+ - 0x00007e0000000000
+|        user mappings        |
++-----------------------------+ - 0x0000500000000000
+|          user heap          |
++-----------------------------+ - 0x0000200000000000
+|          user DLLs          |
++-----------------------------+ - 0x0000100000000000
+|      program executable     |
++-----------------------------+ - 0x0000000000001000
+|                             |
++-----------------------------+ - 0x0000000000000000

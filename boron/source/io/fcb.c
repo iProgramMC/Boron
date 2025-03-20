@@ -27,6 +27,8 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 	
 	ExInitializeRwLock (&Fcb->RwLock);
 	
+	MmInitializeCcb (&Fcb->CacheBlock);
+	
 	return Fcb;
 }
 

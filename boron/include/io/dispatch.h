@@ -18,7 +18,7 @@ Author:
 #include "dirent.h"
 
 //
-// Notes:
+// Notes:  (please clean up soon!)
 //
 // - The "Block" parameter being false means that the operation may not block.
 //

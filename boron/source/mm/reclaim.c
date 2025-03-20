@@ -30,8 +30,9 @@ void MiReclaimInitText()
 		MMPTE Pte = *PtePtr;
 		ASSERT(Pte);
 		
-		// Clear the PTE without a TLB shootdown.  It's not necessary because
-		// we're purging a read-only section.
+		// Clear the PTE.  A TLB shootdown is normally not necessary because
+		// the memory region will never be read from again. However, in debug
+		// mode, a TLB shootdown will be performed anyway.
 		*PtePtr = 0;
 		
 		MMPFN Pfn = (MMPFN)((Pte & MM_PTE_ADDRESSMASK) >> 12);
@@ -39,6 +40,10 @@ void MiReclaimInitText()
 		Reclaimed++;
 	}
 	MmUnlockKernelSpace();
+	
+#ifdef DEBUG
+	MmIssueTLBShootDown((uintptr_t) KiTextInitStart, ((uintptr_t)KiTextInitEnd - (uintptr_t)KiTextInitStart + PAGE_SIZE - 1) / PAGE_SIZE);
+#endif
 	
 	DbgPrint("Reclaimed %d pages from init.", Reclaimed);
 }

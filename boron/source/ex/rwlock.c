@@ -1,10 +1,9 @@
-
 /***
 	The Boron Operating System
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	ke/thread.c
+	ex/rwlock.c
 	
 Abstract:
 	This module implements the read-write lock. Acquiring

@@ -153,7 +153,7 @@ BSTATUS IoPerformOperationFile(
 	{
 		// NOTE: Dropping status here.  It is not important whether or not the file
 		// was touched successfully after the operation was performed on it -- it's
-		// not considered unimportant.
+		// not considered important.
 		//
 		// The reason IopTouchFile returns a status is to implement a call called
 		// OSTouchFile which calls this underneath.
@@ -268,11 +268,11 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	
 	Status = MmProbeAddress(Iosb, sizeof(*Iosb), true, KeGetPreviousMode());
 	if (FAILED(Status))
-		return IO_STATUS(Iosb, Status);
+		return Status;
 	
 	Status = MmProbeAddress(Buffer, Length, true, KeGetPreviousMode());
 	if (FAILED(Status))
-		return IO_STATUS(Iosb, Status);
+		return Iosb;
 	
 	// Allocate the MDL.
 	PMDL Mdl = MmAllocateMdl((uintptr_t) Buffer, Length);
@@ -288,10 +288,16 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	}
 	
 	// Finally, call the Io function.
-	Status = IoReadFile(Iosb, Handle, Mdl, Flags);
+	IO_STATUS_BLOCK Iosb2;
+	Status = IoReadFile(&Iosb2, Handle, Mdl, Flags);
 	
 	// This unmaps and unpins the pages, and frees the MDL.
 	MmFreeMdl(Mdl);
+	
+	// Copy the I/O status block to the caller.
+	Status = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return Status;
 	
 	return Status;
 }
