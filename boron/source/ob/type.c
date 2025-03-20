@@ -37,7 +37,7 @@ extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
 void ObpEnterObjectTypeMutex()
 {
-	KeWaitForSingleObject(&ObpObjectTypeMutex, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&ObpObjectTypeMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }
 
 void ObpLeaveObjectTypeMutex()

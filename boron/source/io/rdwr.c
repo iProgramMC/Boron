@@ -272,7 +272,7 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	
 	Status = MmProbeAddress(Buffer, Length, true, KeGetPreviousMode());
 	if (FAILED(Status))
-		return Iosb;
+		return Status;
 	
 	// Allocate the MDL.
 	PMDL Mdl = MmAllocateMdl((uintptr_t) Buffer, Length);

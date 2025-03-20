@@ -326,7 +326,7 @@ BSTATUS ExWaitOnRwLock(UNUSED PEX_RW_LOCK Lock, void* EventObject)
 
 	while (true)
 	{
-		BSTATUS Status = KeWaitForSingleObject(EventObject, false, EX_RWLOCK_WAIT_TIMEOUT);
+		BSTATUS Status = KeWaitForSingleObject(EventObject, false, EX_RWLOCK_WAIT_TIMEOUT, MODE_KERNEL);
 		
 		if (Status != STATUS_TIMEOUT)
 			return Status;
@@ -394,7 +394,7 @@ PEX_RW_LOCK_OWNER ExFindOwnerRwLock(PEX_RW_LOCK Lock, PKTHREAD Thread, KIPL Ipl)
 			if (NewTable)
 				MmFreePool(NewTable);
 			
-			return NULL;
+			NewTable = NULL;
 		}
 	}
 	while (!NewTable);

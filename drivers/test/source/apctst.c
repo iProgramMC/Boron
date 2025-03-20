@@ -34,7 +34,7 @@ static NO_RETURN void ApcTestRoutine()
 	
 	KeInitializeEvent(&Event, EVENT_SYNCHRONIZATION, false);
 	
-	KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	LogMsg("Exiting");
 	
@@ -63,5 +63,5 @@ void PerformApcTest()
 	
 	LogMsg("Done, should execute now.  Waiting for the thread to exit...");
 	
-	KeWaitForSingleObject(&Thread, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Thread, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }

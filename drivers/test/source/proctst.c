@@ -47,7 +47,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);
 	LogMsg("Status In Process: %d (after signalling event)", Status);
 	
-	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	// Unmap the memory.
 	MiUnmapPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
@@ -90,7 +90,8 @@ void PerformProcessTest()
 	KeWaitForSingleObject(
 		&Evnt,
 		false,
-		TIMEOUT_INFINITE
+		TIMEOUT_INFINITE,
+		MODE_KERNEL
 	);
 	
 	// Probe the memory.
@@ -103,5 +104,5 @@ void PerformProcessTest()
 	KeSetEvent(&Evnt, 0);
 	
 	// Wait for the thread to go away.
-	KeWaitForSingleObject(&Thrd, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Thrd, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }

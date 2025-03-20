@@ -40,7 +40,7 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, Ms, Dpc);
 	
-	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }
 
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)

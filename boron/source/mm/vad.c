@@ -17,7 +17,7 @@ Author:
 
 static inline void MiLockVadList(PMMVAD_LIST VadList)
 {
-	UNUSED BSTATUS Status = KeWaitForSingleObject(&VadList->Mutex, false, TIMEOUT_INFINITE);
+	UNUSED BSTATUS Status = KeWaitForSingleObject(&VadList->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(Status == STATUS_SUCCESS);
 }
 

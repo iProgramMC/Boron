@@ -109,7 +109,6 @@ KiSwitchThreadStack:
 	
 	; Push System V ABI callee saved registers.
 	; TODO: Do we really need to push and pop rflags?
-	; TODO: Do we really need to push the segment registers?
 	pushfq
 	push rbp
 	push rbx

@@ -21,7 +21,7 @@ KMUTEX ObpRootDirectoryMutex;
 
 void ObpEnterRootDirectoryMutex()
 {
-	KeWaitForSingleObject(&ObpRootDirectoryMutex, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&ObpRootDirectoryMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }
 
 void ObpLeaveRootDirectoryMutex()

@@ -53,7 +53,8 @@ BSTATUS OSWaitForSingleObject(
 	Status = KeWaitForSingleObject(
 		Object,
 		Alertable,
-		TimeoutMS
+		TimeoutMS,
+		KeGetPreviousMode()
 	);
 	
 End:
@@ -141,7 +142,8 @@ BSTATUS OSWaitForMultipleObjects(
 		WaitType,
 		Alertable,
 		TimeoutMS,
-		WaitBlocks
+		WaitBlocks,
+		KeGetPreviousMode()
 	);
 	
 End:

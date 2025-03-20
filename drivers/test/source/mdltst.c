@@ -26,7 +26,7 @@ void PerformMdlTest()
 	KTIMER Timer;
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, 2000, NULL);
-	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	*/
 	
 	HPAGEMAP PageMap = MiGetCurrentPageMap();

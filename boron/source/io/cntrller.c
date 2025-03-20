@@ -51,7 +51,7 @@ BSTATUS IoCreateController(
 
 static void IopEnterControllerMutex(PCONTROLLER_OBJECT Controller)
 {
-	UNUSED BSTATUS Status = KeWaitForSingleObject(&Controller->DeviceTreeMutex, false, TIMEOUT_INFINITE);
+	UNUSED BSTATUS Status = KeWaitForSingleObject(&Controller->DeviceTreeMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	ASSERT(Status == STATUS_SUCCESS);
 }

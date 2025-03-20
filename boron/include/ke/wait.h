@@ -14,6 +14,8 @@ Author:
 ***/
 #pragma once
 
+#include <ke/mode.h>
+
 // Wait for multiple objects at once.
 // Use a value of zero to poll the objects.
 // Use a value of TIMEOUT_INFINITE to specify that timeout isn't needed.
@@ -23,7 +25,8 @@ int KeWaitForMultipleObjects(
 	int WaitType,
 	bool Alertable,
 	int TimeoutMS,
-	PKWAIT_BLOCK WaitBlockArray);
+	PKWAIT_BLOCK WaitBlockArray,
+	KPROCESSOR_MODE WaitMode);
 
 // Wait for a single object.
-int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS);
+int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode);

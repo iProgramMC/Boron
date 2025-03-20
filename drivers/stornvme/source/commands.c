@@ -24,7 +24,7 @@ BSTATUS NvmeSendAndWait(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 	
 	NvmeSend(Qcb, EntryPair);
 	
-	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE);
+	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	if (FAILED(Status))
 		return Status;
 	

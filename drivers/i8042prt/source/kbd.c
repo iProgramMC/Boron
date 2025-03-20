@@ -232,8 +232,7 @@ BSTATUS KbdRead(
 			return STATUS_SUCCESS;
 		}
 		
-		// Wait.
-		BSTATUS Status = KeWaitForSingleObject(&KbdAvailableEvent, true, TIMEOUT_INFINITE);
+		BSTATUS Status = KeWaitForSingleObject(&KbdAvailableEvent, true, TIMEOUT_INFINITE, MODE_KERNEL);
 		
 		if (Status != STATUS_SUCCESS)
 		{

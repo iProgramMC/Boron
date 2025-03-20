@@ -201,14 +201,14 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	KiUnlockDispatcher(Ipl);
 }
 
-// TODO: Add WaitMode parameter.
 int KeWaitForMultipleObjects(
 	int Count,
 	void* Objects[],
 	int WaitType,
 	bool Alertable,
 	int TimeoutMS,
-	PKWAIT_BLOCK WaitBlockArray)
+	PKWAIT_BLOCK WaitBlockArray,
+	KPROCESSOR_MODE WaitMode)
 {
 	ASSERT(WaitType == WAIT_TYPE_ALL || WaitType == WAIT_TYPE_ANY);
 	
@@ -297,7 +297,7 @@ int KeWaitForMultipleObjects(
 		Thread->WaitCount = Count;
 		Thread->WaitIsAlertable = Alertable;
 		Thread->WaitStatus = STATUS_WAITING;
-		Thread->WaitMode = MODE_KERNEL; // TODO
+		Thread->WaitMode = WaitMode;
 		Thread->Status = KTHREAD_STATUS_WAITING;
 		
 		// Note, surely it's not zero, because we guard against that
@@ -324,6 +324,7 @@ int KeWaitForMultipleObjects(
 			// TODO:
 			// This is a user mode wait that was interrupted.
 			// Call KeTestAlertThread and return STATUS_ALERTED.
+			DbgPrint("Ke: TODO: Call KeTestAlertThread here");
 			break;
 		}
 		
@@ -338,9 +339,9 @@ int KeWaitForMultipleObjects(
 	return Thread->WaitStatus;
 }
 
-int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS)
+int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode)
 {
-	int Status = KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL);
+	int Status = KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL, WaitMode);
 	
 	// Instead of returning wait range, like multiple objects would, return success.
 	if (Status == STATUS_WAIT(0))

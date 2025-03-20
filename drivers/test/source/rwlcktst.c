@@ -39,7 +39,7 @@ void ExclusiveRoutine(UNUSED void* Ptr)
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, 1000, NULL);
-		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
 		//DbgPrint("Exclusively Releasing Lock...");
 		ExReleaseRwLock(&RWLock);
@@ -70,7 +70,7 @@ void ReaderRoutine(void* Ptr)
 		//KTIMER Timer;
 		//KeInitializeTimer(&Timer);
 		//KeSetTimer(&Timer, 200, NULL);
-		//KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+		//KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	}
 	
 	KeTerminateThread(1);
@@ -83,7 +83,7 @@ void PerformRwlockTest()
 	//
 	//for (int i = 0; i < 15; i++) {
 	//	LogMsg("Waiting %d", i);
-	//	KeWaitForSingleObject(&Sem, false, TIMEOUT_INFINITE);
+	//	KeWaitForSingleObject(&Sem, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	//	KeReleaseSemaphore(&Sem, 1);
 	//}
 	
@@ -105,7 +105,7 @@ void PerformRwlockTest()
 	
 	KWAIT_BLOCK WaitBlockStorage[MAXIMUM_WAIT_BLOCKS];
 	void* Objects[] = { Excl, Rdr1, Rdr2, Rdr3, Rdr4 };
-	KeWaitForMultipleObjects(5, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, WaitBlockStorage);
+	KeWaitForMultipleObjects(5, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, WaitBlockStorage, MODE_KERNEL);
 	
 	// get rid of the threads
 	ObDereferenceObject(Excl);

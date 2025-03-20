@@ -91,7 +91,7 @@ void MmInitializeCcb(PCCB Ccb);
 ALWAYS_INLINE static inline
 void MmLockCcb(PCCB Ccb)
 {
-	BSTATUS Status = KeWaitForSingleObject(&Ccb->Mutex, false, TIMEOUT_INFINITE);
+	BSTATUS Status = KeWaitForSingleObject(&Ccb->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(Status == STATUS_SUCCESS);
 }
 

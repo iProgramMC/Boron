@@ -100,7 +100,7 @@ void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 	//
 	// The semaphore will get released by the DPC routine when an operation
 	// has completed.
-	KeWaitForSingleObject(&Qcb->Semaphore, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Qcb->Semaphore, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	KIPL Ipl;
 	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);

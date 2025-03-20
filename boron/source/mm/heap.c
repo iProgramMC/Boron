@@ -41,7 +41,7 @@ void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t
 
 BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMMADDRESS_NODE* OutNode)
 {
-	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
 	
 	if (TopDown)
@@ -145,7 +145,7 @@ void MmpTryMergeNext(PMMHEAP Heap, PMMADDRESS_NODE Node)
 
 BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 {
-	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 
 	// Insert the tree into the heap.
 	bool Inserted = InsertItemRbTree(&Heap->Tree, &Node->Entry);
@@ -173,7 +173,7 @@ BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 void MmDebugDumpHeap()
 {
 	PMMHEAP Heap = &PsGetCurrentProcess()->Heap;
-	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
 	

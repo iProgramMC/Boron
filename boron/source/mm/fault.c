@@ -231,7 +231,7 @@ EarlyExit:
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, MI_REFAULT_SLEEP_MS, NULL);
-		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
 		Status = STATUS_REFAULT;
 	}

@@ -101,7 +101,7 @@ void PerformExObMutexTest()
 	Threads[1] = CreateThread(MtThread2Routine, NULL);
 	Threads[2] = CreateThread(MtThread3Routine, NULL);
 	
-	Status = KeWaitForMultipleObjects(3, (void**) Threads, WAIT_ALL_OBJECTS, false, TIMEOUT_INFINITE, NULL);
+	Status = KeWaitForMultipleObjects(3, (void**) Threads, WAIT_ALL_OBJECTS, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
 	CheckError(Status);
 	
 	OSClose(gMutexHandle);
@@ -163,7 +163,7 @@ void PerformExObEventTest()
 	
 	LogMsg("Thr0: Done");
 	
-	KeWaitForSingleObject(Thread, false, TIMEOUT_INFINITE);
+	KeWaitForSingleObject(Thread, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	ObDereferenceObject(Thread);
 	

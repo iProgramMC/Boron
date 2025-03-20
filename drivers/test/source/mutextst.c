@@ -35,14 +35,14 @@ NO_RETURN static void MutexTestThread(UNUSED void* Parameter)
 		
 		// Acquire the mutexes.
 		void* Objects[] = { &TestMutex, &TestMutex2 };
-		KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL);
+		KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
 		
 		LogMsg("Thread %d Waiting %d ms...", ThreadNum, DELAY);
 		// Wait a second.
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, DELAY, NULL);
-		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE);
+		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
 		// Finally, release the mutexes.
 		LogMsg("Thread %d Releasing Mutexes...", ThreadNum);
@@ -68,7 +68,7 @@ void PerformMutexTest()
 	};
 	
 	// Wait for all threads to exit.
-	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL);
+	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
 	
 	// Get rid of the threads.
 	ObDereferenceObject(Thrd1);

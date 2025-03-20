@@ -42,7 +42,7 @@ static NO_RETURN void ObpReaperThreadRoutine(UNUSED void* Context)
 {
 	while (true)
 	{
-		KeWaitForSingleObject(&ObpReaperEvent, false, TIMEOUT_INFINITE);
+		KeWaitForSingleObject(&ObpReaperEvent, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
 		// ObpReaperEvent was pulsed, therefore we should start popping things off
 		KIPL Ipl;
