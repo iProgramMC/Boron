@@ -15,7 +15,7 @@ Author:
 
 #include "mi.h"
 
-#ifdef DEBUG
+#ifdef DEBUG2
 #define PMMDEBUG
 #endif
 

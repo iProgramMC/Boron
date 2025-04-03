@@ -97,7 +97,6 @@ PMIPOOL_ENTRY MiCreatePoolEntry()
 	if (Pfn == PFN_INVALID)
 	{
 		DbgPrint("MmpSlabContainerAllocate: Run out of memory! What will we do?!");
-		KeCrash("x");
 		// TODO: invoke the out of memory handler here, then try again
 		KeReleaseSpinLock(&MmpPoolSlabListLock, Ipl);
 		return NULL;

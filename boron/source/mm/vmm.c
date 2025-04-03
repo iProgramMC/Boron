@@ -25,7 +25,9 @@ static EX_RW_LOCK MmpKernelSpaceRwLock;
 // spinlock version used during init
 static void MmpLockKernelSpace_Spin()
 {
-	KeAcquireSpinLock(&MmpKernelSpaceSpinLock, &MmpKernelSpaceSpinLockIpl);
+	KIPL Ipl;
+	KeAcquireSpinLock(&MmpKernelSpaceSpinLock, &Ipl);
+	MmpKernelSpaceSpinLockIpl = Ipl;
 }
 static void MmpUnlockKernelSpace_Spin()
 {
