@@ -42,7 +42,7 @@ void MiReclaimInitText()
 	MmUnlockKernelSpace();
 	
 #ifdef DEBUG
-	MmIssueTLBShootDown((uintptr_t) KiTextInitStart, ((uintptr_t)KiTextInitEnd - (uintptr_t)KiTextInitStart + PAGE_SIZE - 1) / PAGE_SIZE);
+	//MmIssueTLBShootDown((uintptr_t) KiTextInitStart, ((uintptr_t)KiTextInitEnd - (uintptr_t)KiTextInitStart + PAGE_SIZE - 1) / PAGE_SIZE);
 #endif
 	
 	DbgPrint("Reclaimed %d pages from init.", Reclaimed);

@@ -538,7 +538,6 @@ void LdriLoadDll(PLIMINE_FILE File)
 	DbgPrint("Module %s was loaded at base %p", File->path, LoadBase);
 }
 
-INIT
 const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress)
 {
 	if (!LoadedDll->StringTable || !LoadedDll->SymbolTable)

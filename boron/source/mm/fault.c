@@ -233,6 +233,8 @@ EarlyExit:
 		KeSetTimer(&Timer, MI_REFAULT_SLEEP_MS, NULL);
 		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
+		DbgPrint("Out of memory!");
+		
 		Status = STATUS_REFAULT;
 	}
 	

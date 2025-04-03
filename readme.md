@@ -62,7 +62,7 @@ but it is what it is.
 If an item is checked, that means it's being worked on or is complete. If not, that means that no code is at
 all present related to it.
 
-* [x] Kernel core
+* [x] Kernel core (`Ke`)
 	* [x] Spin locks
 	* [x] IPLs (interrupt priority levels, analogous to NT's IRQL)
 	* [x] Dispatcher (timers, mutexes, events, semaphores...)
@@ -72,23 +72,35 @@ all present related to it.
 	* [x] APCs
 	* [ ] User mode programs
 
-* [x] Memory manager
+* [x] Memory manager (`Mm`)
 	* [x] Page frame database
+	* [x] Kernel heap
+	* [x] Reclamation of pages occupied by initialization code
+	* [x] Capture of physical regions for extended use
 	* [x] Mapping and unmapping anonymous memory
 	* [ ] File backed memory
 	* [ ] Swap file support
 	* [ ] Swap out page tables
 	* [ ] Swap out kernel code
 
-* [x] Object manager
+* [x] Object manager (`Ob`)
 	* [x] Object creation
 	* [x] Object deletion
 	* [x] Object lookup
+	* [x] Deferred object deletion
+	* [x] Symbolic link support
 
-* [x] I/O manager
+* [x] I/O manager (`Io`)
+	* [x] Device objects
+	* [ ] System services
 	* [ ] File objects
 	* [ ] File system/volume objects
 	* [ ] ...
+
+* [x] Dynamic linked library loader (`Ldr`)
+	* [x] HAL separate from kernel
+	* [x] Load additional kernel side modules
+	* [ ] Map the Boron system service DLL (BoronDLL.dll)
 
 * [ ] File system manager
 	* [ ] ...
@@ -98,6 +110,11 @@ all present related to it.
 
 * [ ] Security subsystem (later)
 	* [ ] ...
+
+* [ ] Boron DLL / Librarian / System service handler
+	* [ ] Load fixed modules
+	* [ ] Load relocatable modules
+	* [ ] Link modules with each other by resolving undefined dependencies
 
 * [ ] User space
 	* [ ] Command line shell
