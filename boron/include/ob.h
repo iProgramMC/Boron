@@ -284,7 +284,7 @@ BSTATUS ObCreateSymbolicLinkObject(
 );
 
 // Adds 1 to the internal reference count of the object.
-void ObReferenceObjectByPointer(void* Object);
+void* ObReferenceObjectByPointer(void* Object);
 
 // Takes a reference away from the internal ref count of the object.
 // If the reference count hits zero, the object will be deleted.

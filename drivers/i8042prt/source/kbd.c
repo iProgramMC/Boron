@@ -250,10 +250,15 @@ BSTATUS KbdRead(
 	return STATUS_SUCCESS;
 }
 
+bool KbdSeekable(UNUSED PFCB Fcb)
+{
+	return false;
+}
+
 void KbdInitializeDispatchTable()
 {
 	KbdDispatchTable.Read = &KbdRead;
-	
+	KbdDispatchTable.Seekable = &KbdSeekable;
 	KbdDispatchTable.Flags = DISPATCH_FLAG_EXCLUSIVE;
 }
 

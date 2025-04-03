@@ -101,7 +101,7 @@ void ObpReapObject(void* Object)
 	KePulseEvent(&ObpReaperEvent, 1);
 }
 
-void ObReferenceObjectByPointer(void* Object)
+void* ObReferenceObjectByPointer(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
@@ -109,6 +109,8 @@ void ObReferenceObjectByPointer(void* Object)
 	
 	AtAddFetch(Hdr->NonPagedObjectHeader->PointerCount, 1);
 	//DbgPrint("Ref  (%p) -> %d (%p)", Object, Hdr->NonPagedObjectHeader->PointerCount, CallerAddress());
+	
+	return Object;
 }
 
 void ObDereferenceObject(void* Object)

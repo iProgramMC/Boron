@@ -13,6 +13,18 @@ Author:
 ***/
 #include "iop.h"
 
+// Checks if this file is seekable.
+bool IoIsSeekable(PFILE_OBJECT FileObject)
+{
+	PFCB Fcb = FileObject->Fcb;
+	IO_SEEKABLE_METHOD Seekable = Fcb->DispatchTable->Seekable;
+	
+	if (!Seekable)
+		return false;
+	
+	return Seekable(Fcb);
+}
+
 // Create a file object. This doesn't actually open the object.
 BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {

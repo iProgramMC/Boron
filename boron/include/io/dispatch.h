@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2024 iProgramInCpp
+	Copyright (C) 2024-2025 iProgramInCpp
 
 Module name:
 	io/dispatch.h
@@ -23,6 +23,10 @@ Author:
 // - The "Block" parameter being false means that the operation may not block.
 //
 // - The BSTATUS returned must have the same value as the value inside the "Status" pointer, if it exists.
+//
+// - IO_SEEKABLE_METHOD returns whether or not the file is seekable.  This is, in this case, equal to whether the file
+//   is mappable.  Block devices and file system backed files should return TRUE, while stream I/O devices such as
+//   keyboards and serial ports should return FALSE.
 //
 // - If IsEntryFromReadDir is TRUE, IO_LOOKUP_DIR_METHOD, IO_UNLINK_METHOD and IO_REMOVE_DIR_METHOD may optimize by opening
 //   the inode/file according to the other fields of the IO_DIRECTORY_ENTRY, instead of performing a potentially expensive
@@ -91,6 +95,7 @@ typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
+typedef bool   (*IO_SEEKABLE_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
 typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
 typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
@@ -154,6 +159,7 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_OBJ_METHOD  DeleteObject;
 	IO_DEREFERENCE_METHOD Dereference;
+	IO_SEEKABLE_METHOD    Seekable;
 	IO_OPEN_METHOD        Open;
 	IO_CLOSE_METHOD       Close;
 	IO_READ_METHOD        Read;

@@ -30,3 +30,5 @@ typedef struct _FILE_OBJECT
 	uint32_t OpenFlags;
 }
 FILE_OBJECT, *PFILE_OBJECT;
+
+bool IoIsSeekable(PFILE_OBJECT Object);

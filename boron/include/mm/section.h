@@ -15,6 +15,7 @@ Author:
 
 typedef struct
 {
-	
+	// TODO
+	int X;
 }
 MMSECTION, *PMMSECTION;

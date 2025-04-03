@@ -92,7 +92,7 @@ return_type MyFunction(
 where the opening parenthesis is on the line containing the function name, but the closing one is on the line containing
 the last argument.
 
-Don't do this - this isn't how we roll:
+You may also do this:
 ```c
 return_type
 MyFunction(
@@ -102,7 +102,7 @@ MyFunction(
 );
 ```
 
-However, you can do something like that in calls:
+It is recommended to put the last parenthesis on a new line for function calls.
 ```c
 MyFunction(
 	arg1,

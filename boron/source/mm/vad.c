@@ -38,15 +38,8 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 	InitializeRbTree(&VadList->Tree);
 }
 
-// Reserves a range of virtual memory.
-BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, PMMVAD* OutVad, PMMVAD_LIST* OutVadList)
 {
-	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
-		return STATUS_INVALID_PARAMETER;
-	
-	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
-		return STATUS_INVALID_PARAMETER;
-	
 	PEPROCESS Process = PsGetCurrentProcess();
 	PMMADDRESS_NODE AddrNode;
 	
@@ -70,14 +63,33 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 	// Clear all the fields in the VAD.
 	Vad->Flags.LongFlags  = 0;
 	Vad->Mapped.Object    = NULL;
-	Vad->OffsetInFile     = 0;
+	Vad->SectionOffset    = 0;
 	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
 	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;
 	
-	*OutAddress = (void*) Vad->Node.StartVa;
+	*OutVad = Vad;
+	*OutVadList = &Process->VadList;
+	return STATUS_SUCCESS;
+}
+
+// Reserves a range of virtual memory.
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
+{
+	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
+		return STATUS_INVALID_PARAMETER;
 	
-	MmUnlockVadList(&Process->VadList);
+	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+		return STATUS_INVALID_PARAMETER;
+	
+	PMMVAD Vad;
+	PMMVAD_LIST VadList;
+	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, AllocationType, Protection, &Vad, &VadList);
+	if (FAILED(Status))
+		return Status;
+	
+	*OutAddress = (void*) Vad->Node.StartVa;
+	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;
 }
 
@@ -125,35 +137,23 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	
-	// Step 4. Finally, add the range into the heap/free list.
+	// Step 4. Remove the reference to the object if needed.
+	if (Vad->Mapped.Object)
+	{
+		ObDereferenceObject(Vad->Mapped.Object);
+		Vad->Mapped.Object = NULL;
+	}
+	
+	// Step 5. Finally, add the range into the heap/free list.
 	BSTATUS Status = MmFreeAddressSpace(&Process->Heap, &Vad->Node);
 	if (FAILED(Status))
 	{
-		// NOTE: This should never happen.  But perhaps it's a good time
-		// to consider that we should probably own both the VAD list mutex
-		// and the heap mutex at the same time, with a single
-		// KeWaitForMultipleObjects call.
+		// NOTE: This should never happen.
 		//
-		// An argument against it is that there's no way for this region
-		// to be used if it's not part of either the heap or the VAD list.
-		
-	#ifdef DEBUG
+		// Why? Because there's no way for this region to be used if it's
+		// not part of either the heap or the VAD list.
 		KeCrash("MmDereserveVad: Failed to insert VAD into free-heap (address %p)", Vad->Node.StartVa);
-	#endif
-		
-		// Re-insert it?
-		MiLockVadList(&Process->VadList);
-		bool Inserted = InsertItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry);
-		MmUnlockVadList(&Process->VadList);
-		
-		if (!Inserted)
-		{
-			// Ohhh.... crap
-		#ifdef DEBUG
-			KeCrash("MmDereserveVad: Unreachable");
-		#endif
-			Status = STATUS_UNIMPLEMENTED;
-		}
+		Status = STATUS_UNIMPLEMENTED;
 	}
 	
 	return Status;

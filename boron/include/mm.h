@@ -28,8 +28,8 @@ Author:
 #include <mm/probe.h>
 #include <mm/mdl.h>
 #include <mm/cache.h>
-#include <mm/vad.h>
 #include <mm/section.h>
+#include <mm/vad.h>
 #include <mm/heap.h>
 #include <mm/services.h>
 

@@ -30,10 +30,16 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 	return Vector;
 }
 
+bool NvmeSeekable(UNUSED PFCB Fcb)
+{
+	return true;
+}
+
 void NvmeInitializeDispatchTable()
 {
 	NvmeDispatchTable.Read = NvmeRead;
 	NvmeDispatchTable.Write = NvmeWrite;
+	NvmeDispatchTable.Seekable = NvmeSeekable;
 	NvmeDispatchTable.GetAlignmentInfo = NvmeGetAlignmentInfo;
 }
 

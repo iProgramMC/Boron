@@ -252,4 +252,10 @@ PMMPTE MmGetPteLocation(uintptr_t Address);
 // been generated if GenerateMissingLevels is true).
 bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 
+// Reserves a range of virtual memory and returns a VAD.
+//
+// Note: This leaves the VAD list locked, if the function succeeds, so you must call MmUnlockVadList!
+// Note: All of the parameters are presumed valid!
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, PMMVAD* OutVad, PMMVAD_LIST* OutVadList);
+
 #endif//NS64_MI_H

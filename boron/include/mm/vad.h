@@ -45,6 +45,9 @@ typedef union
 		
 		// If this region is private (so, not duplicated across forks for example)
 		int Private : 1;
+		
+		// If this region is a file object, as opposed to a section object, or nothing.
+		int IsFile : 1;
 	};
 	
 	uint32_t LongFlags;
@@ -63,11 +66,12 @@ typedef struct _MMVAD_ENTRY
 	{
 		void* Object;
 		PFILE_OBJECT FileObject;
+		PMMSECTION SectionObject;
 	}
 	Mapped;
 	
-	// If this is a file, then the offset within the file.
-	uint64_t OffsetInFile;
+	// If this is a file or section, then the offset within it.
+	uint64_t SectionOffset;
 }
 MMVAD, *PMMVAD;
 
@@ -93,7 +97,7 @@ void MmUnlockVadList(PMMVAD_LIST);
 // Looks up a VAD by address in a VAD list previously locked with MmLockVadListProcess.
 PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address);
 
-// Reserves a bunch of virtual memory and returns an address.
+// Reserves a range of virtual memory and returns an address.
 BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection);
 
 // Releases a region of virtual memory.
