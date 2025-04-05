@@ -41,8 +41,7 @@ BSTATUS ExCreateObjectUserCall(
 BSTATUS ExOpenObjectUserCall(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	POBJECT_TYPE ObjectType,
-	int OpenFlags
+	POBJECT_TYPE ObjectType
 );
 
 #endif
@@ -62,7 +61,7 @@ BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
-BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags);
+BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSReleaseMutex(HANDLE MutexHandle);
 
@@ -70,7 +69,7 @@ BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
 
-BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags);
+BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSSetEvent(HANDLE EventHandle);
 

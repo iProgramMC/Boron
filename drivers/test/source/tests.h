@@ -30,3 +30,4 @@ void PerformExObTest(void);
 void PerformCcbTest(void);
 void PerformMm1Test(void);
 void PerformMm2Test(void);
+void PerformMm3Test(void);

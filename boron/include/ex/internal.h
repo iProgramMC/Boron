@@ -43,8 +43,7 @@ BSTATUS ExCreateObjectUserCall(
 BSTATUS ExOpenObjectUserCall(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	POBJECT_TYPE ObjectType,
-	int OpenFlags
+	POBJECT_TYPE ObjectType
 );
 
 #else

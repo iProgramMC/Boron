@@ -302,7 +302,7 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	return Status;
 }
 
-BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags)
+BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType, OpenFlags);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType);
 }

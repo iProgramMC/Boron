@@ -14,7 +14,7 @@ Author:
 ***/
 #include "mi.h"
 
-static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
+static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, int* OutPfn)
 {
 	// This PTE is demand paged.  Allocate a page.
 	int Pfn = MmAllocatePhysicalPage();
@@ -33,33 +33,45 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
 	NewPte &= ~MM_PTE_PKMASK;
 	*PtePtr = NewPte;
 	
+	if (OutPfn)
+	{
+		MmPageAddReference(Pfn);
+		*OutPfn = Pfn;
+	}
+	
 	// Fault was handled successfully.
 	return STATUS_SUCCESS;
 }
 
-BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PtePtr)
+BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
+	bool IsPageCommitted = false;
+	BSTATUS Status;
+	
+	// Check if there is a VAD with the Committed flag set to 1.
+	PMMVAD_LIST VadList = MmLockVadListProcess(Process);
+	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
+	
+	if (!Vad)
+	{
+		// There is no VAD at this address.
+		
+		// TODO: But there might be a system wide file map going on!
+		MmUnlockVadList(VadList);
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+		return STATUS_ACCESS_VIOLATION;
+	}
 	
 	// If there is no PTE or it's zero.
 	if (!PtePtr || !*PtePtr)
 	{
-		// Check if there is a VAD with the Committed flag set to 1.
-		PMMVAD_LIST VadList = MmLockVadListProcess(PsGetCurrentProcess());
-		PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
-		
-		if (!Vad)
-		{
-			// There is no VAD at this address.
-			MmUnlockVadList(VadList);
-			return STATUS_ACCESS_VIOLATION;
-		}
-		
 		if (!Vad->Flags.Committed)
 		{
 			// The PTE is NULL yet the VAD isn't fully committed (they didn't request
 			// memory with MEM_RESERVE | MEM_COMMIT). Therefore, access violation it is.
 			MmUnlockVadList(VadList);
+			MmUnlockSpace(SpaceUnlockIpl, Va);
 			return STATUS_ACCESS_VIOLATION;
 		}
 		
@@ -74,28 +86,68 @@ BSTATUS MiNormalFault(UNUSED PEPROCESS Process, UNUSED uintptr_t Va, PMMPTE PteP
 			if (!PtePtr)
 			{
 				MmUnlockVadList(VadList);
+				MmUnlockSpace(SpaceUnlockIpl, Va);
 				return STATUS_REFAULT_SLEEP;
 			}
 		}
 		
-		// Well, the PTE could be allocated, so let's mark it as committed, and continue.
-		*PtePtr = Vad->Flags.Protection | MM_DPTE_COMMITTED;
-		
-		// (Access to the VAD is no longer required now)
-		MmUnlockVadList(VadList);
-		return MmpHandleFaultCommittedPage(PtePtr);
+		IsPageCommitted = true;
 	}
 	
 	// There is a PTE pointer, check if it's committed.
-	if (PtePtr)
+	if (!IsPageCommitted && PtePtr && (*PtePtr & MM_DPTE_COMMITTED))
 	{
-		if (*PtePtr & MM_DPTE_COMMITTED)
-			return MmpHandleFaultCommittedPage(PtePtr);
+		IsPageCommitted = true;
 	}
 	
-	DbgPrint("MiNormalFault: page fault at address %p!", Va);
+	if (!IsPageCommitted)
+	{
+		DbgPrint("MiNormalFault: page fault at address %p!", Va);
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
+	// Now the PTE is here and we can commit it.
+	*PtePtr = Vad->Flags.Protection;
+	
+	// Check if there is an object to read from.
+	void* VadObject = NULL;
+	bool IsVadObjectFile = false;
+	int Pfn = 0;
+	if (Vad->Mapped.Object)
+	{
+		// There is.  After committing the page, we will read from the object to the page.
+		VadObject = ObReferenceObjectByPointer(Vad->Mapped.Object);
+		IsVadObjectFile = Vad->Flags.IsFile;
+	}
+	
+	// (Access to the VAD is no longer required now)
+	MmUnlockVadList(VadList);
+	
+	// If there is a VAD object, we need to know the PFN that we will be reading into.
+	Status = MmpHandleFaultCommittedPage(PtePtr, VadObject ? &Pfn : NULL);
+	
+	if (!VadObject || FAILED(Status))
+	{
+		// This is all we needed to do for the non-object-backed case.
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+		return Status;
+	}
+	
+	// Now, we will unlock the address space, because this is all we needed to mutate.
+	// However, we will remain in IPL_APC to prevent an APC from interrupting the
+	// page fault read process.
+	MmUnlockSpace(IPL_APC, Va);
+	
+	// Now, initiate the actual read.
 	// TODO
-	return STATUS_ACCESS_VIOLATION;
+	Status = STATUS_UNIMPLEMENTED; // #4
+	
+	
+	MmFreePhysicalPage(Pfn);
+	ObDereferenceObject(VadObject);
+	KeLowerIPL(SpaceUnlockIpl);
+	return Status;
 }
 
 BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
@@ -187,24 +239,29 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 			// The PTE is writable already, therefore this fault may have been spurious
 			// and we should simply return.
 			Status = STATUS_SUCCESS;
-			goto EarlyExit;
+			MmUnlockSpace(OldIpl, FaultAddress);
+			return Status;
 		}
 		
 		if (FaultMode & MM_FAULT_WRITE)
 		{
 			// A write fault occurred on a readonly page.
 			Status = MiWriteFault(Process, FaultAddress, PtePtr);
+			MmUnlockSpace(OldIpl, FaultAddress);
 			goto EarlyExit;
 		}
 		
 		// The PTE is valid, and this wasn't a write fault, so this fault may have been
 		// spurious and we should simply return.
 		Status = STATUS_SUCCESS;
-		goto EarlyExit;
+		MmUnlockSpace(OldIpl, FaultAddress);
+		return Status;
 	}
 	
 	// The PTE is not present.
-	Status = MiNormalFault(Process, FaultAddress, PtePtr);
+	//
+	// Note: MiNormalFault will unlock the memory space.
+	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl);
 	
 	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE))
 	{
@@ -238,6 +295,5 @@ EarlyExit:
 		Status = STATUS_REFAULT;
 	}
 	
-	MmUnlockSpace(OldIpl, FaultAddress);
 	return Status;
 }

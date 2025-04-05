@@ -89,7 +89,7 @@ BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, sizeof(KMUTEX), ExpInitializeMutexObject, NULL);
 }
 
-BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags)
+BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, OpenFlags);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType);
 }

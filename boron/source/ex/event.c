@@ -139,7 +139,7 @@ BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, in
 	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, sizeof(KEVENT), ExpInitializeEventObject, &EventData);
 }
 
-BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int OpenFlags)
+BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, OpenFlags);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType);
 }

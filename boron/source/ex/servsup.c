@@ -212,7 +212,7 @@ Fail:
 }
 
 // Opens an object from a user system service call.  This ensures that code is not duplicated.
-BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, int OpenFlags)
+BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType)
 {
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
@@ -238,7 +238,7 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	Status = ObOpenObjectByName(
 		Attributes.ObjectName,
 		Attributes.RootDirectory,
-		OpenFlags,
+		Attributes.OpenFlags,
 		ObjectType,
 		&Handle
 	);
