@@ -31,6 +31,7 @@ Author:
 #include <mm/section.h>
 #include <mm/vad.h>
 #include <mm/heap.h>
+#include <mm/view.h>
 #include <mm/services.h>
 
 #ifdef KERNEL

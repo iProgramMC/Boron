@@ -16,7 +16,7 @@ Author:
 
 #include <ke.h>
 
-typedef uintptr_t HANDLE, *PHANDLE;
+#include "handle.h"
 
 #define HANDLE_NONE (0)
 

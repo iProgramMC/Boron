@@ -13,11 +13,12 @@ Abstract:
 Author:
 	iProgramInCpp - 5 April 2025
 ***/
-#include <ke.h>
 #include <mm.h>
+#include <io.h>
+#include <ex.h>
 #include "utils.h"
 
-static const char FileToOpen[] = "\\Device\\Nvme0Disk1";
+static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
 
 void PerformMm3Test()
 {
@@ -28,9 +29,30 @@ void PerformMm3Test()
 	ObjectAttributes.ObjectName = FileToOpen;
 	ObjectAttributes.ObjectNameLength = sizeof(FileToOpen) - 1;
 	
+	LogMsg("Opening file %s", FileToOpen);
+	
 	Status = OSOpenFile(&FileHandle, &ObjectAttributes);
 	if (FAILED(Status))
 		KeCrash("Mm3: Cannot open file %s: %d", FileToOpen, Status);
 	
+	LogMsg("Mapping it");
+	void* BaseAddress = NULL;
+	size_t RegionSize = 32768;
+	Status = MmMapViewOfObject(FileHandle, &BaseAddress, &RegionSize, MEM_TOP_DOWN, 20, PAGE_READ);
+	if (FAILED(Status))
+		KeCrash("Mm3: Cannot map file: %d", FileToOpen, Status);
 	
+	// dump the first 512 bytes.
+	LogMsg("Alright, mapped at %p, region size %zu.", BaseAddress, RegionSize);
+	DumpHex(BaseAddress, 512, true);
+	
+	
+	// now unmap the view
+	Status = OSFreeVirtualMemory(BaseAddress, RegionSize, MEM_RELEASE);
+	if (FAILED(Status))
+		KeCrash("Mm3: failed to free VM: %d", Status);
+	
+	Status = OSClose(FileHandle);
+	if (FAILED(Status))
+		KeCrash("Mm3: failed to close handle: %d", Status);
 }

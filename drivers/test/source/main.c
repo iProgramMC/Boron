@@ -15,6 +15,7 @@ Author:
 #include "utils.h"
 #include "tests.h"
 #include <ps.h>
+#include <string.h>
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
@@ -43,6 +44,44 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }
 
+void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
+{
+	uint8_t* Data = DataV;
+	
+	#define A(x) (((x) >= 0x20 && (x) <= 0x7F) ? (x) : '.')
+	
+	const size_t PrintPerRow = 32;
+	
+	for (size_t i = 0; i < DataSize; i += PrintPerRow) {
+		char Buffer[256];
+		Buffer[0] = 0;
+		
+		//sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
+		sprintf(Buffer + strlen(Buffer), "%p: ", Data + i);
+		
+		for (size_t j = 0; j < PrintPerRow; j++) {
+			if (i + j >= DataSize)
+				strcat(Buffer, "   ");
+			else
+				sprintf(Buffer + strlen(Buffer), "%02x ", Data[i + j]);
+		}
+		
+		strcat(Buffer, "  ");
+		
+		for (size_t j = 0; j < PrintPerRow; j++) {
+			if (i + j >= DataSize)
+				strcat(Buffer, " ");
+			else
+				sprintf(Buffer + strlen(Buffer), "%c", A(Data[i + j]));
+		}
+		
+		if (LogScreen)
+			LogMsg("%s", Buffer);
+		else
+			DbgPrint("%s", Buffer);
+	}
+}
+
 NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 {
 	//PerformProcessTest();
@@ -60,8 +99,8 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformExObTest();
 	//PerformCcbTest();
 	//PerformMm1Test();
-	PerformMm2Test();
-	//PerformMm3Test();
+	//PerformMm2Test();
+	PerformMm3Test();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);

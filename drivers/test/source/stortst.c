@@ -23,44 +23,6 @@ Author:
 
 const char* const StorDeviceName = "\\Devices\\Nvme0Disk1"; // <-- this is what the NVMe driver calls the first nvme device
 
-void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
-{
-	uint8_t* Data = DataV;
-	
-	#define A(x) (((x) >= 0x20 && (x) <= 0x7F) ? (x) : '.')
-	
-	const size_t PrintPerRow = 32;
-	
-	for (size_t i = 0; i < DataSize; i += PrintPerRow) {
-		char Buffer[256];
-		Buffer[0] = 0;
-		
-		//sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
-		sprintf(Buffer + strlen(Buffer), "%p: ", Data + i);
-		
-		for (size_t j = 0; j < PrintPerRow; j++) {
-			if (i + j >= DataSize)
-				strcat(Buffer, "   ");
-			else
-				sprintf(Buffer + strlen(Buffer), "%02x ", Data[i + j]);
-		}
-		
-		strcat(Buffer, "  ");
-		
-		for (size_t j = 0; j < PrintPerRow; j++) {
-			if (i + j >= DataSize)
-				strcat(Buffer, " ");
-			else
-				sprintf(Buffer + strlen(Buffer), "%c", A(Data[i + j]));
-		}
-		
-		if (LogScreen)
-			LogMsg("%s", Buffer);
-		else
-			DbgPrint("%s", Buffer);
-	}
-}
-
 #ifdef PERFORMANCE_TEST
 void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t BufferSize)
 {

@@ -52,7 +52,7 @@ BSTATUS MmMapViewOfFile(
 	*ViewSizeInOut = PAGE_SIZE * ViewSizePages;
 	MmUnlockVadList(VadList);
 	
-	return STATUS_UNIMPLEMENTED;
+	return STATUS_SUCCESS;
 }
 
 //

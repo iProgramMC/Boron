@@ -24,3 +24,6 @@ PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter);
 
 // Performs a small delay.
 void PerformDelay(int Ms, PKDPC Dpc);
+
+// Performs a hex dump of some memory.
+void DumpHex(void* DataV, size_t DataSize, bool LogScreen);
