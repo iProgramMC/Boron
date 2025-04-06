@@ -54,8 +54,8 @@ Author:
 #define AtXorFetchMO(var, val, mo)   __atomic_xor_fetch(&(var), (val), mo)
 #define AtOrFetch(var, val)          __atomic_or_fetch(&(var), (val), ATOMIC_DEFAULT_MEMORDER)
 #define AtOrFetchMO(var, val, mo)    __atomic_or_fetch(&(var), (val), mo)
-#define AtCompareExchange(var, exp, des)             __atomic_compare_exchange_n(var, exp, des, ATOMIC_DEFAULT_MEMORDER, ATOMIC_DEFAULT_MEMORDER)
-#define AtCompareExchangeMO(var, exp, des, smo, fmo) __atomic_compare_exchange_n(var, exp, des, smo, fmo)
+#define AtCompareExchange(var, exp, des)             __atomic_compare_exchange_n(var, exp, des, 0, ATOMIC_DEFAULT_MEMORDER, ATOMIC_DEFAULT_MEMORDER)
+#define AtCompareExchangeMO(var, exp, des, smo, fmo) __atomic_compare_exchange_n(var, exp, des, 0, smo, fmo)
 
 // Note for AtCompareExchange*:  exp = expected, des = desired
 // Note for AtCompareExchangeMO: smo = Success memory order, fmo = Failure memory order

@@ -38,6 +38,7 @@ static_assert(sizeof(MMPFN) == sizeof(int), "If you expanded the PFN type to >32
 
 typedef union _CCB_ENTRY
 {
+	// TODO: What if 32-bit
 	PCCB_INDIRECTION Indirection;
 	
 	struct
@@ -48,6 +49,8 @@ typedef union _CCB_ENTRY
 		uint32_t  Pfn      : 32;
 	}
 	PACKED U;
+	
+	uintptr_t Long;
 }
 CCB_ENTRY, *PCCB_ENTRY;
 
@@ -105,6 +108,8 @@ void MmUnlockCcb(PCCB Ccb)
 // If TryAllocateLowerLevels is true, it will attempt to allocate levels if they aren't
 // allocated.  However, this might fail if out of memory, in which case NULL will be
 // returned.
+//
+// NOTE: PageOffset is the page *number* within the file and *NOT* the byte offset.
 //
 // NOTE: The CCB must be locked.
 PCCB_ENTRY MmGetEntryPointerCcb(PCCB Ccb, uint64_t PageOffset, bool TryAllocateLowerLevels);

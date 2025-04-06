@@ -19,7 +19,7 @@ Author:
 BSTATUS MmMapViewOfObject(
 	HANDLE MappedObject,
 	void** BaseAddressOut,
-	size_t* ViewSizeInOut,
+	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
 	int Protection

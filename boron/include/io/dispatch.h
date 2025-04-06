@@ -17,6 +17,8 @@ Author:
 #include "iosb.h"
 #include "dirent.h"
 
+typedef struct _FCB FCB, *PFCB;
+
 //
 // Notes:  (please clean up soon!)
 //
@@ -148,7 +150,11 @@ enum
 	// and it's written to, will start out locked as exclusive.
 	//
 	// This does not affect operations other than `Read` and `Write`.
-	DISPATCH_FLAG_EXCLUSIVE = (1 << 0),
+	DISPATCH_FLAG_EXCLUSIVE = 1 << 0,
+	
+	// If this flag is set, then the FCB is directly mappable and you should be
+	// using IO_BACKING_MEM_METHOD instead of the cache control block.
+	DISPATCH_FLAG_DIRECTLY_MAPPABLE = 1 << 1,
 };
 
 typedef struct _IO_DISPATCH_TABLE

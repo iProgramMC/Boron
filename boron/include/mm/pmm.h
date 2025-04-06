@@ -49,15 +49,13 @@ MMPFN MmAllocatePhysicalPage(void);
 // Adds a reference to a PFN.
 void MmPageAddReference(MMPFN Pfn);
 
+// Assign a prototype PTE address to the page frame.
+void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte);
+
 // This expects a PFN. Use MmPhysPageToPFN if you have a physically
 // addressed page to free. Decrements the reference counter of the physical page.
 // When zero, the page is freed from physical memory and can be used again.
 void MmFreePhysicalPage(MMPFN Pfn);
-
-// Dereference the page and place it on the standby list if its reference count is zero.
-// When the page is reclaimed from the standby list, the PrototypePte address will be
-// atomically zeroed out.  The size of the zero write is the size of uintptr_t.
-void MmFreePhysicalPageIntoStandby(MMPFN pfn, uintptr_t* PrototypePte);
 
 // Same as MmAllocatePhysicalPage, but returns an HHDM based address.
 void* MmAllocatePhysicalPageHHDM(void);

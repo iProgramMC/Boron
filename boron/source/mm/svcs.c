@@ -24,7 +24,7 @@ Author:
 //
 //     RegionSizeInOut  - The region's size.
 //
-//     AllocationType   - One of MEM_COMMIT, MEM_RESERVE, or MEM_COMMIT | MEM_RESERVE.
+//     AllocationType   - A combination of flags: MEM_COMMIT, MEM_RESERVE, MEM_TOP_DOWN and/or MEM_SHARED.
 //
 //     Protection       - The protection applied to the pages to be committed.
 //
@@ -140,6 +140,10 @@ BSTATUS OSAllocateVirtualMemory(
 //   entire reserved region, the memory will still be decommitted, but an error status
 //   will be returned.
 //
+//   If BaseAddress is not aligned to the page, then it will be rounded to the lowest
+//   virtual page aligned address and the region's size will be increased by the reported
+//   misalignment value.
+//
 BSTATUS OSFreeVirtualMemory(
 	void* BaseAddress,
 	size_t RegionSize,
@@ -157,6 +161,9 @@ BSTATUS OSFreeVirtualMemory(
 	// But not both.
 	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == (MEM_DECOMMIT | MEM_RELEASE))
 		return STATUS_INVALID_PARAMETER;
+	
+	RegionSize += (size_t) ((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
+	BaseAddress = (void*) ((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
 	
 	BSTATUS Status;
 	

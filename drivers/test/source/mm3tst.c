@@ -20,7 +20,7 @@ Author:
 
 static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
 
-void PerformMm3Test()
+void PerformMm3Test_()
 {
 	BSTATUS Status;
 	HANDLE FileHandle;
@@ -38,7 +38,7 @@ void PerformMm3Test()
 	LogMsg("Mapping it");
 	void* BaseAddress = NULL;
 	size_t RegionSize = 32768;
-	Status = MmMapViewOfObject(FileHandle, &BaseAddress, &RegionSize, MEM_TOP_DOWN, 20, PAGE_READ);
+	Status = MmMapViewOfObject(FileHandle, &BaseAddress, RegionSize, MEM_TOP_DOWN, 20, PAGE_READ);
 	if (FAILED(Status))
 		KeCrash("Mm3: Cannot map file: %d", FileToOpen, Status);
 	
@@ -46,13 +46,25 @@ void PerformMm3Test()
 	LogMsg("Alright, mapped at %p, region size %zu.", BaseAddress, RegionSize);
 	DumpHex(BaseAddress, 512, true);
 	
-	
 	// now unmap the view
+	LogMsg("Freeing");
 	Status = OSFreeVirtualMemory(BaseAddress, RegionSize, MEM_RELEASE);
 	if (FAILED(Status))
 		KeCrash("Mm3: failed to free VM: %d", Status);
 	
+	LogMsg("Closing");
 	Status = OSClose(FileHandle);
 	if (FAILED(Status))
 		KeCrash("Mm3: failed to close handle: %d", Status);
+}
+
+
+void PerformMm3Test()
+{
+	LogMsg("Performing Mm3 test once...");
+	PerformMm3Test_();
+	LogMsg("Performing Mm3 test once more...");
+	PerformMm3Test_();
+	LogMsg("Performing Mm3 test one last time...");
+	PerformMm3Test_();
 }

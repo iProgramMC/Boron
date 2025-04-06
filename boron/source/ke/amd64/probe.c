@@ -54,7 +54,7 @@ bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE Acces
 	}
 	
 	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END) {
-		DbgPrint("AccessMode==MODEUSER   AddressEnd %p", AddressEnd);
+		DbgPrint("AccessMode==MODEUSER   AddressEnd %p  Address %p  Size: %zu", AddressEnd, Address, Size);
 		return false;
 	}
 	

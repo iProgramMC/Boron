@@ -41,7 +41,9 @@ void MmFreeMdl(PMDL Mdl)
 {
 	MmUnmapPagesMdl(Mdl);
 	MmUnpinPagesMdl(Mdl);
-	MmFreePool(Mdl);
+	
+	if (Mdl->Flags & MDL_FLAG_FROMPOOL)
+		MmFreePool(Mdl);
 }
 
 BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
@@ -131,7 +133,7 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	
 	// Initialize the MDL
 	Mdl->ByteOffset    = (short)(VirtualAddress & 0xFFF);
-	Mdl->Flags         = 0;
+	Mdl->Flags         = MDL_FLAG_FROMPOOL;
 	Mdl->Available     = 0; // pad
 	Mdl->ByteCount     = Length;
 	Mdl->SourceStartVA = VirtualAddress & ~0xFFF;
@@ -288,4 +290,24 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	}
 	
 	return STATUS_SUCCESS;
+}
+
+PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn)
+{
+	// Initializes an instance of a single page PFN.  This structure
+	// can be quickly allocated on the stack to perform I/O operations.
+	
+	Mdl->Base.ByteOffset = 0;
+	Mdl->Base.Flags = 0;
+	Mdl->Base.Available = 0;
+	Mdl->Base.ByteCount = PAGE_SIZE;
+	Mdl->Base.SourceStartVA = (uintptr_t) -1ULL;
+	Mdl->Base.MappedStartVA = 0;
+	Mdl->Base.Process = PsGetCurrentProcess();
+	Mdl->Base.NumberPages = 1;
+	
+	MmPageAddReference(Pfn);
+	Mdl->Pages[0] = Pfn;
+	
+	return Mdl;
 }

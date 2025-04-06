@@ -20,7 +20,7 @@ Author:
 BSTATUS MmMapViewOfFile(
 	PFILE_OBJECT FileObject,
 	void** BaseAddressOut,
-	size_t* ViewSizeInOut,
+	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
 	int Protection
@@ -30,7 +30,6 @@ BSTATUS MmMapViewOfFile(
 	if (!IoIsSeekable(FileObject))
 		return STATUS_UNSUPPORTED_FUNCTION;
 	
-	size_t ViewSize = *ViewSizeInOut;
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
@@ -48,8 +47,7 @@ BSTATUS MmMapViewOfFile(
 	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
-	*BaseAddressOut = (void*) Vad->Node.StartVa;
-	*ViewSizeInOut = PAGE_SIZE * ViewSizePages;
+	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
 	
 	return STATUS_SUCCESS;
@@ -65,7 +63,7 @@ BSTATUS MmMapViewOfFile(
 //     BaseAddressOut - The base address of the view.  If MEM_FIXED is specified, then the address
 //                      will be read from this parameter.
 //
-//     ViewSizeInOut - The size of the view in bytes.  This pointer will be accessed to store the
+//     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
 //                     size of the view after its creation.
 //
 //     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
@@ -79,7 +77,7 @@ BSTATUS MmMapViewOfFile(
 BSTATUS MmMapViewOfObject(
 	HANDLE MappedObject,
 	void** BaseAddressOut,
-	size_t* ViewSizeInOut,
+	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
 	int Protection
@@ -91,7 +89,7 @@ BSTATUS MmMapViewOfObject(
 	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (!ViewSizeInOut)
+	if (!ViewSize)
 		return STATUS_INVALID_PARAMETER;
 	
 	BSTATUS Status;
@@ -104,7 +102,7 @@ BSTATUS MmMapViewOfObject(
 		Status = MmMapViewOfFile(
 			FileObject,
 			BaseAddressOut,
-			ViewSizeInOut,
+			ViewSize,
 			AllocationType,
 			SectionOffset,
 			Protection

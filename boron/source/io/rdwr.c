@@ -163,6 +163,64 @@ BSTATUS IoPerformOperationFile(
 	return Status;
 }
 
+BSTATUS IoPerformPagingRead(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset
+)
+{
+	BSTATUS Status;
+	
+	ASSERT(FileObject->Fcb);
+	ASSERT(FileObject->Fcb->DispatchTable);
+	
+	int Flags = IO_RW_PAGING;
+	
+	PFCB Fcb = FileObject->Fcb;
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	// If the DISPATCH_FLAG_EXCLUSIVE flag is set, always lock the FCB's rwlock exclusively.
+	if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
+	{
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
+		Status = IoLockFcbExclusive(Fcb);
+	}
+	else
+	{
+		Status = IoLockFcbShared(Fcb);
+	}
+	
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+	
+	// Now perform the actual read operation.
+	IO_READ_METHOD ReadMethod = Dispatch->Read;
+	
+	if (!ReadMethod)
+	{
+		IoUnlockFcb(Fcb);
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	}
+	
+	Status = ReadMethod (Iosb, Fcb, FileOffset, Mdl, Flags);
+	
+	IoUnlockFcb(Fcb);
+	
+	if (Status == STATUS_SUCCESS)
+	{
+		// NOTE: Dropping status here.  It is not important whether or not the file
+		// was touched successfully after the operation was performed on it -- it's
+		// not considered important.
+		//
+		// The reason IopTouchFile returns a status is to implement a call called
+		// OSTouchFile which calls this underneath.
+		(void) IopTouchFile(Fcb, IO_OP_READ);
+	}
+	
+	return Status;
+}
+
 BSTATUS IoPerformOperationFileHandle(
 	PIO_STATUS_BLOCK Iosb, 
 	HANDLE Handle,

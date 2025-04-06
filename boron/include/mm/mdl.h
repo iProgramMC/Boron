@@ -18,7 +18,8 @@ Author:
 #include <status.h>
 #include <ke/mode.h>
 
-// XXX: This is completely arbitrary.
+// TODO: This is completely arbitrary.
+// Consider allowing a bigger size.
 #define MDL_MAX_SIZE (4*1024*1024)
 
 // If set, the MDL's Pages[] array has been filled in.
@@ -29,6 +30,12 @@ Author:
 
 // If set, the MDL reflects a write operation.
 #define MDL_FLAG_WRITE    (1 << 2)
+
+// If set, the MDL is allocated from the kernel pool.
+#define MDL_FLAG_FROMPOOL (1 << 3)
+
+// If set, the MDL is allocated from a pre-allocated pool of MDLs.
+//#define MDL_FLAG_PREALLOC (1 << 4)
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
@@ -45,6 +52,18 @@ typedef struct _MDL
 	MMPFN Pages[];
 }
 MDL, *PMDL;
+
+typedef struct _MDL_ONEPAGE
+{
+	MDL Base;
+	MMPFN Pages[1];
+}
+MDL_ONEPAGE, *PMDL_ONEPAGE;
+
+// Initializes an MDL structure with one physical page.
+//
+// Returns the pointer to the MDL instance that was initialized.
+PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn);
 
 // Allocates an MDL structure.
 PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);
@@ -68,5 +87,5 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress);
 // Unmaps an MDL from pool space.
 void MmUnmapPagesMdl(PMDL Mdl);
 
-// Deallocates the MDL structure, unmaps the MDL, and unpins the buffer.
+// Unmaps the MDL, and unpins the buffer, and deallocates the MDL if needed.
 void MmFreeMdl(PMDL Mdl);

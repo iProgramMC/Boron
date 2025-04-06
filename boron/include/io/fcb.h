@@ -20,6 +20,7 @@ Author:
 
 #include <ex/rwlock.h>
 #include <mm/cache.h>
+#include <io/dispatch.h>
 
 // Supported types of files:
 enum FILE_TYPE
@@ -89,4 +90,9 @@ static ALWAYS_INLINE inline void IoUnlockFcb(PFCB Fcb)
 static ALWAYS_INLINE inline void IoDemoteToSharedFcb(PFCB Fcb)
 {
 	ExDemoteToSharedRwLock(&Fcb->RwLock);
+}
+
+static ALWAYS_INLINE inline bool IoIsDirectlyMappable(PFCB Fcb)
+{
+	return Fcb->DispatchTable->Flags & DISPATCH_FLAG_DIRECTLY_MAPPABLE;
 }

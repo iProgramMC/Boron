@@ -462,15 +462,14 @@ static void MmpAddPfnToList(PMMPFN First, PMMPFN Last, MMPFN Current)
 	*Last = Current;
 }
 
-static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
+static void MmpInitializePfn(PMMPFDBE Pfdbe)
 {
-	if (*First == PFN_INVALID)
-		return PFN_INVALID;
+	ASSERT(MmPfnLock.Locked);
 	
-	int currPFN = *First;
-	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
+	if (Pfdbe->Type == PF_TYPE_USED)
+		return;
 	
-	if (pPF->Type == PF_TYPE_TRANSITION)
+	if (Pfdbe->Type == PF_TYPE_TRANSITION)
 	{
 		// This is a transition page.  Zero out what's at the prototype PTE's address to reclaim.
 		//
@@ -488,17 +487,30 @@ static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 		//       MiDetransitionPfn(PFN(pte))
 		//       release PTE lock
 		//   }
-		ASSERT(pPF->PrototypePte);
+		ASSERT(Pfdbe->PrototypePte);
 		
-		uintptr_t* Ptr = (uintptr_t*) pPF->PrototypePte;
+		uintptr_t* Ptr = (uintptr_t*) Pfdbe->PrototypePte;
 		AtClear(*Ptr);
 	}
 	
-	pPF->Type = PF_TYPE_USED;
-	pPF->RefCount = 1;
-	MmpRemovePfnFromList(First, Last, *First);
-	
+	Pfdbe->Type = PF_TYPE_USED;
+	Pfdbe->RefCount = 1;
+	Pfdbe->NextFrame = 0;
+	Pfdbe->PrevFrame = 0;
+	Pfdbe->PrototypePte = 0;
 	MmTotalFreePages--;
+}
+
+static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
+{
+	if (*First == PFN_INVALID)
+		return PFN_INVALID;
+	
+	int currPFN = *First;
+	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
+	
+	MmpRemovePfnFromList(First, Last, *First);
+	MmpInitializePfn(pPF);
 	
 	return currPFN;
 }
@@ -521,6 +533,18 @@ MMPFN MmAllocatePhysicalPage()
 #endif
 	
 	return currPFN;
+}
+
+void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	// If this page is freed after this operation, then the prototype
+	// PTE will be atomically set to zero when reclaimed.
+	MmGetPageFrameFromPFN(Pfn)->PrototypePte = (uint64_t) PrototypePte;
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
 void MmFreePhysicalPage(MMPFN pfn)
@@ -547,42 +571,30 @@ void MmFreePhysicalPage(MMPFN pfn)
 			MmReclaimedPageCount++;
 #endif
 		
-		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
-		PageFrame->Type = PF_TYPE_FREE;
-		MmTotalFreePages++;
-	}
-	
-	KeReleaseSpinLock(&MmPfnLock, OldIpl);
-}
-
-void MmFreePhysicalPageIntoStandby(MMPFN pfn, uintptr_t* PrototypePte)
-{
-	KIPL OldIpl;
-	
-#ifdef PMMDEBUG
-	DbgPrint("MmFreePhysicalPageIntoStandby()     <= %d (RA:%p)", pfn, __builtin_return_address(0));
-#endif
-	
-	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
-	
-	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(pfn);
-	
-	ASSERT(PageFrame->Type == PF_TYPE_USED || PageFrame->Type == PF_TYPE_RECLAIM);
-	
-	int RefCount = --PageFrame->RefCount;
-	ASSERT(RefCount >= 0);
-	
-	if (RefCount <= 0)
-	{
-#ifdef DEBUG
-		if (PageFrame->Type == PF_TYPE_RECLAIM)
-			MmReclaimedPageCount++;
-#endif
-		
-		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
-		PageFrame->Type = PF_TYPE_TRANSITION;
-		PageFrame->PrototypePte = (uint64_t) PrototypePte;
-		MmTotalFreePages++;
+		if (PageFrame->PrototypePte)
+		{
+			// This is part of a cache control block.  Was this written?
+			if (PageFrame->Modified)
+			{
+				// Yes, we should add it to the modified list.
+				//
+				// TODO: Signal the modified page writter to start writing.
+				MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, pfn);
+			}
+			else
+			{
+				MmpAddPfnToList(&MiFirstStandbyPFN, &MiLastStandbyPFN, pfn);
+				PageFrame->Type = PF_TYPE_TRANSITION;
+				MmTotalFreePages++;
+			}
+		}
+		else
+		{
+			// This page is completely free.
+			MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+			PageFrame->Type = PF_TYPE_FREE;
+			MmTotalFreePages++;
+		}
 	}
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
@@ -652,17 +664,29 @@ void MmFreePhysicalPageHHDM(void* page)
 	return MmFreePhysicalPage(MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(page)));
 }
 
+void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
+	PageFrame->RefCount++;
+	
+	// If its reference count is 1, then we should remove it from any
+	// free lists and initialize it as if it were reallocated.
+	if (PageFrame->RefCount <= 1)
+	{
+		// (if it's less than 1 now then it was negative before)
+		ASSERT(PageFrame->RefCount == 1);
+		MiDetransitionPfn(Pfn);
+	}
+}
+
 void MmPageAddReference(MMPFN Pfn)
 {
-	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
-	
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
-	ASSERT(PageFrame);
-	ASSERT(PageFrame->Type == PF_TYPE_USED);
-	
-	PageFrame->RefCount++;
+	MiPageAddReferenceWithPfdbLocked(Pfn);
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }

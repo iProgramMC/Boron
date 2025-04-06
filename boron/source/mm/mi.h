@@ -41,6 +41,9 @@ int MiGetReferenceCountPfn(MMPFN Pfn);
 // The PFN lock must be held.
 void MiDetransitionPfn(MMPFN Pfn);
 
+// 
+void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn);
+
 // ===== Slab Allocator =====
 
 struct MISLAB_CONTAINER_tag;

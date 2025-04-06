@@ -17,6 +17,20 @@ Author:
 #include <ob.h>
 #include "iosb.h"
 
+#ifdef KERNEL
+
+// Performs a direct read operation over a file object.  This is only
+// for use by the kernel and should not be used by device drivers.
+
+BSTATUS IoPerformPagingRead(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset
+);
+
+#endif
+
 BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
 
 BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);

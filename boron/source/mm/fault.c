@@ -13,8 +13,9 @@ Author:
 	iProgramInCpp - 23 September 2023
 ***/
 #include "mi.h"
+#include <io.h>
 
-static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, int* OutPfn)
+static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
 {
 	// This PTE is demand paged.  Allocate a page.
 	int Pfn = MmAllocatePhysicalPage();
@@ -33,14 +34,253 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, int* OutPfn)
 	NewPte &= ~MM_PTE_PKMASK;
 	*PtePtr = NewPte;
 	
-	if (OutPfn)
-	{
-		MmPageAddReference(Pfn);
-		*OutPfn = Pfn;
-	}
-	
 	// Fault was handled successfully.
 	return STATUS_SUCCESS;
+}
+
+static BSTATUS MmpHandleFaultCommittedMappedPage(
+	UNUSED uintptr_t Va,
+	UNUSED PMMPTE PtePtr,
+	uintptr_t VaBase,
+	uint32_t VadFlagsLong,
+	uint64_t MappedOffset,
+	void* Object,
+	bool IsFile,
+	KIPL SpaceUnlockIpl
+)
+{
+	// NOTE: IPL is raised to APC level and the relevant address
+	// space's lock is held.  The VAD lock is not held.
+	//
+	// The address space's lock **must be released** at the end of
+	// this function.
+	//
+	// TODO: Perhaps we should implement a per-VAD mutex?  I'm not
+	// sure that's required, personally.  The case this would prevent
+	// is that the VAD is unmapped by the time the I/O operation
+	// that we will be doing finishes.  Then, the page is mapped into
+	// memory.
+	//
+	// This would end up with a page from the wrong VAD that was
+	// released, and potentially another VAD could be reserved
+	// in this very spot.
+	//
+	// Now, this is obviously just user error, but can this be exploited?
+	// Probably not.  When the page fault finishes, 
+	BSTATUS Status;
+	
+	MMVAD_FLAGS VadFlags;
+	VadFlags.LongFlags = VadFlagsLong;
+	
+	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
+	uint64_t FileOffset = VaBase - (Va & PageMask) + MappedOffset;
+	
+	// Is this a section?
+	if (!IsFile)
+	{
+		// TODO: Implement sections.  Note, they could probably
+		// share a lot of code with the file I/O cache stuff.
+		Status = STATUS_UNIMPLEMENTED;
+	}
+	else
+	{
+		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
+		PCCB CacheBlock = &FileObject->Fcb->CacheBlock;
+		
+		MMPFN Pfn = PFN_INVALID;
+		
+		MmLockCcb(CacheBlock);
+		
+		PCCB_ENTRY PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, false);
+		if (PCcbEntry && AtLoad(PCcbEntry->Long))
+		{
+			// Lock the physical memory lock because the page we're looking for
+			// might have been freed.
+			//
+			// This is, as far as I know, the only way.  Sure, if the CCB entry
+			// doesn't exist and it is zero, then you are able to skip over the
+			// PFN lock at no extra cost (you'd just be reloading the same page
+			// twice potentially)
+			KIPL Ipl = MiLockPfdb();
+			
+			// After this, the CCB entry cannot be changed.  This is because
+			// when a page is reclaimed the PFDB lock is held.
+			CCB_ENTRY CcbEntry;
+			if (PCcbEntry)
+				CcbEntry = *PCcbEntry;
+			
+			if (CcbEntry.Long)
+			{
+				// We managed to find the PFN in one piece.  Add a reference to it as we
+				// will just map it directly.
+				Pfn = CcbEntry.U.Pfn;
+				MiPageAddReferenceWithPfdbLocked(Pfn);
+			}
+			
+			MiUnlockPfdb(Ipl);
+		}
+		
+		MmUnlockCcb(CacheBlock);
+		
+		// Did we find the PFN already?
+		if (Pfn != PFN_INVALID)
+		{
+			// As it turns out, yes!
+			MMPTE NewPte = *PtePtr;
+			NewPte &= ~MM_DPTE_COMMITTED;
+			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
+			NewPte |=  MmPFNToPhysPage(Pfn);
+			NewPte &= ~MM_PTE_PKMASK;
+			
+			if (VadFlags.Cow)
+				NewPte |= MM_PTE_COW;
+			
+			*PtePtr = NewPte;
+			
+			DbgPrint("%s: hooray! page fault fulfilled by cached fetch", __func__);
+			Status = STATUS_SUCCESS;
+			goto Exit;
+		}
+		
+		// No, we didn't find the PFN already.
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+		SpaceUnlockIpl = -1;
+		
+		// First, ensure the CCB entry can be there.
+		MmLockCcb(CacheBlock);
+		PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, true);
+		MmUnlockCcb(CacheBlock);
+		
+		if (!PCcbEntry)
+		{
+			// Out of memory.
+			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (1)", __func__);
+			Status = STATUS_REFAULT_SLEEP;
+			goto Exit;
+		}
+		
+		// Allocate a PFN now, do a read, and then put it into the CCB.
+		Pfn = MmAllocatePhysicalPage();
+		if (Pfn == PFN_INVALID)
+		{
+			// Out of memory.
+			DbgPrint("%s: out of memory because a page frame couldn't be allocated", __func__);
+			MmUnlockCcb(CacheBlock);
+			Status = STATUS_REFAULT_SLEEP;
+			goto Exit;
+		}
+		
+		// Okay.  Let's perform the IO on this PFN.
+		MDL_ONEPAGE Mdl;
+		MmInitializeSinglePageMdl(&Mdl, Pfn);
+		
+		IO_STATUS_BLOCK Iosb;
+		Status = IoPerformPagingRead(
+			&Iosb,
+			FileObject,
+			&Mdl.Base,
+			FileOffset
+		);
+		
+		MmFreeMdl(&Mdl.Base);
+		
+		if (FAILED(Status))
+		{
+			// Ran out of memory trying to read this file.
+			// Let the MM know we need more memory.
+			DbgPrint("%s: cannot answer page fault because I/O failed with code %d", __func__, Status);
+			MmFreePhysicalPage(Pfn);
+			MmUnlockCcb(CacheBlock);
+			if (Status == STATUS_INSUFFICIENT_MEMORY)
+				Status = STATUS_REFAULT_SLEEP;
+			goto Exit;
+		}
+		
+		// The I/O operation has succeeded.
+		// Prepare the CCB entry.
+		CCB_ENTRY CcbEntryNew;
+		CcbEntryNew.Long = 0;
+		CcbEntryNew.U.Pfn = Pfn;
+		
+		// It's time to put this in the CCB and then map.
+		MmLockCcb(CacheBlock);
+		PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, true);
+		if (!PCcbEntry)
+		{
+			// Out of memory.  Did someone remove our prior allocation?
+			// Well, we've got almost no choice but to throw away our result.
+			//
+			// (We could instead beg the memory manager for more memory, but
+			// I don't feel like writing that right now.)
+			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
+			MmFreePhysicalPage(Pfn);
+			MmUnlockCcb(CacheBlock);
+			Status = STATUS_REFAULT_SLEEP;
+			goto Exit;
+		}
+		
+		// There you are!
+		//
+		// If the CCB entry is zero, then it'll be populated with the
+		// new CCB entry.  Otherwise, there's something already there
+		// and we have simply wasted our time and we need to refault.
+		uint64_t Expected = 0;
+		if (AtCompareExchange(&PCcbEntry->Long, &Expected, CcbEntryNew.Long))
+		{
+			// Compare-exchange successful.  Note: we are surrendering
+			// our reference of the physical page to the CCB.
+			MmUnlockCcb(CacheBlock);
+			
+			// Acquire the address space lock now.
+			SpaceUnlockIpl = MmLockSpaceExclusive(Va);
+			
+			MMPTE NewPte = *PtePtr;
+			
+			// Are you already present?!
+			if (NewPte & MM_PTE_PRESENT)
+			{
+				// Yeah, you seem to already be present.  So we just
+				// wasted all of our time.
+				DbgPrint("%s: va already valid by the time IO was made (%p)", __func__, Va);
+				MmFreePhysicalPage(Pfn);
+				Status = STATUS_SUCCESS;
+				goto Exit;
+			}
+			
+			NewPte &= ~MM_DPTE_COMMITTED;
+			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
+			NewPte |=  MmPFNToPhysPage(Pfn);
+			NewPte &= ~MM_PTE_PKMASK;
+			
+			if (VadFlags.Cow)
+				NewPte |= MM_PTE_COW;
+			
+			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
+			
+			*PtePtr = NewPte;
+			
+			DbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
+			Status = STATUS_SUCCESS;
+			goto Exit;
+		}
+		
+		// Something's already there!
+		// It's most likely a good page, so let's just refault.
+		DbgPrint("%s: ccb already found by the time IO was made (%p), refaulting", __func__, Va);
+		Status = STATUS_REFAULT;
+		MmUnlockCcb(CacheBlock);
+	}
+	
+Exit:
+	ObDereferenceObject(Object);
+	
+	if (SpaceUnlockIpl >= 0)
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+	
+	if (FAILED(Status))
+		DbgPrint("%s: failed to fulfill page fault with code %d", __func__, Status);
+	
+	return Status;
 }
 
 BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl)
@@ -107,46 +347,32 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
-	// Now the PTE is here and we can commit it.
-	*PtePtr = Vad->Flags.Protection;
-	
 	// Check if there is an object to read from.
-	void* VadObject = NULL;
-	bool IsVadObjectFile = false;
-	int Pfn = 0;
 	if (Vad->Mapped.Object)
 	{
-		// There is.  After committing the page, we will read from the object to the page.
-		VadObject = ObReferenceObjectByPointer(Vad->Mapped.Object);
-		IsVadObjectFile = Vad->Flags.IsFile;
+		void* Object = ObReferenceObjectByPointer(Vad->Mapped.Object);
+		bool IsFile = Vad->Flags.IsFile;
+		uintptr_t VaBase = Vad->Node.StartVa;
+		uint32_t VadFlagsLong = Vad->Flags.LongFlags;
+		uint64_t VadMappedOffset = Vad->SectionOffset;
+		
+		// (Access to the VAD is no longer required now)
+		MmUnlockVadList(VadList);
+		
+		// There is.  Handle this page fault separately.
+		return MmpHandleFaultCommittedMappedPage(Va, PtePtr, VaBase, VadFlagsLong, VadMappedOffset, Object, IsFile, SpaceUnlockIpl);
 	}
+	
+	// Now the PTE is here and we can commit it.
+	*PtePtr = Vad->Flags.Protection;
 	
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
 	
-	// If there is a VAD object, we need to know the PFN that we will be reading into.
-	Status = MmpHandleFaultCommittedPage(PtePtr, VadObject ? &Pfn : NULL);
-	
-	if (!VadObject || FAILED(Status))
-	{
-		// This is all we needed to do for the non-object-backed case.
-		MmUnlockSpace(SpaceUnlockIpl, Va);
-		return Status;
-	}
-	
-	// Now, we will unlock the address space, because this is all we needed to mutate.
-	// However, we will remain in IPL_APC to prevent an APC from interrupting the
-	// page fault read process.
-	MmUnlockSpace(IPL_APC, Va);
-	
-	// Now, initiate the actual read.
-	// TODO
-	Status = STATUS_UNIMPLEMENTED; // #4
-	
-	
-	MmFreePhysicalPage(Pfn);
-	ObDereferenceObject(VadObject);
-	KeLowerIPL(SpaceUnlockIpl);
+	Status = MmpHandleFaultCommittedPage(PtePtr);
+
+	// This is all we needed to do for the non-object-backed case.
+	MmUnlockSpace(SpaceUnlockIpl, Va);
 	return Status;
 }
 

@@ -23,7 +23,7 @@ Author:
 BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection)
 {
 	// Check if the provided address range is valid.
-	if (!MmIsAddressRangeValid(StartVa, StartVa + SizePages * PAGE_SIZE, MODE_USER))
+	if (!MmIsAddressRangeValid(StartVa, SizePages * PAGE_SIZE, MODE_USER))
 		return STATUS_INVALID_PARAMETER;
 	
 	// Check if the range passed in overlaps two or more VADs, or none
@@ -159,7 +159,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 {
 	// Check if the provided address range is valid.
-	if (!MmIsAddressRangeValid(StartVa, StartVa + SizePages * PAGE_SIZE, MODE_USER))
+	if (!MmIsAddressRangeValid(StartVa, SizePages * PAGE_SIZE, MODE_USER) || SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
 	
 	// Check if the range passed in overlaps two or more VADs, or none

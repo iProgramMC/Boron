@@ -46,6 +46,9 @@ typedef union
 		// If this region is private (so, not duplicated across forks for example)
 		int Private : 1;
 		
+		// If this region is marked as "copy on write"
+		int Cow : 1;
+		
 		// If this region is a file object, as opposed to a section object, or nothing.
 		int IsFile : 1;
 	};

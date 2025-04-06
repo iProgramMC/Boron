@@ -31,8 +31,20 @@ typedef int MMPFN, *PMMPFN;
 typedef struct
 {
 	// Flags for the specifically referenced page frame.
-	int Type : 4;
-	int Flags : 28;
+	struct
+	{
+		unsigned Type : 4;
+		
+		// Flags
+		
+		// If this flag is set, then, when every reference is removed from
+		// the page frame, and it's part of a CCB, then this page is placed
+		// on the modified page list and will be written to the referenced
+		// file.
+		unsigned Modified : 1;
+		
+		unsigned Spare : 27;
+	};
 	
 	// Disregard if this is allocated.  Eventually these will be part of a union
 	// where they will take on different roles depending on the role of the page.
