@@ -430,6 +430,8 @@ void MiDetransitionPfn(MMPFN Pfn)
 	ASSERT(MmPfnLock.Locked);
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
 	
+	ASSERT(Pfdbe->PrototypePte && "How did we recover this page?!");
+	
 	MmpUnlinkPfn(Pfdbe);
 	MmpEnsurePfnIsntEndsOfList(&MiFirstStandbyPFN, &MiLastStandbyPFN, Pfdbe, Pfn);
 	MmpEnsurePfnIsntEndsOfList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfdbe, Pfn);
@@ -490,7 +492,7 @@ static void MmpInitializePfn(PMMPFDBE Pfdbe)
 		ASSERT(Pfdbe->PrototypePte);
 		
 		uintptr_t* Ptr = (uintptr_t*) Pfdbe->PrototypePte;
-		AtClear(*Ptr);
+		AtStore(*Ptr, 0);
 	}
 	
 	Pfdbe->Type = PF_TYPE_USED;
@@ -576,7 +578,9 @@ void MmFreePhysicalPage(MMPFN pfn)
 			// This is part of a cache control block.  Was this written?
 			if (PageFrame->Modified)
 			{
-				// Yes, we should add it to the modified list.
+				// Yes, we should add it to the modified list. However, this
+				// page will remain marked as "used" until the modified page
+				// writer actually writes to the page.
 				//
 				// TODO: Signal the modified page writter to start writing.
 				MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, pfn);

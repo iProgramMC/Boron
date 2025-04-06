@@ -298,7 +298,7 @@ PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn)
 	// can be quickly allocated on the stack to perform I/O operations.
 	
 	Mdl->Base.ByteOffset = 0;
-	Mdl->Base.Flags = 0;
+	Mdl->Base.Flags = MDL_FLAG_CAPTURED;
 	Mdl->Base.Available = 0;
 	Mdl->Base.ByteCount = PAGE_SIZE;
 	Mdl->Base.SourceStartVA = (uintptr_t) -1ULL;

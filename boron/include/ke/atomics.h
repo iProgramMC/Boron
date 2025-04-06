@@ -63,4 +63,6 @@ Author:
 // Compares the contents of *var with the contents of *exp.  If they match, des is written to *var and true is returned.
 // Otherwise, the contents of *var are written to *exp and false is returned.
 
+// Note for AtClear: Don't use for anything other than bool and char.
+
 #endif//BORON_KE_ATOMICS_H

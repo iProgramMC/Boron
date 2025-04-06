@@ -39,8 +39,8 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
 }
 
 static BSTATUS MmpHandleFaultCommittedMappedPage(
-	UNUSED uintptr_t Va,
-	UNUSED PMMPTE PtePtr,
+	uintptr_t Va,
+	PMMPTE PtePtr,
 	uintptr_t VaBase,
 	uint32_t VadFlagsLong,
 	uint64_t MappedOffset,
@@ -126,16 +126,14 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		if (Pfn != PFN_INVALID)
 		{
 			// As it turns out, yes!
-			MMPTE NewPte = *PtePtr;
-			NewPte &= ~MM_DPTE_COMMITTED;
-			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
-			NewPte |=  MmPFNToPhysPage(Pfn);
-			NewPte &= ~MM_PTE_PKMASK;
+			MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | MmPFNToPhysPage(Pfn);
 			
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
 			
 			*PtePtr = NewPte;
+			
+			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
 			
 			DbgPrint("%s: hooray! page fault fulfilled by cached fetch", __func__);
 			Status = STATUS_SUCCESS;
@@ -169,6 +167,8 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
 		}
+		
+		MMPFDBE* MmGetPageFrameFromPFN(MMPFN Pfn);
 		
 		// Okay.  Let's perform the IO on this PFN.
 		MDL_ONEPAGE Mdl;
@@ -234,6 +234,18 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			// Acquire the address space lock now.
 			SpaceUnlockIpl = MmLockSpaceExclusive(Va);
 			
+			// We need to refetch the PTE pointer because it may have been
+			// freed in the meantime.
+			PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Va, true);
+			if (!PtePtr)
+			{
+				DbgPrint("%s: out of memory because PFN entry couldn't be allocated", __func__);
+				MmFreePhysicalPage(Pfn);
+				MmUnlockCcb(CacheBlock);
+				Status = STATUS_REFAULT_SLEEP;
+				goto Exit;
+			}
+			
 			MMPTE NewPte = *PtePtr;
 			
 			// Are you already present?!
@@ -247,10 +259,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				goto Exit;
 			}
 			
-			NewPte &= ~MM_DPTE_COMMITTED;
-			NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
-			NewPte |=  MmPFNToPhysPage(Pfn);
-			NewPte &= ~MM_PTE_PKMASK;
+			NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | MmPFNToPhysPage(Pfn);
 			
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
