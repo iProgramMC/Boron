@@ -16,6 +16,7 @@ Author:
 #include <mm.h>
 #include <io.h>
 #include <ex.h>
+#include <string.h>
 #include "utils.h"
 
 static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
@@ -58,13 +59,49 @@ void PerformMm3Test_()
 		KeCrash("Mm3: failed to close handle: %d", Status);
 }
 
+void SimulateMemoryPressure()
+{
+#define MAX_PFNS 1000000
+	LogMsg("Wasting every PFN, up to %d...", MAX_PFNS);
+	PMMPFN Pfns = MmAllocatePool(POOL_NONPAGED, sizeof(MMPFN) * MAX_PFNS);
+	int PfnCount = 0;
+	
+	memset(Pfns, 0, sizeof(MMPFN) * MAX_PFNS);
+	
+	while (PfnCount < MAX_PFNS)
+	{
+		MMPFN Pfn = MmAllocatePhysicalPage();
+		
+		if (Pfn == PFN_INVALID)
+			break;
+		
+		Pfns[PfnCount++] = Pfn;
+	}
+	
+	LogMsg("Every PFN (%d) is now used, freeing.", PfnCount);
+	
+	for (int i = 0; i < PfnCount; i++)
+		MmFreePhysicalPage(Pfns[i]);
+	
+	MmFreePool(Pfns);
+	
+	LogMsg("Freeing is complete.");
+}
 
 void PerformMm3Test()
 {
+	LogMsg("Performing delay so everything calms down");
+	PerformDelay(5000, NULL);
+	
 	LogMsg("Performing Mm3 test once...");
 	PerformMm3Test_();
 	LogMsg("Performing Mm3 test once more...");
 	PerformMm3Test_();
+	LogMsg("Performing Mm3 test one last time...");
+	PerformMm3Test_();
+	
+	SimulateMemoryPressure();
+	
 	LogMsg("Performing Mm3 test one last time...");
 	PerformMm3Test_();
 }

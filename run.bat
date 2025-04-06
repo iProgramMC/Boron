@@ -15,7 +15,7 @@ if exist %nspath%\vdiske2.vdi (
 
 qemu-system-x86_64.exe -no-reboot -no-shutdown ^
 -M q35 ^
--m 64M ^
+-m 8M ^
 -smp 4 ^
 -boot d ^
 -display sdl ^
