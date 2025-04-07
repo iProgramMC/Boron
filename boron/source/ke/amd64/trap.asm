@@ -130,7 +130,7 @@ KiTrapCommon:
 	add   rsp, 16                          ; Pop the interrupt number and the error code
 	iretq
 
-extern MmGetHHDMBase
+extern MmHHDMBase
 global KiHandleTlbShootdownIpiA
 KiHandleTlbShootdownIpiA:
 	; rdi - registers
@@ -153,7 +153,7 @@ KiHandleTlbShootdownIpiA:
 	mov  byte [gs:0x10], 0
 	
 	; also mark the end of the interrupt
-	call MmGetHHDMBase
+	mov  rax, MmHHDMBase
 	mov  rcx, 0x00000000FEE00000
 	add  rax, rcx
 	mov  dword [rax + 0xB0], 0

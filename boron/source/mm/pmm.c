@@ -29,6 +29,8 @@ size_t MmTotalFreePages;
 size_t MmReclaimedPageCount;
 #endif
 
+uintptr_t MmHHDMBase;
+
 size_t MmGetTotalFreePages()
 {
 	return MmTotalFreePages;
@@ -36,7 +38,7 @@ size_t MmGetTotalFreePages()
 
 uint8_t* MmGetHHDMBase()
 {
-	return (uint8_t*)KeLimineHhdmRequest.response->offset;
+	return (uint8_t*)MmHHDMBase;
 }
 
 void* MmGetHHDMOffsetAddr(uintptr_t physAddr)
@@ -241,6 +243,8 @@ void MiInitPMM()
 	{
 		KeCrashBeforeSMPInit("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLimineHhdmRequest.response->offset);
 	}
+	
+	MmHHDMBase = KeLimineHhdmRequest.response->offset;
 	
 	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
 	
