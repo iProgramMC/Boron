@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023-2024 iProgramInCpp
+	Copyright (C) 2023-2025 iProgramInCpp
 
 Module name:
 	ex/init.c
@@ -15,6 +15,7 @@ Author:
 #include "exp.h"
 #include <io.h>
 #include <ps.h>
+#include <ldr.h>
 
 INIT
 bool ExInitSystem()
@@ -58,6 +59,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	
 	if (!IoInitSystem())
 		KeCrash("Could not initialize I/O manager");
+	
+	//if (!LdrPrepareInitialRoot())
+	//	KeCrash("Could not prepare initial root");
 	
 	KeTerminateThread(0);
 }

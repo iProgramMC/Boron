@@ -228,12 +228,13 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		if (*Pte & MM_PTE_PRESENT)
 		{
 			// The PTE is present. If it doesn't come from the PMM, then
-			// it doesn't belong here, as far as this code knows.
-			ASSERT(*Pte & MM_PTE_ISFROMPMM);
-			
-			// Free the physical page.
-			MMPFN Pfn = MmPhysPageToPFN(*Pte & MM_PTE_ADDRESSMASK);
-			MmFreePhysicalPage(Pfn);
+			// it's MMIO and it's not tracked.
+			if (*Pte & MM_PTE_ISFROMPMM)
+			{
+				// Free the physical page.
+				MMPFN Pfn = MmPhysPageToPFN(*Pte & MM_PTE_ADDRESSMASK);
+				MmFreePhysicalPage(Pfn);
+			}
 		}
 		else if (*Pte != 0)
 		{

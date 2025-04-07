@@ -247,6 +247,8 @@ BSTATUS KbdRead(
 	Iosb->BytesRead = Length;
 	Iosb->Status = STATUS_SUCCESS;
 	
+	//MmUnmapPagesMdl(Mdl);
+	
 	return STATUS_SUCCESS;
 }
 

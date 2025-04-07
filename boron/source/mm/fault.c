@@ -387,7 +387,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 {
 	// This is a write fault:
 	//
-	// There are two types:
+	// There are more than two types, but this is what we handle right now:
 	// - Copy on write fault
 	// - Access violation
 	//
@@ -400,10 +400,15 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		// The page will only be copied if the page has a reference count of more than one.
 		KIPL Ipl = MiLockPfdb();
 		
-		MMPFN Pfn = (*PtePtr & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
+		int RefCount = 1;
+		MMPFN Pfn = PFN_INVALID;
 		
-		int RefCount = MiGetReferenceCountPfn(Pfn);
-		ASSERT(RefCount > 0);
+		if (*PtePtr & MM_PTE_ISFROMPMM)
+		{
+			Pfn = (*PtePtr & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
+			RefCount = MiGetReferenceCountPfn(Pfn);
+			ASSERT(RefCount > 0);
+		}
 		
 		if (RefCount == 1)
 		{
@@ -433,7 +438,8 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 				(NewPfn * PAGE_SIZE);
 			
 			// Finally, free the reference to the old page frame.
-			MmFreePhysicalPage(Pfn);
+			if (Pfn != PFN_INVALID)
+				MmFreePhysicalPage(Pfn);
 		}
 		
 		return STATUS_SUCCESS;

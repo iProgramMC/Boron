@@ -55,4 +55,6 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 void LdrInitAfterHal();
 #endif
 
+bool LdrPrepareInitialRoot();
+
 #endif//NS64_LDR_H
