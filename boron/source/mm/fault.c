@@ -170,7 +170,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		
 		// Okay.  Let's perform the IO on this PFN.
 		MDL_ONEPAGE Mdl;
-		MmInitializeSinglePageMdl(&Mdl, Pfn);
+		MmInitializeSinglePageMdl(&Mdl, Pfn, MDL_FLAG_WRITE);
 		
 		IO_STATUS_BLOCK Iosb;
 		Status = IoPerformPagingRead(

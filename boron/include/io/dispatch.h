@@ -155,6 +155,13 @@ enum
 	// If this flag is set, then the FCB is directly mappable and you should be
 	// using IO_BACKING_MEM_METHOD instead of the cache control block.
 	DISPATCH_FLAG_DIRECTLY_MAPPABLE = 1 << 1,
+	
+	// If this flag is set, then a file object that is attached to the object
+	// manager namespace may just be duplicated, instead of attempting to parse
+	// it as a directory, when opened.
+	//
+	// File system drivers should not set this value.
+	DISPATCH_FLAG_DIRECTLY_OPENABLE = 1 << 2,
 };
 
 typedef struct _IO_DISPATCH_TABLE

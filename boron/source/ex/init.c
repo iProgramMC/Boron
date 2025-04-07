@@ -60,8 +60,8 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!IoInitSystem())
 		KeCrash("Could not initialize I/O manager");
 	
-	//if (!LdrPrepareInitialRoot())
-	//	KeCrash("Could not prepare initial root");
+	if (!LdrPrepareInitialRoot())
+		KeCrash("Could not prepare initial root");
 	
 	KeTerminateThread(0);
 }

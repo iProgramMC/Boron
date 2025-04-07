@@ -64,14 +64,8 @@ static void LdriFixUpPath(PLIMINE_FILE File)
 INIT
 static void LdriLoadFile(PLIMINE_FILE File)
 {
-	if (LdriEndsWith(File->path, ".sys") || LdriEndsWith(File->path, ".dll"))
-	{
+	if (LdriEndsWith(File->path, ".sys"))
 		LdriLoadDll(File);
-	}
-	else
-	{
-		DbgPrint("Unknown file extension for file %s", File->path);
-	}
 }
 
 static PLIMINE_FILE HalFile = NULL;

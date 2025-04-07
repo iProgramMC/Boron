@@ -34,6 +34,8 @@ bool LdrInitRootIsSeekable(UNUSED PFCB Fcb)
 
 BSTATUS LdrInitRootRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, UNUSED uint32_t Flags)
 {
+	ASSERT(MdlBuffer->Flags & MDL_FLAG_WRITE);
+	
 	BSTATUS Status;
 	PINIT_ROOT_FCB_EXT Ext = (PINIT_ROOT_FCB_EXT) Fcb->Extension;
 	
@@ -66,37 +68,24 @@ BSTATUS LdrInitRootRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL M
 
 static IO_DISPATCH_TABLE LdrpInitRootDispatchTable =
 {
+	.Flags = DISPATCH_FLAG_DIRECTLY_OPENABLE,
 	.Read = LdrInitRootRead,
 	.Seekable = LdrInitRootIsSeekable,
 };
 
-POBJECT_DIRECTORY LdriCreateInitialDirs()
+POBJECT_DIRECTORY LdriCreateInitialDir()
 {
 	BSTATUS Status;
-	POBJECT_DIRECTORY RootDir, BoronDir, BinDir;
+	POBJECT_DIRECTORY RootDir;
 	
-	Status = ObCreateDirectoryObject(&RootDir, NULL, "Root", OB_FLAG_PERMANENT);
+	Status = ObCreateDirectoryObject(&RootDir, NULL, "\\Root", OB_FLAG_PERMANENT);
 	if (FAILED(Status))
 	{
 		DbgPrint("Ldr: Failed to create \\Root directory (%d)", Status);
 		return false;
 	}
 	
-	Status = ObCreateDirectoryObject(&BoronDir, RootDir, "Boron", OB_FLAG_PERMANENT);
-	if (FAILED(Status))
-	{
-		DbgPrint("Ldr: Failed to create \\Root\\Boron directory (%d)", Status);
-		return false;
-	}
-	
-	Status = ObCreateDirectoryObject(&BinDir, BoronDir, "Bin", OB_FLAG_PERMANENT);
-	if (FAILED(Status))
-	{
-		DbgPrint("Ldr: Failed to create \\Root\\Boron\\Bin directory (%d)", Status);
-		return false;
-	}
-	
-	return BinDir;
+	return RootDir;
 }
 
 bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
@@ -150,8 +139,8 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 
 bool LdrPrepareInitialRoot()
 {
-	POBJECT_DIRECTORY BinDir = LdriCreateInitialDirs();
-	if (!BinDir)
+	POBJECT_DIRECTORY RootDir = LdriCreateInitialDir();
+	if (!RootDir)
 		return false;
 	
 	// Prepare the device object.
@@ -172,9 +161,21 @@ bool LdrPrepareInitialRoot()
 	for (uint64_t i = 0; i < Response->module_count; i++)
 	{
 		PLIMINE_FILE File = Response->modules[i];
-		if (!LdriAddFile(BinDir, File))
+		if (!LdriAddFile(RootDir, File))
 			return false;
 	}
+	
+#ifdef DEBUG2
+	extern POBJECT_DIRECTORY ObpRootDirectory;
+	extern BSTATUS ObpDebugDirectory(void* DirP);
+	
+	DbgPrint("- Init Root setup complete -");
+	
+	DbgPrint("Dumping root directory:");
+	ObpDebugDirectory(ObpRootDirectory);
+	DbgPrint("Dumping bin directory:");
+	ObpDebugDirectory(BinDir);
+#endif
 	
 	return true;
 }

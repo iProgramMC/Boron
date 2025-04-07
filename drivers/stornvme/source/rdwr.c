@@ -123,7 +123,7 @@ BSTATUS NvmePerformIoOperation(
 
 BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uint32_t Flags)
 {
-	//ASSERT(Mdl->Flags & MDL_FLAG_WRITE);
+	ASSERT(Mdl->Flags & MDL_FLAG_WRITE);
 	
 	size_t Length = Mdl->ByteCount;
 	

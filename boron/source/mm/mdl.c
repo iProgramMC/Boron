@@ -292,13 +292,13 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	return STATUS_SUCCESS;
 }
 
-PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn)
+PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn, int Flags)
 {
 	// Initializes an instance of a single page PFN.  This structure
 	// can be quickly allocated on the stack to perform I/O operations.
 	
 	Mdl->Base.ByteOffset = 0;
-	Mdl->Base.Flags = MDL_FLAG_CAPTURED;
+	Mdl->Base.Flags = MDL_FLAG_CAPTURED | Flags;
 	Mdl->Base.Available = 0;
 	Mdl->Base.ByteCount = PAGE_SIZE;
 	Mdl->Base.SourceStartVA = (uintptr_t) -1ULL;

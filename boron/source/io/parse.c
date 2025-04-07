@@ -18,40 +18,55 @@ Author:
 static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const char** OutReparsePath, void** OutObject)
 {
 	BSTATUS Status;
+	PFCB FoundFcb = NULL;
 	IO_PARSE_DIR_METHOD Parse = Fcb->DispatchTable->ParseDir;
 	
 	if (!Parse)
 	{
-		IoUnlockFcb(Fcb);
-		return STATUS_NOT_A_DIRECTORY;
+		if (Fcb->DispatchTable->Flags & DISPATCH_FLAG_DIRECTLY_OPENABLE)
+		{
+			// This file cannot be parsed as a directory but it's directly openable
+			// so let's do that.  This is only used by the init root file system.
+			FoundFcb = Fcb;
+			*OutReparsePath = NULL;
+		}
+		else
+		{
+			IoUnlockFcb(Fcb);
+			return STATUS_NOT_A_DIRECTORY;
+		}
 	}
 	
-	IO_STATUS_BLOCK Iosb;
-	
+	if (!FoundFcb)
+	{
+		// There is a possibility that this file is parsable, so let's do that.
+		IO_STATUS_BLOCK Iosb;
+		
+	#ifdef DEBUG
+		memset (&Iosb, 0, sizeof Iosb);
+	#endif
+		
+		Status = Parse(&Iosb, Fcb, Path, LoopCount);
+		
+		IoUnlockFcb(Fcb);
+		
+		if (FAILED(Status))
+			return Status;
+		
+		FoundFcb = Iosb.ParseDir.FoundFcb;
+		ASSERT(FoundFcb && "ParseDir is supposed to return an FCB if it returned a success value");
+		
+		ASSERT(Status == Iosb.Status && "ParseDir is supposed to return an identical status in its IOSB");
+		
+		*OutReparsePath = Iosb.ParseDir.ReparsePath;
+		
+		// Ensure that it's a substring of the current path in debug mode.
 #ifdef DEBUG
-	memset (&Iosb, 0, sizeof Iosb);
+		size_t Length = strlen (Path);
+		ASSERT((Iosb.ParseDir.ReparsePath == NULL || (Path <= Iosb.ParseDir.ReparsePath && Iosb.ParseDir.ReparsePath < Path + Length)) &&
+			"ParseDir is supposed to return a substring of the initial path or NULL");
 #endif
-	
-	Status = Parse(&Iosb, Fcb, Path, LoopCount);
-	
-	IoUnlockFcb(Fcb);
-	
-	if (FAILED(Status))
-		return Status;
-	
-	PFCB FoundFcb = Iosb.ParseDir.FoundFcb;
-	ASSERT(FoundFcb && "ParseDir is supposed to return an FCB if it returned a success value");
-	
-	ASSERT(Status == Iosb.Status && "ParseDir is supposed to return an identical status in its IOSB");
-	
-	*OutReparsePath = Iosb.ParseDir.ReparsePath;
-	
-	// Ensure that it's a substring of the current path in debug mode.
-#ifdef DEBUG
-	size_t Length = strlen (Path);
-	ASSERT((Iosb.ParseDir.ReparsePath == NULL || (Path <= Iosb.ParseDir.ReparsePath && Iosb.ParseDir.ReparsePath < Path + Length)) &&
-		"ParseDir is supposed to return a substring of the initial path or NULL");
-#endif
+	}
 	
 	// Create a file object based on that file and return.
 	// Note that ParseDir will have added a reference to the FCB.
@@ -64,10 +79,13 @@ static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const cha
 		0
 	);
 	
+	// this should be removed soon.  The FCB doesn't stay referenced if IopCreateFileObject failed.
+	/*
 	// If the file object couldn't be created (due to out of memory issues for example), then
 	// the found FCB will be dereferenced immediately.
 	if (FAILED(Status))
 		IoDereferenceFcb(FoundFcb);
+	*/
 	
 	return Status;
 }
@@ -145,10 +163,6 @@ BSTATUS IopParseFile(void* Object, const char** ParsePath, UNUSED void* Context,
 	const char* PathName = *ParsePath;
 	
 	PFILE_OBJECT FileObject = Object;
-	IO_PARSE_DIR_METHOD ParseDir = FileObject->Fcb->DispatchTable->ParseDir;
-	
-	if (!ParseDir)
-		return STATUS_NOT_A_DIRECTORY;
 	
 	IoLockFcbShared(FileObject->Fcb);
 	return IopCallParse(FileObject->Fcb, PathName, LoopCount, ParsePath, OutObject);

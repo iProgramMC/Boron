@@ -63,8 +63,11 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 void IoFreeFcb(PFCB Fcb);
 
 // Dereferences an FCB.
+//
 // This calls its Dereference function.  The Boron executive does not store the
 // reference count of an FCB.
+//
+// (The FCB's reference count is increased every time IO_CREATE_OBJ_METHOD is called)
 void IoDereferenceFcb(PFCB Fcb);
 
 // TODO: Maybe the waits should be alertable?

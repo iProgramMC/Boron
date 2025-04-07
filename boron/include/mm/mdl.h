@@ -61,9 +61,10 @@ typedef struct _MDL_ONEPAGE
 MDL_ONEPAGE, *PMDL_ONEPAGE;
 
 // Initializes an MDL structure with one physical page.
-//
 // Returns the pointer to the MDL instance that was initialized.
-PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn);
+//
+// Do not use MDL_FLAG_FROMPOOL or MDL_FLAG_MAPPED.
+PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn, int Flags);
 
 // Allocates an MDL structure.
 PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);
