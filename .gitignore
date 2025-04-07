@@ -1,6 +1,6 @@
 build/*
 boron/build/*
-loader/build/*
+borondll/build/*
 .keep/*
 limine/*
 keep/*
