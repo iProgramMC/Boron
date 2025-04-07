@@ -127,3 +127,107 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 	if (Depth == 0)
 		HalDisplayString("Warning, stack trace too deep, increase the depth in " __FILE__ " if you need it");
 }
+
+#ifdef DEBUG
+
+//#define SERIAL
+#ifdef SERIAL
+
+// Serial Port Defines - Copied from NanoShell
+//
+// We are using COM1 here.
+#define PORT_BASE 0x3F8
+#define DLAB_ENABLE   (1 << 7)
+#define BAUD_DIVISOR  (0x0003)
+#define LCR_8BIT_DATA (3 << 0) // Data Bits - 8
+#define LCR_PAR_NONE  (0 << 3) // No Parity.
+#define FCR_ENABLE    (1 << 0)
+#define FCR_RFRES     (1 << 1)
+#define FCR_XFRES     (1 << 2)
+#define FCR_RXTRIG    (3 << 6)
+#define IER_NOINTS    (0)
+#define MCR_DTR       (1 << 0)
+#define MCR_RTS       (1 << 1)
+#define MCR_OUT1      (1 << 2)
+#define MCR_LOOPBK    (1 << 4) // loop-back
+#define S_RBR 0x00 // Receive buffer register (read only) same as...
+#define S_THR 0x00 // Transmitter holding register (write only)
+#define S_IER 0x01 // Interrupt enable register
+#define S_IIR 0x02 // Interrupt ident register (read only)...
+#define S_FCR 0x02 // FIFO control register (write only)
+#define S_LCR 0x03 // Line control register
+#define S_MCR 0x04 // Modem control register
+#define S_LSR 0x05 // Line status register
+#define S_MSR 0x06 // Modem status register
+
+#define S_CHECK_BYTE  0xCA
+
+void DbgInit()
+{
+	KePortWriteByte(PORT_BASE+1, IER_NOINTS);
+	
+	// Set Divisor to 3 -- 38400 baud
+	KePortWriteByte(PORT_BASE+0, BAUD_DIVISOR & 0xFF); 
+	KePortWriteByte(PORT_BASE+1, BAUD_DIVISOR  >>  8);
+	
+	// Set the data parity and bit size. 
+	KePortWriteByte(PORT_BASE+3, LCR_8BIT_DATA | LCR_PAR_NONE);
+	
+	// Enable FIFO
+	KePortWriteByte(PORT_BASE+2, FCR_RXTRIG | FCR_XFRES | FCR_RFRES | FCR_ENABLE);
+	
+	// Prepare modem control register
+	KePortWriteByte(PORT_BASE+4, MCR_OUT1 | MCR_RTS | MCR_DTR); // IRQs disabled, RTS/DSR set
+	
+	// set in loopback mode to test the serial chip
+	KePortWriteByte(PORT_BASE+4, MCR_LOOPBK | MCR_OUT1 | MCR_RTS);
+	
+	// Send a check byte, and check if we get it back
+	KePortWriteByte(PORT_BASE+0, S_CHECK_BYTE);
+	
+	if (KePortReadByte (PORT_BASE + 0) != S_CHECK_BYTE)
+	{
+		// Hope it still works
+	}
+	
+	// Set this serial PORT_BASE to normal operation
+	KePortWriteByte(PORT_BASE+4, MCR_OUT1 | MCR_RTS | MCR_DTR); // IRQs disabled, OUT#1 bit, no loop-back
+}
+
+void DbgPrintChar(char c)
+{
+	while ((KePortReadByte(PORT_BASE + S_LSR) & 0x20) == 0)
+		__asm__("pause");
+	
+	KePortWriteByte(PORT_BASE, c);
+}
+
+void DbgPrintString(const char* str)
+{
+	while (*str)
+	{
+		if (*str == '\n')
+			DbgPrintChar('\r');
+		DbgPrintChar(*str);
+		str++;
+	}
+}
+
+#else
+
+void DbgInit()
+{
+	// E9 port doesn't need initialization.
+}
+
+void DbgPrintString(const char* str)
+{
+	while (*str)
+	{
+		KePortWriteByte(0xE9, *str);
+		str++;
+	}
+}
+
+#endif
+#endif

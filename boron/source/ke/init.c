@@ -24,6 +24,7 @@ Author:
 NO_RETURN INIT
 void KiSystemStartup(void)
 {
+	DbgInit();
 	MiInitPMM();
 	MmInitAllocators();
 	KeSchedulerInitUP();

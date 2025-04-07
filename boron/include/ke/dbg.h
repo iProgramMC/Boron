@@ -16,9 +16,20 @@ Author:
 
 #include <main.h>
 
-void DbgPrintStackTrace(uintptr_t Frame);
+#ifdef DEBUG
+
+void DbgInit();
 
 void DbgPrintString(const char* str);
+
+#else
+
+#define DbgInit()
+#define DbgPrintString(str)
+
+#endif
+
+void DbgPrintStackTrace(uintptr_t Frame);
 
 uintptr_t DbgLookUpAddress(const char* Name);
 
