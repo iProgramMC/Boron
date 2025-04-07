@@ -92,7 +92,6 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	}
 	
 	// For recursive paging
-	DbgPrint("Creating pm %p", NewPageMappingResult);
 	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
 	
 	MmUnlockKernelSpace();

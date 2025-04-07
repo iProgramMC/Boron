@@ -25,6 +25,9 @@ KSPIN_LOCK KeTLBSLock;
 
 void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
 {
+	if (Length == 0)
+		Length = 1;
+	
 	// TODO: Is it a good idea to allow dynamic memory allocation before SMP init?
 	// I'll allow it for now...
 	//

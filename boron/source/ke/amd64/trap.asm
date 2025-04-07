@@ -119,6 +119,37 @@ KiTrapCommon:
 	add   rsp, 16                          ; Pop the interrupt number and the error code
 	iretq
 
+extern MmGetHHDMBase
+global KiHandleTlbShootdownIpiA
+KiHandleTlbShootdownIpiA:
+	; rdi - registers
+	; gs:0x00 - TLB shootdown start address
+	; gs:0x08 - Page count
+	; gs:0x10 - Spinlock (char)
+	; Return the registers in rax.
+	mov  r15, rdi
+	mov  rax, [gs:0x00]
+	
+	; note: count may never be zero - ensured by KeIssueTLBShootDown
+	mov  rcx, [gs:0x08]
+.loop:
+	invlpg [rax]
+	add  rax, 4096
+	dec  rcx
+	jnz  .loop
+	
+	; done invalidating, clear the spinlock to 0
+	mov  byte [gs:0x10], 0
+	
+	; also mark the end of the interrupt
+	call MmGetHHDMBase
+	mov  rcx, 0x00000000FEE00000
+	add  rax, rcx
+	mov  dword [rax + 0xB0], 0
+	
+	mov  rax, r15
+	ret
+
 section .bss
 global KiTrapIplList
 KiTrapIplList:

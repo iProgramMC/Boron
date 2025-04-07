@@ -42,7 +42,7 @@ void KeInitArchUP()
 	KiVectorCrash        = KeAllocateInterruptVector(IPL_NOINTS);
 	KiVectorTlbShootdown = KeAllocateInterruptVector(IPL_NOINTS);
 	
-	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpi);
+	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpiA);
 	KeRegisterInterrupt(KiVectorCrash,        KiHandleCrashIpi);
 	
 	KiInitializeInterruptSystem();

@@ -168,8 +168,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			goto Exit;
 		}
 		
-		MMPFDBE* MmGetPageFrameFromPFN(MMPFN Pfn);
-		
 		// Okay.  Let's perform the IO on this PFN.
 		MDL_ONEPAGE Mdl;
 		MmInitializeSinglePageMdl(&Mdl, Pfn);

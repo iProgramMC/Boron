@@ -28,6 +28,21 @@ NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
 typedef struct KPRCB_tag
 {
+	// TLB shootdown information.
+	// Moved to offset 0 because it's hardcoded by KiHandleTlbShootdownIpiA on AMD64.
+	
+	// Address - the address where the TLB shootdown process will start
+	uintptr_t TlbsAddress;
+	// Length - the number of pages the TLB shootdown handler will invalidate
+	size_t    TlbsLength;
+	// Lock - Used to synchronize TLB shootdown calls.
+	// - First it is locked by the TLB shootdown emitter.
+	// - Then the same core tries to lock it again, waiting until the receiver
+	//   of the TLB shootdown unlocks this lock.
+	// - In the TLB shootdown handler, this lock is unlocked, letting other TLB
+	//   shootdown requests come in.
+	KSPIN_LOCK TlbsLock;
+	
 	// the index of the processor within the KeProcessorList
 	int Id;
 	
@@ -42,19 +57,6 @@ typedef struct KPRCB_tag
 	
 	// the current IPL that we are running at
 	KIPL Ipl;
-	
-	// TLB shootdown information.
-	// Address - the address where the TLB shootdown process will start
-	uintptr_t TlbsAddress;
-	// Length - the number of pages the TLB shootdown handler will invalidate
-	size_t    TlbsLength;
-	// Lock - Used to synchronize TLB shootdown calls.
-	// - First it is locked by the TLB shootdown emitter.
-	// - Then the same core tries to lock it again, waiting until the receiver
-	//   of the TLB shootdown unlocks this lock.
-	// - In the TLB shootdown handler, this lock is unlocked, letting other TLB
-	//   shootdown requests come in.
-	KSPIN_LOCK TlbsLock;
 	
 	// architecture specific details
 	KARCH_DATA ArchData;
