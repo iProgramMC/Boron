@@ -89,7 +89,13 @@ KiTrapCommon:
 	lea   rbx, [rsp + 32]                  ; Get the pointer to the value after rbx and rax on the stack
 	lea   rcx, [rsp + 48]                  ; Get the pointer to the RIP from the interrupt frame.
 	lea   rdx, [rsp + 56]                  ; Get the pointer to the CS from the interrupt frame.
-	; Note that LEA doesn't actually perform any memory accesses, all it
+	mov   rax, [rdx]                       ; Load the CS.
+	push  rax
+	cmp   rax, SEG_RING_0_CODE             ; Check if it is kernel mode.
+	je    .a                               ; If not, then run swapgs.
+	ud2
+	swapgs
+.a: ; Note that LEA doesn't actually perform any memory accesses, all it
 	; does it load the address of certain things into a register. We then
 	; defer actually loading those until after DS was changed.
 	PUSH_STATE                             ; Push the state, except for the old ipl
@@ -112,7 +118,12 @@ KiTrapCommon:
 	pop   rbp                              ; Leave the stack frame
 	pop   rcx                              ; Skip over the RIP duplicate that we pushed
 	POP_STATE                              ; Pop the state
-	pop   rdx                              ; Pop the RDX register
+	pop   rax                              ; Pop the RAX register - it has the old value of CS which we can check
+	cmp   rax, SEG_RING_0_CODE             ; Check if this is kernel mode.
+	je    .b                               ; If not, then run swapgs.
+	ud2
+	swapgs
+.b:	pop   rdx                              ; Pop the RDX register
 	pop   rcx                              ; Pop the RCX register
 	pop   rbx                              ; Pop the RBX register
 	pop   rax                              ; Pop the RAX register
