@@ -113,8 +113,6 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 		&ControllerObject
 	);
 	
-	LogMsg("NvmePciDeviceEnumerated: PCI Ven%04x Dev%04x", Device->Identifier.VendorId, Device->Identifier.DeviceId);
-	
 	if (FAILED(Status))
 	{
 		LogMsg("Could not create controller object for %s: status %d", Buffer, Status);
@@ -311,7 +309,6 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	// Calculate maximum data transfer size.
 	ContExtension->MaximumDataTransferSize = MinPageSize << Ident->MaximumDataTransferSize;
-	LogMsg("Maximum data transfer size: %zu  (%zu)", ContExtension->MaximumDataTransferSize, Ident->MaximumDataTransferSize);
 	
 	// Get namespace list.
 	uint32_t* NamespaceList = MmAllocatePool(POOL_PAGED, PAGE_SIZE);

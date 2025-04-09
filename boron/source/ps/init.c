@@ -107,19 +107,5 @@ bool PsInitSystem()
 	
 	PspSystemProcessNpHeader.ObjectType = PsProcessObjectType;
 	
-	// Test code here!
-#ifdef DEBUG
-	BSTATUS Status;
-	void* Addr = NULL;
-	
-	Status = ExReferenceObjectByHandle(CURRENT_PROCESS_HANDLE, PsProcessObjectType, &Addr);
-	if (FAILED(Status))
-		KeCrash("TEST: ExReferenceObjectByHandle returned error code %d", Status);
-	else
-		LogMsg("TEST: ExReferenceObjectByHandle returned the address %p. PsSystemProcess is %p", Addr, &PsSystemProcess);
-	
-	ObDereferenceObject(Addr);
-#endif
-	
 	return true;
 }
