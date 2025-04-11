@@ -124,7 +124,7 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 			}
 		}
 		
-		// Assume that the page is present.
+		// Assume that the page is NOT present.
 		ASSERT(~*Pte & MM_PTE_PRESENT);
 		
 		*Pte = 0;

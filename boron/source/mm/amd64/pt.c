@@ -19,9 +19,21 @@ Author:
 #include <ke.h>
 #include <arch/amd64.h>
 
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {
-	return (PMMPTE)MI_PTE_LOC(Address);
+	PMMPTE PtePtr = (PMMPTE)MI_PTE_LOC(Address);
+	
+	// HACK: Instead of just invalidating everything in the function
+	// MiFreeUnusedMappingLevelsInCurrentMap like I am supposed to,
+	// I will invalidate the TLB here.
+	//
+	// I know this is bad, but come on, when are we *ever* going to
+	// *not* go through this function?
+	KeInvalidatePage(PtePtr);
+	
+	return PtePtr;
 }
 
 bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
@@ -60,6 +72,14 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	}
 	
 	return true;
+}
+
+PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
+{
+	if (!MmCheckPteLocation(Address, GenerateMissingLevels))
+		return NULL;
+	
+	return MmGetPteLocation(Address);
 }
 
 // Creates a page mapping.

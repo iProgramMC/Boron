@@ -36,8 +36,6 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MI_PML1_LOC_END  ((uintptr_t)0xFFFFA18000000000ULL)
 #define MI_PML_ADDRMASK  ((uintptr_t)0x0000FFFFFFFFF000ULL)
 
-#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
-
 typedef union
 {
 	struct

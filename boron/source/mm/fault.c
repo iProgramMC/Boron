@@ -40,7 +40,6 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
 
 static BSTATUS MmpHandleFaultCommittedMappedPage(
 	uintptr_t Va,
-	PMMPTE PtePtr,
 	uintptr_t VaBase,
 	uint32_t VadFlagsLong,
 	uint64_t MappedOffset,
@@ -68,6 +67,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	// Now, this is obviously just user error, but can this be exploited?
 	// Probably not.  When the page fault finishes, 
 	BSTATUS Status;
+	PMMPTE PtePtr = NULL;
 	
 	MMVAD_FLAGS VadFlags;
 	VadFlags.LongFlags = VadFlagsLong;
@@ -126,16 +126,25 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		if (Pfn != PFN_INVALID)
 		{
 			// As it turns out, yes!
+			PtePtr = MmGetPteLocationCheck(Va, true);
+			if (!PtePtr)
+			{
+				DbgPrint("%s: out of memory because PTE couldn't be allocated (1)", __func__);
+				Status = STATUS_REFAULT_SLEEP;
+				goto Exit;
+			}
+			
 			MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | MmPFNToPhysPage(Pfn);
 			
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
 			
+			KeInvalidatePage(PtePtr);
 			*PtePtr = NewPte;
 			
 			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
 			
-			DbgPrint("%s: hooray! page fault fulfilled by cached fetch", __func__);
+			DbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
 			Status = STATUS_SUCCESS;
 			goto Exit;
 		}
@@ -234,10 +243,10 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			
 			// We need to refetch the PTE pointer because it may have been
 			// freed in the meantime.
-			PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Va, true);
+			PtePtr = MmGetPteLocationCheck(Va, true);
 			if (!PtePtr)
 			{
-				DbgPrint("%s: out of memory because PFN entry couldn't be allocated", __func__);
+				DbgPrint("%s: out of memory because PTE couldn't be allocated (2)", __func__);
 				MmFreePhysicalPage(Pfn);
 				MmUnlockCcb(CacheBlock);
 				Status = STATUS_REFAULT_SLEEP;
@@ -326,7 +335,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		// the PTE itself.
 		if (!PtePtr)
 		{
-			PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Va, true);
+			PtePtr = MmGetPteLocationCheck(Va, true);
 			
 			// If the PTE couldn't be allocated, return with STATUS_REFAULT_SLEEP, waiting for more
 			// memory.
@@ -367,7 +376,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		MmUnlockVadList(VadList);
 		
 		// There is.  Handle this page fault separately.
-		return MmpHandleFaultCommittedMappedPage(Va, PtePtr, VaBase, VadFlagsLong, VadMappedOffset, Object, IsFile, SpaceUnlockIpl);
+		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadFlagsLong, VadMappedOffset, Object, IsFile, SpaceUnlockIpl);
 	}
 	
 	// Now the PTE is here and we can commit it.
@@ -467,7 +476,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	// Attempt to interpret the PTE.
 	KIPL OldIpl = MmLockSpaceExclusive(FaultAddress);
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), FaultAddress, false);
+	PMMPTE PtePtr = MmGetPteLocationCheck(FaultAddress, false);
 	
 	// If the PTE is present.
 	if (PtePtr && (*PtePtr & MM_PTE_PRESENT))

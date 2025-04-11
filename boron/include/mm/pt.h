@@ -62,10 +62,6 @@ void MiFreePageMapping(HPAGEMAP OldPageMapping);
 // designed for that.
 PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
-// Gets the PTE's location in the recursive PTE. This doesn't care whether the PTEs
-// actually exist down to that address. Also this works with higher page mapping levels too.
-PMMPTE MmGetPteLocation(uintptr_t Address);
-
 // Check if the PTE for a certain VA exists at the recursive PTE address, in the
 // current page mapping.
 //
@@ -83,6 +79,13 @@ PMMPTE MmGetPteLocation(uintptr_t Address);
 // Returns true if the PTE location is accessible after the call (the PTEs may have
 // been generated if GenerateMissingLevels is true).
 bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
+
+// Gets the PTE's location in the recursive PTE. This doesn't care whether the PTEs
+// actually exist down to that address. Also this works with higher page mapping levels too.
+PMMPTE MmGetPteLocation(uintptr_t Address);
+
+// Same as MmGetPteLocation, except returns NULL if MmCheckPteLocation returns false.
+PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels);
 
 // Attempts to map a physical page into the specified address space.
 bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
