@@ -66,6 +66,7 @@ THREAD_START_CONTEXT;
 void PspTerminateThread(PKTHREAD Tcb)
 {
 	PETHREAD Thread = (PETHREAD) Tcb;
+	PEPROCESS Process = Thread->Process;
 	
 	// Reached when a Process Manager managed thread has terminated.
 	
@@ -74,6 +75,8 @@ void PspTerminateThread(PKTHREAD Tcb)
 	// This should be a final action as the Thread object might only have 1 reference to itself,
 	// meaning that after this point, the Thread object might go invalid!
 	ObDereferenceObject(Thread);
+	
+	ObDereferenceObject(Process);
 	
 	// TODO: anything more?
 }

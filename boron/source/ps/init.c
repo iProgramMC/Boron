@@ -14,10 +14,6 @@ Author:
 ***/
 #include "psp.h"
 
-// Initial Virtual Address Range
-#define INITIAL_BEG_VA 0x0000000000001000
-#define INITIAL_END_VA 0x00007FFFFFFFF000
-
 NONPAGED_OBJECT_HEADER PspSystemProcessNpHeader;
 
 // To keep the PsSystemProcess symbol working, we'll use a linker script hack.
@@ -107,5 +103,12 @@ bool PsInitSystem()
 	
 	PspSystemProcessNpHeader.ObjectType = PsProcessObjectType;
 	
+	return true;
+}
+
+INIT
+bool PsInitSystemPart2()
+{
+	// Create the initial system process.  This will be led by 
 	return true;
 }

@@ -539,10 +539,8 @@ BSTATUS ExDuplicateHandleTable(void** NewHandleTable, void* HandleTable, EX_DUPL
 			// Duplicate it if needed.
 			void* Object = DuplicateMethod(Table->HandleMap[i].Pointer, Context);
 			NewTable->HandleMap[i].Pointer = Object;
-			if (Object) {
-				DbgPrint("A MaxIndex: %zu", i);
+			if (Object)
 				NewTable->MaxIndex = i;
-			}
 		}
 	}
 	

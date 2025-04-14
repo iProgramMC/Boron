@@ -42,3 +42,5 @@ struct EPROCESS_tag
 };
 
 #define PsGetCurrentProcess() ((PEPROCESS)KeGetCurrentProcess())
+
+PEPROCESS PsGetAttachedProcess();

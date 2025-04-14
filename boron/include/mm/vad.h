@@ -92,7 +92,7 @@ void MmInitializeVadList(PMMVAD_LIST VadList);
 PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process);
 
 // Lock the VAD list of the current process and returns a pointer to it.
-#define MmLockVadList()  MmLockVadListProcess(PsGetCurrentProcess())
+#define MmLockVadList()  MmLockVadListProcess(PsGetAttachedProcess())
 
 // Unlock the VAD list specified.
 void MmUnlockVadList(PMMVAD_LIST);

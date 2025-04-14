@@ -462,7 +462,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 {
 	UNUSED bool IsKernelSpace = false;
 	BSTATUS Status = STATUS_SUCCESS;
-	PEPROCESS Process = PsGetCurrentProcess();
+	PEPROCESS Process = PsGetAttachedProcess();
 	
 	if (FaultAddress >= MM_KERNEL_SPACE_BASE)
 	{

@@ -40,7 +40,7 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 
 BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, PMMVAD* OutVad, PMMVAD_LIST* OutVadList)
 {
-	PEPROCESS Process = PsGetCurrentProcess();
+	PEPROCESS Process = PsGetAttachedProcess();
 	PMMADDRESS_NODE AddrNode;
 	
 	BSTATUS Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
@@ -98,7 +98,7 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 // The VAD list lock must be held before calling the function.
 BSTATUS MiReleaseVad(PMMVAD Vad)
 {
-	PEPROCESS Process = PsGetCurrentProcess();
+	PEPROCESS Process = PsGetAttachedProcess();
 
 	// Step 1.  Remove the VAD from the VAD list tree.
 	RemoveItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry);
@@ -166,7 +166,7 @@ BSTATUS MmReleaseVirtualMemory(void* Address)
 {
 	uintptr_t AddressI = (uintptr_t) Address;
 	
-	PMMVAD_LIST VadList = MmLockVadListProcess(PsGetCurrentProcess());
+	PMMVAD_LIST VadList = MmLockVadListProcess(PsGetAttachedProcess());
 	
 	// Look up the item in the VAD.
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&VadList->Tree, AddressI);

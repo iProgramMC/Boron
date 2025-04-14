@@ -123,3 +123,8 @@ PRBTREE_ENTRY GetPrevEntryRbTree(PRBTREE_ENTRY Entry)
 {
 	return RB_PREV(_RBTREE_HEAD, NULL, Entry);
 }
+
+PRBTREE_ENTRY GetRootEntryRbTree(PRBTREE Tree)
+{
+	return RB_ROOT((struct _RBTREE_HEAD*) &Tree->Head);
+}

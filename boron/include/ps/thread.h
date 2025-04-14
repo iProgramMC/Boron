@@ -20,7 +20,7 @@ typedef struct ETHREAD_tag
 {
 	KTHREAD Tcb;
 	
-	// TODO
+	PEPROCESS Process;
 }
 ETHREAD, *PETHREAD;
 

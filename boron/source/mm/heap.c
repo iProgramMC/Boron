@@ -172,7 +172,7 @@ BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 
 void MmDebugDumpHeap()
 {
-	PMMHEAP Heap = &PsGetCurrentProcess()->Heap;
+	PMMHEAP Heap = &PsGetAttachedProcess()->Heap;
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);

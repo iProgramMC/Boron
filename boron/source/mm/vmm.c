@@ -134,7 +134,7 @@ KIPL MmLockSpaceShared(uintptr_t DecidingAddress)
 	}
 	else
 	{
-		PEX_RW_LOCK Lock = &PsGetCurrentProcess()->AddressLock;
+		PEX_RW_LOCK Lock = &PsGetAttachedProcess()->AddressLock;
 		BSTATUS Status = ExAcquireSharedRwLock(Lock, false, false, false);
 		ASSERT(Status == STATUS_SUCCESS);
 	}
@@ -152,7 +152,7 @@ KIPL MmLockSpaceExclusive(uintptr_t DecidingAddress)
 	}
 	else
 	{
-		PEX_RW_LOCK Lock = &PsGetCurrentProcess()->AddressLock;
+		PEX_RW_LOCK Lock = &PsGetAttachedProcess()->AddressLock;
 		BSTATUS Status = ExAcquireExclusiveRwLock(Lock, false, false);
 		ASSERT(Status == STATUS_SUCCESS);
 	}
@@ -165,7 +165,7 @@ void MmUnlockSpace(KIPL Ipl, uintptr_t DecidingAddress)
 	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
 		MmUnlockKernelSpace();
 	else
-		ExReleaseRwLock(&PsGetCurrentProcess()->AddressLock);
+		ExReleaseRwLock(&PsGetAttachedProcess()->AddressLock);
 	
 	KeLowerIPL(Ipl);
 }

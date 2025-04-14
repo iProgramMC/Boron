@@ -63,6 +63,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!LdrPrepareInitialRoot())
 		KeCrash("Could not prepare initial root");
 	
+	if (!PsInitSystemPart2())
+		KeCrash("Could not initialize process manager - part 2");
+	
 	KeTerminateThread(0);
 }
 

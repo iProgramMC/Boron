@@ -138,7 +138,7 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	Mdl->ByteCount     = Length;
 	Mdl->SourceStartVA = VirtualAddress & ~0xFFF;
 	Mdl->MappedStartVA = 0;
-	Mdl->Process       = PsGetCurrentProcess();
+	Mdl->Process       = PsGetAttachedProcess();
 	Mdl->NumberPages   = NumPages;
 	
 	return Mdl;
@@ -303,7 +303,7 @@ PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn, int Flags)
 	Mdl->Base.ByteCount = PAGE_SIZE;
 	Mdl->Base.SourceStartVA = (uintptr_t) -1ULL;
 	Mdl->Base.MappedStartVA = 0;
-	Mdl->Base.Process = PsGetCurrentProcess();
+	Mdl->Base.Process = PsGetAttachedProcess();
 	Mdl->Base.NumberPages = 1;
 	
 	MmPageAddReference(Pfn);

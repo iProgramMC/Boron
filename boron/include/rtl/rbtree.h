@@ -60,6 +60,8 @@ PRBTREE_ENTRY GetFirstEntryRbTree(PRBTREE Tree);
 
 PRBTREE_ENTRY GetLastEntryRbTree(PRBTREE Tree);
 
+PRBTREE_ENTRY GetRootEntryRbTree(PRBTREE Tree);
+
 size_t GetItemCountRbTree(PRBTREE Tree);
 
 void TraverseRbTree(

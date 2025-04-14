@@ -386,8 +386,6 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	// Remove the thread from the parent process' list of threads.
 	RemoveEntryList(&Thread->EntryProc);
 	
-	// TODO: Signal the parent process object if the list of threads is empty.
-	
 	// Finally, signal all threads that are waiting on this thread.
 	// Signaling NOW and not in KeTerminateThread prevents a race condition where
 	// code that looks as follows could free the thread while it is still in the

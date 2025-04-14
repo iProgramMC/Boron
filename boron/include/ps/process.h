@@ -18,9 +18,19 @@ Author:
 
 PEPROCESS PsGetSystemProcess();
 
+// Gets the currently attached process, or if there is no
+// attached process, the currently running process.
+PEPROCESS PsGetAttachedProcess();
+
 void PsInitSystemProcess();
 
 bool PsInitSystem();
+
+bool PsInitSystemPart2();
+
+void PsAttachToProcess(PEPROCESS Process);
+
+void PsDetachFromProcess();
 
 #ifdef KERNEL
 extern EPROCESS PsSystemProcess;
