@@ -155,6 +155,8 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	return STATUS_SUCCESS;
 }
 
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages);
+
 // Decommits a range of virtual memory.
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 {
@@ -177,6 +179,14 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		return STATUS_CONFLICTING_ADDRESSES;
 	}
 	
+	MiDecommitVad(VadList, Vad, StartVa, SizePages);
+	return STATUS_SUCCESS;
+}
+
+// This part of MmDecommitVirtualMemory has been split into a separate function because
+// this is also referenced by MmTearDownVadList().
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages)
+{
 	// Check if the range can be entirely decommitted.
 	if (Vad->Node.StartVa == StartVa && Vad->Node.Size == SizePages)
 	{
@@ -254,7 +264,6 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 	MmIssueTLBShootDown(StartVa, SizePages);
 	
 	MmUnlockSpace(Ipl, StartVa);
-	return STATUS_SUCCESS;
 }
 
 // DEBUG

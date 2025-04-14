@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	mm/addrnode.h
+	mm/heap.h
 	
 Abstract:
 	This header defines the heap manager specific functions.

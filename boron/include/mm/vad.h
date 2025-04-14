@@ -116,3 +116,6 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages);
 
 // Debug the VAD.
 void MmDebugDumpVad();
+
+// Tear down the VAD and heap of a process.
+void MmTearDownProcess(PEPROCESS Process);

@@ -96,7 +96,7 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 // Releases a range of virtual memory represented by a VAD.
 // The range must be entirely decommitted before it is de-reserved.
 // The VAD list lock must be held before calling the function.
-BSTATUS MiReleaseVad(PMMVAD Vad)
+void MiReleaseVad(PMMVAD Vad)
 {
 	PEPROCESS Process = PsGetAttachedProcess();
 
@@ -155,8 +155,6 @@ BSTATUS MiReleaseVad(PMMVAD Vad)
 		KeCrash("MmDereserveVad: Failed to insert VAD into free-heap (address %p)", Vad->Node.StartVa);
 		Status = STATUS_UNIMPLEMENTED;
 	}
-	
-	return Status;
 }
 
 // This releases a range of virtual memory allocated using MmReserveVirtualMemoryVad.
@@ -192,7 +190,8 @@ BSTATUS MmReleaseVirtualMemory(void* Address)
 	// It does! This means that the region can be dereserved with
 	// this function.  Note that it does the job of unlocking the
 	// VAD list.
-	return MiReleaseVad(Vad);
+	MiReleaseVad(Vad);
+	return STATUS_SUCCESS;
 }
 
 PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)

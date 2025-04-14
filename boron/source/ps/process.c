@@ -14,9 +14,6 @@ Author:
 ***/
 #include "psp.h"
 
-// Normally you don't call MiReleaseVad directly.
-BSTATUS MiReleaseVad(PMMVAD Vad);
-
 void PspDeleteProcess(void* ProcessV)
 {
 	UNUSED PEPROCESS Process = ProcessV;
@@ -29,29 +26,8 @@ void PspDeleteProcess(void* ProcessV)
 	
 	DbgPrint("TODO: PspDeleteProcess");
 	
-	// This thread will attach to this process.
-	PsAttachToProcess(Process);
-	
 	// This process is no longer running, so it's safe to do a bunch of things here.
-	PRBTREE_ENTRY Entry = GetRootEntryRbTree(&Process->VadList.Tree);
-	do
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		// MiReleaseVad requires the VAD list lock be held, and releases the lock.
-		// We don't ACTUALLY need the lock because the process is gone, over, it has
-		// no more threads, and we're the only thread with access to it.
-		MmLockVadList();
-		MiReleaseVad(Vad);
-		
-		Entry = GetRootEntryRbTree(&Process->VadList.Tree);
-	}
-	while (Entry);
-	
-	if (Process->Pcb.PageMap != 0)
-		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));
-	
-	PsDetachFromProcess();
+	MmTearDownProcess(Process);
 }
 
 INIT
