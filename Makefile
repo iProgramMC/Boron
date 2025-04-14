@@ -16,6 +16,7 @@ TARGET=AMD64
 #   to log basically anywhere
 
 KERNEL_NAME = kernel.elf
+SYSDLL_NAME = libboron.so
 
 DRIVERS_LIST = \
 	halx86     \
@@ -36,9 +37,10 @@ ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
 KERNEL_BUILD=boron/build
+SYSDLL_BUILD=borondll/build
 
 KERNEL_ELF=$(KERNEL_BUILD)/$(KERNEL_NAME)
-KERNEL_DELF=$(BUILD_DIR)/$(KERNEL_NAME)
+SYSDLL_ELF=$(SYSDLL_BUILD)/$(SYSDLL_NAME)
 
 DRIVERS_TARGETS       = $(patsubst %,$(BUILD_DIR)/%.sys,$(DRIVERS_LIST))
 DRIVERS_DIRECTORIES   = $(patsubst %,$(DRIVERS_DIR)/%,$(DRIVERS_LIST))
@@ -63,17 +65,15 @@ all: image
 .PHONY: clean
 clean:
 	@echo "Cleaning..."
-	rm -rf $(KERNEL_BUILD) $(LOADER_BUILD) $(BUILD_DIR) $(DRIVERS_TARGETS) $(DRIVERS_LOCAL_TARGETS) $(DRIVERS_BUILD_DIRS)
+	rm -rf $(KERNEL_BUILD) $(SYSDLL_BUILD) $(BUILD_DIR) $(DRIVERS_TARGETS) $(DRIVERS_LOCAL_TARGETS) $(DRIVERS_BUILD_DIRS)
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel drivers limine_config
+$(IMAGE_TARGET): kernel borondll drivers limine_config
 	@echo "Building iso..."
-	@mkdir -p $(dir $(KERNEL_DELF))
-	@cp $(KERNEL_ELF) $(KERNEL_DELF)
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_DELF) $(DRIVERS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
+	@cp $(KERNEL_ELF) $(SYSDLL_ELF) $(DRIVERS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
 	@xorriso -as mkisofs -b limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
@@ -88,11 +88,17 @@ runw: image
 
 kernel: $(KERNEL_ELF)
 
+borondll: $(SYSDLL_ELF)
+
+drivers: $(DRIVERS_TARGETS)
+
 $(KERNEL_ELF): FORCE
 	@echo "[MK]\tMaking $(KERNEL_ELF)"
 	@$(MAKE) -C boron
 
-drivers: $(DRIVERS_TARGETS)
+$(SYSDLL_ELF): FORCE
+	@echo "[MK]\tMaking $(SYSDLL_ELF)"
+	@$(MAKE) -C borondll
 
 # note: the $(dir $(dir)) is kind of cheating but it works!
 $(BUILD_DIR)/%.sys: FORCE
