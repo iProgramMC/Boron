@@ -109,6 +109,5 @@ bool PsInitSystem()
 INIT
 bool PsInitSystemPart2()
 {
-	// Create the initial system process.  This will be led by 
 	return true;
 }

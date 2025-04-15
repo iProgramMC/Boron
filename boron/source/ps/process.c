@@ -65,6 +65,7 @@ bool PsCreateProcessType()
 
 typedef struct
 {
+	PEPROCESS Process;
 	PEPROCESS ParentProcess;
 	bool InheritHandles;
 }
@@ -116,7 +117,11 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	}
 	
 	if (SUCCEEDED(Status))
+	{
+		Pic->Process = Process;
+		ObReferenceObjectByPointer(Process);
 		return Status;
+	}
 	
 Fail:
 	if (Process->Pcb.PageMap)
@@ -131,6 +136,7 @@ BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, 
 	PROCESS_INIT_CONTEXT Pic;
 	Pic.InheritHandles = InheritHandles;
 	Pic.ParentProcess = NULL;
+	Pic.Process = NULL;
 	
 	// If we are inheriting handles yet we have no parent to inherit from, this is
 	// invalid, as we do not allow inheritance from the system process, to which
@@ -165,5 +171,30 @@ BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, 
 	Status = ExCreateObjectUserCall(OutHandle, ObjectAttributes, PsProcessObjectType, sizeof(EPROCESS), PspInitializeProcessObject, &Pic);
 	
 	ObDereferenceObject(ParentProcessRef);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	// Allocate the PEB of this new process.
+	PEPROCESS Process = Pic.Process;
+	PsAttachToProcess(Process);
+	
+	// Allocate the PEB.
+	void* PebPtr = NULL;
+	size_t RgnSize = sizeof(PEB);
+	Status = OSAllocateVirtualMemory(&PebPtr, &RgnSize, MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE);
+	if (FAILED(Status))
+		goto Fail;
+	
+	// Clear the PEB.  We can do this directly because we are
+	// attached to this process' address space.
+	memset(PebPtr, 0, RgnSize);
+	
+	// The UserProcessParameters member is filled in through an
+	// upcoming OSSetProcessEnvironmentData system call.
+	
+Fail:
+	PsDetachFromProcess(Process);
+	ObDereferenceObject(Process);
 	return Status;
 }
