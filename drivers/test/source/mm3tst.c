@@ -50,7 +50,7 @@ void PerformMm3Test_()
 	
 	// now unmap the view
 	LogMsg("Freeing");
-	Status = OSFreeVirtualMemory(BaseAddress, RegionSize, MEM_RELEASE);
+	Status = OSFreeVirtualMemory(CURRENT_PROCESS_HANDLE, BaseAddress, RegionSize, MEM_RELEASE);
 	if (FAILED(Status))
 		KeCrash("Mm3: failed to free VM: %d", Status);
 	

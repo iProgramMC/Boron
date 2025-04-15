@@ -182,7 +182,14 @@ BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, 
 	// Allocate the PEB.
 	void* PebPtr = NULL;
 	size_t RgnSize = sizeof(PEB);
-	Status = OSAllocateVirtualMemory(&PebPtr, &RgnSize, MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE);
+	
+	Status = OSAllocateVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		&PebPtr,
+		&RgnSize,
+		MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE
+	);
+	
 	if (FAILED(Status))
 		goto Fail;
 	

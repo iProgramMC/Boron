@@ -15,6 +15,7 @@ Author:
 ***/
 #include <ke.h>
 #include <mm.h>
+#include <ex.h>
 #include "utils.h"
 
 #define CHECK_FAIL(desc) do { if (FAILED(Status)) KeCrash("MM2[%d]: Failed to %s with status %d", __LINE__, desc, Status); } while (0)
@@ -130,7 +131,7 @@ void Mm2ExposedApiTest()
 	void* Address = NULL;
 	size_t RegionSize = 40000000;
 	
-	Status = OSAllocateVirtualMemory(&Address, &RegionSize, MEM_RESERVE | MEM_COMMIT, PAGE_READ | PAGE_WRITE);
+	Status = OSAllocateVirtualMemory(CURRENT_PROCESS_HANDLE, &Address, &RegionSize, MEM_RESERVE | MEM_COMMIT, PAGE_READ | PAGE_WRITE);
 	CHECK_FAIL("allocate virtual memory");
 	
 	LogMsg("OSAllocateVirtualMemory returned address %p and reg size %zu", Address, RegionSize);
@@ -145,7 +146,7 @@ void Mm2ExposedApiTest()
 	
 	LogMsg("First UPtr: %p", *((uintptr_t*) AddressB));
 	
-	Status = OSFreeVirtualMemory(Address, RegionSize, MEM_RELEASE);
+	Status = OSFreeVirtualMemory(CURRENT_PROCESS_HANDLE, Address, RegionSize, MEM_RELEASE);
 	CHECK_FAIL("release virtual memory");
 }
 

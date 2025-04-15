@@ -16,6 +16,7 @@ Author:
 
 #include <ke.h>
 #include <ex.h>
+#include <ps/pebteb.h>
 #include <ps/process.h>
 #include <ps/thread.h>
 

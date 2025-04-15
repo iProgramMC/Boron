@@ -29,6 +29,7 @@ enum
 };
 
 BSTATUS OSAllocateVirtualMemory(
+	HANDLE ProcessHandle,
 	void** BaseAddressInOut,
 	size_t* RegionSizeInOut,
 	int AllocationType,
@@ -36,6 +37,7 @@ BSTATUS OSAllocateVirtualMemory(
 );
 
 BSTATUS OSFreeVirtualMemory(
+	HANDLE ProcessHandle,
 	void* BaseAddress,
 	size_t RegionSize,
 	int FreeType

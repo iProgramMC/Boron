@@ -67,7 +67,6 @@ THREAD_START_CONTEXT;
 void PspTerminateThread(PKTHREAD Tcb)
 {
 	PETHREAD Thread = (PETHREAD) Tcb;
-	PEPROCESS Process = Thread->Process;
 	
 	// Reached when a Process Manager managed thread has terminated.
 	

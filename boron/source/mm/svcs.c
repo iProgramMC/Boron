@@ -14,6 +14,7 @@ Author:
 ***/
 #include <mm.h>
 #include <ex.h>
+#include <ps.h>
 #include "mi.h"
 
 //
@@ -47,6 +48,7 @@ Author:
 //   non zero.
 //
 BSTATUS OSAllocateVirtualMemory(
+	HANDLE ProcessHandle,
 	void** BaseAddressInOut,
 	size_t* RegionSizeInOut,
 	int AllocationType,
@@ -64,6 +66,10 @@ BSTATUS OSAllocateVirtualMemory(
 	if (~AllocationType & (MEM_COMMIT | MEM_RESERVE))
 		return STATUS_INVALID_PARAMETER;
 	
+	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
+	if (!ProcessHandle)
+		return STATUS_INVALID_PARAMETER;
+	
 	void* BaseAddress = NULL;
 	size_t RegionSize = 0;
 	BSTATUS Status;
@@ -76,30 +82,39 @@ BSTATUS OSAllocateVirtualMemory(
 	if (FAILED(Status))
 		return Status;
 	
-	bool HasAddressPointer = BaseAddress != NULL;
-	
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
 	
+	PEPROCESS Process = NULL;
+	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+		if (FAILED(Status))
+			return Status;
+		
+		PsAttachToProcess(Process);
+	}
+	
+	bool HasAddressPointer = BaseAddress != NULL;
+	
 	if (AllocationType & MEM_RESERVE)
 	{
-		// TODO: Receiving a base address.
-		if (HasAddressPointer)
-		{
-			ASSERT(!"TODO");
-			return STATUS_UNIMPLEMENTED;
-		}
+		if (!HasAddressPointer)
+			// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
+			Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
+		else
+			// TODO: Receiving a base address.
+			Status = STATUS_UNIMPLEMENTED;
 		
-		// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
-		Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
 	}
 	else if (AllocationType & MEM_COMMIT)
 	{
-		if (!HasAddressPointer)
-			return STATUS_INVALID_PARAMETER;
-		
-		Status = MmCommitVirtualMemory((uintptr_t) BaseAddress, SizePages, Protection);
+		if (HasAddressPointer)
+			Status = MmCommitVirtualMemory((uintptr_t) BaseAddress, SizePages, Protection);
+		else
+			Status = STATUS_INVALID_PARAMETER;
 	}
 	
 	RegionSize = SizePages * PAGE_SIZE;
@@ -107,10 +122,15 @@ BSTATUS OSAllocateVirtualMemory(
 	if (SUCCEEDED(Status))
 	{
 		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
-		if (FAILED(Status))
-			return Status;
 		
-		Status = MmSafeCopy(RegionSizeInOut, &RegionSize, sizeof(size_t), KeGetPreviousMode(), true);
+		if (SUCCEEDED(Status))
+			Status = MmSafeCopy(RegionSizeInOut, &RegionSize, sizeof(size_t), KeGetPreviousMode(), true);
+	}
+	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		PsDetachFromProcess(Process);
+		ObDereferenceObject(Process);
 	}
 	
 	return Status;
@@ -145,6 +165,7 @@ BSTATUS OSAllocateVirtualMemory(
 //   misalignment value.
 //
 BSTATUS OSFreeVirtualMemory(
+	HANDLE ProcessHandle,
 	void* BaseAddress,
 	size_t RegionSize,
 	int FreeType
@@ -162,6 +183,10 @@ BSTATUS OSFreeVirtualMemory(
 	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == (MEM_DECOMMIT | MEM_RELEASE))
 		return STATUS_INVALID_PARAMETER;
 	
+	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
+	if (!ProcessHandle)
+		return STATUS_INVALID_PARAMETER;
+	
 	RegionSize += (size_t) ((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
 	BaseAddress = (void*) ((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
 	
@@ -171,12 +196,28 @@ BSTATUS OSFreeVirtualMemory(
 	if (SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
 	
+	PEPROCESS Process = NULL;
+	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+		if (FAILED(Status))
+			return Status;
+		
+		PsAttachToProcess(Process);
+	}
+	
 	Status = MmDecommitVirtualMemory((uintptr_t) BaseAddress, SizePages);
-	if (FAILED(Status))
-		return Status;
+	if (SUCCEEDED(Status))
+	{
+		if (FreeType == MEM_RELEASE)
+			Status = MmReleaseVirtualMemory(BaseAddress);
+	}
 	
-	if (FreeType == MEM_RELEASE)
-		Status = MmReleaseVirtualMemory(BaseAddress);
-	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		PsDetachFromProcess(Process);
+		ObDereferenceObject(Process);
+	}
 	return Status;
 }
