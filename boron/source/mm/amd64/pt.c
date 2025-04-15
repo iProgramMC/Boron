@@ -199,60 +199,6 @@ HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
 	return NewPageMapping;
 }
 
-// Free an entry on the PML<level> of a page mapping
-void MmpFreePageMappingLevel(uint64_t PageMappingLevel, int Index, int Level)
-{
-    // Convert the physical address to virtual address for inspection
-    PMMPTE PageMappingAccess = MmGetHHDMOffsetAddr(PageMappingLevel);
-	
-	if (~PageMappingAccess[Index] & MM_PTE_PRESENT)
-	{
-		// TODO: Handle non present pages.
-		return;
-	}
-	
-	// Get the current page from the entry we're processing.
-	uint64_t PageAddress = PageMappingAccess[Index] & MM_PTE_ADDRESSMASK;
-
-    // If this is not the final level, then traverse deeper.
-    if (Level > 1 && (~PageMappingAccess[Index] & MM_PTE_PAGESIZE)) 
-    {
-        // Recursively traverse the child entries
-        for (int i = 0; i < 512; i++) 
-        {
-            MmpFreePageMappingLevel(PageAddress, i, Level - 1);
-        }
-    }
-
-    // Now, check MM_PTE_ISFROMPMM flag and free the page (common for all levels)
-    if (PageMappingAccess[Index] & MM_PTE_ISFROMPMM) 
-    {
-		MmFreePhysicalPage(MmPhysPageToPFN(PageAddress));
-    }
-}
-
-/***
-	Function description:
-		Deallocates an entire page mapping. Frees all the pages it makes
-		reference to.
-	
-	Parameters:
-		Mapping  - The handle to the page table to be deallocated.
-	
-	Return value:
-		None.
-***/
-void MiFreePageMapping(HPAGEMAP OldPageMapping)
-{
-	for (int i = 0; i < 512; i++)
-	{
-		MmpFreePageMappingLevel(OldPageMapping, i, 3);
-	}
-	
-	// free the old page mapping itself
-	MmFreePhysicalPage(MmPhysPageToPFN(OldPageMapping));
-}
-
 /***
 	Function description:
 		Gets the PTE (Page Table Entry) pointer for the specified address.

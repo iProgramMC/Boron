@@ -341,6 +341,9 @@ POBJECT_TYPE ObGetObjectType(void* Object);
 // Duplicates a handle table managed by the Object Manager.
 BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable);
 
+// Deletes a handle table and closes every handle.
+BSTATUS ObKillHandleTable(void* HandleTable);
+
 // Object manager provided object types:
 
 enum

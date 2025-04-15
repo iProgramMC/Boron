@@ -81,7 +81,7 @@ BSTATUS InitializeDevice()
 	return STATUS_SUCCESS;
 }
 
-BSTATUS KbdUnload(PDRIVER_OBJECT DriverObject)
+BSTATUS KbdUnload(UNUSED PDRIVER_OBJECT DriverObject)
 {
 	LogMsg("I8042prt: Tried to unload.  That's not supported.");
 	return STATUS_UNIMPLEMENTED;

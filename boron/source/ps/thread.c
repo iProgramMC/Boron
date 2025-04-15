@@ -23,7 +23,8 @@ void PspDeleteThread(void* ThreadV)
 	MmFreeThreadStack(Thread->Tcb.Stack.Top);
 	
 	// Remove our reference to the process object.
-	ObDereferenceObject(Thread->Tcb.Process);
+	if (Thread->Tcb.Process)
+		ObDereferenceObject(Thread->Tcb.Process);
 	
 	// TODO: anything more?
 }
@@ -75,8 +76,6 @@ void PspTerminateThread(PKTHREAD Tcb)
 	// This should be a final action as the Thread object might only have 1 reference to itself,
 	// meaning that after this point, the Thread object might go invalid!
 	ObDereferenceObject(Thread);
-	
-	ObDereferenceObject(Process);
 	
 	// TODO: anything more?
 }

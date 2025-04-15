@@ -29,13 +29,19 @@ void MmTearDownProcess(PEPROCESS Process)
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		
-		// MiReleaseVad requires the VAD list lock be held, and releases the lock.
-		// We don't ACTUALLY need the lock because the process is gone, over, it has
-		// no more threads, and we're the only thread with access to it.
+		// MiDecommitVad and MiReleaseVad require the VAD list lock be
+		// held, but they release the lock.
+		//
+		// The thing is, we are the ONLY thread that has the reference
+		// to this process.  As such, there is no possibility of data
+		// races or anything nasty like that.
+		//
+		// As such, we can get away with just locking the VAD list twice
+		// and having the two internal calls unlock it.
 		
-		// NOTE: We HAVE to call MmDeCommitVirtualMemory, because it, well, decommits
-		// the virtual memory, and *then* we also have to call MiReleaseVad, because
-		// this frees the upper page table levels.
+		MmLockVadList();
+		MiDecommitVad(&Process->VadList, Vad, Vad->Node.StartVa, Vad->Node.Size);
+		
 		MmLockVadList();
 		MiReleaseVad(Vad);
 		
@@ -47,9 +53,23 @@ void MmTearDownProcess(PEPROCESS Process)
 	Entry = GetRootEntryRbTree(&Process->Heap.Tree);
 	do
 	{
+		PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		
+		// All we need to do is remove the item from the tree and free the item's memory.
+		RemoveItemRbTree(&Process->Heap.Tree, &Node->Entry);
+		MmFreePool(Node);
+		
+		Entry = GetRootEntryRbTree(&Process->Heap.Tree);
 	}
-	while (GetRootEntryRbTree(&Process->Heap.Tree));
+	while (Entry);
+	
+#if defined(DEBUG) && defined(TARGET_AMD64)
+
+	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
+	for (int i = 0; i < 256; i++)
+		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
+
+#endif
 	
 	if (Process->Pcb.PageMap != 0)
 		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));

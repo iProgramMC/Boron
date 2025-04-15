@@ -264,3 +264,8 @@ BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable)
 	int OpenReason = OB_INHERIT_HANDLE;
 	return ExDuplicateHandleTable(NewHandleTable, OldHandleTable, ObpDuplicateHandle, &OpenReason);
 }
+
+BSTATUS ObKillHandleTable(void* HandleTable)
+{
+	return ExKillHandleTable(HandleTable, ObpCloseHandle, NULL);
+}

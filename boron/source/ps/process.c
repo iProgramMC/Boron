@@ -24,10 +24,17 @@ void PspDeleteProcess(void* ProcessV)
 	// would only be called if the process object has no more running threads.
 	ASSERT(IsListEmpty(&Process->Pcb.ThreadList));
 	
-	DbgPrint("TODO: PspDeleteProcess");
+	DbgPrint("PspDeleteProcess");
 	
 	// This process is no longer running, so it's safe to do a bunch of things here.
 	MmTearDownProcess(Process);
+	
+	// Finally, let's close every handle the process owns.
+	BSTATUS Status = ObKillHandleTable(Process->HandleTable);
+	
+	// (Verify that the deletion succeeded.  It should always succeed but just to be sure)
+	(void) Status;
+	ASSERT(Status == STATUS_SUCCESS);
 }
 
 INIT
