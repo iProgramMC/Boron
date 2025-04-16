@@ -105,7 +105,8 @@ BSTATUS ExCreateObjectUserCall(
 	POBJECT_TYPE ObjectType,
 	size_t ObjectBodySize,
 	EX_OBJECT_CREATE_METHOD CreateMethod,
-	void* CreateContext
+	void* CreateContext,
+	int PoolFlag
 )
 {
 	BSTATUS Status;
@@ -138,6 +139,9 @@ BSTATUS ExCreateObjectUserCall(
 	
 	if (!Attributes.ObjectNameLength)
 		Flags |= OB_FLAG_NO_DIRECTORY;
+	
+	if (PoolFlag & POOL_NONPAGED)
+		Flags |= OB_FLAG_NONPAGED;
 	
 	void* ParentDirectory = NULL;
 	

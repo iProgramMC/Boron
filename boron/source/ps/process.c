@@ -93,13 +93,13 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	if (!Process->Pcb.PageMap)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	MmInitializeVadList(&PsSystemProcess.VadList);
+	MmInitializeVadList(&Process->VadList);
 	
 	// Initialize the heap with a default range.
-	MmInitializeHeap(&PsSystemProcess.Heap, sizeof(MMVAD), INITIAL_BEG_VA, (INITIAL_END_VA - INITIAL_BEG_VA) / PAGE_SIZE);
+	MmInitializeHeap(&Process->Heap, sizeof(MMVAD), INITIAL_BEG_VA, (INITIAL_END_VA - INITIAL_BEG_VA) / PAGE_SIZE);
 	
 	// Initialize the address lock.
-	ExInitializeRwLock(&PsSystemProcess.AddressLock);
+	ExInitializeRwLock(&Process->AddressLock);
 	
 	// Initialize the handle table.
 	if (InheritHandles)
@@ -137,6 +137,7 @@ BSTATUS OSCreateProcess(
 	HANDLE ParentProcessHandle,
 	bool InheritHandles)
 {
+	BSTATUS Status = STATUS_SUCCESS;
 	PROCESS_INIT_CONTEXT Pic;
 	Pic.InheritHandles = InheritHandles;
 	Pic.ParentProcess = NULL;
@@ -149,9 +150,16 @@ BSTATUS OSCreateProcess(
 		return STATUS_INVALID_PARAMETER;
 	
 	OBJECT_ATTRIBUTES Copy;
-	BSTATUS Status = MmSafeCopy(&Copy, ObjectAttributes, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false);
-	if (FAILED(Status))
-		return Status;
+	if (ObjectAttributes)
+	{
+		Status = MmSafeCopy(&Copy, ObjectAttributes, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false);
+		if (FAILED(Status))
+			return Status;
+	}
+	else
+	{
+		memset(&Copy, 0, sizeof Copy);
+	}
 	
 	// The object may not have a name.
 	// The Process object is quite expensive, as such, we do not allow it to be placed
@@ -172,7 +180,15 @@ BSTATUS OSCreateProcess(
 			return Status;
 	}
 	
-	Status = ExCreateObjectUserCall(OutHandle, ObjectAttributes, PsProcessObjectType, sizeof(EPROCESS), PspInitializeProcessObject, &Pic);
+	Status = ExCreateObjectUserCall(
+		OutHandle,
+		ObjectAttributes,
+		PsProcessObjectType,
+		sizeof(EPROCESS),
+		PspInitializeProcessObject,
+		&Pic,
+		POOL_NONPAGED
+	);
 	
 	ObDereferenceObject(ParentProcessRef);
 	
