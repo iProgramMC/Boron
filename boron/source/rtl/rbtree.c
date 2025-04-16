@@ -67,7 +67,8 @@ PRBTREE_ENTRY LookUpItemApproximateRbTree(PRBTREE Tree, RBTREE_KEY Key)
 	{
 		// No entry.  Maybe we're looking for the last one?
 		Found = RB_MAX(_RBTREE_HEAD, &Tree->Head);
-		if (Found->Key <= Key)
+		
+		if (Found && Found->Key <= Key)
 			return Found;
 		
 		return NULL;
