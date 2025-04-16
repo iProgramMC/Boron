@@ -96,9 +96,8 @@ static BSTATUS IopPerformOperationFileLocked(
 	if (FAILED(Status))
 		return Status;
 	
-	// The read method succeeded, so advance the offset by however many bytes were read.
-	FileObject->Offset += Iosb->BytesRead;
-	
+	// The read/write methods succeeded, so advance the offset by however many bytes were read.
+	AtAddFetch(FileObject->Offset, Iosb->BytesRead);
 	return STATUS_SUCCESS;
 }
 
@@ -363,4 +362,64 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
 	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType);
+}
+
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence)
+{
+	if (NewPosition == 0 && SeekWhence == IO_SEEK_CUR)
+		// Nothing to do
+		return STATUS_SUCCESS;
+	
+	if (NewPosition < 0 && SeekWhence != IO_SEEK_CUR)
+		// You cannot seek to a negative offset.
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	void* FileObjectV;
+	
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	uint64_t FileLength = AtLoad(FileObject->Fcb->FileLength);
+	
+	switch (SeekWhence)
+	{
+		case IO_SEEK_CUR:
+		{
+			// This block ensures the incrementation is atomic, and respects every limit.
+			uint64_t OldOffset, NewOffset;
+			do
+			{
+				OldOffset = NewOffset = AtLoad(FileObject->Offset);
+				
+				// Ensure that the addition of the NewPosition doesn't cause an underflow.
+				if (NewPosition < 0 && NewOffset + NewPosition > NewOffset)
+					NewOffset = 0;
+				
+				// Or an overflow.
+				if (NewPosition > 0 && NewOffset + NewPosition < NewOffset)
+					NewOffset = (uint64_t) (int64_t) -1;
+			}
+			while (!AtCompareExchange(&FileObject->Offset, &OldOffset, NewOffset));
+			
+			break;
+		}
+		
+		case IO_SEEK_SET:
+			AtStore(FileObject->Offset, NewPosition);
+			break;
+		
+		case IO_SEEK_END:
+			AtStore(FileObject->Offset, FileLength);
+			break;
+		
+		default:
+			Status = STATUS_INVALID_PARAMETER;
+	}
+	
+	ObDereferenceObject(FileObject);
+	return Status;
 }

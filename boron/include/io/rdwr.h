@@ -31,6 +31,12 @@ BSTATUS IoPerformPagingRead(
 
 #endif
 
+enum {
+	IO_SEEK_CUR,
+	IO_SEEK_SET,
+	IO_SEEK_END,
+};
+
 BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
 
 BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
@@ -44,3 +50,5 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, const void* Buffer, size_t Length, uint32_t Flags);
 
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
+
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence);

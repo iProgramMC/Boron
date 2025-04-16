@@ -12,7 +12,7 @@ Author:
 	iProgramInCpp - 22 October 2023
 ***/
 #include "ldri.h"
-#include "elf.h"
+#include <elf.h>
 
 // This would be a layering violation, but this component is only active during system init, so it's OK, I think
 //

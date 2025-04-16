@@ -16,6 +16,8 @@ Author:
 
 #include <ex/process.h>
 
+typedef struct _OBJECT_ATTRIBUTES *POBJECT_ATTRIBUTES;
+
 PEPROCESS PsGetSystemProcess();
 
 // Gets the currently attached process, or if there is no
@@ -31,6 +33,13 @@ bool PsInitSystemPart2();
 void PsAttachToProcess(PEPROCESS Process);
 
 void PsDetachFromProcess();
+
+BSTATUS OSCreateProcess(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ParentProcessHandle,
+	bool InheritHandles
+);
 
 #ifdef KERNEL
 extern EPROCESS PsSystemProcess;

@@ -131,7 +131,11 @@ Fail:
 	return Status;
 }
 
-BSTATUS OSCreateProcess(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, HANDLE ParentProcessHandle, bool InheritHandles)
+BSTATUS OSCreateProcess(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ParentProcessHandle,
+	bool InheritHandles)
 {
 	PROCESS_INIT_CONTEXT Pic;
 	Pic.InheritHandles = InheritHandles;

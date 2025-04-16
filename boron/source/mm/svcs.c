@@ -21,6 +21,8 @@ Author:
 // Either reserves, commits, or reserves and commits, a region of virtual memory.
 //
 // Parameters:
+//     ProcessHandle - The handle to process to modify the virtual address space for.
+//
 //     BaseAddressInOut - The base address of the region.
 //
 //     RegionSizeInOut  - The region's size.
@@ -141,6 +143,8 @@ BSTATUS OSAllocateVirtualMemory(
 //
 //
 // Parameters:
+//     ProcessHandle - The handle to process to modify the virtual address space for.
+//
 //     BaseAddressInOut - The base address of the region.
 //
 //     RegionSizeInOut  - The region's size.
@@ -219,5 +223,75 @@ BSTATUS OSFreeVirtualMemory(
 		PsDetachFromProcess(Process);
 		ObDereferenceObject(Process);
 	}
+	return Status;
+}
+
+//
+// Maps a view of either a file or a section.  The type will be checked inside.
+// The only supported types of object are MmSectionType and IoFileType.
+//
+// Parameters:
+//     ProcessHandle - The handle to process into which to map the file.
+//
+//     MappedObject - The object of which a view is to be mapped.
+//
+//     BaseAddressOut - The base address of the view.  If MEM_FIXED is specified, then the address
+//                      will be read from this parameter.
+//
+//     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
+//                     size of the view after its creation.
+//
+//     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
+//
+//     SectionOffset - The offset within the file or section.  If this isn't aligned to a page boundary,
+//                     then neither will the output base address.
+//
+//     Protection - The protection applied to the pages to be committed.  See OSAllocateVirtualMemory for
+//                  more information.
+//
+BSTATUS OSMapViewOfObject(
+	HANDLE ProcessHandle,
+	HANDLE MappedObject,
+	void** BaseAddressOut,
+	size_t ViewSize,
+	int AllocationType,
+	uint64_t SectionOffset,
+	int Protection
+)
+{
+	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
+		return STATUS_INVALID_PARAMETER;
+	
+	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+		return STATUS_INVALID_PARAMETER;
+	
+	if (!ViewSize)
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	PEPROCESS Process = NULL;
+	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+		if (FAILED(Status))
+			return Status;
+		
+		PsAttachToProcess(Process);
+	}
+	
+	void* BaseAddress = NULL;
+	
+	Status = MmMapViewOfObject(MappedObject, &BaseAddress, ViewSize, AllocationType, SectionOffset, Protection);
+	
+	if (SUCCEEDED(Status))
+		Status = MmSafeCopy(BaseAddressOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
+	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		PsDetachFromProcess(Process);
+		ObDereferenceObject(Process);
+	}
+	
 	return Status;
 }

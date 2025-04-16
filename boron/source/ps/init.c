@@ -105,9 +105,3 @@ bool PsInitSystem()
 	
 	return true;
 }
-
-INIT
-bool PsInitSystemPart2()
-{
-	return true;
-}

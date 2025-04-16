@@ -32,3 +32,6 @@ BSTATUS PsCreateSystemThread(
 	PKTHREAD_START StartRoutine,
 	void* StartContext
 );
+
+// TODO: Need I do anything more?
+#define PsTerminateThread() KeTerminateThread(1)

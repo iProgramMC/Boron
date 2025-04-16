@@ -1,12 +1,13 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2023-2025 iProgramInCpp
 
 Module name:
-	ldr/elf.h
+	elf.h
 	
 Abstract:
 	This header file contains struct declarations
+	for the ELF file format.
 	
 Author:
 	iProgramInCpp - 22 October 2023

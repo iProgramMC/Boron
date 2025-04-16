@@ -235,7 +235,7 @@ enum
 	OB_OPEN_SYMLINK   = (1 << 2),
 };
 
-typedef struct
+typedef struct _OBJECT_ATTRIBUTES
 {
 	HANDLE RootDirectory;
 	const char* ObjectName;

@@ -20,7 +20,7 @@ Author:
 #include <ldr.h>
 #include <string.h>
 #include <limreq.h>
-#include "elf.h"
+#include <elf.h>
 
 // Struct not part of the ELF format, but part of the loader.
 typedef struct ELF_DYNAMIC_INFO_tag
