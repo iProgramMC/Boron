@@ -48,6 +48,18 @@ void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t
 // allocation failed.  It should be reused for the VAD list.
 BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMMADDRESS_NODE* OutNode);
 
+// Carves out a segment of address space from the heap.  This returns its MMADDRESS_NODE.
+//
+// Ways this can fail:
+// - If the range overlaps multiple heap nodes (STATUS_CONFLICTING_ADDRESS)
+// - If it overlaps a region that isn't managed by the heap (STATUS_CONFLICTING_ADDRESS)
+// - If the entry needed to split up the found range (up to two MMADDRESS_NODEs) couldn't be allocated
+//   (STATUS_INSUFFICIENT_MEMORY)
+//
+// Returns the MMADDRESS_NODE associated with the address, or the reason why virtual address
+// allocation failed.  It should be reused for the VAD list.
+BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMMADDRESS_NODE* OutNode);
+
 // Returns a segment of memory back to the heap, marking it free.  Does not unmap the pages
 // or anything like that.
 //

@@ -18,6 +18,7 @@ typedef int BSTATUS, *PBSTATUS;
 
 enum
 {
+	// NOTE: Keep synced with rtl/status.c!
 	STATUS_SUCCESS,             // Must ALWAYS be defined as zero!
 	
 	// Generic errors
@@ -82,14 +83,11 @@ enum
 	STATUS_MEMORY_COMMITTED,    // There is committed memory but decommit wasn't explicitly requested.
 	STATUS_CONFLICTING_ADDRESSES, // The given address range conflicts with existing address space, or overlaps multiple reserved regions, or overlaps unreserved regions.
 	
+	STATUS_MAX,
+	
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS
-	
-	// Status codes used internally
-#ifdef KERNEL
-	STATUS_NO_SEGMENTS_AFTER_THIS = 0x2000000,
-#endif
 };
 
 #define STATUS_WAIT(n) (STATUS_RANGE_WAIT + (n))
@@ -97,3 +95,5 @@ enum
 
 #define SUCCEEDED(x) ((x) == STATUS_SUCCESS)
 #define FAILED(x)    ((x) != STATUS_SUCCESS)
+
+const char* RtlGetStatusString(int code);

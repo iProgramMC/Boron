@@ -46,7 +46,7 @@ BSTATUS OSFreeVirtualMemory(
 BSTATUS OSMapViewOfObject(
 	HANDLE ProcessHandle,
 	HANDLE MappedObject,
-	void** BaseAddressOut,
+	void** BaseAddressInOut,
 	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,

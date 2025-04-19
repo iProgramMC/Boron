@@ -108,7 +108,56 @@ void PsStartInitialProcess(UNUSED void* Context)
 	// Now, the PEB will occupy however many pages, so we will need to cut those out too.
 	size_t PebSize = (sizeof(PEB) + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
 	
-	BoronDllBase = MM_USER_SPACE_END + 1 - PebSize - Size;
+	BoronDllBase = MM_USER_SPACE_END + 1 - (PebSize + Size) * PAGE_SIZE;
+	
+	// Start mapping in the program headers.
+	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
+	{
+		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ElfHeader.ProgramHeaderSize);
+		
+		if (ProgramHeader->SizeInMemory == 0)
+			continue;
+		
+		if (ProgramHeader->Type != PROG_LOAD)
+			continue;
+		
+		void* BaseAddress = (void*)(BoronDllBase + (ProgramHeader->VirtualAddress & 0xFFF));
+		
+		int Protection = 0, Flags = 0;
+		if (ProgramHeader->Flags & ELF_PHDR_EXEC)  Protection |= PAGE_EXECUTE;
+		if (ProgramHeader->Flags & ELF_PHDR_READ)  Protection |= PAGE_READ;
+		if (ProgramHeader->Flags & ELF_PHDR_WRITE) Flags |= MEM_COW;
+		
+		BSTATUS Status = OSMapViewOfObject(
+			ProcessHandle,
+			FileHandle,
+			&BaseAddress,
+			ProgramHeader->SizeInMemory,
+			Flags,
+			ProgramHeader->Offset,
+			Protection
+		);
+		
+		if (FAILED(Status))
+		{
+			KeCrash(
+				"Failed to map ELF phdr in: %d (%s)\n"
+				"ProgramHeader->SizeInMemory: %zu\n"
+				"ProgramHeader->VirtualAddress: %p\n"
+				"ProgramHeader->Offset: %p",
+				Status,
+				RtlGetStatusString(Status),
+				ProgramHeader->SizeInMemory,
+				ProgramHeader->VirtualAddress,
+				ProgramHeader->Offset
+			);
+		}
+		
+		uintptr_t BaseAddressUint = (uintptr_t) BaseAddr;
+		BoronDllBase += (BaseAddressUint + ProgramHeader->SizeInMemory + PAGE_SIZE - 1) & PAGE_SIZE;
+	}
+	
+	// Program headers have been mapped, now relocate everything.
 	
 	// TODO
 	(void) BoronDllBase;
@@ -120,8 +169,6 @@ void PsStartInitialProcess(UNUSED void* Context)
 INIT
 bool PsInitSystemPart2()
 {
-	return true;
-	
 	HANDLE ThreadHandle;
 	BSTATUS Status;
 	

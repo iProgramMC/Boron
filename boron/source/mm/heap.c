@@ -39,13 +39,130 @@ void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t
 	MmpCreateRegionHeap(Heap, InitialVa, InitialSize);
 }
 
+BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMMADDRESS_NODE* OutNode)
+{
+	BSTATUS Status = STATUS_SUCCESS;
+	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	
+	// Look in the heap for a node that's near this VA.
+	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&Heap->Tree, Va);
+	
+	// NOTE: All contiguous nodes are merged together on free.
+	
+	// This function looks up the biggest element <= the VA.
+	// If it doesn't exist then just assume there are conflicting addresses,
+	// because they probably are.
+	if (!Entry)
+	{
+	Conflict:
+		Status = STATUS_CONFLICTING_ADDRESSES;
+		goto Exit;
+	}
+	
+	// Check if the VA and the size are exact.  If so, just return the node.
+	PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
+	if (Node->StartVa == Va && Node->Size == SizePages)
+		goto Success;
+	
+	// Does this requested range even fit?
+	if (Node->Size < SizePages)
+		goto Conflict;
+	
+	// Is the ending VA outside of this node's range?
+	if (Node_EndVa(Node) < Va + SizePages * PAGE_SIZE)
+		// The next node cannot possibly be contiguous with this one
+		// because we ensure that doesn't happen on free.
+		goto Conflict;
+	
+	// They are not.  Check if we only need to cut from the right.
+	if (Node->StartVa == Va)
+	{
+		if (!MmpCreateRegionHeap(Heap, Node->StartVa + SizePages, Node->Size - SizePages))
+		{
+			Status = STATUS_INSUFFICIENT_MEMORY;
+			goto Exit;
+		}
+		
+		Node->Size = SizePages;
+		goto Success;
+	}
+	
+	uintptr_t RangeVa = Node->StartVa;
+	size_t RangeSize = Node->Size;
+	
+	// Check if we only need to cut from the left.
+	if (Node_EndVa(Node) == Va + SizePages * PAGE_SIZE)
+	{
+		// NOTE: surely we're able to do that, right? Because the entire
+		// range is covered by this one node so just chopping off a bit from
+		// the start should NOT influence the tree at all.
+		Node->StartVa = Node_EndVa(Node) - SizePages * PAGE_SIZE;
+		Node->Size = SizePages;
+		
+		if (!MmpCreateRegionHeap(Heap, RangeVa, RangeSize - SizePages))
+		{
+			// roll back our changes
+			Node->StartVa = RangeVa;
+			Node->Size = RangeSize;
+			Status = STATUS_INSUFFICIENT_MEMORY;
+			goto Exit;
+		}
+		
+		goto Success;
+	}
+	
+	// We need to cut from both sides.
+	
+	// Try to create two range items to surround the newly carved range.
+	PMMADDRESS_NODE Node1, Node2;
+	Node1 = MmAllocatePool(POOL_NONPAGED, Heap->ItemSize);
+	Node2 = MmAllocatePool(POOL_NONPAGED, Heap->ItemSize);
+	
+	if (!Node1 || !Node2)
+	{
+		// Return out of memory status after freeing them.
+		if (Node1) MmFreePool(Node1);
+		if (Node2) MmFreePool(Node2);
+		
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Exit;
+	}
+	
+	Node->StartVa = Va;
+	Node->Size = SizePages;
+	
+	// The left node.
+	Node1->StartVa = RangeVa;
+	Node1->Size = (Va - RangeVa) / PAGE_SIZE;
+	
+	// The right node.
+	Node2->StartVa = Va + SizePages * PAGE_SIZE;
+	Node2->Size = (RangeVa + RangeSize * PAGE_SIZE - Node2->StartVa) / PAGE_SIZE;
+	
+	InsertItemRbTree(&Heap->Tree, &Node1->Entry);
+	InsertItemRbTree(&Heap->Tree, &Node2->Entry);
+	
+	// Now the node is ready to be used.
+	
+Success:
+	RemoveItemRbTree(&Heap->Tree, &Node->Entry);
+	*OutNode = Node;
+	Status = STATUS_SUCCESS;
+	
+Exit:
+	KeReleaseMutex(&Heap->Mutex);
+	return Status;
+}
+
 BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMMADDRESS_NODE* OutNode)
 {
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
-	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
+	PRBTREE_ENTRY Entry;
 	
 	if (TopDown)
 		Entry = GetLastEntryRbTree(&Heap->Tree);
+	else
+		Entry = GetFirstEntryRbTree(&Heap->Tree);
 
 	// TODO: An optimization *could* be performed here, although it would probably not deliver
 	// much performance gain.

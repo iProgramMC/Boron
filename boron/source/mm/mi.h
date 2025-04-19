@@ -259,6 +259,6 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 //
 // Note: This leaves the VAD list locked, if the function succeeds, so you must call MmUnlockVadList!
 // Note: All of the parameters are presumed valid!
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, PMMVAD* OutVad, PMMVAD_LIST* OutVadList);
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, void* StartAddress, PMMVAD* OutVad, PMMVAD_LIST* OutVadList);
 
 #endif//NS64_MI_H

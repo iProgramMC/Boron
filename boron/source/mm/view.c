@@ -19,7 +19,7 @@ Author:
 // NOTE: AllocationType and Protection have been validated.
 BSTATUS MmMapViewOfFile(
 	PFILE_OBJECT FileObject,
-	void** BaseAddressOut,
+	void** BaseAddressInOut,
 	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
@@ -33,11 +33,17 @@ BSTATUS MmMapViewOfFile(
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
+	DbgPrint("ViewSizePages: %zu", ViewSizePages);
+	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
 	
+	void* BaseAddress = NULL;
+	if (BaseAddressInOut)
+		BaseAddress = *BaseAddressInOut;
+	
 	// Reserve the region, and then mark it as committed ourselves.
-	BSTATUS Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, &Vad, &VadList);
+	BSTATUS Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
 	if (FAILED(Status))
 		return Status;
 	
@@ -47,7 +53,7 @@ BSTATUS MmMapViewOfFile(
 	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
-	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
+	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
 	
 	return STATUS_SUCCESS;
@@ -60,8 +66,8 @@ BSTATUS MmMapViewOfFile(
 // Parameters:
 //     MappedObject - The object of which a view is to be mapped.
 //
-//     BaseAddressOut - The base address of the view.  If MEM_FIXED is specified, then the address
-//                      will be read from this parameter.
+//     BaseAddressInOut - The base address of the view.  If this is not NULL, specified, then the address
+//                        will be read from this parameter.
 //
 //     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
 //                     size of the view after its creation.
@@ -76,7 +82,7 @@ BSTATUS MmMapViewOfFile(
 //
 BSTATUS MmMapViewOfObject(
 	HANDLE MappedObject,
-	void** BaseAddressOut,
+	void** BaseAddressInOut,
 	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
@@ -86,7 +92,7 @@ BSTATUS MmMapViewOfObject(
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW))
 		return STATUS_INVALID_PARAMETER;
 	
 	if (!ViewSize)
@@ -101,7 +107,7 @@ BSTATUS MmMapViewOfObject(
 	{
 		Status = MmMapViewOfFile(
 			FileObject,
-			BaseAddressOut,
+			BaseAddressInOut,
 			ViewSize,
 			AllocationType,
 			SectionOffset,
@@ -120,7 +126,7 @@ BSTATUS MmMapViewOfObject(
 	{
 		Status = MmMapViewOfSection(
 			FileObject,
-			BaseAddressOut,
+			BaseAddressInOut,
 			ViewSizeInOut,
 			AllocationType,
 			SectionOffset,

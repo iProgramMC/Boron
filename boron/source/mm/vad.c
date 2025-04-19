@@ -38,12 +38,18 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 	InitializeRbTree(&VadList->Tree);
 }
 
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, PMMVAD* OutVad, PMMVAD_LIST* OutVadList)
+BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, void* StartAddress, PMMVAD* OutVad, PMMVAD_LIST* OutVadList)
 {
 	PEPROCESS Process = PsGetAttachedProcess();
 	PMMADDRESS_NODE AddrNode;
 	
-	BSTATUS Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
+	BSTATUS Status;
+
+	if (StartAddress)
+		Status = MmAllocateAddressRange(&Process->Heap, (uintptr_t) StartAddress, SizePages, &AddrNode);
+	else
+		Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
+	
 	if (FAILED(Status))
 		return Status;
 	
@@ -74,7 +80,7 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 }
 
 // Reserves a range of virtual memory.
-BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int AllocationType, int Protection)
+BSTATUS MmReserveVirtualMemory(size_t SizePages, void** InOutAddress, int AllocationType, int Protection)
 {
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
@@ -82,13 +88,15 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** OutAddress, int Allocati
 	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
 		return STATUS_INVALID_PARAMETER;
 	
+	void* StartVa = *InOutAddress;
+	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
-	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, AllocationType, Protection, &Vad, &VadList);
+	BSTATUS Status = MmReserveVirtualMemoryVad(SizePages, AllocationType, Protection, StartVa, &Vad, &VadList);
 	if (FAILED(Status))
 		return Status;
 	
-	*OutAddress = (void*) Vad->Node.StartVa;
+	*InOutAddress = (void*) Vad->Node.StartVa;
 	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;
 }

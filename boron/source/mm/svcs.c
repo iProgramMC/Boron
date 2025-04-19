@@ -103,12 +103,8 @@ BSTATUS OSAllocateVirtualMemory(
 	
 	if (AllocationType & MEM_RESERVE)
 	{
-		if (!HasAddressPointer)
-			// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
-			Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
-		else
-			// TODO: Receiving a base address.
-			Status = STATUS_UNIMPLEMENTED;
+		// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
+		Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
 		
 	}
 	else if (AllocationType & MEM_COMMIT)
@@ -252,7 +248,7 @@ BSTATUS OSFreeVirtualMemory(
 BSTATUS OSMapViewOfObject(
 	HANDLE ProcessHandle,
 	HANDLE MappedObject,
-	void** BaseAddressOut,
+	void** BaseAddressInOut,
 	size_t ViewSize,
 	int AllocationType,
 	uint64_t SectionOffset,
@@ -262,7 +258,7 @@ BSTATUS OSMapViewOfObject(
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW))
 		return STATUS_INVALID_PARAMETER;
 	
 	if (!ViewSize)
@@ -270,6 +266,14 @@ BSTATUS OSMapViewOfObject(
 	
 	BSTATUS Status;
 	PEPROCESS Process = NULL;
+	void* BaseAddress = NULL;
+	
+	if (BaseAddressInOut)
+	{
+		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
+		if (FAILED(Status))
+			return Status;
+	}
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
@@ -280,12 +284,17 @@ BSTATUS OSMapViewOfObject(
 		PsAttachToProcess(Process);
 	}
 	
-	void* BaseAddress = NULL;
-	
-	Status = MmMapViewOfObject(MappedObject, &BaseAddress, ViewSize, AllocationType, SectionOffset, Protection);
+	Status = MmMapViewOfObject(
+		MappedObject,
+		BaseAddressInOut ? &BaseAddress : NULL,
+		ViewSize,
+		AllocationType,
+		SectionOffset,
+		Protection
+	);
 	
 	if (SUCCEEDED(Status))
-		Status = MmSafeCopy(BaseAddressOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
+		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
