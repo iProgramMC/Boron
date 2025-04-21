@@ -13,7 +13,7 @@ if exist %nspath%\vdiske2.vdi (
 	set DriveOptions=-cdrom %nspath%\build\image.iso
 )
 
-qemu-system-x86_64.exe -no-reboot -no-shutdown ^
+qemu-system-x86_64.exe -no-reboot -no-shutdown -d int -M smm=off ^
 -M q35 ^
 -m 8M ^
 -smp 4 ^
@@ -22,7 +22,7 @@ qemu-system-x86_64.exe -no-reboot -no-shutdown ^
 -accel tcg ^
 -monitor telnet:127.0.0.1:56789,server,nowait ^
 -debugcon stdio ^
--trace *nvme* -trace *msi* -D %nspath%\keep\nvmelog.txt ^
+-trace *nvme* -trace *msi* -trace *fault* -D %nspath%\keep\nvmelog.txt ^
 -s ^
 %DriveOptions%
 

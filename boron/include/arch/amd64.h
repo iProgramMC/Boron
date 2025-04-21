@@ -260,7 +260,6 @@ KGDT;
 
 typedef struct
 {
-	void* IntStack;
 	KGDT Gdt;
 	KTSS Tss;
 }

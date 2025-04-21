@@ -22,6 +22,8 @@ Author:
 #include <io.h>
 #include <rtl/elf.h>
 
+#define USER_STACK_SIZE (256 * 1024)
+
 static const char* PspInitialProcessFileName = "\\InitRoot\\libboron.so";
 
 // TODO: Share a lot of this code with Ldr.
@@ -45,14 +47,22 @@ static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
 NO_RETURN
 void PspUserThreadStart(void* Context)
 {
-	// TODO: Actually move to user mode.
+	// Context means the initial RIP in user mode.
 	
-	void (*Ptr)();
-	Ptr = (void(*)())Context;
+	// First, allocate the stack.
+	void* StackAddress = NULL;
+	size_t StackSize = USER_STACK_SIZE;
+	BSTATUS Status = OSAllocateVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		&StackAddress,
+		&StackSize,
+		MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN,
+		PAGE_READ | PAGE_WRITE
+	);
 	
-	Ptr();
+	ASSERT(SUCCEEDED(Status) && "TODO: What happens if this fails? Maybe should have set it up earlier?!");
 	
-	PsTerminateThread();
+	KeDescendIntoUserMode(Context, StackAddress);
 }
 
 NO_RETURN
@@ -166,6 +176,7 @@ void PsStartInitialProcess(UNUSED void* Context)
 	size_t PebSize = (sizeof(PEB) + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
 	
 	BoronDllBase = MM_USER_SPACE_END + 1 - (PebSize + Size) * PAGE_SIZE;
+	DbgPrint("BoronDllBase: %p", BoronDllBase);
 	
 	bool IsDynamicLoaded = false;
 	uintptr_t BoronDllBaseOld = BoronDllBase;

@@ -110,6 +110,13 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 	
 	HalDisplayString("\tAddress         \tName\n");
 	
+	if (Rbp <= MM_USER_SPACE_END)
+	{
+		snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+		HalDisplayString(Buffer);
+		return;
+	}
+	
 	while (StackFrame && Depth > 0)
 	{
 		uintptr_t Address = StackFrame->IP;

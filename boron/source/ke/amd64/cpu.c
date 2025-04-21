@@ -152,10 +152,6 @@ void KeInitCPU()
 	PKARCH_DATA Data = &KeGetCurrentPRCB()->ArchData;
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
 	
-	void* intStack = MmGetHHDMOffsetAddr(MmPFNToPhysPage(ispPFN));
-	Data->IntStack = intStack;
-	memset(intStack, 0, 4096);
-	
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
 	KepLoadIdt();
@@ -174,6 +170,6 @@ void KeInitCPU()
 	uint64_t Star = SEG_RING_0_CODE | (SEG_RING_3_CODE << 16);
 	KeSetMSR(MSR_IA32_STAR, Star << 32);
 	
-	// Set the mask to full 1s.  This clears every flag when a system call occurs.
-	KeSetMSR(MSR_IA32_FMASK, ~0ULL);
+	// Set the mask to disable interrupts on syscall.
+	KeSetMSR(MSR_IA32_FMASK, 0x200);
 }

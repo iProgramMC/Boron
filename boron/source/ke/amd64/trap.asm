@@ -93,7 +93,6 @@ KiTrapCommon:
 	push  rax
 	cmp   rax, SEG_RING_0_CODE             ; Check if it is kernel mode.
 	je    .a                               ; If not, then run swapgs.
-	ud2
 	swapgs
 .a: ; Note that LEA doesn't actually perform any memory accesses, all it
 	; does it load the address of certain things into a register. We then
@@ -121,7 +120,6 @@ KiTrapCommon:
 	pop   rax                              ; Pop the RAX register - it has the old value of CS which we can check
 	cmp   rax, SEG_RING_0_CODE             ; Check if this is kernel mode.
 	je    .b                               ; If not, then run swapgs.
-	ud2
 	swapgs
 .b:	pop   rdx                              ; Pop the RDX register
 	pop   rcx                              ; Pop the RCX register
@@ -180,6 +178,38 @@ KiSystemServiceHandler:
 	pop r11
 	pop rcx
 	sysret
+
+global KeDescendIntoUserMode
+KeDescendIntoUserMode:
+	; RDI - Initial program counter
+	; RSI - Initial stack pointer
+	push qword SEG_RING_3_DATA | 3 ; push SS
+	push rsi                       ; push RSP
+	push qword 0x202               ; push RFLAGS
+	push qword SEG_RING_3_CODE | 3 ; push CS
+	push rdi                       ; push RIP
+	
+	; clear all the registers
+	xor rax, rax
+	xor rbx, rbx
+	xor rcx, rcx
+	xor rdx, rdx
+	xor rdi, rdi
+	xor rsi, rsi
+	xor rbp, rbp
+	xor r8,  r8
+	xor r9,  r9
+	xor r10, r10
+	xor r11, r11
+	xor r12, r12
+	xor r13, r13
+	xor r14, r14
+	xor r15, r15
+	
+	; finally, swap gs and return to user mode.
+	cli
+	swapgs
+	iretq
 
 section .bss
 global KiTrapIplList

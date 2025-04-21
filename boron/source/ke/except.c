@@ -58,7 +58,7 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 {
 	KI_EXCEPTION_HANDLER_INIT();
 	
-#ifdef DEBUG2
+#ifdef DEBUG
 	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
 	
@@ -91,7 +91,10 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 		}
 		
 		if (SUCCEEDED(FaultReason))
+		{
+			KeInvalidatePage((void*) FaultAddress);
 			return;
+		}
 		
 		if (KeGetPreviousMode() == MODE_USER)
 		{
