@@ -13,4 +13,246 @@ Abstract:
 Author:
 	iProgramInCpp - 19 April 2025
 ***/
-#include "elf.h"
+#include <rtl/elf.h>
+#include <ke/dbg.h>
+#include <string.h>
+
+#ifdef DEBUG2
+#define DbgPrint2(...) DbgPrint(__VA_ARGS__)
+#else
+#define DbgPrint2(...)
+#endif
+
+static bool RtlpComputeRelocation(
+	uint32_t Type,
+	uintptr_t Addend,
+	uintptr_t Base,
+	uintptr_t Symbol,
+	uintptr_t Place UNUSED,
+	uintptr_t* Value,
+	uintptr_t* Length
+)
+{
+	*Length = 0;
+	*Value  = 0;
+	
+	switch (Type)
+	{
+#ifdef TARGET_AMD64
+		case R_X86_64_64:
+			*Value  = Addend + Symbol;
+			*Length = sizeof(uint64_t);
+			break;
+		case R_X86_64_32:
+			*Value  = Addend + Symbol;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_X86_64_RELATIVE:
+			*Value  = Base + Addend;
+			*Length = sizeof(uint64_t);
+			break;
+		case R_X86_64_GLOB_DAT:
+			*Value  = Symbol;
+			*Length = sizeof(uint64_t);
+			break;
+		case R_X86_64_JUMP_SLOT:
+			*Value  = Symbol;
+			*Length = sizeof(uint64_t);
+			break;
+		// I prefer to go here with the "Add as you go with no plan" method
+#else
+#error Hey! Add ELF relocation types here
+#endif
+		default:
+			DbgPrint("RtlpComputeRelocation: Unknown relocation type %u", Type);
+			return false;
+	}
+	
+	return true;
+}
+
+static bool RtlpApplyRelocation(
+	PELF_DYNAMIC_INFO DynInfo,
+	PELF_REL PtrRel,
+	PELF_RELA PtrRela,
+	uintptr_t LoadBase,
+	uintptr_t ResolvedSymbol)
+{
+	if (!PtrRel && !PtrRela)
+		return false;
+	
+	ELF_RELA Rela;
+	if (PtrRela)
+	{
+		Rela = *PtrRela;
+	}
+	else
+	{
+		Rela.Addend = 0;
+		Rela.Offset = PtrRel->Offset;
+		Rela.Info   = PtrRel->Info;
+	}
+	
+	if (ResolvedSymbol == 0)
+		ResolvedSymbol = DynInfo->DynSymTable[Rela.Info >> 32].Value;
+	
+	uintptr_t Place  = LoadBase + Rela.Offset;
+	uintptr_t Addend = Rela.Addend;
+	
+	uintptr_t Value, Length;
+	uint32_t RelType = (uint32_t) Rela.Info; // ELF64_R_TYPE(x) => (x & 0xFFFFFFFF)
+	
+	if (!PtrRela)
+	{
+		if (!RtlpComputeRelocation(RelType,
+		                           0,
+		                           LoadBase,
+		                           ResolvedSymbol,
+		                           Place,
+		                           &Value,
+		                           &Length))
+		{
+			DbgPrint("RtlpApplyRelocation: REL type relocation failed to compute!");
+			return false;
+		}
+		
+	#ifdef DEBUG
+		if (Length > sizeof(uintptr_t))
+			DbgPrint("RtlpApplyRelocation: Length %zu bigger than %zu??", Length, sizeof(uintptr_t));
+	#endif
+		
+		memcpy(&Addend, (void*) Place, Length);
+	}
+	
+	if (!RtlpComputeRelocation(RelType,
+	                           Addend,
+	                           LoadBase,
+	                           ResolvedSymbol,
+	                           Place,
+	                           &Value,
+	                           &Length))
+	{
+		DbgPrint("RtlpApplyRelocation: Main relocation failed to compute!");
+		return false;
+	}
+	
+#ifdef DEBUG
+	if (Length > sizeof(uintptr_t))
+		DbgPrint("RtlpApplyRelocation: Length %zu bigger than %zu??", Length, sizeof(uintptr_t));
+#endif
+	
+	memcpy((void*) Place, &Value, Length);
+	return true;
+}
+
+bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
+{
+	for (size_t i = 0; i < DynInfo->RelaCount; i++)
+	{
+		PELF_RELA Rela = &DynInfo->RelaEntries[i];
+		if (!RtlpApplyRelocation(DynInfo, NULL, Rela, LoadBase, 0))
+			return false;
+	}
+	
+	for (size_t i = 0; i < DynInfo->RelCount; i++)
+	{
+		PELF_REL Rel = &DynInfo->RelEntries[i];
+		if (!RtlpApplyRelocation(DynInfo, Rel, NULL, LoadBase, 0))
+			return false;
+	}
+	
+	return true;
+}
+
+bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase)
+{
+	memset(Info, 0, sizeof *Info);
+	
+	for (; DynItem->Tag != DYN_NULL; DynItem++)
+	{
+		switch (DynItem->Tag)
+		{
+			default:
+				DbgPrint2("Dynamic entry with tag %d %x ignored", DynItem->Tag, DynItem->Tag);
+				break;
+			
+			case DYN_NEEDED:
+				DbgPrint("DYN_NEEDED not supported - libboron.so and drivers may not have other DLLs as dependencies");
+				return false;
+			
+			case DYN_REL:
+				Info->RelEntries = (ELF_REL*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_RELSZ:
+				Info->RelCount = DynItem->Pointer / sizeof(ELF_REL);
+				break;
+			
+			case DYN_RELA:
+				Info->RelaEntries = (ELF_RELA*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_RELASZ:
+				Info->RelaCount = DynItem->Pointer / sizeof(ELF_RELA);
+				break;
+			
+			case DYN_STRTAB:
+				Info->DynStrTable = (const char*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_SYMTAB:
+				Info->DynSymTable = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_JMPREL:
+				Info->PltRelocations = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_PLTRELSZ: // don't know why this affects JMPREL and not PLTREL like a sane person
+				Info->PltRelocationCount = DynItem->Value;
+				break;
+			
+			case DYN_PLTREL:
+				Info->PltUsesRela = DynItem->Value == DYN_RELA;
+				break;
+		}
+	}
+	
+	return true;
+}
+
+bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName)
+{
+	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
+	
+	for (size_t i = 0; i < DynInfo->PltRelocationCount; i += Increment)
+	{
+		// NOTE: PELF_RELA and PELF_REL need to have the same starting members!!
+		PELF_REL Rel = (PELF_REL)((uintptr_t)DynInfo->PltRelocations + i);
+		
+		PELF_SYMBOL Symbol = &DynInfo->DynSymTable[Rel->Info >> 32];
+		
+		uintptr_t SymbolOffset = Symbol->Name;
+		const char* SymbolName = DynInfo->DynStrTable + SymbolOffset;
+		
+		uintptr_t SymbolAddress = 0;
+		
+		// If the symbol's Info field doesn't specify a type, but is globally bound:
+		if (Symbol->Info == 0x10) //! TODO: Specify this with a defined constant, not a magic number
+			SymbolAddress = DbgLookUpAddress(SymbolName);
+		else
+			SymbolAddress = LoadBase + Symbol->Value;
+		
+		if (!SymbolAddress)
+			KeCrashBeforeSMPInit("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);
+		
+		if (!RtlpApplyRelocation(DynInfo,
+		                        DynInfo->PltUsesRela ? Rel : NULL,
+		                        DynInfo->PltUsesRela ? NULL : (PELF_RELA)Rel,
+		                        LoadBase,
+		                        SymbolAddress))
+			return false;
+	}
+	
+	return true;
+}

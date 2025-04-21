@@ -33,8 +33,6 @@ BSTATUS MmMapViewOfFile(
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	DbgPrint("ViewSizePages: %zu", ViewSizePages);
-	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
 	

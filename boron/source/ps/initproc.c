@@ -26,6 +26,23 @@ static const char* PspInitialProcessFileName = "\\InitRoot\\libboron.so";
 
 // TODO: Share a lot of this code with Ldr.
 
+static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
+	uint8_t* ProgramHeaders,
+	size_t ProgramHeaderCount,
+	size_t ProgramHeaderSize)
+{
+	for (size_t i = 0; i < ProgramHeaderCount; i++)
+	{
+		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ProgramHeaderSize);
+		
+		if (ProgramHeader->Type == PROG_DYNAMIC)
+			return ProgramHeader;
+	}
+	
+	return NULL;
+}
+
+
 NO_RETURN
 void PsStartInitialProcess(UNUSED void* Context)
 {
@@ -88,7 +105,17 @@ void PsStartInitialProcess(UNUSED void* Context)
 	BaseAddr = ~0U;
 	LargestAddr = 0;
 	
-	// Okay, we read the program headers.  Now map each of them in.
+	// Find the dynamic program header;
+	PELF_PROGRAM_HEADER DynamicPhdr = PspLdrFindDynamicPhdr(
+		ProgramHeaders,
+		ElfHeader.ProgramHeaderSize,
+		ElfHeader.ProgramHeaderCount
+	);
+	
+	if (!DynamicPhdr)
+		KeCrash("Error, cannot find dynamic program header in libboron.so");
+	
+	// Now map each of them in.
 	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
 	{
 		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ElfHeader.ProgramHeaderSize);
