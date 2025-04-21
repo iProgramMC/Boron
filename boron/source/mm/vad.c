@@ -70,6 +70,7 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 	Vad->Flags.LongFlags  = 0;
 	Vad->Mapped.Object    = NULL;
 	Vad->SectionOffset    = 0;
+	Vad->Flags.Cow        =  (AllocationType & MEM_COW) != 0;
 	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
 	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;
@@ -209,7 +210,6 @@ PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
 	
 	if (!Entry)
 	{
-		DbgPrint("No entry for address %p", Address);
 		// No entry found.
 		return NULL;
 	}
@@ -231,3 +231,23 @@ PMMVAD MmLookUpVadByAddress(PMMVAD_LIST VadList, uintptr_t Address)
 	
 	return Vad;
 }
+
+#ifdef DEBUG
+void MmDumpVadList(PMMVAD_LIST VadList)
+{
+	if (!VadList)
+		VadList = &PsGetAttachedProcess()->VadList;
+	
+	MiLockVadList(VadList);
+	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
+
+	DbgPrint("*** dumping VadList %p", VadList);
+	for (; Entry != NULL; Entry = GetNextEntryRbTree(Entry))
+	{
+		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
+		DbgPrint("\tStart: %p\tEnd: %zu", (void*)Vad->Node.StartVa, Vad->Node.Size);
+	}
+
+	MmUnlockVadList(VadList);
+}
+#endif

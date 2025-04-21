@@ -135,6 +135,15 @@ typedef uint64_t MMPTE, *PMMPTE;
 #define MSR_FS_BASE        (0xC0000100)
 #define MSR_GS_BASE        (0xC0000101)
 #define MSR_GS_BASE_KERNEL (0xC0000102)
+#define MSR_IA32_EFER      (0xC0000080)
+#define MSR_IA32_STAR      (0xC0000081)
+#define MSR_IA32_LSTAR     (0xC0000082)
+#define MSR_IA32_FMASK     (0xC0000084)
+
+#define MSR_IA32_EFER_SCE (1 << 0)  // SYSCALL/SYSRET enable
+#define MSR_IA32_EFER_LME (1 << 8)  // Long Mode enable - Limine sets this
+#define MSR_IA32_EFER_LMA (1 << 10) // Long Mode active
+#define MSR_IA32_EFER_NXE (1 << 11) // No Execute enable
 
 struct KREGISTERS_tag
 {

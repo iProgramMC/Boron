@@ -256,3 +256,18 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 	
 	return true;
 }
+
+bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
+{
+	// Note! A check for 0 here would be redundant as the contents of the
+	// for loop just wouldn't execute if the size was zero
+	DbgPrint("GOT size: %d",Size);
+	for (size_t i = 0; i < Size; i++)
+	{
+		uintptr_t Before = Got[i];
+		Got[i] += LoadBase;
+		DbgPrint("GOT entry Before: %p  After: %p", Before, Got[i]);
+	}
+	
+	return true;
+}

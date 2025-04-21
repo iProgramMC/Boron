@@ -73,7 +73,8 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	VadFlags.LongFlags = VadFlagsLong;
 	
 	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
-	uint64_t FileOffset = VaBase - (Va & PageMask) + MappedOffset;
+	uint64_t FileOffset = (Va & PageMask) - VaBase + MappedOffset;
+	DbgPrint("FileOffset : %p,  VaBase : %p, Va : %p, MappedOffset : %p", FileOffset, VaBase, Va, MappedOffset);
 	
 	// Is this a section?
 	if (!IsFile)
@@ -406,7 +407,9 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	{
 		// Lock the PFDB to check the reference count of the page.
 		//
-		// The page will only be copied if the page has a reference count of more than one.
+		// The page, normally, would only be copied if the page has a reference count of more than one.
+		// However, the page may actually be part of a page cache which the caller definitely didn't
+		// want to overwrite.
 		KIPL Ipl = MiLockPfdb();
 		
 		int RefCount = 1;
@@ -419,7 +422,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			ASSERT(RefCount > 0);
 		}
 		
-		if (RefCount == 1)
+		if (false && RefCount == 1)
 		{
 			// Simply make the page writable.
 			*PtePtr = (*PtePtr & ~MM_PTE_COW) | MM_PTE_READWRITE;

@@ -16,8 +16,32 @@ Author:
 
 #include <elf.h>
 
+// Struct not part of the ELF format, but part of the loader.
+typedef struct ELF_DYNAMIC_INFO_tag
+{
+	const char *DynStrTable;
+	PELF_SYMBOL DynSymTable;
+	uintptr_t  *GlobalOffsetTable;
+	size_t      GlobalOffsetTableSize;
+	uintptr_t  *GotPlt;
+	size_t      GotPltSize;
+	const void *PltRelocations;
+	size_t      PltRelocationCount;
+	ELF_RELA   *RelaEntries;
+	size_t      RelaCount;
+	ELF_REL    *RelEntries;
+	size_t      RelCount;
+	bool        PltUsesRela;
+	const char *StringTable;
+	PELF_SYMBOL SymbolTable;
+	size_t      SymbolTableSize;
+}
+ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
+
 bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
 
 bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase);
 
 bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName);
+
+bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase);

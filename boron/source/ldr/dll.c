@@ -188,7 +188,7 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 INIT
 static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 {
-	PELF_SECTION_HEADER GotSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
+	PELF_SECTION_HEADER GotSection = NULL, GotPltSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
 	PELF_HEADER Header = (PELF_HEADER) File->address;
 	uintptr_t Offset = (uintptr_t) File->address + Header->SectionHeadersOffset;
 	
@@ -205,6 +205,8 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 		
 		if (strcmp(SectName, ".got") == 0)
 			GotSection = SectionHeader;
+		else if (strcmp(SectName, ".got.plt") == 0)
+			GotPltSection = SectionHeader;
 		else if (strcmp(SectName, ".symtab") == 0)
 			SymTabSection = SectionHeader;
 		else if (strcmp(SectName, ".strtab") == 0)
@@ -222,6 +224,17 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 		DynInfo->GlobalOffsetTableSize = 0;
 	}
 	
+	if (GotPltSection)
+	{
+		DynInfo->GotPlt     = (uintptr_t*)(LoadBase + GotPltSection->VirtualAddress);
+		DynInfo->GotPltSize = GotPltSection->Size / sizeof(uintptr_t);
+	}
+	else
+	{
+		DynInfo->GotPlt     = NULL;
+		DynInfo->GotPltSize = 0;
+	}
+	
 	if (SymTabSection)
 	{
 		DynInfo->SymbolTable     = (PELF_SYMBOL)(File->address + SymTabSection->OffsetInFile);
@@ -230,20 +243,6 @@ static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO Dy
 	
 	if (StrTabSection)
 		DynInfo->StringTable = (const char*)(File->address + StrTabSection->OffsetInFile);
-}
-
-INIT
-static bool LdrpUpdateGlobalOffsetTable(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
-{
-	// Note! A check for 0 here would be redundant as the contents of the
-	// for loop just wouldn't execute if the size was zero
-	
-	for (size_t i = 0; i < DynInfo->GlobalOffsetTableSize; i++)
-	{
-		DynInfo->GlobalOffsetTable[i] += LoadBase;
-	}
-	
-	return true;
 }
 
 INIT
@@ -285,7 +284,8 @@ void LdriLoadDll(PLIMINE_FILE File)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
 	
 	LdrpParseInterestingSections(File, &DynInfo, LoadBase);
-	LdrpUpdateGlobalOffsetTable(&DynInfo, LoadBase);
+	RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, LoadBase);
+	RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, LoadBase);
 	
 	if (!RtlLinkPlt(&DynInfo, LoadBase, File->path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);

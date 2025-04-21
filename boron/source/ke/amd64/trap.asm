@@ -162,6 +162,25 @@ KiHandleTlbShootdownIpiA:
 	mov  rax, r15
 	ret
 
+testtext: db "test",0
+
+extern DbgPrint
+global KiSystemServiceHandler
+KiSystemServiceHandler:
+	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
+	; The RFLAGS have then been masked with the IA32_FMASK MSR.
+	; CS and SS are loaded from bits 47:32 of the IA32_STAR MSR.
+	
+	push rcx
+	push r11
+	
+	mov rdi, testtext
+	call DbgPrint
+	
+	pop r11
+	pop rcx
+	sysret
+
 section .bss
 global KiTrapIplList
 KiTrapIplList:

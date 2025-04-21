@@ -41,7 +41,7 @@ int MiGetReferenceCountPfn(MMPFN Pfn);
 // The PFN lock must be held.
 void MiDetransitionPfn(MMPFN Pfn);
 
-// 
+// Adds a reference to the page frame with the page frame database locked.
 void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn);
 
 // ===== Slab Allocator =====

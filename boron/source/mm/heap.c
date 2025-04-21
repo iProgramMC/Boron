@@ -44,6 +44,12 @@ BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMM
 	BSTATUS Status = STATUS_SUCCESS;
 	KeWaitForSingleObject(&Heap->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
+	size_t ViewSize = SizePages * PAGE_SIZE;
+	ViewSize += (size_t) ((uintptr_t)Va & (PAGE_SIZE - 1));
+	SizePages = (ViewSize + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	Va &= ~(PAGE_SIZE - 1);
+	
 	// Look in the heap for a node that's near this VA.
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&Heap->Tree, Va);
 	

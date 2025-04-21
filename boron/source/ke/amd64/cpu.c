@@ -132,6 +132,8 @@ static void KepSetupTss(KTSS* Tss)
 	memset(Tss, 0, sizeof * Tss);
 }
 
+extern void KiSystemServiceHandler();
+
 INIT
 void KeInitCPU()
 {
@@ -139,6 +141,7 @@ void KeInitCPU()
 	
 	int ispPFN = MmAllocatePhysicalPage();
 	
+	// TODO: I don't think you even need to do this lol
 	if (ispPFN == PFN_INVALID)
 	{
 		// TODO: crash
@@ -156,4 +159,20 @@ void KeInitCPU()
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
 	KepLoadIdt();
+	
+	// Set up the system call parameters now.
+	// Enable the SYSCALL/SYSRET instructions and the NX bit.
+	KeSetMSR(MSR_IA32_EFER, KeGetMSR(MSR_IA32_EFER) | MSR_IA32_EFER_SCE | MSR_IA32_EFER_NXE);
+	
+	// Set the system call handler.
+	KeSetMSR(MSR_IA32_LSTAR, (uint64_t) KiSystemServiceHandler);
+	
+	// Set the system call CS and SS.
+	//
+	// ARCHITECTURAL LIMITATION: SS cannot be specified
+	// separately, it is ALWAYS picked to be CS + 8.
+	KeSetMSR(MSR_IA32_STAR, SEG_RING_0_CODE << 32);
+	
+	// Set the mask to full 1s.  This clears every flag when a system call occurs.
+	KeSetMSR(MSR_IA32_FMASK, ~0ULL);
 }
