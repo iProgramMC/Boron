@@ -154,7 +154,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 			
 			memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
 			
-			uint64_t Flags = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
+			uint64_t Flags = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
 			
 			if (i != 0)
 				pPML[i - 1] = (PageMapLevel*) MmGetHHDMOffsetAddr(Addr);

@@ -93,7 +93,7 @@ void KiPerformPageMapTest()
 	
 	HPAGEMAP pm = KeGetCurrentPageTable();
 	
-	if (MiMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR, true))
+	if (MiMapAnonPage(pm, 0x5ADFDEADB000, MM_PTE_READWRITE | MM_PTE_USERACCESS, true))
 	{
 		*((uintptr_t*)0x5adfdeadbeef) = 420;
 		LogMsg("[CPU %u] Read back from there: %p", KeGetCurrentPRCB()->LapicId, *((uintptr_t*)0x5adfdeadbeef));
@@ -101,7 +101,7 @@ void KiPerformPageMapTest()
 		// Get rid of that shiza
 		MiUnmapPages(pm, 0x5ADFDEADB000, 1);
 		
-		MiMapAnonPage(pm, 0x5ADFDEADD000, MM_PTE_READWRITE | MM_PTE_SUPERVISOR, true);
+		MiMapAnonPage(pm, 0x5ADFDEADD000, MM_PTE_READWRITE | MM_PTE_USERACCESS, true);
 		MiUnmapPages (pm, 0x5ADFDEADD000, 1);
 		
 		// Try again!  We should get a page fault if we did everything correctly.

@@ -102,7 +102,7 @@ void AcpiInitPmt()
 		if (!MiMapPhysicalPage(MiGetCurrentPageMap(),
 		                       Addr,
 		                       (uintptr_t) PageAddress,
-		                       MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))
+		                       MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))
 		{
 		   goto CRASH_BECAUSE_FAILURE_TO_MAP;
 		}

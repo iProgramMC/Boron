@@ -33,7 +33,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	
 	HPAGEMAP Map = MiGetCurrentPageMap();
 	
-	MiMapAnonPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE | MM_PTE_SUPERVISOR, true);
+	MiMapAnonPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE, true);
 	
 	// Probe the memory.
 	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);

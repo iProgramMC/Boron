@@ -139,16 +139,6 @@ void KeInitCPU()
 {
 	KiSwitchToAddressSpaceProcess(KeGetSystemProcess());
 	
-	int ispPFN = MmAllocatePhysicalPage();
-	
-	// TODO: I don't think you even need to do this lol
-	if (ispPFN == PFN_INVALID)
-	{
-		// TODO: crash
-		LogMsg("Error, can't initialize CPU %u, we don't have enough memory. Tried to create interrupt stack", KeGetCurrentPRCB()->LapicId);
-		KeStopCurrentCPU();
-	}
-	
 	PKARCH_DATA Data = &KeGetCurrentPRCB()->ArchData;
 	memset(&Data->Gdt, 0, sizeof Data->Gdt);
 	
@@ -158,7 +148,7 @@ void KeInitCPU()
 	
 	// Set up the system call parameters now.
 	// Enable the SYSCALL/SYSRET instructions and the NX bit.
-	KeSetMSR(MSR_IA32_EFER, KeGetMSR(MSR_IA32_EFER) | MSR_IA32_EFER_SCE | MSR_IA32_EFER_NXE);
+	KeSetMSR(MSR_IA32_EFER, KeGetMSR(MSR_IA32_EFER) | MSR_IA32_EFER_SCE | 0);
 	
 	// Set the system call handler.
 	KeSetMSR(MSR_IA32_LSTAR, (uint64_t) KiSystemServiceHandler);

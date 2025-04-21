@@ -46,7 +46,7 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 			MiGetCurrentPageMap(),
 			(uintptr_t) OutputAddress,
 			PageCount,
-			MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_GLOBAL,
+			MM_PTE_READWRITE | MM_PTE_GLOBAL,
 			NonPaged))
 		{
 			MmUnlockKernelSpace();

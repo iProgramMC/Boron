@@ -66,7 +66,7 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 	if (!AddressV)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	uintptr_t Permissions = MM_PTE_ISFROMPMM | MM_PTE_SUPERVISOR;
+	uintptr_t Permissions = MM_PTE_ISFROMPMM;
 	
 	if (Mdl->Flags & MDL_FLAG_WRITE)
 		Permissions |= MM_PTE_READWRITE;

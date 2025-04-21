@@ -50,7 +50,7 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 	// Calculate the size of the total allocation.
 	size_t SizePages = (Phdr->SizeInMemory + Padding + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	uintptr_t Permissions = MM_PTE_SUPERVISOR;
+	uintptr_t Permissions = 0;
 	if (~Phdr->Flags & ELF_PHDR_EXEC)
 		Permissions |= MM_PTE_NOEXEC;
 	

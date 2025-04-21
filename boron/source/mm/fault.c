@@ -15,7 +15,7 @@ Author:
 #include "mi.h"
 #include <io.h>
 
-static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
+static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.
 	int Pfn = MmAllocatePhysicalPage();
@@ -29,7 +29,7 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr)
 	// Create a new, valid, PTE that will replace the current one.
 	MMPTE NewPte = *PtePtr;
 	NewPte &= ~MM_DPTE_COMMITTED;
-	NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM;
+	NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit;
 	NewPte |=  MmPFNToPhysPage(Pfn);
 	NewPte &= ~MM_PTE_PKMASK;
 	*PtePtr = NewPte;
@@ -68,6 +68,8 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	// Probably not.  When the page fault finishes, 
 	BSTATUS Status;
 	PMMPTE PtePtr = NULL;
+	
+	MMPTE SupervisorBit = Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS;
 	
 	MMVAD_FLAGS VadFlags;
 	VadFlags.LongFlags = VadFlagsLong;
@@ -134,12 +136,11 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				goto Exit;
 			}
 			
-			MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | MmPFNToPhysPage(Pfn);
+			MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
 			
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
 			
-			KeInvalidatePage(PtePtr);
 			*PtePtr = NewPte;
 			
 			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
@@ -266,7 +267,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				goto Exit;
 			}
 			
-			NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | MmPFNToPhysPage(Pfn);
+			NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
 			
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
@@ -385,7 +386,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
 	
-	Status = MmpHandleFaultCommittedPage(PtePtr);
+	Status = MmpHandleFaultCommittedPage(PtePtr, Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS);
 
 	// This is all we needed to do for the non-object-backed case.
 	MmUnlockSpace(SpaceUnlockIpl, Va);

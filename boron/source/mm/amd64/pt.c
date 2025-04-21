@@ -112,7 +112,7 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	}
 	
 	// For recursive paging
-	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_SUPERVISOR | MM_PTE_NOEXEC;
+	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
 	
 	MmUnlockKernelSpace();
 	
@@ -238,6 +238,12 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 	MMPTE  PtesOriginals[5];
 	PMMPTE PtesModified [5];
 	
+	MMPTE SupervisorBit;
+	if (Address >= MM_KERNEL_SPACE_BASE)
+		SupervisorBit = 0;
+	else
+		SupervisorBit = MM_PTE_USERACCESS;
+	
 	HPAGEMAP CurrentLevel = Mapping;
 	PMMPTE EntryPointer = NULL;
 	
@@ -277,7 +283,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			
 			memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn)), 0, PAGE_SIZE);
 			
-			*EntryPointer = Entry = MM_PTE_PRESENT | MM_PTE_READWRITE | MmPFNToPhysPage(pfn);
+			*EntryPointer = Entry = MM_PTE_PRESENT | MM_PTE_READWRITE | SupervisorBit | MmPFNToPhysPage(pfn);
 		}
 		
 		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
@@ -585,7 +591,6 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap)
 	Ptes[MI_GLOBAL_AREA_START] = 
 		MM_PTE_PRESENT    |
 		MM_PTE_READWRITE  |
-		MM_PTE_SUPERVISOR |
 		MM_PTE_GLOBAL     |
 		MM_PTE_ISFROMPMM  |
 		MM_PTE_NOEXEC     |
