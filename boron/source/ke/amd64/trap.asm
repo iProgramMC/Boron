@@ -162,9 +162,9 @@ KiHandleTlbShootdownIpiA:
 	mov  rax, r15
 	ret
 
-testtext: db "test",0
+testtext: db "**test from syscall handler**",0
 
-extern DbgPrint
+extern LogMsg
 global KiSystemServiceHandler
 KiSystemServiceHandler:
 	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
@@ -175,7 +175,7 @@ KiSystemServiceHandler:
 	push r11
 	
 	mov rdi, testtext
-	call DbgPrint
+	call LogMsg
 	
 	pop r11
 	pop rcx

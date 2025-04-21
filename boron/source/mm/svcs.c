@@ -268,12 +268,9 @@ BSTATUS OSMapViewOfObject(
 	PEPROCESS Process = NULL;
 	void* BaseAddress = NULL;
 	
-	if (BaseAddressInOut)
-	{
-		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
-		if (FAILED(Status))
-			return Status;
-	}
+	Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return Status;
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
@@ -286,7 +283,7 @@ BSTATUS OSMapViewOfObject(
 	
 	Status = MmMapViewOfObject(
 		MappedObject,
-		BaseAddressInOut ? &BaseAddress : NULL,
+		&BaseAddress,
 		ViewSize,
 		AllocationType,
 		SectionOffset,

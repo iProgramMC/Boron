@@ -364,6 +364,29 @@ BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType);
 }
 
+BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
+{
+	BSTATUS Status;
+	void* FileObjectV;
+	
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	if (!IoIsSeekable(FileObject))
+	{
+		ObDereferenceObject(FileObject);
+		return STATUS_UNSUPPORTED_FUNCTION;
+	}
+	
+	uint64_t Length = AtLoad(FileObject->Fcb->FileLength);
+	ObDereferenceObject(FileObject);
+	
+	return MmSafeCopy(OutLength, &Length, sizeof(uint64_t), KeGetPreviousMode(), true);
+}
+
 BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence)
 {
 	if (NewPosition == 0 && SeekWhence == IO_SEEK_CUR)

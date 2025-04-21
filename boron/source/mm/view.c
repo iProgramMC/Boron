@@ -36,9 +36,7 @@ BSTATUS MmMapViewOfFile(
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
 	
-	void* BaseAddress = NULL;
-	if (BaseAddressInOut)
-		BaseAddress = *BaseAddressInOut;
+	void* BaseAddress = *BaseAddressInOut;
 	
 	// Reserve the region, and then mark it as committed ourselves.
 	BSTATUS Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);

@@ -109,6 +109,9 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 	Ext = (PINIT_ROOT_FCB_EXT) Fcb->Extension;
 	Ext->File = File;
 	
+	Fcb->FileLength = File->size;
+	Fcb->FileType = FILE_TYPE_FILE;
+	
 	// Now create the file object.
 	Status = ObCreateObject(
 		(void**) &FileObject,

@@ -42,6 +42,8 @@ bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
 
 bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase);
 
-bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName);
+bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelLinking, UNUSED const char* FileName);
 
 bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase);
+
+void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);

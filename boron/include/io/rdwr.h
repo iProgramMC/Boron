@@ -52,3 +52,5 @@ BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, const void* Buffer, si
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence);
+
+BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);

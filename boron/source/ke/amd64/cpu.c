@@ -171,7 +171,8 @@ void KeInitCPU()
 	//
 	// ARCHITECTURAL LIMITATION: SS cannot be specified
 	// separately, it is ALWAYS picked to be CS + 8.
-	KeSetMSR(MSR_IA32_STAR, SEG_RING_0_CODE << 32);
+	uint64_t Star = SEG_RING_0_CODE | (SEG_RING_3_CODE << 16);
+	KeSetMSR(MSR_IA32_STAR, Star << 32);
 	
 	// Set the mask to full 1s.  This clears every flag when a system call occurs.
 	KeSetMSR(MSR_IA32_FMASK, ~0ULL);

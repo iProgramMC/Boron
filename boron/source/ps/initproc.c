@@ -42,106 +42,6 @@ static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
 	return NULL;
 }
 
-BSTATUS PspLdrParseInterestingSections(HANDLE FileHandle, PELF_HEADER Header, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
-{
-	BSTATUS Status;
-	IO_STATUS_BLOCK Iosb;
-	size_t SHdrTableSize;
-	void* SectionHeaders = NULL;
-	char* SHStringTable = NULL;
-	PELF_SECTION_HEADER GotSection = NULL;
-	PELF_SECTION_HEADER GotPltSection = NULL;
-	//PELF_SECTION_HEADER SymTabSection = NULL;
-	//PELF_SECTION_HEADER StrTabSection = NULL;
-	
-	SHdrTableSize = Header->SectionHeaderCount * Header->SectionHeaderSize;
-	SectionHeaders = MmAllocatePool(POOL_PAGED, SHdrTableSize);
-	if (!SectionHeaders)
-		return STATUS_INSUFFICIENT_MEMORY;
-	
-	Status = OSSeekFile(FileHandle, Header->SectionHeadersOffset, IO_SEEK_SET);
-	if (FAILED(Status))
-		goto Exit;
-	
-	memset(&Iosb, 0, sizeof Iosb);
-	Status = OSReadFile(&Iosb, FileHandle, SectionHeaders, SHdrTableSize, 0);
-	if (FAILED(Status) || Iosb.BytesRead != SHdrTableSize)
-		goto Exit;
-	
-	// Okay, so we grabbed the section header.
-	// Now, find the .shstrtab (section header string table)
-	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)((uintptr_t)SectionHeaders + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
-	SHStringTable = MmAllocatePool(POOL_PAGED, SHStrHeader->Size);
-	if (!SHStringTable)
-	{
-		Status = STATUS_INSUFFICIENT_MEMORY;
-		goto Exit;
-	}
-	
-	// Seek there, and load.
-	Status = OSSeekFile(FileHandle, SHStrHeader->OffsetInFile, IO_SEEK_SET);
-	if (FAILED(Status))
-		goto Exit;
-	
-	Status = OSReadFile(&Iosb, FileHandle, SHStringTable, SHStrHeader->Size, 0);
-	if (FAILED(Status) || Iosb.BytesRead != SHStrHeader->Size)
-		goto Exit;
-	
-	// OK, now we read the section header string table.
-	// Now, we can *finally* look for the GOT section.
-	uint8_t* Offset = SectionHeaders;
-	
-	for (int i = 0; i < Header->SectionHeaderCount; i++)
-	{
-		PELF_SECTION_HEADER SectionHeader = (PELF_SECTION_HEADER) Offset;
-		Offset += Header->SectionHeaderSize;
-		
-		// Seems like we gotta grab the name. But we have grabbed the string table
-		const char* SectName = &SHStringTable[SectionHeader->Name];
-		
-		// N.B. We may need symtab and strtab in the future.
-		if (strcmp(SectName, ".got") == 0)
-			GotSection = SectionHeader;
-		else if (strcmp(SectName, ".got.plt") == 0)
-			GotPltSection = SectionHeader;
-		//else if (strcmp(SectName, ".symtab") == 0)
-		//	SymTabSection = SectionHeader;
-		//else if (strcmp(SectName, ".strtab") == 0)
-		//	StrTabSection = SectionHeader;
-	}
-	
-	if (GotSection)
-	{
-		DynInfo->GlobalOffsetTable = (uintptr_t*) (LoadBase + GotSection->VirtualAddress);
-		DynInfo->GlobalOffsetTableSize = GotSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GlobalOffsetTable = NULL;
-		DynInfo->GlobalOffsetTableSize = 0;
-	}
-	
-	if (GotPltSection)
-	{
-		DynInfo->GotPlt = (uintptr_t*) (LoadBase + GotPltSection->VirtualAddress);
-		DynInfo->GotPltSize = GotPltSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GotPlt = NULL;
-		DynInfo->GotPltSize = 0;
-	}
-	
-	// TODO: Do we need to use the symtab and strtab sections?
-	
-Exit:
-	if (SHStringTable)
-		MmFreePool(SHStringTable);
-	
-	MmFreePool(SectionHeaders);
-	return Status;
-}
-
 NO_RETURN
 void PspUserThreadStart(void* Context)
 {
@@ -150,7 +50,6 @@ void PspUserThreadStart(void* Context)
 	void (*Ptr)();
 	Ptr = (void(*)())Context;
 	
-	DbgPrint("Ptr:%p",Ptr);
 	Ptr();
 	
 	PsTerminateThread();
@@ -163,7 +62,6 @@ void PsStartInitialProcess(UNUSED void* Context)
 	HANDLE ProcessHandle;
 	HANDLE FileHandle;
 	OBJECT_ATTRIBUTES FileAttributes;
-	IO_STATUS_BLOCK Iosb;
 	ELF_HEADER ElfHeader;
 	const char* Func;
 	
@@ -177,7 +75,7 @@ void PsStartInitialProcess(UNUSED void* Context)
 	);
 	
 	if (FAILED(Status))
-		KeCrash("%s: Failed to create initial process: %d", Status);
+		KeCrash("%s: Failed to create initial process: %d (%s)", Status, RtlGetStatusString(Status));
 	
 	FileAttributes.RootDirectory = HANDLE_NONE;
 	FileAttributes.ObjectName = PspInitialProcessFileName;
@@ -190,31 +88,46 @@ void PsStartInitialProcess(UNUSED void* Context)
 	);
 	
 	if (FAILED(Status))
-		KeCrash("%s: Failed to open %s: %d", Func, PspInitialProcessFileName, Status);
+		KeCrash("%s: Failed to open %s: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
 	
 	// The file has been opened.
-	// Read the ELF header.
-	memset(&Iosb, 0, sizeof Iosb);
-	Status = OSReadFile(&Iosb, FileHandle, &ElfHeader, sizeof(ELF_HEADER), 0);
+	uint64_t FileSize = 0;
+	Status = OSGetLengthFile(FileHandle, &FileSize);
+	if (FAILED(Status))
+		KeCrash("%s: Failed to get length of file %s: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
 	
-	if (FAILED(Status) || Iosb.BytesRead < sizeof(ELF_HEADER))
-		KeCrash("%s: Failed to read ELF header: %d", Func, Status);
+	// XXX: Arbitrary
+	if (FileSize > 0x800000)
+		KeCrash("%s: %s is just too big", Func, PspInitialProcessFileName);
 	
-	// TODO: Check if you are a valid ELF header.
+	// There is no need to complicate ourselves at all.  We will simply map the
+	// entire file once, then map each page individually where needed, and unmap
+	// the temporary mapping.
+	uint8_t* ElfMappingBase = NULL;
+	size_t RegionSize = FileSize;
+	
+	Status = OSMapViewOfObject(
+		CURRENT_PROCESS_HANDLE,
+		FileHandle,
+		(void**) &ElfMappingBase,
+		RegionSize,
+		0,
+		0,
+		PAGE_READ
+	);
+	
+	if (FAILED(Status))
+		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
+	
+	DbgPrint("Mapped entire file to %p", ElfMappingBase);
+	
+	PELF_HEADER PElfHeader = (PELF_HEADER) ElfMappingBase;
+	memcpy(&ElfHeader, PElfHeader, sizeof(ELF_HEADER));
+	
+	// TODO: Check if this is a valid ELF header.
 	
 	// Read program header information.
-	size_t ProgramHeaderListSize = ElfHeader.ProgramHeaderSize * ElfHeader.ProgramHeaderCount;
-	uint8_t* ProgramHeaders = MmAllocatePool(POOL_PAGED, ProgramHeaderListSize);
-	if (!ProgramHeaders)
-		KeCrash("%s: Out of memory while trying to allocate program headers", Func);
-	
-	Status = OSSeekFile(FileHandle, ElfHeader.ProgramHeadersOffset, IO_SEEK_SET);
-	if (FAILED(Status))
-		KeCrash("%s: Failed to seek to program headers offset", Func);
-	
-	Status = OSReadFile(&Iosb, FileHandle, ProgramHeaders, ProgramHeaderListSize, 0);
-	if (FAILED(Status) || Iosb.BytesRead < ProgramHeaderListSize)
-		KeCrash("%s: Failed to read program headers: %d", Func, Status);
+	uint8_t* ProgramHeaders = ElfMappingBase + ElfHeader.ProgramHeadersOffset;
 	
 	uintptr_t BoronDllBase = 0;
 	
@@ -271,7 +184,6 @@ void PsStartInitialProcess(UNUSED void* Context)
 		
 		void* BaseAddress = (void*)(BoronDllBase + ProgramHeader->VirtualAddress);
 		
-		DbgPrint("BaseAddress: %p   DynPhdrVAddr: %p", BaseAddress, DynamicBaseAddress);
 		if (BaseAddress == (void*) DynamicBaseAddress)
 			IsDynamicLoaded = true;
 		
@@ -288,17 +200,7 @@ void PsStartInitialProcess(UNUSED void* Context)
 			ProgramHeader->Offset,
 			Protection
 		);
-		
-		DbgPrint(
-			"--New PHdr\n"
-			"\tProgramHeader->SizeInMemory: %zu\n"
-			"\tProgramHeader->VirtualAddress: %p\n"
-			"\tProgramHeader->Offset: %p",
-			ProgramHeader->SizeInMemory,
-			ProgramHeader->VirtualAddress,
-			ProgramHeader->Offset
-		);
-		
+
 		if (FAILED(Status))
 		{
 			KeCrash(
@@ -317,7 +219,6 @@ void PsStartInitialProcess(UNUSED void* Context)
 	
 	// Program headers have been mapped.
 	BoronDllBase = BoronDllBaseOld;
-	DbgPrint("BoronDllBase : %p", BoronDllBase);
 	
 	// This assumes that the dynamic table is entirely mapped.
 	if (!IsDynamicLoaded)
@@ -328,7 +229,38 @@ void PsStartInitialProcess(UNUSED void* Context)
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
 	ASSERT(SUCCEEDED(Status));
 	
+	// Before attaching to the process make sure to unmap from the system address space.
+	Status = OSFreeVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		ElfMappingBase,
+		RegionSize,
+		MEM_RELEASE
+	);
+	if (FAILED(Status))
+		KeCrash("%s: Failed to free initial mapping of ELF: %d (%s)\n%p %zu", Func, Status, RtlGetStatusString(Status), ElfMappingBase, RegionSize);
+	
 	PsAttachToProcess(Process);
+	
+	// Re-map it into the new process' address space so we have things easily accessible everywhere.
+	uintptr_t OldBase = (uintptr_t) ElfMappingBase;
+	
+	ElfMappingBase = NULL;
+	
+	Status = OSMapViewOfObject(
+		CURRENT_PROCESS_HANDLE,
+		FileHandle,
+		(void**) &ElfMappingBase,
+		RegionSize,
+		0,
+		0,
+		PAGE_READ
+	);
+	
+	if (FAILED(Status))
+		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
+	
+	// Some cool math to move the dynamic header into the new mapping.
+	DynamicPhdr = (PELF_PROGRAM_HEADER) ((uintptr_t)DynamicPhdr - OldBase + (uintptr_t)ElfMappingBase);
 	
 	ELF_DYNAMIC_INFO DynInfo;
 	PELF_DYNAMIC_ITEM DynTable = (PELF_DYNAMIC_ITEM) (BoronDllBase + DynamicPhdr->VirtualAddress);
@@ -339,19 +271,27 @@ void PsStartInitialProcess(UNUSED void* Context)
 	if (!RtlPerformRelocations(&DynInfo, BoronDllBase))
 		KeCrash("%s: Failed to perform relocations.", Func);
 	
-	Status = PspLdrParseInterestingSections(FileHandle, &ElfHeader, &DynInfo, BoronDllBase);
-	if (FAILED(Status))
-		KeCrash("%s: Failed to read section header: %d (%s)", Func, Status, RtlGetStatusString(Status));
-	
+	RtlParseInterestingSections(ElfMappingBase, &DynInfo, BoronDllBase);
 	RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, BoronDllBase);
 	RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, BoronDllBase);
 	
+	if (!RtlLinkPlt(&DynInfo, BoronDllBase, false, PspInitialProcessFileName))
+		KeCrash("%s: Failed to perform PLT linking.", Func);
+	
 	// TODO: Adjust permissions so that the code segment is not writable anymore even with CoW.
+	
+	// Unmap the temporary mapping of the ELF, only leaving the actual mappings in.
+	Status = OSFreeVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		ElfMappingBase,
+		RegionSize,
+		MEM_RELEASE
+	);
+	ASSERT(SUCCEEDED(Status));
 	
 	PsDetachFromProcess();
 	ObDereferenceObject(Process);
 	OSClose(FileHandle);
-	MmFreePool(ProgramHeaders);
 	
 	void* EntryPoint = (void*) (BoronDllBase + ElfHeader.EntryPoint);
 	
@@ -373,7 +313,6 @@ void PsStartInitialProcess(UNUSED void* Context)
 	OSClose(ProcessHandle);
 	PsTerminateThread();
 }
-
 
 INIT
 bool PsInitSystemPart2()

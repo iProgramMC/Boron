@@ -74,7 +74,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	
 	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
 	uint64_t FileOffset = (Va & PageMask) - VaBase + MappedOffset;
-	DbgPrint("FileOffset : %p,  VaBase : %p, Va : %p, MappedOffset : %p", FileOffset, VaBase, Va, MappedOffset);
 	
 	// Is this a section?
 	if (!IsFile)

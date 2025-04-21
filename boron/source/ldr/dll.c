@@ -186,66 +186,6 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 }
 
 INIT
-static void LdrpParseInterestingSections(PLIMINE_FILE File, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
-{
-	PELF_SECTION_HEADER GotSection = NULL, GotPltSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
-	PELF_HEADER Header = (PELF_HEADER) File->address;
-	uintptr_t Offset = (uintptr_t) File->address + Header->SectionHeadersOffset;
-	
-	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)(File->address + Header->SectionHeadersOffset + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
-	const char* SHStringTable = (const char*)(File->address + SHStrHeader->OffsetInFile);
-	
-	for (int i = 0; i < Header->SectionHeaderCount; i++)
-	{
-		PELF_SECTION_HEADER SectionHeader = (PELF_SECTION_HEADER) Offset;
-		Offset += Header->SectionHeaderSize;
-		
-		// Seems like we gotta grab the name. But we have grabbed the string table already
-		const char* SectName = &SHStringTable[SectionHeader->Name];
-		
-		if (strcmp(SectName, ".got") == 0)
-			GotSection = SectionHeader;
-		else if (strcmp(SectName, ".got.plt") == 0)
-			GotPltSection = SectionHeader;
-		else if (strcmp(SectName, ".symtab") == 0)
-			SymTabSection = SectionHeader;
-		else if (strcmp(SectName, ".strtab") == 0)
-			StrTabSection = SectionHeader;
-	}
-	
-	if (GotSection)
-	{
-		DynInfo->GlobalOffsetTable     = (uintptr_t*)(LoadBase + GotSection->VirtualAddress);
-		DynInfo->GlobalOffsetTableSize = GotSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GlobalOffsetTable     = NULL;
-		DynInfo->GlobalOffsetTableSize = 0;
-	}
-	
-	if (GotPltSection)
-	{
-		DynInfo->GotPlt     = (uintptr_t*)(LoadBase + GotPltSection->VirtualAddress);
-		DynInfo->GotPltSize = GotPltSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GotPlt     = NULL;
-		DynInfo->GotPltSize = 0;
-	}
-	
-	if (SymTabSection)
-	{
-		DynInfo->SymbolTable     = (PELF_SYMBOL)(File->address + SymTabSection->OffsetInFile);
-		DynInfo->SymbolTableSize = SymTabSection->Size / sizeof(ELF_SYMBOL);
-	}
-	
-	if (StrTabSection)
-		DynInfo->StringTable = (const char*)(File->address + StrTabSection->OffsetInFile);
-}
-
-INIT
 void LdriLoadDll(PLIMINE_FILE File)
 {
 	if (KeLoadedDLLCount >= (int) ARRAY_COUNT(KeLoadedDLLs))
@@ -283,11 +223,11 @@ void LdriLoadDll(PLIMINE_FILE File)
 	if (!RtlPerformRelocations(&DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
 	
-	LdrpParseInterestingSections(File, &DynInfo, LoadBase);
+	RtlParseInterestingSections(File->address, &DynInfo, LoadBase);
 	RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, LoadBase);
 	RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, LoadBase);
 	
-	if (!RtlLinkPlt(&DynInfo, LoadBase, File->path))
+	if (!RtlLinkPlt(&DynInfo, LoadBase, true, File->path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);
 	
 	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);

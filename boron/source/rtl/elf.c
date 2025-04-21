@@ -221,7 +221,7 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 	return true;
 }
 
-bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName)
+bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelLinking, UNUSED const char* FileName)
 {
 	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
 	
@@ -239,9 +239,21 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 		
 		// If the symbol's Info field doesn't specify a type, but is globally bound:
 		if (Symbol->Info == 0x10) //! TODO: Specify this with a defined constant, not a magic number
-			SymbolAddress = DbgLookUpAddress(SymbolName);
+		{
+			if (AllowKernelLinking)
+			{
+				SymbolAddress = DbgLookUpAddress(SymbolName);
+			}
+			else
+			{
+				DbgPrint("ERROR: Cannot link against kernel or another DLL.  Function: %s", SymbolName);
+				return false;
+			}
+		}
 		else
+		{
 			SymbolAddress = LoadBase + Symbol->Value;
+		}
 		
 		if (!SymbolAddress)
 			KeCrashBeforeSMPInit("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);
@@ -259,15 +271,69 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 
 bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 {
-	// Note! A check for 0 here would be redundant as the contents of the
+	// Note: A check for 0 here would be redundant as the contents of the
 	// for loop just wouldn't execute if the size was zero
-	DbgPrint("GOT size: %d",Size);
 	for (size_t i = 0; i < Size; i++)
-	{
-		uintptr_t Before = Got[i];
 		Got[i] += LoadBase;
-		DbgPrint("GOT entry Before: %p  After: %p", Before, Got[i]);
-	}
 	
 	return true;
+}
+
+void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
+{
+	PELF_SECTION_HEADER GotSection = NULL, GotPltSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
+	PELF_HEADER Header = (PELF_HEADER) FileAddress;
+	uintptr_t Offset = (uintptr_t) FileAddress + Header->SectionHeadersOffset;
+	
+	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)(FileAddress + Header->SectionHeadersOffset + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
+	const char* SHStringTable = (const char*)(FileAddress + SHStrHeader->OffsetInFile);
+	
+	for (int i = 0; i < Header->SectionHeaderCount; i++)
+	{
+		PELF_SECTION_HEADER SectionHeader = (PELF_SECTION_HEADER) Offset;
+		Offset += Header->SectionHeaderSize;
+		
+		// Seems like we gotta grab the name. But we have grabbed the string table already
+		const char* SectName = &SHStringTable[SectionHeader->Name];
+		
+		if (strcmp(SectName, ".got") == 0)
+			GotSection = SectionHeader;
+		else if (strcmp(SectName, ".got.plt") == 0)
+			GotPltSection = SectionHeader;
+		else if (strcmp(SectName, ".symtab") == 0)
+			SymTabSection = SectionHeader;
+		else if (strcmp(SectName, ".strtab") == 0)
+			StrTabSection = SectionHeader;
+	}
+	
+	if (GotSection)
+	{
+		DynInfo->GlobalOffsetTable     = (uintptr_t*)(LoadBase + GotSection->VirtualAddress);
+		DynInfo->GlobalOffsetTableSize = GotSection->Size / sizeof(uintptr_t);
+	}
+	else
+	{
+		DynInfo->GlobalOffsetTable     = NULL;
+		DynInfo->GlobalOffsetTableSize = 0;
+	}
+	
+	if (GotPltSection)
+	{
+		DynInfo->GotPlt     = (uintptr_t*)(LoadBase + GotPltSection->VirtualAddress);
+		DynInfo->GotPltSize = GotPltSection->Size / sizeof(uintptr_t);
+	}
+	else
+	{
+		DynInfo->GotPlt     = NULL;
+		DynInfo->GotPltSize = 0;
+	}
+	
+	if (SymTabSection)
+	{
+		DynInfo->SymbolTable     = (PELF_SYMBOL)(FileAddress + SymTabSection->OffsetInFile);
+		DynInfo->SymbolTableSize = SymTabSection->Size / sizeof(ELF_SYMBOL);
+	}
+	
+	if (StrTabSection)
+		DynInfo->StringTable = (const char*)(FileAddress + StrTabSection->OffsetInFile);
 }
