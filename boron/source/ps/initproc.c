@@ -62,7 +62,7 @@ void PspUserThreadStart(void* Context)
 	
 	ASSERT(SUCCEEDED(Status) && "TODO: What happens if this fails? Maybe should have set it up earlier?!");
 	
-	KeDescendIntoUserMode(Context, StackAddress);
+	KeDescendIntoUserMode(Context, (uint8_t*) StackAddress + StackSize);
 }
 
 NO_RETURN

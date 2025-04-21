@@ -359,7 +359,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	
 	if (!IsPageCommitted)
 	{
-		DbgPrint("MiNormalFault: page fault at address %p!", Va);
+		DbgPrint("MiNormalFault: invalid page fault at address %p!", Va);
 		MmUnlockSpace(SpaceUnlockIpl, Va);
 		return STATUS_ACCESS_VIOLATION;
 	}
@@ -489,7 +489,6 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		{
 			// The PTE is writable already, therefore this fault may have been spurious
 			// and we should simply return.
-			DbgPrint("Returning bc the PTE is writable");
 			Status = STATUS_SUCCESS;
 			MmUnlockSpace(OldIpl, FaultAddress);
 			return Status;
@@ -498,7 +497,6 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		if (FaultMode & MM_FAULT_WRITE)
 		{
 			// A write fault occurred on a readonly page.
-			DbgPrint("Handling a write fault");
 			Status = MiWriteFault(Process, FaultAddress, PtePtr);
 			MmUnlockSpace(OldIpl, FaultAddress);
 			goto EarlyExit;
@@ -506,7 +504,6 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		
 		// The PTE is valid, and this wasn't a write fault, so this fault may have been
 		// spurious and we should simply return.
-		DbgPrint("Returning because spurious fault  %p  %p  %p", FaultAddress, PtePtr, *PtePtr);
 		Status = STATUS_SUCCESS;
 		MmUnlockSpace(OldIpl, FaultAddress);
 		return Status;
@@ -515,7 +512,6 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	// The PTE is not present.
 	//
 	// Note: MiNormalFault will unlock the memory space.
-	DbgPrint("Handling a normal fault");
 	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl);
 	
 	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE))
@@ -524,7 +520,6 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		// to make the page writable.  Note that returning STATUS_REFAULT
 		// simply brings us back into MmPageFault instead of going all the
 		// way back to the offending process to save some cycles.
-		DbgPrint("Refault because write");
 		Status = STATUS_REFAULT;
 	}
 	
@@ -541,8 +536,6 @@ EarlyExit:
 		// object that's signaled when there's enough memory.
 		//
 		// NOTE: This probably sucks and I should really think of a different solution.
-		DbgPrint("Refault sleep because out of memory");
-		
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, MI_REFAULT_SLEEP_MS, NULL);
