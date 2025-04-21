@@ -597,11 +597,13 @@ void KiSwitchToNextThread()
 		KeIssueSoftwareInterrupt(IPL_APC);
 	
 	// Switch to thread's stack.
+	uintptr_t StackBottom = (uintptr_t) Thread->Stack.Top + Thread->Stack.Size;
+	KeGetCurrentPRCB()->SysCallStack = StackBottom;
 	
 #ifdef TARGET_AMD64
 	// When an interrupt or exception happens and the CPL is ring 3,
 	// this is fetched for a transition to ring 0.
-	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = (uint64_t) Thread->Stack.Top + Thread->Stack.Size;
+	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
 #endif
 	
 	// NOTE: There are two paths from here:

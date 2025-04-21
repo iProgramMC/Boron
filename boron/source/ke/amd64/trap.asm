@@ -168,16 +168,26 @@ KiSystemServiceHandler:
 	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
 	; The RFLAGS have then been masked with the IA32_FMASK MSR.
 	; CS and SS are loaded from bits 47:32 of the IA32_STAR MSR.
+	swapgs
+	mov  rax, [gs:0x18]
+	mov  rbx, rsp
+	mov  rsp, rax
+	push rbx
+	sti
 	
 	push rcx
 	push r11
 	
-	mov rdi, testtext
+	mov  rdi, testtext
 	call LogMsg
 	
-	pop r11
-	pop rcx
-	sysret
+	pop  r11
+	pop  rcx
+	
+	cli
+	pop  rsp
+	swapgs
+	o64 sysret
 
 global KeDescendIntoUserMode
 KeDescendIntoUserMode:

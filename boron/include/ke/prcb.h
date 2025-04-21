@@ -43,6 +43,9 @@ typedef struct KPRCB_tag
 	//   shootdown requests come in.
 	KSPIN_LOCK TlbsLock;
 	
+	// NOTE: This is supposed to be at offset 0x18.  Update ke/amd64/trap.asm if you need this moved.
+	uintptr_t SysCallStack;
+	
 	// the index of the processor within the KeProcessorList
 	int Id;
 	

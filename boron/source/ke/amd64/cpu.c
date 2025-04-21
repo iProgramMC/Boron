@@ -71,8 +71,8 @@ static uint64_t KepGdtEntries[] =
 	0x0000000000000000, // Null descriptor
 	0x00af9b000000ffff, // 64-bit ring-0 code
 	0x00af93000000ffff, // 64-bit ring-0 data
-	0x00affb000000ffff, // 64-bit ring-3 code
 	0x00aff3000000ffff, // 64-bit ring-3 data
+	0x00affb000000ffff, // 64-bit ring-3 code
 };
 
 extern void KepLoadGdt(void* desc);
@@ -155,9 +155,16 @@ void KeInitCPU()
 	
 	// Set the system call CS and SS.
 	//
-	// ARCHITECTURAL LIMITATION: SS cannot be specified
-	// separately, it is ALWAYS picked to be CS + 8.
-	uint64_t Star = SEG_RING_0_CODE | (SEG_RING_3_CODE << 16);
+	// ARCHITECTURAL CRIMES AGAINST HUMANITY:
+	// For the kernel CS/SS, you cannot pick SS.  It is automatically
+	// picked as STAR_47_32 + 8.  But CS is the proper value of STAR_47_32.
+	//
+	// For the *user* CS/SS, you cannot pick SS.  It is automatically
+	// picked as STAR_63_48 + 8.  But CS is NOT the proper value
+	// of STAR_63_48, instead, it's STAR_63_48 + 16.  Why AMD?!
+	//
+	// (Or was it Intel?)
+	uint64_t Star = SEG_RING_0_CODE | ((SEG_RING_3_DATA - 8) << 16);
 	KeSetMSR(MSR_IA32_STAR, Star << 32);
 	
 	// Set the mask to disable interrupts on syscall.

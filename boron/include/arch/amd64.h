@@ -216,11 +216,16 @@ KIDT, *PKIDT;
 
 // GDT
 
+// Note: Data and code segments are *swapped* for user mode because
+// for whatever reason AMD or intel decided they just *had* to take
+// the value of IA32_STAR 63:48 and add 16 to it. for "no reason".
+//
+// surely there was a reason... right?
 #define SEG_NULL        (0x00)
 #define SEG_RING_0_CODE (0x08)
 #define SEG_RING_0_DATA (0x10)
-#define SEG_RING_3_CODE (0x18)
-#define SEG_RING_3_DATA (0x20)
+#define SEG_RING_3_DATA (0x18)
+#define SEG_RING_3_CODE (0x20)
 #define C_GDT_SEG_COUNT (5)
 
 typedef struct
