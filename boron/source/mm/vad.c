@@ -12,7 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 18 August 2024
 ***/
-#include <mm.h>
+#include "mi.h"
 #include <ex.h>
 
 static inline void MiLockVadList(PMMVAD_LIST VadList)
@@ -98,6 +98,7 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** InOutAddress, int Alloca
 		return Status;
 	
 	*InOutAddress = (void*) Vad->Node.StartVa;
+	ASSERT(PAGE_ALIGNED(Vad->Node.StartVa));
 	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;
 }

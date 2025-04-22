@@ -16,6 +16,8 @@ Author:
 
 bool MmpCreateRegionHeap(PMMHEAP Heap, uintptr_t StartVa, size_t Size)
 {
+	ASSERT(PAGE_ALIGNED(StartVa));
+	
 	PMMADDRESS_NODE Mem = MmAllocatePool(POOL_NONPAGED, Heap->ItemSize);
 	if (!Mem)
 		return false;
@@ -83,7 +85,7 @@ BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMM
 	// They are not.  Check if we only need to cut from the right.
 	if (Node->StartVa == Va)
 	{
-		if (!MmpCreateRegionHeap(Heap, Node->StartVa + SizePages, Node->Size - SizePages))
+		if (!MmpCreateRegionHeap(Heap, Node->StartVa + SizePages * PAGE_SIZE, Node->Size - SizePages))
 		{
 			Status = STATUS_INSUFFICIENT_MEMORY;
 			goto Exit;
@@ -103,12 +105,14 @@ BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMM
 		// range is covered by this one node so just chopping off a bit from
 		// the start should NOT influence the tree at all.
 		Node->StartVa = Node_EndVa(Node) - SizePages * PAGE_SIZE;
+		ASSERT(PAGE_ALIGNED(Node->StartVa));
 		Node->Size = SizePages;
 		
 		if (!MmpCreateRegionHeap(Heap, RangeVa, RangeSize - SizePages))
 		{
 			// roll back our changes
 			Node->StartVa = RangeVa;
+			ASSERT(PAGE_ALIGNED(RangeVa));
 			Node->Size = RangeSize;
 			Status = STATUS_INSUFFICIENT_MEMORY;
 			goto Exit;
@@ -136,14 +140,17 @@ BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMM
 	
 	Node->StartVa = Va;
 	Node->Size = SizePages;
+	ASSERT(PAGE_ALIGNED(Va));
 	
 	// The left node.
 	Node1->StartVa = RangeVa;
 	Node1->Size = (Va - RangeVa) / PAGE_SIZE;
+	ASSERT(PAGE_ALIGNED(RangeVa));
 	
 	// The right node.
 	Node2->StartVa = Va + SizePages * PAGE_SIZE;
 	Node2->Size = (RangeVa + RangeSize * PAGE_SIZE - Node2->StartVa) / PAGE_SIZE;
+	ASSERT(PAGE_ALIGNED(Node2->StartVa));
 	
 	InsertItemRbTree(&Heap->Tree, &Node1->Entry);
 	InsertItemRbTree(&Heap->Tree, &Node2->Entry);
@@ -220,6 +227,7 @@ BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMM
 		// NOTE: We can do this, because the order of the heap nodes will not actually change.
 		uintptr_t OldVa = Node->StartVa;
 		Node->StartVa = AllocatedVa;
+		ASSERT(PAGE_ALIGNED(AllocatedVa));
 
 #ifdef DEBUG
 		// However, in debug/check mode, we will actually assert that.
@@ -234,6 +242,7 @@ BSTATUS MmAllocateAddressSpace(PMMHEAP Heap, size_t SizePages, bool TopDown, PMM
 			ASSERT(!"uh oh");
 			
 			Node->StartVa = OldVa;
+			ASSERT(PAGE_ALIGNED(OldVa));
 			KeReleaseMutex(&Heap->Mutex);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
