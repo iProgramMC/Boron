@@ -18,9 +18,12 @@ Author:
 
 BSTATUS OSDummy()
 {
+	DbgPrint("Dummy system call invoked\n");
 	LogMsg("Dummy system call invoked\n");
 	return 0;
 }
+
+// KEEP IN SYNC with ke/amd64/syscall.asm !!!
 
 const void* const KiSystemServices[] =
 {

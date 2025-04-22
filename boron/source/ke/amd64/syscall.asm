@@ -1,0 +1,90 @@
+;
+;    The Boron Operating System
+;    Copyright (C) 2025 iProgramInCpp
+; 
+; Module name:
+;    ke/amd64/syscall.asm
+; 	
+; Abstract:
+;    This module contains the implementation for the
+;    system service ("syscall") handler.
+; 	
+; Author:
+;    iProgramInCpp - 22 April 2025
+;
+
+bits 64
+%include "arch/amd64.inc"
+
+%define MAX_SYSTEM_CALLS 2 ; KEEP IN SYNC with ex/svctable.c !!!
+
+; When calling the system call handler, the following registers take on the following tasks:
+;
+; RAX - System Call Number
+; RDI - Argument 1
+; RSI - Argument 2
+; RDX - Argument 3
+; R10 - Argument 4
+; R8  - Argument 5
+; R9  - Argument 6
+; R12 - Argument 7
+; R13 - Argument 8
+; R14 - Argument 9
+
+extern KiSystemServices
+global KiSystemServiceHandler
+KiSystemServiceHandler:
+	cmp  rax, MAX_SYSTEM_CALLS
+	jge  .invalidCall
+	
+	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
+	; The RFLAGS have then been masked with the IA32_FMASK MSR.
+	; CS and SS are loaded from bits 47:32 of the IA32_STAR MSR.
+	swapgs
+	mov  r15, [gs:0x18]
+	mov  rbx, rsp
+	mov  rsp, r15
+	push rbx
+	sti
+	
+	push rcx
+	push r11
+
+	push rbp
+	mov  rbp, rsp
+	
+	; Push the extra arguments on the stack.  When the system service returns,
+	; these are cleaned up by the caller.
+	push r14
+	push r13
+	push r12
+	
+	; Fix up argument #4
+	mov  rcx, r10
+	
+	call [KiSystemServices + 8 * rax]
+	
+	; Clean up the 3 extra parameters.
+	add  rsp, 24
+	
+	; Currently we don't support returning through multiple registers.
+	; As such, every register other than RAX is cleared.
+	;
+	; TODO: Add a table to see whether or not RAX needs to be cleared or not.
+	; RBP is preserved.
+	
+	CLEAR_REGS
+	
+	pop  rbp
+	pop  r11
+	pop  rcx
+	
+	cli
+	pop  rsp
+	swapgs
+	o64 sysret
+
+.invalidCall:
+	; Invalid system call, return with the status of STATUS_INVALID_PARAMETER (1)
+	mov  rax, 1
+	o64 sysret

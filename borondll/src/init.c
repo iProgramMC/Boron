@@ -8,5 +8,5 @@ void DLLEntryPoint()
 	OSDummy();
 	OSDummy();
 	
-	OSExitThread(42);
+	OSExitThread();
 }
