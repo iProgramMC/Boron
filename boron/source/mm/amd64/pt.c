@@ -55,11 +55,6 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	// PML3 exists, check PML2
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
 	if (~(*Pte) & MM_PTE_PRESENT)
-		goto Missing;
-	
-	// PML2 exists, check PML1
-	Pte = MmGetPteLocation(Address);
-	if (~(*Pte) & MM_PTE_PRESENT)
 	{
 	Missing:
 		if (GenerateMissingLevels)

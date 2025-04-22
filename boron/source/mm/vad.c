@@ -144,6 +144,9 @@ void MiReleaseVad(PMMVAD Vad)
 	// Step 3.
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
 	
+	// Issue a TLB shootdown request covering the whole area. 
+	MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size);
+	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	
 	// Step 4. Remove the reference to the object if needed.

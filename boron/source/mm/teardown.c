@@ -24,7 +24,7 @@ void MmTearDownProcess(PEPROCESS Process)
 	PsAttachToProcess(Process);
 	
 	// Free every VAD.
-	PRBTREE_ENTRY Entry = GetRootEntryRbTree(&Process->VadList.Tree);
+	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Process->VadList.Tree);
 	do
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
@@ -45,12 +45,12 @@ void MmTearDownProcess(PEPROCESS Process)
 		MmLockVadList();
 		MiReleaseVad(Vad);
 		
-		Entry = GetRootEntryRbTree(&Process->VadList.Tree);
+		Entry = GetFirstEntryRbTree(&Process->VadList.Tree);
 	}
 	while (Entry);
 	
 	// Free every heap item.
-	Entry = GetRootEntryRbTree(&Process->Heap.Tree);
+	Entry = GetFirstEntryRbTree(&Process->Heap.Tree);
 	do
 	{
 		PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
@@ -59,20 +59,25 @@ void MmTearDownProcess(PEPROCESS Process)
 		RemoveItemRbTree(&Process->Heap.Tree, &Node->Entry);
 		MmFreePool(Node);
 		
-		Entry = GetRootEntryRbTree(&Process->Heap.Tree);
+		Entry = GetFirstEntryRbTree(&Process->Heap.Tree);
 	}
 	while (Entry);
+	
+	MiFreeUnusedMappingLevelsInCurrentMap(0, (MM_USER_SPACE_END + 1) >> 12);
 	
 #if defined(DEBUG) && defined(TARGET_AMD64)
 
 	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
+	
 	for (int i = 0; i < 256; i++)
 		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
-
+	
 #endif
 	
 	if (Process->Pcb.PageMap != 0)
 		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));
 	
 	PsDetachFromProcess();
+	
+	LogMsg("Process exited.");
 }

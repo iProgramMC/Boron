@@ -93,9 +93,6 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 		MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
 		*Pte = 0;
 	}
-	
-	// Issue a TLB shootdown request covering the whole area. 
-	MmIssueTLBShootDown(StartVa, SizePages);
 }
 
 static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)

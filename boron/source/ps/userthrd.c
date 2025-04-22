@@ -55,6 +55,8 @@ BSTATUS OSExitThread()
 		MEM_RELEASE
 	);
 	
+	ASSERT(SUCCEEDED(Status));
+	
 	(void) Status;
 	
 	PsTerminateThread();
