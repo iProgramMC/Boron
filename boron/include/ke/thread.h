@@ -164,6 +164,6 @@ void KeWakeUpThread(PKTHREAD Thread);
 NO_RETURN void KeTerminateThread(KPRIORITY Increment);
 
 // Switch this thread into user mode.
-NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer);
+NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext);
 
 #endif//BORON_KE_THREAD_H

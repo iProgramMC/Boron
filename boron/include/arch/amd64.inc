@@ -9,12 +9,11 @@ bits 64
 %define SEG_RING_3_DATA 0x18
 %define SEG_RING_3_CODE 0x20
 
-; Clears all registers except RAX and RBP
+; Clears all registers except RAX, RDI, and RBP
 %macro CLEAR_REGS 0
 	xor rbx, rbx
 	xor rcx, rcx
 	xor rdx, rdx
-	xor rdi, rdi
 	xor rsi, rsi
 	xor r8,  r8
 	xor r9,  r9

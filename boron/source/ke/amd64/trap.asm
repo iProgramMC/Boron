@@ -164,6 +164,7 @@ global KeDescendIntoUserMode
 KeDescendIntoUserMode:
 	; RDI - Initial program counter
 	; RSI - Initial stack pointer
+	; RDX - User context
 	push qword SEG_RING_3_DATA | 3 ; push SS
 	push rsi                       ; push RSP
 	push qword 0x202               ; push RFLAGS
@@ -173,6 +174,7 @@ KeDescendIntoUserMode:
 	; clear all the registers
 	xor rax, rax
 	xor rbp, rbp
+	mov rdi, rdx
 	CLEAR_REGS
 	
 	; finally, swap gs and return to user mode.

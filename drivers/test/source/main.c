@@ -20,7 +20,7 @@ Author:
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
 	HANDLE Handle = HANDLE_NONE;
-	BSTATUS Status = PsCreateSystemThread(&Handle, NULL, HANDLE_NONE, StartRoutine, Parameter);
+	BSTATUS Status = PsCreateSystemThread(&Handle, NULL, HANDLE_NONE, StartRoutine, Parameter, false);
 	
 	if (FAILED(Status))
 		KeCrash("Failed to CreateThread(%p): status %d", StartRoutine, Status);

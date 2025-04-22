@@ -276,3 +276,10 @@ BSTATUS OSClose(HANDLE Handle)
 {
 	return ObClose(Handle);
 }
+
+// Dummy.
+BSTATUS OSDummy()
+{
+	LogMsg("Dummy system call invoked from %p.", KeGetCurrentThread());
+	return 0;
+}

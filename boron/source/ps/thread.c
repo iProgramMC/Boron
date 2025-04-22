@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2024-2025 iProgramInCpp
 
 Module name:
 	ps/thread.c
@@ -60,8 +60,9 @@ typedef struct
 	PEPROCESS Process;
 	PKTHREAD_START StartRoutine;
 	void* StartContext;
+	bool CreateSuspended;
 }
-THREAD_START_CONTEXT;
+THREAD_INIT_CONTEXT;
 
 // This function is called at high IPL.
 void PspTerminateThread(PKTHREAD Tcb)
@@ -81,11 +82,11 @@ void PspTerminateThread(PKTHREAD Tcb)
 
 BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
 {
-	THREAD_START_CONTEXT* Tsc = Context;
-	PEPROCESS Process = Tsc->Process;
-	PKTHREAD_START StartRoutine = Tsc->StartRoutine;
+	THREAD_INIT_CONTEXT* Tic = Context;
+	PEPROCESS Process = Tic->Process;
+	PKTHREAD_START StartRoutine = Tic->StartRoutine;
 	PETHREAD Thread = ThreadV;
-	void* StartContext = Tsc->StartContext;
+	void* StartContext = Tic->StartContext;
 	
 	// Allocate the thread's stack.
 	void* ThreadStack = MmAllocateKernelStack();
@@ -117,7 +118,8 @@ BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
 	// TODO: Initialize other ETHREAD attributes.  Currently there's just the TCB.
 	
 	// Ready the thread.
-	KeReadyThread(&Thread->Tcb);
+	if (!Tic->CreateSuspended)
+		KeReadyThread(&Thread->Tcb);
 	
 	return STATUS_SUCCESS;
 }
@@ -127,7 +129,8 @@ BSTATUS PsCreateSystemThread(
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ProcessHandle,
 	PKTHREAD_START StartRoutine,
-	void* StartContext)
+	void* StartContext,
+	bool CreateSuspended)
 {
 	void* ProcessV;
 	BSTATUS Status;
@@ -145,10 +148,11 @@ BSTATUS PsCreateSystemThread(
 	}
 	
 	PEPROCESS Process = ProcessV;
-	THREAD_START_CONTEXT Tsc;
-	Tsc.Process = Process;
-	Tsc.StartRoutine = StartRoutine;
-	Tsc.StartContext = StartContext;
+	THREAD_INIT_CONTEXT Tic;
+	Tic.Process = Process;
+	Tic.StartRoutine = StartRoutine;
+	Tic.StartContext = StartContext;
+	Tic.CreateSuspended = CreateSuspended;
 	
 	Status = ExCreateObjectUserCall(
 		OutHandle,
@@ -156,10 +160,45 @@ BSTATUS PsCreateSystemThread(
 		PsThreadObjectType,
 		sizeof(ETHREAD),
 		PspInitializeThreadObject,
-		&Tsc,
+		&Tic,
 		POOL_NONPAGED
 	);
 	
 	ObDereferenceObject(ProcessV);
 	return Status;
+}
+
+BSTATUS OSCreateThread(
+	PHANDLE OutHandle,
+	HANDLE ProcessHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PKTHREAD_START ThreadStart,
+	void* ThreadContext,
+	bool CreateSuspended)
+{
+	// TODO: The user process should be able to allocate a stack.  But
+	// then we should also have a way to free the current process' stack.
+	// Maybe we should consider making the OSExitThread system call give
+	// us the stack's top?
+	
+	HANDLE ThreadHandle;
+	BSTATUS Status;
+	
+	THREAD_START_CONTEXT Context;
+	Context.InstructionPointer = ThreadStart;
+	Context.UserContext = ThreadContext;
+	
+	Status = PsCreateSystemThread(
+		&ThreadHandle,
+		ObjectAttributes,
+		ProcessHandle,
+		PspUserThreadStart,
+		&Context,
+		CreateSuspended
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	return MmSafeCopy(OutHandle, &ThreadHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 }

@@ -25,6 +25,13 @@ Author:
 #define INITIAL_BEG_VA 0x0000000000001000
 #define INITIAL_END_VA 0x00007FFFFFFFF000
 
+typedef struct
+{
+	void* InstructionPointer;
+	void* UserContext;
+}
+THREAD_START_CONTEXT, *PTHREAD_START_CONTEXT;
+
 bool PsCreateThreadType();
 
 bool PsCreateProcessType();

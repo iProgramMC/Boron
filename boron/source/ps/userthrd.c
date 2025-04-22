@@ -15,9 +15,10 @@ Author:
 #include "psp.h"
 
 NO_RETURN
-void PspUserThreadStart(void* Context)
+void PspUserThreadStart(void* ContextV)
 {
 	// Context means the initial RIP in user mode.
+	PTHREAD_START_CONTEXT Context = ContextV;
 	
 	// First, allocate the stack.
 	void* StackAddress = NULL;
@@ -35,7 +36,7 @@ void PspUserThreadStart(void* Context)
 	PsGetCurrentThread()->UserStack = StackAddress;
 	PsGetCurrentThread()->UserStackSize = StackSize;
 	
-	KeDescendIntoUserMode(Context, (uint8_t*) StackAddress + StackSize);
+	KeDescendIntoUserMode(Context->InstructionPointer, (uint8_t*) StackAddress + StackSize, Context->UserContext);
 }
 
 NO_RETURN

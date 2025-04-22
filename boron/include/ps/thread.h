@@ -35,7 +35,17 @@ BSTATUS PsCreateSystemThread(
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ProcessHandle,
 	PKTHREAD_START StartRoutine,
-	void* StartContext
+	void* StartContext,
+	bool CreateSuspended
+);
+
+BSTATUS OSCreateThread(
+	PHANDLE OutHandle,
+	HANDLE ProcessHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PKTHREAD_START ThreadStart,
+	void* ThreadContext,
+	bool CreateSuspended
 );
 
 // TODO: Need I do anything more?

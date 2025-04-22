@@ -14,6 +14,7 @@ global %2
 	push r13
 	push r14
 	push r15
+	mov  r10, rcx
 	mov  rax, %1
 	syscall
 	pop  r15
@@ -26,4 +27,5 @@ global %2
 %endmacro
 
 CALL 0, OSExitThread
-CALL 1, OSDummy
+CALL 1, OSCreateThread
+CALL 2, OSDummy

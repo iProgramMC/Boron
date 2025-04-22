@@ -16,7 +16,19 @@
 bits 64
 %include "arch/amd64.inc"
 
-%define MAX_SYSTEM_CALLS 2 ; KEEP IN SYNC with ex/svctable.c !!!
+;%define ENABLE_SYSCALL_TRACE
+
+; *** SYSTEM SERVICE TABLE ***
+extern OSExitThread
+extern OSCreateThread
+extern OSDummy
+
+KiSystemServiceTable:
+	dq OSExitThread
+	dq OSCreateThread
+	dq OSDummy
+KiSystemServiceTableEnd:
+	nop
 
 ; When calling the system call handler, the following registers take on the following tasks:
 ;
@@ -34,7 +46,7 @@ bits 64
 extern KiSystemServices
 global KiSystemServiceHandler
 KiSystemServiceHandler:
-	cmp  rax, MAX_SYSTEM_CALLS
+	cmp  rax, (KiSystemServiceTableEnd - KiSystemServiceTable) / 8
 	jge  .invalidCall
 	
 	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
@@ -62,7 +74,11 @@ KiSystemServiceHandler:
 	; Fix up argument #4
 	mov  rcx, r10
 	
-	call [KiSystemServices + 8 * rax]
+%ifdef ENABLE_SYSCALL_TRACE
+	call KiTraceSystemServiceCall
+%endif
+	
+	call [KiSystemServiceTable + 8 * rax]
 	
 	; Clean up the 3 extra parameters.
 	add  rsp, 24
@@ -88,3 +104,43 @@ KiSystemServiceHandler:
 	; Invalid system call, return with the status of STATUS_INVALID_PARAMETER (1)
 	mov  rax, 1
 	o64 sysret
+
+%ifdef ENABLE_SYSCALL_TRACE
+
+extern DbgPrint
+global KiTraceSystemServiceCall
+KiTraceSystemServiceCall:
+	push rax
+	push rbx
+	push rcx
+	push rdx
+	push r8
+	push r9
+	push r10
+	push r11
+	push r12
+	push r13
+	push r14
+	push r15
+	
+	mov rsi, rax
+	mov rdi, ServiceCallTraceText
+	call DbgPrint
+	
+	pop r15
+	pop r14
+	pop r13
+	pop r12
+	pop r11
+	pop r10
+	pop r9
+	pop r8
+	pop rdx
+	pop rcx
+	pop rbx
+	pop rax
+	ret
+
+%endif
+
+ServiceCallTraceText:	db "Syscall %d", 0

@@ -43,7 +43,7 @@ static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
 }
 
 NO_RETURN
-void PsStartInitialProcess(UNUSED void* Context)
+void PsStartInitialProcess(UNUSED void* ContextUnused)
 {
 	BSTATUS Status;
 	HANDLE ProcessHandle;
@@ -283,6 +283,10 @@ void PsStartInitialProcess(UNUSED void* Context)
 	
 	void* EntryPoint = (void*) (BoronDllBase + ElfHeader.EntryPoint);
 	
+	THREAD_START_CONTEXT Context;
+	Context.InstructionPointer = EntryPoint;
+	Context.UserContext = NULL;
+	
 	// OK. Now, the process is mapped.
 	// Create a thread to make it call the entry point.
 	HANDLE ThreadHandle;
@@ -291,7 +295,8 @@ void PsStartInitialProcess(UNUSED void* Context)
 		NULL,
 		ProcessHandle,
 		PspUserThreadStart,
-		EntryPoint
+		&Context,
+		false
 	);
 	
 	if (FAILED(Status))
@@ -313,7 +318,8 @@ bool PsInitSystemPart2()
 		NULL,
 		HANDLE_NONE,
 		PsStartInitialProcess,
-		NULL
+		NULL,
+		false
 	);
 	
 	if (FAILED(Status))
