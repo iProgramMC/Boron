@@ -25,6 +25,7 @@ extern OSCreateThread
 extern OSDummy
 extern OSWaitForSingleObject
 extern OSWaitForMultipleObjects
+extern OSOutputDebugString
 
 KiSystemServiceTable:
 	dq OSClose
@@ -33,6 +34,7 @@ KiSystemServiceTable:
 	dq OSDummy
 	dq OSWaitForSingleObject
 	dq OSWaitForMultipleObjects
+	dq OSOutputDebugString
 KiSystemServiceTableEnd:
 	nop
 

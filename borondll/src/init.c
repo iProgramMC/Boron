@@ -3,6 +3,8 @@
 NO_RETURN
 void TestThreadStart();
 
+const char HiStr[] = "Hissssssssssss, Viper Lives\n";
+
 void DLLEntryPoint()
 {
 	OSDummy();
@@ -30,8 +32,6 @@ void DLLEntryPoint()
 NO_RETURN
 void TestThreadStart()
 {
-	OSDummy();
-	OSDummy();
-	OSDummy();
+	OSOutputDebugString(HiStr, sizeof HiStr);
 	OSExitThread();
 }
