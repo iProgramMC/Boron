@@ -237,8 +237,11 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 		
 		uintptr_t SymbolAddress = 0;
 		
-		// If the symbol's Info field doesn't specify a type, but is globally bound:
-		if (Symbol->Info == 0x10) //! TODO: Specify this with a defined constant, not a magic number
+		if (Symbol->Value)
+			SymbolAddress = LoadBase + Symbol->Value;
+		
+		// If this offset is zero then look it up in the kernel if allowed.
+		if (!SymbolAddress)
 		{
 			if (AllowKernelLinking)
 			{
@@ -246,13 +249,11 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 			}
 			else
 			{
+				// TODO: Look up in own DLL if needed.  But if the function is in the DLL then
+				// the offset shouldn't be zero.
 				DbgPrint("ERROR: Cannot link against kernel or another DLL.  Function: %s", SymbolName);
 				return false;
 			}
-		}
-		else
-		{
-			SymbolAddress = LoadBase + Symbol->Value;
 		}
 		
 		if (!SymbolAddress)

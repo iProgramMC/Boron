@@ -22,8 +22,6 @@ Author:
 #include <io.h>
 #include <rtl/elf.h>
 
-#define USER_STACK_SIZE (256 * 1024)
-
 static const char* PspInitialProcessFileName = "\\InitRoot\\libboron.so";
 
 // TODO: Share a lot of this code with Ldr.
@@ -42,27 +40,6 @@ static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
 	}
 	
 	return NULL;
-}
-
-NO_RETURN
-void PspUserThreadStart(void* Context)
-{
-	// Context means the initial RIP in user mode.
-	
-	// First, allocate the stack.
-	void* StackAddress = NULL;
-	size_t StackSize = USER_STACK_SIZE;
-	BSTATUS Status = OSAllocateVirtualMemory(
-		CURRENT_PROCESS_HANDLE,
-		&StackAddress,
-		&StackSize,
-		MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN,
-		PAGE_READ | PAGE_WRITE
-	);
-	
-	ASSERT(SUCCEEDED(Status) && "TODO: What happens if this fails? Maybe should have set it up earlier?!");
-	
-	KeDescendIntoUserMode(Context, (uint8_t*) StackAddress + StackSize);
 }
 
 NO_RETURN

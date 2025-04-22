@@ -19,6 +19,7 @@ Author:
 #include <ps/pebteb.h>
 #include <ps/process.h>
 #include <ps/thread.h>
+#include <ps/services.h>
 
 #ifdef KERNEL
 

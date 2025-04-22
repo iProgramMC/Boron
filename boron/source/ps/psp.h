@@ -19,11 +19,14 @@ Author:
 #include <ex.h>
 #include <string.h>
 
+#define USER_STACK_SIZE (256 * 1024)
+
 // Initial Virtual Address Range
 #define INITIAL_BEG_VA 0x0000000000001000
 #define INITIAL_END_VA 0x00007FFFFFFFF000
 
-
 bool PsCreateThreadType();
 
 bool PsCreateProcessType();
+
+NO_RETURN void PspUserThreadStart(void* Context);

@@ -21,9 +21,14 @@ typedef struct ETHREAD_tag
 	KTHREAD Tcb;
 	
 	PEPROCESS Process;
+	
+	void* UserStack;
+	
+	size_t UserStackSize;
 }
 ETHREAD, *PETHREAD;
 
+#define PsGetCurrentThread() ((PETHREAD) KeGetCurrentThread())
 
 BSTATUS PsCreateSystemThread(
 	PHANDLE OutHandle,

@@ -160,9 +160,39 @@ KiHandleTlbShootdownIpiA:
 	mov  rax, r15
 	ret
 
-testtext: db "**test from syscall handler**",0
+; Clears all registers except RAX and RBP
+%macro CLEAR_REGS 0
+	xor rbx, rbx
+	xor rcx, rcx
+	xor rdx, rdx
+	xor rdi, rdi
+	xor rsi, rsi
+	xor r8,  r8
+	xor r9,  r9
+	xor r10, r10
+	xor r11, r11
+	xor r12, r12
+	xor r13, r13
+	xor r14, r14
+	xor r15, r15
+%endmacro
 
-extern LogMsg
+; When calling the system call handler, the following registers take on the following tasks:
+;
+; RAX - System Call Number
+; RDI - Argument 1
+; RSI - Argument 2
+; RDX - Argument 3
+; R10 - Argument 4
+; R8  - Argument 5
+; R9  - Argument 6
+; R12 - Argument 7
+; R13 - Argument 8
+; R14 - Argument 9
+; R15 - Argument 10
+; RBX - Argument 11
+
+extern KiSystemServices
 global KiSystemServiceHandler
 KiSystemServiceHandler:
 	; The old RIP is saved into RCX, and the old RFLAGS is saved into R11.
@@ -177,10 +207,36 @@ KiSystemServiceHandler:
 	
 	push rcx
 	push r11
+
+	push rbp
+	mov  rbp, rsp
 	
-	mov  rdi, testtext
-	call LogMsg
+	; Push the extra arguments on the stack.  When the system service returns,
+	; these are cleaned up by the caller.
+	push rbx
+	push r15
+	push r14
+	push r13
+	push r12
 	
+	; Fix up argument #4
+	mov  rcx, r10
+	
+	xor  rax, rax
+	call [KiSystemServices + 8 * rax]
+	
+	; Clean up the 5 extra parameters.
+	add  rsp, 40
+	
+	; Currently we don't support returning through multiple registers.
+	; As such, every register other than RAX is cleared.
+	;
+	; TODO: Add a table to see whether or not RAX needs to be cleared or not.
+	; RBP is preserved.
+	
+	CLEAR_REGS
+	
+	pop  rbp
 	pop  r11
 	pop  rcx
 	
@@ -201,20 +257,8 @@ KeDescendIntoUserMode:
 	
 	; clear all the registers
 	xor rax, rax
-	xor rbx, rbx
-	xor rcx, rcx
-	xor rdx, rdx
-	xor rdi, rdi
-	xor rsi, rsi
 	xor rbp, rbp
-	xor r8,  r8
-	xor r9,  r9
-	xor r10, r10
-	xor r11, r11
-	xor r12, r12
-	xor r13, r13
-	xor r14, r14
-	xor r15, r15
+	CLEAR_REGS
 	
 	; finally, swap gs and return to user mode.
 	cli
