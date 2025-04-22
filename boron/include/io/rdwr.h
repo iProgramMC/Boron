@@ -15,7 +15,6 @@ Author:
 #pragma once
 
 #include <ob.h>
-#include "iosb.h"
 
 #ifdef KERNEL
 
@@ -30,12 +29,6 @@ BSTATUS IoPerformPagingRead(
 );
 
 #endif
-
-enum {
-	IO_SEEK_CUR,
-	IO_SEEK_SET,
-	IO_SEEK_END,
-};
 
 BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
 

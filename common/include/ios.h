@@ -1,18 +1,18 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2024 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	io/iosb.h
+	ios.h
 	
 Abstract:
-	This header file defines the I/O status block structure.
+	This header file contains the publicly exposed structure
+	definitions for Boron's I/O Subsystem.
 	
 Author:
-	iProgramInCpp - 29 June 2024
+	iProgramInCpp - 22 April 2025
 ***/
 #pragma once
-#include <status.h>
 
 typedef struct _IO_STATUS_BLOCK
 {
@@ -33,6 +33,7 @@ typedef struct _IO_STATUS_BLOCK
 		uint64_t NextOffset;
 		
 		// ParseDir
+	#ifdef KERNEL
 		struct
 		{
 			PFCB FoundFcb;
@@ -54,7 +55,25 @@ typedef struct _IO_STATUS_BLOCK
 			uint32_t BlockSizeLog;
 		}
 		AlignmentInfo;
+	#endif
 	};
 }
 IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
+enum
+{
+	IO_SEEK_CUR,
+	IO_SEEK_SET,
+	IO_SEEK_END,
+};
+
+#define IO_MAX_NAME (192)
+
+typedef struct _IO_DIRECTORY_ENTRY
+{
+	// Null-terminated file name.
+	char Name[IO_MAX_NAME];
+	
+	char Reserved[256 - IO_MAX_NAME];
+}
+IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;

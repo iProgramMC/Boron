@@ -21,6 +21,7 @@ Author:
 // Debug flags. Use if something's gone awry
 #define MM_DBG_NO_DEMAND_PAGING (0)
 
+#include <mms.h>
 #include <mm/pfn.h>
 #include <mm/pmm.h>
 #include <mm/pool.h>

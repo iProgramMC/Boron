@@ -24,8 +24,6 @@ Author:
 
 #define MAX_QUANTUM_US (10000)
 
-typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
-
 typedef void(*PKTHREAD_TERMINATE_METHOD)(PKTHREAD Thread);
 
 typedef struct KTHREAD_tag KTHREAD, *PKTHREAD;

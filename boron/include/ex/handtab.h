@@ -16,10 +16,6 @@ Author:
 
 #include <ke.h>
 
-#include "handle.h"
-
-#define HANDLE_NONE (0)
-
 typedef struct tagEHANDLE_ITEM
 {
 	void* Pointer;

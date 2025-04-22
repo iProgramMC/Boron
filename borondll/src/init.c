@@ -22,7 +22,7 @@ void DLLEntryPoint()
 	);
 	
 	OSDummy();
-	OSWaitForSingleObject(Handle, false, TIMEOUT_INFINITE);
+	OSWaitForSingleObject(Handle, false, WAIT_TIMEOUT_INFINITE);
 	OSDummy();
 	OSClose(Handle);
 	OSDummy();

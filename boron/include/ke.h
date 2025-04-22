@@ -18,6 +18,7 @@ Author:
 #include <limreq.h>
 #include <arch.h>
 
+#include <kes.h>
 #include <ke/types.h>
 #include <ke/mode.h>
 #include <ke/ipl.h>

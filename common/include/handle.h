@@ -1,20 +1,18 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2024-2025 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ex/handle.h
+	handle.h
 	
 Abstract:
 	This header file defines the handle type.
 	
-	It was part of ex/handtab.h but it was decided to
-	relocate it.
-	
 Author:
-	iProgramInCpp - 5 April 2025
+	iProgramInCpp - 22 April 2025
 ***/
 #pragma once
-#include <stdint.h>
 
 typedef uintptr_t HANDLE, *PHANDLE;
+
+#define HANDLE_NONE (0)

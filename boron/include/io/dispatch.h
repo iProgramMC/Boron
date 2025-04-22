@@ -14,8 +14,7 @@ Author:
 ***/
 #pragma once
 
-#include "iosb.h"
-#include "dirent.h"
+#include <ios.h>
 
 typedef struct _FCB FCB, *PFCB;
 

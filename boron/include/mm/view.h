@@ -14,7 +14,7 @@ Author:
 ***/
 #pragma once
 
-#include <ex/handle.h>
+#include <handle.h>
 
 BSTATUS MmMapViewOfObject(
 	HANDLE MappedObject,
