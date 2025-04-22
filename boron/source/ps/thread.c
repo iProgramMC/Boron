@@ -184,21 +184,27 @@ BSTATUS OSCreateThread(
 	HANDLE ThreadHandle;
 	BSTATUS Status;
 	
-	THREAD_START_CONTEXT Context;
-	Context.InstructionPointer = ThreadStart;
-	Context.UserContext = ThreadContext;
+	PTHREAD_START_CONTEXT Context = MmAllocatePool(POOL_NONPAGED, sizeof(THREAD_START_CONTEXT));
+	if (!Context)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	Context->InstructionPointer = ThreadStart;
+	Context->UserContext = ThreadContext;
 	
 	Status = PsCreateSystemThread(
 		&ThreadHandle,
 		ObjectAttributes,
 		ProcessHandle,
 		PspUserThreadStart,
-		&Context,
+		Context,
 		CreateSuspended
 	);
 	
 	if (FAILED(Status))
+	{
+		MmFreePool(Context);
 		return Status;
+	}
 	
 	return MmSafeCopy(OutHandle, &ThreadHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 }

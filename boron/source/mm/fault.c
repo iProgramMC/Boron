@@ -441,7 +441,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			}
 			
 			void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
-			memcpy(Address, (void*) Va, PAGE_SIZE);
+			memcpy(Address, (void*)(Va & ~(PAGE_SIZE - 1)), PAGE_SIZE);
 			
 			// Now assign the new PFN.
 			*PtePtr =

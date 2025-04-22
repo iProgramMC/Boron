@@ -26,6 +26,10 @@ global %2
 	ret
 %endmacro
 
-CALL 0, OSExitThread
-CALL 1, OSCreateThread
-CALL 2, OSDummy
+CALL 0, OSClose
+CALL 1, OSExitThread
+CALL 2, OSCreateThread
+CALL 3, OSDummy
+CALL 4, OSWaitForSingleObject
+CALL 5, OSWaitForMultipleObjects
+

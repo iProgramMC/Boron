@@ -19,14 +19,20 @@ bits 64
 ;%define ENABLE_SYSCALL_TRACE
 
 ; *** SYSTEM SERVICE TABLE ***
+extern OSClose
 extern OSExitThread
 extern OSCreateThread
 extern OSDummy
+extern OSWaitForSingleObject
+extern OSWaitForMultipleObjects
 
 KiSystemServiceTable:
+	dq OSClose
 	dq OSExitThread
 	dq OSCreateThread
 	dq OSDummy
+	dq OSWaitForSingleObject
+	dq OSWaitForMultipleObjects
 KiSystemServiceTableEnd:
 	nop
 

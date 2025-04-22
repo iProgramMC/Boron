@@ -283,9 +283,12 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	void* EntryPoint = (void*) (BoronDllBase + ElfHeader.EntryPoint);
 	
-	THREAD_START_CONTEXT Context;
-	Context.InstructionPointer = EntryPoint;
-	Context.UserContext = NULL;
+	PTHREAD_START_CONTEXT Context = MmAllocatePool(POOL_NONPAGED, sizeof(THREAD_START_CONTEXT));
+	if (!Context)
+		KeCrash("%s: Failed to create thread in process: Insufficient Memory", Func);
+	
+	Context->InstructionPointer = EntryPoint;
+	Context->UserContext = NULL;
 	
 	// OK. Now, the process is mapped.
 	// Create a thread to make it call the entry point.
@@ -295,7 +298,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		NULL,
 		ProcessHandle,
 		PspUserThreadStart,
-		&Context,
+		Context,
 		false
 	);
 	

@@ -17,8 +17,9 @@ Author:
 NO_RETURN
 void PspUserThreadStart(void* ContextV)
 {
-	// Context means the initial RIP in user mode.
-	PTHREAD_START_CONTEXT Context = ContextV;
+	THREAD_START_CONTEXT Context;
+	memcpy(&Context, ContextV, sizeof Context);
+	MmFreePool(ContextV);
 	
 	// First, allocate the stack.
 	void* StackAddress = NULL;
@@ -36,7 +37,7 @@ void PspUserThreadStart(void* ContextV)
 	PsGetCurrentThread()->UserStack = StackAddress;
 	PsGetCurrentThread()->UserStackSize = StackSize;
 	
-	KeDescendIntoUserMode(Context->InstructionPointer, (uint8_t*) StackAddress + StackSize, Context->UserContext);
+	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext);
 }
 
 NO_RETURN
