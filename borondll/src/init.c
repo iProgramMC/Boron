@@ -1,5 +1,4 @@
 #include <boron.h>
-#include "lib.h"
 
 NO_RETURN
 void TestThreadStart();

@@ -172,7 +172,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		
 		void* BaseAddress = (void*)(BoronDllBase + ProgramHeader->VirtualAddress);
 		
-		if (BaseAddress == (void*) DynamicBaseAddress)
+		if ((uintptr_t) BaseAddress <= (uintptr_t) DynamicBaseAddress &&
+			(uintptr_t) BaseAddress + ProgramHeader->SizeInMemory >= (uintptr_t) DynamicBaseAddress + DynamicPhdr->SizeInMemory)
 			IsDynamicLoaded = true;
 		
 		int Protection = 0, Flags = MEM_COW;

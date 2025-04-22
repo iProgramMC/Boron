@@ -14,13 +14,22 @@ Author:
 ***/
 
 #define STB_SPRINTF_IMPLEMENTATION // implement the stb_sprintf right here
-#include <ke.h>
-#include <hal.h>
+
+#include <main.h>
 #include <string.h>
 
+#ifdef KERNEL
+#include <ke.h>
+#include <hal.h>
+#else
+#include <boron.h>
+#endif
+
+#if defined(KERNEL) && defined(DEBUG)
 // TODO: Have a worker thread or service?
-KSPIN_LOCK KiPrintLock;
-KSPIN_LOCK KiDebugPrintLock;
+extern KSPIN_LOCK KiPrintLock;
+extern KSPIN_LOCK KiDebugPrintLock;
+#endif
 
 void LogMsg(const char* msg, ...)
 {
@@ -32,7 +41,11 @@ void LogMsg(const char* msg, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
+#ifdef KERNEL
 	HalDisplayString(buffer);
+#else
+	OSOutputDebugString(buffer, strlen(buffer));
+#endif
 }
 
 #ifdef DEBUG
@@ -49,14 +62,22 @@ void DbgPrint(const char* msg, ...)
 	strcpy(buffer + chars, "\n");
 	va_end(va);
 	
+#ifdef KERNEL
 	// This one goes to the debug log.
+	// Debug2 turns off the spin locks associated with the debug prints.
 #ifndef DEBUG2
 	KIPL OldIpl;
 	KeAcquireSpinLock(&KiDebugPrintLock, &OldIpl);
 #endif
+
 	HalPrintStringDebug(buffer);
 #ifndef DEBUG2
 	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
+#endif
+
+#else // KERNEL
+	// Libboron.so has a special way of printing messages.
+	OSOutputDebugString(buffer, strlen(buffer));
 #endif
 }
 

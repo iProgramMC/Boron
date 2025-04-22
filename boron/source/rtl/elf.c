@@ -14,8 +14,12 @@ Author:
 	iProgramInCpp - 19 April 2025
 ***/
 #include <rtl/elf.h>
-#include <ke/dbg.h>
+#include <rtl/assert.h>
 #include <string.h>
+
+#ifdef KERNEL
+#include <ke/dbg.h>
+#endif
 
 #ifdef DEBUG2
 #define DbgPrint2(...) DbgPrint(__VA_ARGS__)
@@ -221,7 +225,7 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 	return true;
 }
 
-bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelLinking, UNUSED const char* FileName)
+bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED bool AllowKernelLinking, UNUSED const char* FileName)
 {
 	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
 	
@@ -240,9 +244,12 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 		if (Symbol->Value)
 			SymbolAddress = LoadBase + Symbol->Value;
 		
-		// If this offset is zero then look it up in the kernel if allowed.
+		// If this offset is zero then look it up.
 		if (!SymbolAddress)
 		{
+#ifdef KERNEL
+			// Kernel drivers can only link against the kernel, and not against each other, for now.
+			// Libboron.so cannot link against anyone.
 			if (AllowKernelLinking)
 			{
 				SymbolAddress = DbgLookUpAddress(SymbolName);
@@ -254,10 +261,21 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 				DbgPrint("ERROR: Cannot link against kernel or another DLL.  Function: %s", SymbolName);
 				return false;
 			}
+#else
+			// Libboron.so's librarian knows how to link against other DLLs.
+			// TODO
+			DbgPrint("ERROR: Need to link against function %s but we don't know how to do that", SymbolName);
+#endif
 		}
 		
+#ifdef KERNEL
 		if (!SymbolAddress)
 			KeCrashBeforeSMPInit("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);
+#else
+		ASSERT(SymbolAddress);
+		if (!SymbolAddress)
+			return false;
+#endif
 		
 		if (!RtlpApplyRelocation(DynInfo,
 		                        DynInfo->PltUsesRela ? Rel : NULL,

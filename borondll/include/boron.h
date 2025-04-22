@@ -20,3 +20,5 @@ typedef struct _OBJECT_ATTRIBUTES
 	int OpenFlags;
 }
 OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
+
+#include "svcs.h"

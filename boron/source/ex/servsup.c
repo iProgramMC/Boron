@@ -283,3 +283,22 @@ BSTATUS OSDummy()
 	LogMsg("Dummy system call invoked from %p.", KeGetCurrentThread());
 	return 0;
 }
+
+// Prints a string to the debug console.
+BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
+{
+	BSTATUS Status;
+	char* Memory;
+	
+	Memory = MmAllocatePool(POOL_PAGED, StringLength + 1);
+	if (!Memory)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	Memory[StringLength] = 0;
+	Status = MmSafeCopy(Memory, String, StringLength, KeGetPreviousMode(), false);
+	if (SUCCEEDED(Status))
+		DbgPrintStringLocked(Memory);
+	
+	MmFreePool(Memory);
+	return Status;
+}

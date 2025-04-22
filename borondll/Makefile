@@ -7,6 +7,7 @@ DEBUG2 ?= no
 BUILD_DIR = build
 SRC_DIR = src
 INC_DIR = include
+DDK_DIR = ../common/include
 
 ENTRY_POINT = DLLEntryPoint
 ARCHITECTURE = AMD64
@@ -53,10 +54,10 @@ CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_
 CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
-CPPFLAGS ?= -I $(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
+CPPFLAGS ?= -I $(INC_DIR) -I $(DDK_DIR)
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
+NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(DDK_DIR)
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=
@@ -120,10 +121,10 @@ override NASMFLAGS += \
 	-f elf64
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
-override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
-override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
-override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override CFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
 override OBJ := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))
 override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
 

@@ -22,10 +22,13 @@ void DbgInit();
 
 void DbgPrintString(const char* str);
 
+void DbgPrintStringLocked(const char* str);
+
 #else
 
 #define DbgInit()
 #define DbgPrintString(str)
+#define DbgPrintStringLocked(str)
 
 #endif
 

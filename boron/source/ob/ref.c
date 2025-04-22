@@ -70,6 +70,8 @@ static NO_RETURN void ObpReaperThreadRoutine(UNUSED void* Context)
 INIT
 bool ObpInitializeReaperThread()
 {
+	KeInitializeEvent(&ObpReaperEvent, EVENT_SYNCHRONIZATION, false);
+	
 	KeInitializeThread(
 		&ObpReaperThread,
 		MmAllocateKernelStack(), // KernelStack
@@ -78,12 +80,10 @@ bool ObpInitializeReaperThread()
 		KeGetSystemProcess()     // Process
 	);
 	
+	InitializeListHead(&ObpReaperList);
+	
 	KeSetPriorityThread(&ObpReaperThread, PRIORITY_REALTIME);
 	KeReadyThread(&ObpReaperThread);
-	
-	KeInitializeEvent(&ObpReaperEvent, EVENT_SYNCHRONIZATION, false);
-	
-	InitializeListHead(&ObpReaperList);
 	
 	return true;
 }

@@ -236,5 +236,16 @@ void DbgPrintString(const char* str)
 	}
 }
 
+KSPIN_LOCK KiPrintLock;
+KSPIN_LOCK KiDebugPrintLock;
+
+void DbgPrintStringLocked(const char* str)
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&KiDebugPrintLock, &OldIpl);
+	HalPrintStringDebug(str);
+	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
+}
+
 #endif
 #endif

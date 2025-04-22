@@ -32,4 +32,4 @@ CALL 2, OSCreateThread
 CALL 3, OSDummy
 CALL 4, OSWaitForSingleObject
 CALL 5, OSWaitForMultipleObjects
-
+CALL 6, OSOutputDebugString

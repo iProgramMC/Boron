@@ -17,6 +17,8 @@ Author:
 
 #include <main.h>
 
+#ifdef KERNEL
+
 // Note. Two qwords is how we define it in the assembly version
 typedef struct KSYMBOL_tag
 {
@@ -32,5 +34,7 @@ extern const KSYMBOL KiSymbolTable[];
 extern const KSYMBOL KiSymbolTableEnd[];
 
 #define KiSymbolTableSize (KiSymbolTableEnd - KiSymbolTable)
+
+#endif
 
 #endif//BORON_RTL_SYMDEFS_H
