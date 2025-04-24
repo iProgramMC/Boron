@@ -181,6 +181,9 @@ BSTATUS OSCreateThread(
 	// Maybe we should consider making the OSExitThread system call give
 	// us the stack's top?
 	
+	if ((uintptr_t) ThreadStart >= MM_USER_SPACE_END && KeGetPreviousMode() != MODE_KERNEL)
+		return STATUS_INVALID_PARAMETER;
+	
 	HANDLE ThreadHandle;
 	BSTATUS Status;
 	
