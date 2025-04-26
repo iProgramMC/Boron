@@ -190,6 +190,8 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	
 	int Length = MmpSlabItemDetermineLength(Container->ItemSize);
 	
+	KeReleaseSpinLock(&Container->Lock, OldIpl);
+	
 	// TODO: Fix that since we're locking a spinlock, we can't take
 	// page faults on that memory.  Even if we mapped it all already,
 	// it's going to cause issues when freeing too..
@@ -204,8 +206,7 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	if (!Addr)
 	{
 		DbgPrint("ERROR: MmpSlabContainerAllocate: Out of memory! What will we do?!");
-		// TODO
-		KeReleaseSpinLock(&Container->Lock, OldIpl);
+		//KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return NULL;
 	}
 	
@@ -216,6 +217,8 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
 	Item->Length = Length;
+	
+	KeAcquireSpinLock(&Container->Lock, &OldIpl);
 	
 	// Link it to the list:
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
@@ -259,6 +262,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 	// Unset the relevant bit
 	Item->Bitmap[Diff / 64] &= ~(1 << (Diff % 64));
 	
+	void* MemoryToFreeBig = NULL;
 	bool RequiresRbTreeEntry = MmpRequiresRbTreeEntry(Container->ItemSize);
 	
 	// Check if it's all zero:
@@ -270,10 +274,13 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 			MmpRemoveSlabItemFromTree(Item);
 		
 		// Free the memory.
-		MmFreePoolBig(Item);
+		MemoryToFreeBig = Item;
 	}
 	
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
+	
+	if (MemoryToFreeBig)
+		MmFreePoolBig(MemoryToFreeBig);
 }
 
 void* MmpAllocateHuge(bool IsNonPaged, size_t Size)
