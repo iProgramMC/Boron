@@ -75,9 +75,10 @@ void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	{
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
-		KeInitializeThread(
+		KeInitializeThread2(
 			&KiExInitThread,
 			KiExInitThreadStack,
+			sizeof KiExInitThreadStack,
 			ExpInitializeExecutive,
 			NULL,
 			KeGetSystemProcess()
