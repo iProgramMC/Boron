@@ -13,7 +13,7 @@ void DLLEntryPoint()
 	
 	// create a new thread for fun
 	HANDLE Handle;
-	OSCreateThread(
+	BSTATUS Status = OSCreateThread(
 		&Handle,
 		CURRENT_PROCESS_HANDLE,
 		NULL,
@@ -22,8 +22,14 @@ void DLLEntryPoint()
 		false
 	);
 	
+	DbgPrint("Status: %d  (%p)", Status, RtlGetStatusString(Status));
+	
+	OSDummy();
+	DbgPrint("Waiting...");
 	OSDummy();
 	OSWaitForSingleObject(Handle, false, WAIT_TIMEOUT_INFINITE);
+	OSDummy();
+	DbgPrint("Waiting Done...");
 	OSDummy();
 	OSClose(Handle);
 	OSDummy();
@@ -33,6 +39,8 @@ void DLLEntryPoint()
 NO_RETURN
 void TestThreadStart()
 {
+	OSDummy();
 	OSOutputDebugString(HiStr, sizeof HiStr);
+	OSDummy();
 	OSExitThread();
 }

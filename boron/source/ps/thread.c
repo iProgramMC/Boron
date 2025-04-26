@@ -223,7 +223,6 @@ BSTATUS OSCreateThread(
 	if ((uintptr_t) ThreadStart >= MM_USER_SPACE_END && KeGetPreviousMode() != MODE_KERNEL)
 		return STATUS_INVALID_PARAMETER;
 	
-	HANDLE ThreadHandle;
 	BSTATUS Status;
 	
 	PTHREAD_START_CONTEXT Context = MmAllocatePool(POOL_NONPAGED, sizeof(THREAD_START_CONTEXT));
@@ -234,7 +233,7 @@ BSTATUS OSCreateThread(
 	Context->UserContext = ThreadContext;
 	
 	Status = PsCreateSystemThread(
-		&ThreadHandle,
+		OutHandle,
 		ObjectAttributes,
 		ProcessHandle,
 		PspUserThreadStart,
@@ -243,10 +242,7 @@ BSTATUS OSCreateThread(
 	);
 	
 	if (FAILED(Status))
-	{
 		MmFreePool(Context);
-		return Status;
-	}
 	
-	return MmSafeCopy(OutHandle, &ThreadHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	return Status;
 }

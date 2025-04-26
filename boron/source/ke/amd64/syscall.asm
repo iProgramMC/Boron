@@ -27,6 +27,8 @@ extern OSWaitForSingleObject
 extern OSWaitForMultipleObjects
 extern OSOutputDebugString
 
+global KiSystemServiceTable
+global KiSystemServiceTableEnd
 KiSystemServiceTable:
 	dq OSClose
 	dq OSExitThread
@@ -115,13 +117,17 @@ KiSystemServiceHandler:
 
 %ifdef ENABLE_SYSCALL_TRACE
 
-extern DbgPrint
+extern KePrintSystemServiceDebug
 global KiTraceSystemServiceCall
 KiTraceSystemServiceCall:
+	push rbp
+	mov  rbp, rsp
 	push rax
 	push rbx
 	push rcx
 	push rdx
+	push rdi
+	push rsi
 	push r8
 	push r9
 	push r10
@@ -131,9 +137,8 @@ KiTraceSystemServiceCall:
 	push r14
 	push r15
 	
-	mov rsi, rax
-	mov rdi, ServiceCallTraceText
-	call DbgPrint
+	mov rdi, rax
+	call KePrintSystemServiceDebug
 	
 	pop r15
 	pop r14
@@ -143,12 +148,13 @@ KiTraceSystemServiceCall:
 	pop r10
 	pop r9
 	pop r8
+	pop rsi
+	pop rdi
 	pop rdx
 	pop rcx
 	pop rbx
 	pop rax
+	pop rbp
 	ret
 
 %endif
-
-ServiceCallTraceText:	db "Syscall %d", 0
