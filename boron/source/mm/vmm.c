@@ -20,7 +20,7 @@ Author:
 
 static KIPL MmpKernelSpaceSpinLockIpl;
 static KSPIN_LOCK MmpKernelSpaceSpinLock;
-static EX_RW_LOCK MmpKernelSpaceRwLock;
+static KMUTEX MmpKernelSpaceMutex;
 
 // spinlock version used during init
 static void MmpLockKernelSpace_Spin()
@@ -34,19 +34,14 @@ static void MmpUnlockKernelSpace_Spin()
 	KeReleaseSpinLock(&MmpKernelSpaceSpinLock, MmpKernelSpaceSpinLockIpl);
 }
 // rwlock version
-static void MmpLockKernelSpaceShared_Rw()
+static void MmpLockKernelSpace_Mtx()
 {
-	BSTATUS Status = ExAcquireSharedRwLock(&MmpKernelSpaceRwLock, false, false, false);
+	BSTATUS Status = KeWaitForSingleObject(&MmpKernelSpaceMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(Status == STATUS_SUCCESS);
 }
-static void MmpLockKernelSpaceExclusive_Rw()
+static void MmpUnlockKernelSpace_Mtx()
 {
-	BSTATUS Status = ExAcquireSharedRwLock(&MmpKernelSpaceRwLock, false, false, false);
-	ASSERT(Status == STATUS_SUCCESS);
-}
-static void MmpUnlockKernelSpace_Rw()
-{
-	ExReleaseRwLock(&MmpKernelSpaceRwLock);
+	KeReleaseMutex(&MmpKernelSpaceMutex);
 }
 
 static void(*MmpLockKernelSpaceSharedFunc)()    = MmpLockKernelSpace_Spin;
@@ -87,10 +82,10 @@ void MmSwitchKernelSpaceLock()
 	// All processors are here, if we're the bootstrap processor, perform the switch!!
 	if (Prcb->IsBootstrap)
 	{
-		ExInitializeRwLock(&MmpKernelSpaceRwLock);
-		MmpLockKernelSpaceSharedFunc    = MmpLockKernelSpaceShared_Rw;
-		MmpLockKernelSpaceExclusiveFunc = MmpLockKernelSpaceExclusive_Rw;
-		MmpUnlockKernelSpaceFunc        = MmpUnlockKernelSpace_Rw;
+		KeInitializeMutex(&MmpKernelSpaceMutex, 2);
+		MmpLockKernelSpaceSharedFunc    = MmpLockKernelSpace_Mtx;
+		MmpLockKernelSpaceExclusiveFunc = MmpLockKernelSpace_Mtx;
+		MmpUnlockKernelSpaceFunc        = MmpUnlockKernelSpace_Mtx;
 	}
 	
 	// Done, now sync again
