@@ -76,7 +76,8 @@ void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 		RemoveEntryList(&Thread->EntryQueue);
 		
 		// TODO: Assert that the thread entry queue was actually part of that queue for debugging purposes
-		Scheduler->ExecQueueMask &= ~QUEUE_BIT(Thread->Priority);
+		if (IsListEmpty(&Scheduler->ExecQueue[Thread->Priority]))
+			Scheduler->ExecQueueMask &= ~QUEUE_BIT(Thread->Priority);
 		
 		if (Thread->Priority > Priority)
 			InsertHeadList(&Scheduler->ExecQueue[Priority], &Thread->EntryQueue);
@@ -615,7 +616,7 @@ void KiSwitchToNextThread()
 	//    It won't dispatch any APCs, but it's not necessary since the APC
 	//    queue will be empty anyway.
 	if (OldThread)
-		KiSwitchThreadStack(&OldThread->StackPointer, Thread->StackPointer);
+		KiSwitchThreadStack(&OldThread->StackPointer, &Thread->StackPointer);
 	else
 		KiSwitchThreadStackForever(Thread->StackPointer);
 	

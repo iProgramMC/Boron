@@ -99,7 +99,7 @@ MmSafeCopySub:
 	xor rax, rax      ; return zero for no error
 	ret
 
-; void KiSwitchThreadStack(void** OldStack, void* NewStack)
+; void KiSwitchThreadStack(void** OldStack, void** NewStack)
 ; NOTE: Function is run at IPL_DPC with the dispatcher lock held.
 global KiSwitchThreadStack
 KiSwitchThreadStack:
@@ -121,7 +121,7 @@ KiSwitchThreadStack:
 	mov  qword [rdi], rsp
 	
 	; Load the current rsp from NewStack.
-	mov  rsp, rsi
+	mov  rsp, qword [rsi]
 	
 	; Pop everything and return as usual.
 KiPopEverythingAndReturn:
