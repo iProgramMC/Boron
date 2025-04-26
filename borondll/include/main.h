@@ -35,6 +35,8 @@ Author:
 #define LIKELY(x)   __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
+#define HIDDEN __attribute__((visibility("hidden")))
+
 #ifdef DEBUG
 #define CHECK_PAGED do {           \
 	if (KeGetIPL() >= IPL_APC) {   \

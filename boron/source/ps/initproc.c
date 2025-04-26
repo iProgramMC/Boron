@@ -248,27 +248,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
 	
-	// Some cool math to move the dynamic header into the new mapping.
-	DynamicPhdr = (PELF_PROGRAM_HEADER) ((uintptr_t)DynamicPhdr - OldBase + (uintptr_t)ElfMappingBase);
-	
-	ELF_DYNAMIC_INFO DynInfo;
-	PELF_DYNAMIC_ITEM DynTable = (PELF_DYNAMIC_ITEM) (BoronDllBase + DynamicPhdr->VirtualAddress);
-	
-	if (!RtlParseDynamicTable(DynTable, &DynInfo, BoronDllBase))
-		KeCrash("%s: Failed to parse dynamic table.", Func);
-	
-	if (!RtlPerformRelocations(&DynInfo, BoronDllBase))
-		KeCrash("%s: Failed to perform relocations.", Func);
-	
-	RtlParseInterestingSections(ElfMappingBase, &DynInfo, BoronDllBase);
-	RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, BoronDllBase);
-	RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, BoronDllBase);
-	
-	if (!RtlLinkPlt(&DynInfo, BoronDllBase, false, PspInitialProcessFileName))
-		KeCrash("%s: Failed to perform PLT linking.", Func);
-	
-	// TODO: Adjust permissions so that the code segment is not writable anymore even with CoW.
-	
 	// Unmap the temporary mapping of the ELF, only leaving the actual mappings in.
 	Status = OSFreeVirtualMemory(
 		CURRENT_PROCESS_HANDLE,

@@ -9,7 +9,7 @@ SRC_DIR = src
 INC_DIR = include
 DDK_DIR = ../common/include
 
-ENTRY_POINT = DLLEntryPoint
+ENTRY_POINT = RelocateSelf
 ARCHITECTURE = AMD64
 
 # This is the name that our final driver executable will have.
@@ -108,6 +108,7 @@ override CXXFLAGS +=        \
 	
 override LDFLAGSBASE +=     \
 	-nostdlib -shared -fPIC \
+	-Bsymbolic              \
 	-e $(ENTRY_POINT)       \
 	-m elf_x86_64           \
 	-z max-page-size=0x1000

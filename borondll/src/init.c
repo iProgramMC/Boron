@@ -5,6 +5,7 @@ void TestThreadStart();
 
 const char HiStr[] = "Hissssssssssss, Viper Lives\n";
 
+HIDDEN
 void DLLEntryPoint()
 {
 	OSDummy();
