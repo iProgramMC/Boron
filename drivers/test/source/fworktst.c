@@ -348,14 +348,21 @@ void SpawnExplodeable()
 
 // ####### MAIN PROGRAM #######
 
+NO_RETURN void CoreUsage(void* LookedAtThread);
+
 void PerformFireworksTest()
 {
 	Init();
 	g_randGen ^= RandTscBased();
 	
 	FillScreen(BACKGROUND_COLOR);
-	HalDisplayString("\x1B[40m\x1B[1;1HThe Boron Operating System - Fireworks test\nHappy New Year 2024!");
+	//HalDisplayString("\x1B[40m\x1B[1;1HThe Boron Operating System - Fireworks test\nHappy New Year 2024!");
 	
+	// Create a thread which prints every core's usage numbers.
+	PKTHREAD Thrd = CreateThread(CoreUsage, KeGetCurrentThread());
+	if (Thrd)
+		ObDereferenceObject(Thrd);
+
 	// The main thread occupies itself with spawning explodeables
 	// from time to time, to keep things interesting.
 	KTIMER Timer;
@@ -363,13 +370,108 @@ void PerformFireworksTest()
 	
 	while (true)
 	{
-		int SpawnCount = Rand() % 2 + 1;
+		int SpawnCount = Rand() % 20 + 1;
 		
 		for (int i = 0; i < SpawnCount; i++)
-		{
 			SpawnExplodeable();
-		}
 		
 		PerformDelay(2000 + Rand() % 2000, NULL);
+	}
+}
+
+KIPL KiLockDispatcher();
+void KiUnlockDispatcher(KIPL);
+KPRCB** KiGetProcessorList();
+//PLIST_ENTRY KiGetGlobalThreadList();
+
+// This prints how many threads are in each processor's wait queue at once.
+NO_RETURN void CoreUsage(void* LookedAtThreadV)
+{
+	int ProcCount = KeGetProcessorCount();
+	PKPRCB* PrcbList = KiGetProcessorList();
+
+	// go to the beginning and setup the console
+	HalDisplayString("\x1B[40m\x1B[1;1H\x1B[?25l");
+	
+	PKTHREAD LookedAtThread = LookedAtThreadV;
+	
+	uint64_t LastUpdate = 0;
+	while (true)
+	{
+		int CountRunning = 0, CountTotal = 0;
+		uint64_t TicksSpentNonIdle = 0;
+		
+		uint64_t NowTime = HalGetTickCount();
+		uint64_t Diff = LastUpdate ? (NowTime - LastUpdate) : 1;
+		LastUpdate = NowTime;
+		
+		for (int i = 0; i < ProcCount; i++)
+		{
+			PKPRCB Prcb = PrcbList[i];
+			
+			int Count = 0;
+			
+			// TODO: Better way.
+			KIPL Ipl = KiLockDispatcher();
+			
+			for (int j = 0; j < PRIORITY_COUNT; j++)
+			{
+				PLIST_ENTRY Q = &Prcb->Scheduler.ExecQueue[j];
+				PLIST_ENTRY Entry = Q->Flink;
+				while (Entry != Q)
+				{
+					Count++;
+					CountRunning++;
+					Entry = Entry->Flink;
+				}
+			}
+			
+			uint64_t Zero = 0;
+			AtExchange(Prcb->Scheduler.TicksSpentNonIdle, Zero, TicksSpentNonIdle);
+			
+			KiUnlockDispatcher(Ipl);
+			
+			LogMsg(
+				"\x1B[%d;1HCPU #%d: %d thrds, %lld ticks non idle (%d.%04d%%  diff=%lld)                                             ",
+				i + 1,
+				i,
+				Count,
+				TicksSpentNonIdle,
+				(int)(TicksSpentNonIdle * 100 / Diff),
+				(int)(TicksSpentNonIdle * 1000000 / Diff) % 10000,
+				Diff
+			);
+		}
+		
+		uint64_t UptimeMS = HalGetTickCount() * 1000 / HalGetTickFrequency();
+		
+		LogMsg("\x1B[%d;1HTotal:   %d thrds, %d running thrds.......", ProcCount + 1, CountTotal, CountRunning);
+		LogMsg("\x1B[%d;1HUptime:  %lld ms.......", ProcCount + 2, UptimeMS);
+		LogMsg("\x1B[%d;1HFreeMem: %zu KB.......", ProcCount + 3, MmGetTotalFreePages() * 4);
+		
+		LogMsg("\x1B[%d;1HState of %p: %d.......", ProcCount + 4, LookedAtThread, LookedAtThread->Status);
+		
+		if (LookedAtThread->Status == KTHREAD_STATUS_WAITING)
+		{
+			void* WaitedObject = NULL;
+			if (LookedAtThread->WaitCount > 0)
+			{
+				PKWAIT_BLOCK WaitBlock = &LookedAtThread->WaitBlockArray[0];
+				WaitedObject = WaitBlock->Object;
+			}
+			
+			LogMsg(
+				"\x1B[%d;1HWaiting on %d objects, first is %p             ",
+				ProcCount + 5,
+				LookedAtThread->WaitCount,
+				WaitedObject
+			);
+		}
+		else
+		{
+			LogMsg("\x1B[%d;1HNot Waiting                                   ", ProcCount + 5);
+		}
+		
+		PerformDelay(1000, NULL);
 	}
 }
