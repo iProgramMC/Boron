@@ -314,13 +314,11 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 INIT
 bool PsInitSystemPart2()
 {
-	HANDLE ThreadHandle;
+	PETHREAD Thread = NULL;
 	BSTATUS Status;
 	
-	Status = PsCreateSystemThread(
-		&ThreadHandle,
-		NULL,
-		HANDLE_NONE,
+	Status = PsCreateSystemThreadFast(
+		&Thread,
 		PsStartInitialProcess,
 		NULL,
 		false
@@ -328,6 +326,9 @@ bool PsInitSystemPart2()
 	
 	if (FAILED(Status))
 		DbgPrint("Failed to setup initial process: %d", Status);
+	
+	if (Thread)
+		ObDereferenceObject(Thread);
 	
 	return SUCCEEDED(Status);
 }

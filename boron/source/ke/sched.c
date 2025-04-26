@@ -706,6 +706,13 @@ void KiSwitchToNextThread()
 	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
 #endif
 	
+	if (OldThread == Thread)
+	{
+		// The old thread is the same as the new thread, there's no need to
+		// do anything anymore.
+		return;
+	}
+	
 	// NOTE: There are two paths from here:
 	// 1. Function execution will continue HERE but in the thread's context.
 	//

@@ -13,10 +13,10 @@ if exist %nspath%\vdiske2.vdi (
 	set DriveOptions=-cdrom %nspath%\build\image.iso
 )
 
-qemu-system-x86_64.exe -no-reboot -no-shutdown ^
+qemu-system-x86_64.exe -no-reboot -no-shutdown -d int -M smm=off ^
 -M q35 ^
--m 8M ^
--smp 1 ^
+-m 256M ^
+-smp 6 ^
 -boot d ^
 -display sdl ^
 -accel tcg ^
