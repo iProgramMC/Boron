@@ -45,14 +45,34 @@ void KeAcquireSpinLock(PKSPIN_LOCK SpinLock, PKIPL OldIpl)
 	// If it is already locked, it can only mean one thing...
 	// ... a deadlock has occurred!!
 	if (KeGetProcessorCount() == 1 && SpinLock->Locked)
+	{
+#ifdef SPINLOCK_TRACK_PC
+		KeCrash("KeAcquireSpinLock: spinlock already locked by %p", SpinLock->Pc | 0xFFFF000000000000);
+#else
 		KeCrash("KeAcquireSpinLock: spinlock already locked");
+#endif
+	}
 		
 #endif
 	
 	while (true)
 	{
 		if (!AtTestAndSetMO(SpinLock->Locked, ATOMIC_MEMORD_ACQUIRE))
+		{
+#ifdef DEBUG
+#ifdef SPINLOCK_TRACK_PC
+			SpinLock->Pc = CallerAddress();
+#endif
+			
+			if (KeGetCurrentPRCB())
+			{
+				PKTHREAD CurrThread = KeGetCurrentThread();
+				if (CurrThread)
+					CurrThread->HoldingSpinlocks++;
+			}
+#endif
 			return;
+		}
 		
 		// Use regular reads instead of atomic reads to minimize bus contention
 		while (SpinLock->Locked)
@@ -66,10 +86,21 @@ void KeReleaseSpinLock(PKSPIN_LOCK SpinLock, KIPL OldIpl)
 	// If we are a uniprocessor system, check if the lock is locked.
 	// If it is already locked, it can only mean one thing...
 	// ... a deadlock has occurred!!
-	if (KeGetProcessorCount() == 1 && !SpinLock->Locked)
+	if (!SpinLock->Locked)
 		KeCrash("KeReleaseSpinLock: spinlock was not acquired");
-		
+	
+#ifdef SPINLOCK_TRACK_PC
+	SpinLock->Pc = -1;
 #endif
+	
+	if (KeGetCurrentPRCB())
+	{
+		PKTHREAD CurrThread = KeGetCurrentThread();
+		if (CurrThread)
+			CurrThread->HoldingSpinlocks--;
+	}
+#endif
+
 	AtClearMO(SpinLock->Locked, ATOMIC_MEMORD_RELEASE);
 	KeLowerIPL(OldIpl);
 }

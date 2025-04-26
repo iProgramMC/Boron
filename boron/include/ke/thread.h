@@ -125,12 +125,24 @@ struct KTHREAD_tag
 	
 	int ApcDisableCount;
 	
+	// The tick when this thread was scheduled.
+	uint64_t TickScheduledAt;
+	
 	// Priority increment after thread is terminated.
 	KPRIORITY IncrementTerminated;
 	
 	// Method called when the thread terminates.
 	// The method is called in a DPC context.
 	PKTHREAD_TERMINATE_METHOD TerminateMethod;
+	
+#ifdef DEBUG
+	// How many spin locks a thread is holding.
+	// This is used when initiating a wait at high IPL
+	// to ensure the thread doesn't hold any locks.
+	int HoldingSpinlocks;
+	
+	uint64_t EnqueuedTime;
+#endif
 };
 
 // Creates an empty, uninitialized, thread object.

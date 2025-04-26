@@ -225,6 +225,11 @@ int KeWaitForMultipleObjects(
 	if (Count > Maximum)
 		KeCrash("KeWaitForMultipleObjects: Object count %d is bigger than the maximum wait blocks of %d", Count, Maximum); 
 	
+#ifdef DEBUG
+	if (KeGetIPL() > IPL_NORMAL && Thread->HoldingSpinlocks != 0)
+		KeCrash("KeWaitForMultipleObjects: Current thread holds %d spinlock(s), and is at IPL %d.", Thread->HoldingSpinlocks, KeGetIPL());
+#endif
+	
 	while (true)
 	{
 		KIPL Ipl = KiLockDispatcher();

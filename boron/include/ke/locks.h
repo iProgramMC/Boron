@@ -21,6 +21,9 @@ Author:
 typedef struct
 {
 	bool Locked;
+#if defined(DEBUG) && defined(SPINLOCK_TRACK_PC)
+	uint64_t Pc : 48; // Locking program counter - debug only
+#endif
 }
 KSPIN_LOCK, *PKSPIN_LOCK;
 

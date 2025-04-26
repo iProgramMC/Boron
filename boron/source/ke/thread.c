@@ -62,6 +62,11 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START Start
 	
 	Thread->ApcDisableCount = 0;
 	Thread->ApcInProgress = 0;
+	
+#ifdef DEBUG
+	// When a thread spawns, it holds the dispatcher lock.
+	Thread->HoldingSpinlocks = 1;
+#endif
 }
 
 PKTHREAD KeAllocateThread()

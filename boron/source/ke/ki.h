@@ -71,7 +71,7 @@ void KiSetPendingQuantumEnd();
 
 void KiOnKillProcess(PKPROCESS Process);
 
-void KiSwitchThreadStack(void** OldStack, void* NewStack);
+void KiSwitchThreadStack(void** OldStack, void** NewStack);
 
 // Same as KiSwitchThreadStack, but discards the old context.  Used during
 // initialization of the scheduler when no thread was switched to before.
