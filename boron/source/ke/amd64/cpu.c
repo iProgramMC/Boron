@@ -164,7 +164,7 @@ void KeInitCPU()
 	// of STAR_63_48, instead, it's STAR_63_48 + 16.  Why AMD?!
 	//
 	// (Or was it Intel?)
-	uint64_t Star = SEG_RING_0_CODE | ((SEG_RING_3_DATA - 8) << 16);
+	uint64_t Star = SEG_RING_0_CODE | (((SEG_RING_3_DATA - 8) | 3) << 16);
 	KeSetMSR(MSR_IA32_STAR, Star << 32);
 	
 	// Set the mask to disable interrupts on syscall.
