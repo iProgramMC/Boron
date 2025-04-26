@@ -25,10 +25,19 @@ typedef struct ETHREAD_tag
 	void* UserStack;
 	
 	size_t UserStackSize;
+	
+	bool Initialized;
 }
 ETHREAD, *PETHREAD;
 
 #define PsGetCurrentThread() ((PETHREAD) KeGetCurrentThread())
+
+BSTATUS PsCreateSystemThreadFast(
+	PETHREAD* OutThread,
+	PKTHREAD_START StartRoutine,
+	void* StartContext,
+	bool CreateSuspended
+);
 
 BSTATUS PsCreateSystemThread(
 	PHANDLE OutHandle,

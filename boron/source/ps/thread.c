@@ -20,7 +20,8 @@ void PspDeleteThread(void* ThreadV)
 	UNUSED PETHREAD Thread = ThreadV;
 	
 	// Free its stack.
-	MmFreeThreadStack(Thread->Tcb.Stack.Top);
+	if (Thread->Initialized)
+		MmFreeThreadStack(Thread->Tcb.Stack.Top);
 	
 	// Remove our reference to the process object.
 	if (Thread->Tcb.Process)
@@ -80,13 +81,9 @@ void PspTerminateThread(PKTHREAD Tcb)
 	// TODO: anything more?
 }
 
-BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
+static BSTATUS PspInitializeThread(PETHREAD Thread, PEPROCESS Process, PKTHREAD_START StartRoutine, void* StartContext, bool CreateSuspended)
 {
-	THREAD_INIT_CONTEXT* Tic = Context;
-	PEPROCESS Process = Tic->Process;
-	PKTHREAD_START StartRoutine = Tic->StartRoutine;
-	PETHREAD Thread = ThreadV;
-	void* StartContext = Tic->StartContext;
+	Thread->Initialized = false;
 	
 	// Allocate the thread's stack.
 	void* ThreadStack = MmAllocateKernelStack();
@@ -118,9 +115,51 @@ BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
 	// TODO: Initialize other ETHREAD attributes.  Currently there's just the TCB.
 	
 	// Ready the thread.
-	if (!Tic->CreateSuspended)
+	if (!CreateSuspended)
 		KeReadyThread(&Thread->Tcb);
 	
+	Thread->Initialized = true;
+	
+	return STATUS_SUCCESS;
+}
+
+BSTATUS PspInitializeThreadObject(void* ThreadV, void* Context)
+{
+	THREAD_INIT_CONTEXT* Tic = Context;
+	PETHREAD Thread = ThreadV;
+	
+	return PspInitializeThread(Thread, Tic->Process, Tic->StartRoutine, Tic->StartContext, Tic->CreateSuspended);
+}
+
+BSTATUS PsCreateSystemThreadFast(
+	PETHREAD* OutThread,
+	PKTHREAD_START StartRoutine,
+	void* StartContext,
+	bool CreateSuspended)
+{
+	void* OutObject = NULL;
+	BSTATUS Status = ObCreateObject(
+		&OutObject,
+		NULL,
+		PsThreadObjectType,
+		NULL,
+		OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_NO_DIRECTORY,
+		NULL,
+		sizeof(ETHREAD)
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	PETHREAD Thread = OutObject;
+	Status = PspInitializeThread(Thread, PsGetCurrentProcess(), StartRoutine, StartContext, CreateSuspended);
+	if (FAILED(Status))
+	{
+		ObDereferenceObject(Thread);
+		return Status;
+	}
+	
+	*OutThread = Thread;
 	return STATUS_SUCCESS;
 }
 
