@@ -80,7 +80,7 @@ void RelocateSelf()
 			__builtin_trap();
 		
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rela->Offset);
-		*Reloc += ImageBase + Rela->Addend;
+		*Reloc = ImageBase + Rela->Addend;
 	#endif
 	}
 	

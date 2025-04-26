@@ -22,7 +22,7 @@ void DLLEntryPoint()
 		false
 	);
 	
-	DbgPrint("Status: %d  (%p)", Status, RtlGetStatusString(Status));
+	DbgPrint("Status: %d  (%s)", Status, RtlGetStatusString(Status));
 	
 	OSDummy();
 	DbgPrint("Waiting...");
