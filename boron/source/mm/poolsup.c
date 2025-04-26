@@ -185,7 +185,8 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	// Acquire the kernel space lock and zero out its PTE.
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, true);
+	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, false);
+	ASSERT(PtePtr);
 	ASSERT(*PtePtr == ((Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR));
 	*PtePtr = 0;
 	
@@ -207,7 +208,6 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	SizeInPages += 1;
 	
 	void* OutputAddressSub;
-	
 	MIPOOL_SPACE_HANDLE Handle = MiReservePoolSpaceTaggedSub(SizeInPages, &OutputAddressSub, Tag, UserData);
 	
 	if (!Handle)
@@ -235,7 +235,6 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	MmUnlockKernelSpace();
 	
 	*OutputAddress = (void*) ((uintptr_t) OutputAddressSub + PAGE_SIZE);
-	
 	return Handle;
 }
 
@@ -298,10 +297,17 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address - PAGE_SIZE, true);
+	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address - PAGE_SIZE, false);
+	if (!PtePtr)
+	{
+		MmUnlockKernelSpace();
+		ASSERT(!"This is supposed to succeed");
+		return (MIPOOL_SPACE_HANDLE) NULL;
+	}
+	
+	ASSERT(*PtePtr & MM_PTE_ISPOOLHDR);
+	
 	MIPOOL_SPACE_HANDLE Handle = ((*PtePtr) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE;
-	
 	MmUnlockKernelSpace();
-	
 	return Handle;
 }
