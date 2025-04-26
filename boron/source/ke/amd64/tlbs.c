@@ -16,6 +16,8 @@ Author:
 #include <hal.h>
 #include "archi.h"
 
+#define MAX_TLBS_LENGTH 4096
+
 extern PKPRCB* KeProcessorList;
 extern int     KeProcessorCount;
 
@@ -37,9 +39,15 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
 	if (!KeGetCurrentPRCB())
 	{
 		// Invalidate the pages on the local CPU
-		for (size_t i = 0; i < Length; i++)
+		
+		if (Length >= MAX_TLBS_LENGTH)
 		{
-			KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
+			KeSetCurrentPageTable(KeGetCurrentPageTable());
+		}
+		else
+		{
+			for (size_t i = 0; i < Length; i++)
+				KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
 		}
 		
 		return;
@@ -48,6 +56,18 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
 	KIPL OldIpl, UnusedIpl;
 	KIPL CurrentIpl = KeGetIPL();
 	KeAcquireSpinLock(&KeTLBSLock, &OldIpl);
+	
+#ifdef DEBUG
+	// If we have the "track spinlock counts" feature active, we should back up the spinlock
+	// count here and restore it later.
+	//
+	// This is because we use spinlocks in a "strange" way to synchronize the TLB shootdown
+	// process.  Basically, each processor's TLB shootdown lock is acquired once.
+	// Then, it's acquired again. But since it was already acquired once, this will
+	// initiate a wait.  Luckily, the other threads will receive the TLB shootdown interrupt,
+	// perform the TLB invalidations, and then 
+	int SpinlocksHeld = KeGetCurrentThread()->HoldingSpinlocks;
+#endif
 	
 	// Invalidate the pages on the local CPU
 	for (size_t i = 0; i < Length; i++)
@@ -87,6 +107,10 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
 		KeReleaseSpinLock(&KeProcessorList[i]->TlbsLock, CurrentIpl);
 	}
 	
+#ifdef DEBUG
+	KeGetCurrentThread()->HoldingSpinlocks = SpinlocksHeld;
+#endif
+	
 	KeReleaseSpinLock(&KeTLBSLock, OldIpl);
 }
 
@@ -98,10 +122,23 @@ PKREGISTERS KiHandleTlbShootdownIpi(PKREGISTERS Regs)
 	DbgPrint("Handling TLB shootdown on CPU %u", Prcb->LapicId);
 #endif
 	
-	for (size_t i = 0; i < Prcb->TlbsLength; i++)
+	if (Prcb->TlbsLength >= MAX_TLBS_LENGTH)
 	{
-		KeInvalidatePage((void*)(Prcb->TlbsAddress + i * PAGE_SIZE));
+		KeSetCurrentPageTable(KeGetCurrentPageTable());
 	}
+	else
+	{
+		for (size_t i = 0; i < Prcb->TlbsLength; i++)
+			KeInvalidatePage((void*)(Prcb->TlbsAddress + i * PAGE_SIZE));
+	}
+	
+#ifdef DEBUG
+	// The spinlock was already acquired by the CPU that initiated
+	// the TLB shootdown.  All we need to do is release it.  But we
+	// should also let the spinlocks held tracker know.
+	if (Prcb->Scheduler.CurrentThread)
+		Prcb->Scheduler.CurrentThread->HoldingSpinlocks++;
+#endif
 	
 	KeReleaseSpinLock(&Prcb->TlbsLock, IPL_NOINTS);
 	
