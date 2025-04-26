@@ -43,8 +43,9 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START Start
 	Thread->Process = Process;
 	
 	// Copy defaults from process.
-	Thread->Priority = Process->DefaultPriority;
 	Thread->Affinity = Process->DefaultAffinity;
+	Thread->Priority = Process->DefaultPriority;
+	Thread->BasePriority = Process->DefaultPriority;
 	
 	// Mark thread as initialized.
 	Thread->Status = KTHREAD_STATUS_INITIALIZED;
