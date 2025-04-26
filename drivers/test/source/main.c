@@ -19,19 +19,13 @@ Author:
 
 PKTHREAD CreateThread(PKTHREAD_START StartRoutine, void* Parameter)
 {
-	HANDLE Handle = HANDLE_NONE;
-	BSTATUS Status = PsCreateSystemThread(&Handle, NULL, HANDLE_NONE, StartRoutine, Parameter, false);
+	PETHREAD Thread = NULL;
+	BSTATUS Status = PsCreateSystemThreadFast(&Thread, StartRoutine, Parameter, false);
 	
 	if (FAILED(Status))
-		KeCrash("Failed to CreateThread(%p): status %d", StartRoutine, Status);
+		return NULL;
 	
-	void* Thrd = NULL;
-	Status = ObReferenceObjectByHandle(Handle, NULL, &Thrd);
-	if (FAILED(Status))
-		KeCrash("Failed to reference handle while creating thread: status %d", Status);
-	
-	ObClose(Handle);
-	return Thrd;
+	return &Thread->Tcb;
 }
 
 void PerformDelay(int Ms, PKDPC Dpc)
@@ -87,7 +81,7 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformProcessTest();
 	//PerformMutexTest();
 	//PerformBallTest();
-	//PerformFireworksTest();
+	PerformFireworksTest();
 	//PerformHandleTest();
 	//PerformApcTest();
 	//PerformRwlockTest();
@@ -100,7 +94,7 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformCcbTest();
 	//PerformMm1Test();
 	//PerformMm2Test();
-	PerformMm3Test();
+	//PerformMm3Test();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);
