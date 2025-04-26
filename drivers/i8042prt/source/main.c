@@ -71,12 +71,16 @@ BSTATUS InitializeDevice()
 	
 	uint32_t LapicId = KeGetCurrentPRCB()->LapicId;
 	
+	bool Restore = KeDisableInterrupts();
+	
 	// Ok, now set the IRQ redirects.
 	HalIoApicSetIrqRedirect(VectorKbd, I8042_IRQ_KBD, LapicId, true);
 	HalIoApicSetIrqRedirect(VectorMou, I8042_IRQ_MOU, LapicId, true);
 	
 	// Initialize the keyboard.
 	KbdInitialize(VectorKbd, IplKbd);
+	
+	KeRestoreInterrupts(Restore);
 	
 	return STATUS_SUCCESS;
 }
