@@ -66,6 +66,10 @@ typedef struct
 	
 	void* IdleThreadStackTop;
 	
+	int ThreadsOnQueueCount;
+	
+	uint64_t TicksSpentNonIdle;
+	
 	// in ticks, copy of CurrentThread->QuantumUntil unless
 	// CurrentThread is null, in which case it's zero
 	uint64_t QuantumUntil;

@@ -21,11 +21,14 @@ Author:
 #define SchedDebug(...)
 #define SchedDebug2(...) DbgPrint(__VA_ARGS__)
 #endif
+ 
+#define MAX_THREADS_ON_QUEUE_OVERLOADED 100
 
 //#define SCHED_DISABLE_WORKSTEALING
 
 static int KepNextProcessorToStealWorkFrom;
 extern PKPRCB* KeProcessorList;
+extern int     KeProcessorCount;
 
 LIST_ENTRY KiGlobalThreadList;
 KSPIN_LOCK KiGlobalThreadListLock;
@@ -65,6 +68,30 @@ PKTHREAD KeGetCurrentThread()
 }
 
 #endif
+ 
+static bool   KiMoreAggressiveWorkStealing = false;
+static PKPRCB KiMostCrowdedProcessor = NULL;
+
+void KiCheckOverloadedExecQueues()
+{
+	KiAssertOwnDispatcherLock();
+	
+	KiMoreAggressiveWorkStealing = false;
+	KiMostCrowdedProcessor = NULL;
+	
+	PKPRCB* PrcbList = KeProcessorList;
+	for (int i = 0; i < KeProcessorCount; i++)
+	{
+		if (PrcbList[i]->Scheduler.ThreadsOnQueueCount >= MAX_THREADS_ON_QUEUE_OVERLOADED)
+		{
+			KiMoreAggressiveWorkStealing = true;
+			
+			if (!KiMostCrowdedProcessor ||
+			    KiMostCrowdedProcessor->Scheduler.ThreadsOnQueueCount < PrcbList[i]->Scheduler.ThreadsOnQueueCount)
+				KiMostCrowdedProcessor = PrcbList[i];
+		}
+	}
+}
 
 void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 {
@@ -94,6 +121,7 @@ void KiSetPriorityThread(PKTHREAD Thread, int Priority)
 
 static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 {
+	/*
 	if (KeGetCurrentPRCB()->IsBootstrap)
 	{
 		// Wait approximately 2 seconds such that all remaining init jobs have completed.
@@ -107,7 +135,7 @@ static NO_RETURN void KiIdleThreadEntry(UNUSED void* Context)
 		
 		MiReclaimInitText();
 	}
-	
+	*/
 	while (true)
 		KeWaitForNextInterrupt();
 }
@@ -128,9 +156,14 @@ void KiReadyThread(PKTHREAD Thread)
 	
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	
+	Thread->EnqueuedTime = HalGetTickCount();
+	
+	Scheduler->ThreadsOnQueueCount++;
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
 	
 	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
+	
+	KiCheckOverloadedExecQueues();
 }
 
 KPRIORITY KiAdjustPriorityBoost(KPRIORITY BasePriority, KPRIORITY PriorityBoost)
@@ -178,6 +211,10 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
+	
+	Thread->EnqueuedTime = HalGetTickCount();
+	
+	KiCheckOverloadedExecQueues();
 	
 	// If the current thread is running at a lower priority than this one, yield
 	// as soon as the dispatcher lock is unlocked.
@@ -291,6 +328,9 @@ static PKTHREAD KepPopNextThreadIfNeeded(PKSCHEDULER Sched, int MinPriority, boo
 		// Remove this thread from the queue.
 		RemoveEntryList(&Thread->EntryQueue);
 		
+		Sched->ThreadsOnQueueCount--;
+		KiCheckOverloadedExecQueues();
+		
 		// If the list is empty, unset the relevant bit.
 		if (IsListEmpty(&Sched->ExecQueue[Priority]))
 			Sched->ExecQueueMask &= ~QUEUE_BIT(Priority);
@@ -366,10 +406,15 @@ void KiEndThreadQuantum()
 		// Emplace it back on the ready queue.
 		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
 		
+		Scheduler->ThreadsOnQueueCount++;
 		Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
 		
 		// Set the last processor ID of the thread.
 		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
+		
+		CurrentThread->EnqueuedTime = HalGetTickCount();
+		
+		KiCheckOverloadedExecQueues();
 	}
 	
 	Scheduler->QuantumUntil  = 0;
@@ -428,9 +473,14 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 // it will try to pop threads off of another processor's queue.
 static int KepGetNextProcessorToStealWorkFrom()
 {
+	KiAssertOwnDispatcherLock();
+	
+	if (KiMoreAggressiveWorkStealing)
+		return KiMostCrowdedProcessor->Id;
+
 	int Processor = KepNextProcessorToStealWorkFrom;
 	
-	if (++KepNextProcessorToStealWorkFrom == KeGetProcessorCount())
+	if (++KepNextProcessorToStealWorkFrom == KeProcessorCount)
 		KepNextProcessorToStealWorkFrom = 0;
 	
 	return Processor;
@@ -449,6 +499,38 @@ static PKTHREAD KepTryStealThread(int MinPriority)
 	return KepPopNextThreadIfNeeded(TheirScheduler, MinPriority + 1, true);
 }
 
+static void KepStealManyThreads()
+{
+	KiAssertOwnDispatcherLock();
+	
+	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
+	
+	int ProcToSteal = KepGetNextProcessorToStealWorkFrom();
+	PKSCHEDULER TheirScheduler = &KeProcessorList[ProcToSteal]->Scheduler;
+	
+	int LeftToSteal = TheirScheduler->ThreadsOnQueueCount / 2;
+	//DbgPrint("%d stealing from %d, %d", KeGetCurrentPRCB()->Id, ProcToSteal, LeftToSteal);
+	
+	for (int i = PRIORITY_COUNT - 1; i > 0 && LeftToSteal > 0; i--)
+	{
+		while (!IsListEmpty(&TheirScheduler->ExecQueue[i]) && LeftToSteal > 0)
+		{
+			PLIST_ENTRY Entry = RemoveHeadList(&TheirScheduler->ExecQueue[i]);
+			InsertTailList(&Scheduler->ExecQueue[i], Entry);
+			
+			if (IsListEmpty(&TheirScheduler->ExecQueue[i]))
+				TheirScheduler->ExecQueueMask &= ~(1 << i);
+			
+			Scheduler->ExecQueueMask |= 1 << i;
+			
+			TheirScheduler->ThreadsOnQueueCount--;
+			Scheduler->ThreadsOnQueueCount++;
+			
+			LeftToSteal--;
+		}
+	}
+}
+
 PKTHREAD KiGetNextThread(bool MayDowngrade)
 {
 	KiAssertOwnDispatcherLock();
@@ -458,6 +540,13 @@ PKTHREAD KiGetNextThread(bool MayDowngrade)
 	int MinPriority = 0;
 	if (CurrentThread)
 		MinPriority = CurrentThread->BasePriority;
+	
+	if (KiMoreAggressiveWorkStealing &&
+		KepGetNextProcessorToStealWorkFrom() != KeGetCurrentPRCB()->Id)
+	{
+		// Steal many, many threads from this overcrowded processor.
+		KepStealManyThreads();
+	}
 	
 	// The "trick" behind this function is that we REALLY don't want to downgrade priority.
 	
@@ -507,6 +596,14 @@ void KiPerformYield()
 	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	PKTHREAD CurrentThread = Scheduler->CurrentThread;
 	
+	if (CurrentThread &&
+		CurrentThread->BasePriority != PRIORITY_IDLE &&
+		CurrentThread->TickScheduledAt)
+	{
+		AtFetchAdd(Scheduler->TicksSpentNonIdle, HalGetTickCount() - CurrentThread->TickScheduledAt);
+		CurrentThread->TickScheduledAt = 0;
+	}
+	
 	// If the current thread was "running" when it yielded, its quantum has
 	// ended forcefully and we should place it back on the execution queue.
 	if (!CurrentThread || CurrentThread->Status == KTHREAD_STATUS_RUNNING)
@@ -533,7 +630,7 @@ void KiPerformYield()
 		}
 	}
 	
-	Scheduler->QuantumUntil  = 0;
+	Scheduler->QuantumUntil = 0;
 }
 
 bool KiNeedToSwitchThread()
@@ -565,9 +662,6 @@ void KiSwitchToNextThread()
 	if (!Scheduler->NextThread)
 		KeCrash("KiSwitchToNextThread: Scheduler->NextThread is NULL, but we returned true for KiNeedToSwitchThread");
 	
-	// There is no current thread loaded.
-	// If KiEndThreadQuantum has picked a next thread, it's also gotten rid
-	// of CurrentThread.
 	SchedDebug("Scheduling In Thread %p", Scheduler->NextThread);
 	
 	PKTHREAD OldThread = Scheduler->CurrentThread;
@@ -590,6 +684,8 @@ void KiSwitchToNextThread()
 	KiAssignDefaultQuantum(Thread);
 	
 	Scheduler->QuantumUntil = Thread->QuantumUntil;
+	
+	Thread->TickScheduledAt = HalGetTickCount();
 	
 	// Switch to thread's process' address space.
 	PKPROCESS DestProcess = KepGetProcessToSwitchAddressSpaceTo(Thread);
