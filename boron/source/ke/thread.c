@@ -15,7 +15,7 @@ Author:
 ***/
 #include "ki.h"
 
-void KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSize, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	ASSERT(KernelStack);
 	
@@ -27,7 +27,7 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START Start
 	Thread->StartContext = StartContext;
 	
 	Thread->Stack.Top    = KernelStack;
-	Thread->Stack.Size   = MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
+	Thread->Stack.Size   = KernelStackSize; //MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
 	
 	Thread->Mode = MODE_KERNEL;
 	
@@ -108,7 +108,16 @@ void KeYieldCurrentThread()
 
 void KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
+	size_t KernelStackSize = MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
+	
 	KIPL Ipl = KiLockDispatcher();
-	KiInitializeThread(Thread, KernelStack, StartRoutine, StartContext, Process);
+	KiInitializeThread(Thread, KernelStack, KernelStackSize, StartRoutine, StartContext, Process);
+	KiUnlockDispatcher(Ipl);
+}
+
+void KeInitializeThread2(PKTHREAD Thread, void* KernelStack, size_t KernelStackSize, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
+{
+	KIPL Ipl = KiLockDispatcher();
+	KiInitializeThread(Thread, KernelStack, KernelStackSize, StartRoutine, StartContext, Process);
 	KiUnlockDispatcher(Ipl);
 }

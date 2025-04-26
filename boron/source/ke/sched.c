@@ -196,6 +196,8 @@ void KeSchedulerInitUP()
 INIT
 void KeSchedulerInit(void* IdleThreadStack)
 {
+	size_t IdleThreadStackSize = MmGetSizeFromPoolAddress(IdleThreadStack) * PAGE_SIZE;
+	
 	ASSERT(IdleThreadStack);
 	
 	KIPL Ipl = KiLockDispatcher();
@@ -209,13 +211,14 @@ void KeSchedulerInit(void* IdleThreadStack)
 	Scheduler->CurrentThread = NULL;
 	
 	Scheduler->ExecQueueMask = 0;
+	Scheduler->ThreadsOnQueueCount = 0;
 	
 	// Create an idle thread.
 	PKTHREAD Thread = KeAllocateThread();
 	if (!Thread)
 		KeCrash("cannot allocate idle thread");
 	
-	KiInitializeThread(Thread, IdleThreadStack, KiIdleThreadEntry, NULL, KeGetSystemProcess());
+	KiInitializeThread(Thread, IdleThreadStack, IdleThreadStackSize, KiIdleThreadEntry, NULL, KeGetSystemProcess());
 	
 	KiSetPriorityThread(Thread, PRIORITY_IDLE);
 	KiReadyThread(Thread);

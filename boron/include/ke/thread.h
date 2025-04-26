@@ -159,6 +159,7 @@ void KeSetTerminateMethodThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD Termi
 
 // Initializes the thread object.
 void KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
+void KeInitializeThread2(PKTHREAD Thread, void* KernelStack, size_t KernelStackSize, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
 // Readies the thread object for execution.
 // Note. Don't call this more than once per thread! Bad things will happen!!

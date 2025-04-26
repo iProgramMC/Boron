@@ -31,6 +31,7 @@ KPRCB** KiGetProcessorList() { return KeProcessorList; }
 // TODO: an "init data" section.  Currently there's not much in the data segment
 // that can be considered worthy of being purged after system initialization.
 KTHREAD  KiExInitThread;
+uint8_t  KiExInitThreadStack[8192];
 
 int KeGetProcessorCount()
 {
@@ -49,12 +50,6 @@ extern size_t MmTotalAvailablePages;
 NO_RETURN void ExpInitializeExecutive(void* Context);
 
 void MmSwitchKernelSpaceLock();
-
-INIT
-static void KepFreeExInitThreadStack(PKTHREAD Thread)
-{
-	MmFreeThreadStack(Thread->Stack.Top);
-}
 
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
@@ -82,12 +77,11 @@ void KiCPUBootstrap(struct limine_smp_info* pInfo)
 		// of the rest of the kernel.
 		KeInitializeThread(
 			&KiExInitThread,
-			MmAllocateKernelStack(),
+			KiExInitThreadStack,
 			ExpInitializeExecutive,
 			NULL,
 			KeGetSystemProcess()
 		);
-		KeSetTerminateMethodThread(&KiExInitThread, KepFreeExInitThreadStack);
 		KeSetPriorityThread(&KiExInitThread, PRIORITY_NORMAL);
 		KeReadyThread(&KiExInitThread);
 	}
