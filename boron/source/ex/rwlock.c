@@ -480,12 +480,16 @@ void ExReleaseRwLock(PEX_RW_LOCK Lock)
 		bool Access = false;
 		
 		if (!Exclusive)
+		{
 			// We were holding onto it shared, so try to grant exclusive access.
 			Access = true;
+		}
 		else if (Lock->SharedWaiterCount)
+		{
 			// We were holding it exclusive, and there are no shared waiters.
 			// Have to grant exclusive access.
 			Access = true;
+		}
 		
 		if (Access)
 		{
