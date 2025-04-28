@@ -180,14 +180,17 @@ BSTATUS OSCreateProcess(
 			return Status;
 	}
 	
+	HANDLE Handle = HANDLE_NONE;
+	
 	Status = ExCreateObjectUserCall(
-		OutHandle,
+		&Handle,
 		ObjectAttributes,
 		PsProcessObjectType,
 		sizeof(EPROCESS),
 		PspInitializeProcessObject,
 		&Pic,
-		POOL_NONPAGED
+		POOL_NONPAGED,
+		true
 	);
 	
 	ObDereferenceObject(ParentProcessRef);
@@ -225,8 +228,14 @@ BSTATUS OSCreateProcess(
 	// The UserProcessParameters member is filled in through an
 	// upcoming OSSetProcessEnvironmentData system call.
 	
+	//...
+	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	if (SUCCEEDED(Status))
+		return Status;
+	
 Fail:
 	PsDetachFromProcess(Process);
 	ObDereferenceObject(Process);
+	OSClose(Handle);
 	return Status;
 }

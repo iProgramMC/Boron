@@ -86,7 +86,7 @@ static BSTATUS ExpInitializeMutexObject(void* MutexV, UNUSED void* Context)
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, sizeof(KMUTEX), ExpInitializeMutexObject, NULL, POOL_NONPAGED);
+	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExMutexObjectType, sizeof(KMUTEX), ExpInitializeMutexObject, NULL, POOL_NONPAGED, false);
 }
 
 BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)

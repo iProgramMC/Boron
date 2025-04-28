@@ -35,7 +35,8 @@ BSTATUS ExCreateObjectUserCall(
 	size_t ObjectBodySize,
 	EX_OBJECT_CREATE_METHOD CreateMethod,
 	void* CreateContext,
-	int PoolFlag
+	int PoolFlag,
+	bool TrustHandlePointer
 );
 
 // Opens an object from a user system service call.  This ensures that code is not duplicated.

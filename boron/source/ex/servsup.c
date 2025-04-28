@@ -106,7 +106,8 @@ BSTATUS ExCreateObjectUserCall(
 	size_t ObjectBodySize,
 	EX_OBJECT_CREATE_METHOD CreateMethod,
 	void* CreateContext,
-	int PoolFlag
+	int PoolFlag,
+	bool TrustHandlePointer
 )
 {
 	BSTATUS Status;
@@ -180,7 +181,7 @@ BSTATUS ExCreateObjectUserCall(
 		goto FailUndo;
 	
 	// Finally, copy the handle.
-	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), TrustHandlePointer ? MODE_KERNEL : KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 	{
 		// Yay! The creation went smoothly. Remove the initial reference (we still have

@@ -200,7 +200,8 @@ BSTATUS PsCreateSystemThread(
 		sizeof(ETHREAD),
 		PspInitializeThreadObject,
 		&Tic,
-		POOL_NONPAGED
+		POOL_NONPAGED,
+		false
 	);
 	
 	ObDereferenceObject(ProcessV);

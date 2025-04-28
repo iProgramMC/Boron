@@ -136,7 +136,7 @@ BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, in
 	EventData.EventType = EventType;
 	EventData.State     = State;
 	
-	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, sizeof(KEVENT), ExpInitializeEventObject, &EventData, POOL_NONPAGED);
+	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, sizeof(KEVENT), ExpInitializeEventObject, &EventData, POOL_NONPAGED, false);
 }
 
 BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)

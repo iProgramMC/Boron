@@ -16,7 +16,7 @@ if exist %nspath%\vdiske2.vdi (
 qemu-system-x86_64.exe -no-reboot -no-shutdown -d int -M smm=off ^
 -M q35 ^
 -m 256M ^
--smp 1 ^
+-smp 6 ^
 -boot d ^
 -display sdl ^
 -accel tcg ^
