@@ -37,6 +37,7 @@ void PspUserThreadStart(void* ContextV)
 	PsGetCurrentThread()->UserStack = StackAddress;
 	PsGetCurrentThread()->UserStackSize = StackSize;
 	
+	KeGetCurrentThread()->Mode = MODE_USER;
 	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext);
 }
 

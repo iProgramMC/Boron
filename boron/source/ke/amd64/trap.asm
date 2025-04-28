@@ -106,7 +106,6 @@ KiTrapCommon:
 	mov   rbp, rsp
 	cld                                    ; Clear direction flag, will be restored by iretq
 	movsx rdi, byte [KiTrapIplList + rbx]  ; Get the IPL for the respective interrupt vector
-	mov   rsi, rdx                         ; Pass in as second parameter the previous CS. This will determine the PreviousMode.
 	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
 	push  rax                              ; Push the old IPL that we obtained from the function
 	mov   rdi, rsp                         ; Retrieve the PKREGISTERS to call the trap handler

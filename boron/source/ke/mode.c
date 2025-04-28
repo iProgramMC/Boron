@@ -22,3 +22,13 @@ KPROCESSOR_MODE KeGetPreviousMode()
 	
 	return KeGetCurrentThread()->Mode;
 }
+
+KPROCESSOR_MODE KeSetAddressMode(KPROCESSOR_MODE NewMode)
+{
+	if (!KeGetCurrentThread())
+		return MODE_KERNEL;
+	
+	KPROCESSOR_MODE OldMode = KeGetCurrentThread()->Mode;
+	KeGetCurrentThread()->Mode = NewMode;
+	return OldMode;
+}
