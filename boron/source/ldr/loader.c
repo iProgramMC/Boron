@@ -122,16 +122,6 @@ static void LdrpReclaimFile(PLIMINE_FILE File)
 
 // NOTE: For now, selectively reclaim certain pages.  At some point, we'll reclaim everything, and scrap this function
 INIT
-static void LdrpReclaimAllModules()
-{
-	struct limine_module_response* Response = KeLimineModuleRequest.response;
-	for (uint64_t i = 0; i < Response->module_count; i++)
-	{
-		LdrpReclaimFile(Response->modules[i]);
-	}
-}
-
-INIT
 static void LdrpReclaimKernelFile()
 {
 	LdrpReclaimFile(KeLimineKernelFileRequest.response->kernel_file);
@@ -150,6 +140,5 @@ void LdrInitAfterHal()
 		LdriLoadFile(File);
 	}
 	
-	LdrpReclaimAllModules();
 	LdrpReclaimKernelFile();
 }
