@@ -33,7 +33,7 @@ bool MmpCreateRegionHeap(PMMHEAP Heap, uintptr_t StartVa, size_t Size)
 void MmInitializeHeap(PMMHEAP Heap, size_t ItemSize, uintptr_t InitialVa, size_t InitialSize)
 {
 	InitializeRbTree(&Heap->Tree);
-	KeInitializeMutex(&Heap->Mutex, 0);
+	KeInitializeMutex(&Heap->Mutex, MM_VAD_MUTEX_LEVEL);
 	
 	Heap->ItemSize = ItemSize;
 	ASSERT(ItemSize >= sizeof(MMADDRESS_NODE));
