@@ -317,6 +317,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		// TODO: But there might be a system wide file map going on!
 		MmUnlockVadList(VadList);
 		MmUnlockSpace(SpaceUnlockIpl, Va);
+		DbgPrint("MiNormalFault: Declaring access violation on VA %p because there is no VAD", Va);
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
@@ -329,6 +330,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 			// memory with MEM_RESERVE | MEM_COMMIT). Therefore, access violation it is.
 			MmUnlockVadList(VadList);
 			MmUnlockSpace(SpaceUnlockIpl, Va);
+			DbgPrint("MiNormalFault: Declaring access violation on VA %p because there is an uncommitted VAD and the region was not committed separately.", Va);
 			return STATUS_ACCESS_VIOLATION;
 		}
 		
@@ -457,6 +459,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		return STATUS_SUCCESS;
 	}
 	
+	DbgPrint("MiWriteFault: Declaring access violation on VA %p because I don't know how to handle such a write fault.  PTE: %p", Va, *PtePtr);
 	return STATUS_ACCESS_VIOLATION;
 }
 

@@ -52,11 +52,12 @@ void KeDeallocateProcess(PKPROCESS Process);
 // Initialize the process.
 void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity);
 
-// Attach to a process' address space.
-void KeAttachToProcess(PKPROCESS Process);
+// Attach to or detach from a process, on behalf of the current thread.
+//
+// If Process is NULL, the thread is detached from any process
+// it was attached to, and the active address space will be the
+// address space of the host process.
+PKPROCESS KeSetAttachedProcess(PKPROCESS Process);
 
-// Detach from the attached process' address space.
-void KeDetachFromProcess();
-
-// Return the current process.
+// Get a pointer to the current process.
 PKPROCESS KeGetCurrentProcess();

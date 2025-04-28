@@ -77,26 +77,13 @@ void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffi
 	Process->DefaultAffinity = BaseAffinity;
 }
 
-void KeAttachToProcess(PKPROCESS Process)
+PKPROCESS KeSetAttachedProcess(PKPROCESS Process)
 {
 	PKTHREAD Thread = KeGetCurrentThread();
-	
-	if (Thread->AttachedProcess)
-		KeCrash("KeAttachToProcess: cannot attach to two processes");
+	PKPROCESS OldProcess = Thread->AttachedProcess;
 	
 	Thread->AttachedProcess = Process;
 	
-	KiSwitchToAddressSpaceProcess(Process);
-}
-
-void KeDetachFromProcess()
-{
-	PKTHREAD Thread = KeGetCurrentThread();
-	
-	if (!Thread->AttachedProcess)
-		KeCrash("KeDetachFromProcess: cannot detach from nothing");
-	
-	Thread->AttachedProcess = NULL;
-	
-	KiSwitchToAddressSpaceProcess(Thread->Process);
+	KiSwitchToAddressSpaceProcess(Process ? Process : Thread->Process);
+	return OldProcess;
 }

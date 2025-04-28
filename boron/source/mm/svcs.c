@@ -89,6 +89,7 @@ BSTATUS OSAllocateVirtualMemory(
 		return STATUS_INVALID_PARAMETER;
 	
 	PEPROCESS Process = NULL;
+	PEPROCESS ProcessRestore = NULL;
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
@@ -96,7 +97,7 @@ BSTATUS OSAllocateVirtualMemory(
 		if (FAILED(Status))
 			return Status;
 		
-		PsAttachToProcess(Process);
+		ProcessRestore = PsSetAttachedProcess(Process);
 	}
 	
 	bool HasAddressPointer = BaseAddress != NULL;
@@ -127,7 +128,7 @@ BSTATUS OSAllocateVirtualMemory(
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
-		PsDetachFromProcess(Process);
+		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
 	
@@ -197,6 +198,7 @@ BSTATUS OSFreeVirtualMemory(
 		return STATUS_INVALID_PARAMETER;
 	
 	PEPROCESS Process = NULL;
+	PEPROCESS ProcessRestore = NULL;
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
@@ -204,7 +206,7 @@ BSTATUS OSFreeVirtualMemory(
 		if (FAILED(Status))
 			return Status;
 		
-		PsAttachToProcess(Process);
+		ProcessRestore = PsSetAttachedProcess(Process);
 	}
 	
 	Status = MmDecommitVirtualMemory((uintptr_t) BaseAddress, SizePages);
@@ -216,7 +218,7 @@ BSTATUS OSFreeVirtualMemory(
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
-		PsDetachFromProcess(Process);
+		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
 	return Status;
@@ -265,7 +267,7 @@ BSTATUS OSMapViewOfObject(
 		return STATUS_INVALID_PARAMETER;
 	
 	BSTATUS Status;
-	PEPROCESS Process = NULL;
+	PEPROCESS Process = NULL, ProcessRestore = NULL;
 	void* BaseAddress = NULL;
 	
 	Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
@@ -278,7 +280,7 @@ BSTATUS OSMapViewOfObject(
 		if (FAILED(Status))
 			return Status;
 		
-		PsAttachToProcess(Process);
+		ProcessRestore = PsSetAttachedProcess(Process);
 	}
 	
 	Status = MmMapViewOfObject(
@@ -295,7 +297,7 @@ BSTATUS OSMapViewOfObject(
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
-		PsDetachFromProcess(Process);
+		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
 	

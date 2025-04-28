@@ -149,6 +149,7 @@ BSTATUS OSCreateProcess(
 	if (InheritHandles && !ParentProcessHandle)
 		return STATUS_INVALID_PARAMETER;
 	
+	
 	OBJECT_ATTRIBUTES Copy;
 	if (ObjectAttributes)
 	{
@@ -200,13 +201,12 @@ BSTATUS OSCreateProcess(
 	
 	// Allocate the PEB of this new process.
 	PEPROCESS Process = Pic.Process;
-	PsAttachToProcess(Process);
+	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
 	
 	// Allocate the PEB.
 	void* PebPtr = NULL;
 	size_t RgnSize = sizeof(PEB);
 	
-	DbgPrint("Mode: %d", KeGetPreviousMode());
 	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
 	
 	Status = OSAllocateVirtualMemory(
@@ -229,12 +229,16 @@ BSTATUS OSCreateProcess(
 	// upcoming OSSetProcessEnvironmentData system call.
 	
 	//...
+	
+	// NOTE: Yes, you can do this twice.
+	PsSetAttachedProcess(ProcessRestore);
+	
 	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 		return Status;
 	
 Fail:
-	PsDetachFromProcess(Process);
+	PsSetAttachedProcess(ProcessRestore);
 	ObDereferenceObject(Process);
 	OSClose(Handle);
 	return Status;

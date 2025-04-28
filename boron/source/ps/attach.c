@@ -13,14 +13,9 @@ Author:
 ***/
 #include "psp.h"
 
-void PsAttachToProcess(PEPROCESS Process)
+PEPROCESS PsSetAttachedProcess(PEPROCESS Process)
 {
-	KeAttachToProcess(&Process->Pcb);
-}
-
-void PsDetachFromProcess()
-{
-	KeDetachFromProcess();
+	return (PEPROCESS) KeSetAttachedProcess(&Process->Pcb);
 }
 
 PEPROCESS PsGetAttachedProcess()

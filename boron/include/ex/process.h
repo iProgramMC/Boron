@@ -40,4 +40,11 @@ struct EPROCESS_tag
 
 #define PsGetCurrentProcess() ((PEPROCESS)KeGetCurrentProcess())
 
+// Attaches to or detaches from a process, on behalf of the current thread.
+//
+// If NewProcess is NULL, then the current thread is detached from the
+// processes and the active address space will be the address space of
+// the host process.
+PEPROCESS PsSetAttachedProcess(PEPROCESS NewProcess);
+
 PEPROCESS PsGetAttachedProcess();

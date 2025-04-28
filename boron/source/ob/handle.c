@@ -77,6 +77,9 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 
 bool ObpCloseHandle(void* HandleItemV, UNUSED void* Context)
 {
+	if (!HandleItemV)
+		return false;
+	
 	OB_HANDLE_ITEM HandleItem;
 	HandleItem.U.AddressBits = 0; // simply to ignore a warning
 	HandleItem.Pointer = HandleItemV;

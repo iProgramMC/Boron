@@ -228,11 +228,9 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Failed to free initial mapping of ELF: %d (%s)\n%p %zu", Func, Status, RtlGetStatusString(Status), ElfMappingBase, RegionSize);
 	
-	PsAttachToProcess(Process);
+	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
 	
 	// Re-map it into the new process' address space so we have things easily accessible everywhere.
-	uintptr_t OldBase = (uintptr_t) ElfMappingBase;
-	
 	ElfMappingBase = NULL;
 	
 	Status = OSMapViewOfObject(
@@ -257,7 +255,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	);
 	ASSERT(SUCCEEDED(Status));
 	
-	PsDetachFromProcess();
+	PsSetAttachedProcess(ProcessRestore);
 	ObDereferenceObject(Process);
 	OSClose(FileHandle);
 	
@@ -286,6 +284,15 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Failed to create thread in process: %d (%s)", Func, Status, RtlGetStatusString(Status));
 	
 	OSClose(ThreadHandle);
+	
+	Status = OSWaitForSingleObject(ProcessHandle, false, TIMEOUT_INFINITE);
+	
+	// Maybe the init process isn't supposed to exit. I should think of that.
+	if (FAILED(Status))
+		KeCrash("%s: Init process has failed. Status: %d (%s)", Func, Status, RtlGetStatusString(Status));
+	else
+		LogMsg(ANSI_YELLOW "Info" ANSI_DEFAULT ": Init process has exited successfully.");
+	
 	OSClose(ProcessHandle);
 	PsTerminateThread();
 }

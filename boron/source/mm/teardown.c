@@ -21,7 +21,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 void MmTearDownProcess(PEPROCESS Process)
 {
 	// This thread will attach to this process to perform teardown on it.
-	PsAttachToProcess(Process);
+	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
 	
 	// Free every VAD.
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Process->VadList.Tree);
@@ -77,7 +77,5 @@ void MmTearDownProcess(PEPROCESS Process)
 	if (Process->Pcb.PageMap != 0)
 		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));
 	
-	PsDetachFromProcess();
-	
-	LogMsg("Process exited.");
+	PsSetAttachedProcess(ProcessRestore);
 }
