@@ -203,12 +203,17 @@ BSTATUS OSCreateProcess(
 	void* PebPtr = NULL;
 	size_t RgnSize = sizeof(PEB);
 	
+	DbgPrint("Mode: %d", KeGetPreviousMode());
+	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
+	
 	Status = OSAllocateVirtualMemory(
 		CURRENT_PROCESS_HANDLE,
 		&PebPtr,
 		&RgnSize,
 		MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE
 	);
+	
+	KeSetAddressMode(OldMode);
 	
 	if (FAILED(Status))
 		goto Fail;
