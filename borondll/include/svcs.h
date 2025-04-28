@@ -1,12 +1,6 @@
 #pragma once
 
-//TODO: NO_RETURN void OSExitProcess();
-
-NO_RETURN void OSExitThread();
-
 BSTATUS OSClose(HANDLE Handle);
-
-BSTATUS OSOutputDebugString(const char* String, size_t StringLength);
 
 BSTATUS OSCreateThread(
 	PHANDLE OutHandle,
@@ -17,10 +11,27 @@ BSTATUS OSCreateThread(
 	bool CreateSuspended
 );
 
-NO_RETURN void OSExitThread();
+BSTATUS OSCreateProcess(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	HANDLE ParentProcessHandle,
+	bool InheritHandles
+);
 
 void OSDummy();
 
-BSTATUS OSClose(HANDLE Handle);
+NO_RETURN void OSExitThread();
+
+//TODO: NO_RETURN void OSExitProcess();
+
+BSTATUS OSOutputDebugString(const char* String, size_t StringLength);
 
 void OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
+
+BSTATUS OSWaitForMultipleObjects(
+	int ObjectCount,
+	PHANDLE ObjectsArray,
+	int WaitType,
+	bool Alertable,
+	int TimeoutMS
+);

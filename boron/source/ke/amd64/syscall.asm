@@ -20,23 +20,25 @@ bits 64
 
 ; *** SYSTEM SERVICE TABLE ***
 extern OSClose
-extern OSExitThread
 extern OSCreateThread
+extern OSCreateProcess
 extern OSDummy
+extern OSExitThread
+extern OSOutputDebugString
 extern OSWaitForSingleObject
 extern OSWaitForMultipleObjects
-extern OSOutputDebugString
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
 KiSystemServiceTable:
 	dq OSClose
-	dq OSExitThread
 	dq OSCreateThread
+	dq OSCreateProcess
 	dq OSDummy
+	dq OSExitThread
+	dq OSOutputDebugString
 	dq OSWaitForSingleObject
 	dq OSWaitForMultipleObjects
-	dq OSOutputDebugString
 KiSystemServiceTableEnd:
 	nop
 

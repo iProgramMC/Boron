@@ -27,9 +27,10 @@ global %2
 %endmacro
 
 CALL 0, OSClose
-CALL 1, OSExitThread
-CALL 2, OSCreateThread
+CALL 1, OSCreateThread
+CALL 2, OSCreateProcess
 CALL 3, OSDummy
-CALL 4, OSWaitForSingleObject
-CALL 5, OSWaitForMultipleObjects
-CALL 6, OSOutputDebugString
+CALL 4, OSExitThread
+CALL 5, OSOutputDebugString
+CALL 6, OSWaitForSingleObject
+CALL 7, OSWaitForMultipleObjects
