@@ -214,7 +214,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
 	ASSERT(SUCCEEDED(Status));
 	
-	// Before attaching to the process make sure to unmap from the system address space.
+	// Make sure to unmap from the system address space.
 	Status = OSFreeVirtualMemory(
 		CURRENT_PROCESS_HANDLE,
 		ElfMappingBase,
@@ -224,11 +224,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Failed to free initial mapping of ELF: %d (%s)\n%p %zu", Func, Status, RtlGetStatusString(Status), ElfMappingBase, RegionSize);
 	
-	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
-	
 	ElfMappingBase = NULL;
 	
-	PsSetAttachedProcess(ProcessRestore);
 	ObDereferenceObject(Process);
 	OSClose(FileHandle);
 	
