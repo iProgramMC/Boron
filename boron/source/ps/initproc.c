@@ -226,30 +226,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
 	
-	// Re-map it into the new process' address space so we have things easily accessible everywhere.
 	ElfMappingBase = NULL;
-	
-	Status = OSMapViewOfObject(
-		CURRENT_PROCESS_HANDLE,
-		FileHandle,
-		(void**) &ElfMappingBase,
-		RegionSize,
-		0,
-		0,
-		PAGE_READ
-	);
-	
-	if (FAILED(Status))
-		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
-	
-	// Unmap the temporary mapping of the ELF, only leaving the actual mappings in.
-	Status = OSFreeVirtualMemory(
-		CURRENT_PROCESS_HANDLE,
-		ElfMappingBase,
-		RegionSize,
-		MEM_RELEASE
-	);
-	ASSERT(SUCCEEDED(Status));
 	
 	PsSetAttachedProcess(ProcessRestore);
 	ObDereferenceObject(Process);
