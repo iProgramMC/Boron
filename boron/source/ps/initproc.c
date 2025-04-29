@@ -9,11 +9,7 @@ Abstract:
 	This module implements the code which initializes the
 	initial user process in the Boron operating system.
 	
-	This initial process is implemented within Libboron.so.
-	Its only job is to load the *actual* initialization
-	process which is init.exe.
-	
-	In comparison
+	This initial process is "init.exe", loaded by libboron.so.
 	
 Author:
 	iProgramInCpp - 16 April 2025
