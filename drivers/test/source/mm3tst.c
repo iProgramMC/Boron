@@ -19,11 +19,13 @@ Author:
 #include <string.h>
 #include "utils.h"
 
-//static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
-static const char FileToOpen[] = "\\InitRoot\\test.sys";
+static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
+//static const char FileToOpen[] = "\\InitRoot\\test.sys";
 
 void PerformMm3Test_()
 {
+	const int Offset = 0; // was 20
+	
 	BSTATUS Status;
 	HANDLE FileHandle;
 	OBJECT_ATTRIBUTES ObjectAttributes;
@@ -40,7 +42,7 @@ void PerformMm3Test_()
 	LogMsg("Mapping it");
 	void* BaseAddress = NULL;
 	size_t RegionSize = 32768;
-	Status = MmMapViewOfObject(FileHandle, &BaseAddress, RegionSize, MEM_TOP_DOWN, 20, PAGE_READ);
+	Status = MmMapViewOfObject(FileHandle, &BaseAddress, RegionSize, MEM_TOP_DOWN, Offset, PAGE_READ);
 	if (FAILED(Status))
 		KeCrash("Mm3: Cannot map file: %d", FileToOpen, Status);
 	

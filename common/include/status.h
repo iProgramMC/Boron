@@ -75,6 +75,7 @@ enum
 	STATUS_NOT_A_DIRECTORY,     // Not a directory
 	STATUS_HARDWARE_IO_ERROR,   // I/O error reported by backing hardware
 	STATUS_UNALIGNED_OPERATION, // Unaligned operation was attempted.  Use IoGetOperationAlignment to find the alignment required to write to this device.
+	STATUS_NOT_THIS_FILE_SYSTEM,// This file system does not exist on this volume
 	
 	// Memory manager error codes
 	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space

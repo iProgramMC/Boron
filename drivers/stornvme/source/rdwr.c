@@ -155,8 +155,35 @@ BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uin
 
 BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, UNUSED uint64_t Offset, UNUSED PMDL Mdl, UNUSED uint32_t Flags)
 {
-	// TODO
-	return Iosb->Status = STATUS_UNIMPLEMENTED;
+	ASSERT(!"Are you actually writing to NVMe volumes? Remove this!");
+	ASSERT(~Mdl->Flags & MDL_FLAG_WRITE);
+	
+	size_t Length = Mdl->ByteCount;
+	
+	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) Fcb->Extension;
+	PDEVICE_EXTENSION DeviceExtension = FcbExtension->DeviceExtension;
+	
+	int BlockSizeLog = DeviceExtension->BlockSizeLog;
+	int BlockSize    = DeviceExtension->BlockSize;
+	uint64_t Mask    = BlockSize - 1;
+	
+	// If the offset or the length are unaligned, then return out an unaligned I/O attempt error.
+	if ((Offset & Mask) || (Length & Mask))
+		return Iosb->Status = STATUS_UNALIGNED_OPERATION;
+	
+	uint64_t Lba = Offset >> BlockSizeLog;
+	uint64_t BlockCount = Length >> BlockSizeLog;
+	
+	if (!BlockCount)
+		// No I/O to be done actually
+		return IO_STATUS(Iosb, STATUS_SUCCESS);
+	
+	// The NVMe driver does not take into account non-block read/write operations, because the NVMe controller
+	// cannot instantly reply to requests from us.
+	if (Flags & IO_RW_NONBLOCK)
+		return IO_STATUS(Iosb, STATUS_INVALID_PARAMETER);
+	
+	return NvmePerformIoOperation(Iosb, Fcb, Lba, BlockCount, Mdl, true, 0, 0);
 }
 
 size_t NvmeGetAlignmentInfo(PFCB Fcb)

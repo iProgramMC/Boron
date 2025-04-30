@@ -69,7 +69,8 @@ static const char* const RtlpStatusCodes[] =
 	"The driver is to be unloaded.",
 	"The object is not a directory.",
 	"An I/O error was reported by the hardware.",
-	"The requested operation requires alignment in a parameter.  A parameter is unaligned in the request.",
+	"The requested operation requires a parameter to be aligned.",
+	"This file system does not exist on this volume.",
 	
 	"Not enough virtual address space is available to complete the operation.",
 	"The virtual address requested is not located at the base of a reserved region.",

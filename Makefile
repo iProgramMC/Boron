@@ -22,6 +22,7 @@ DRIVERS_LIST = \
 	halx86     \
 	i8042prt   \
 	stornvme   \
+	ext2fs     \
 	test
 
 # The build directory

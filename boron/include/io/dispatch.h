@@ -25,6 +25,11 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - The BSTATUS returned must have the same value as the value inside the "Status" pointer, if it exists.
 //
+// - IO_IDENTIFY_METHOD returns whether or not this device object (e.g. a partition on a drive, or a floppy diskette, etc)
+//   contains the file system described by this dispatch table.  If it does, the method will return STATUS_SUCCESS.
+//   Otherwise, it will return a non-zero error code.  On debug builds, any status codes other than STATUS_NOT_THIS_FILE_SYSTEM
+//   will throw up an assertion error.
+//
 // - IO_SEEKABLE_METHOD returns whether or not the file is seekable.  This is, in this case, equal to whether the file
 //   is mappable.  Block devices and file system backed files should return TRUE, while stream I/O devices such as
 //   keyboards and serial ports should return FALSE.
@@ -91,6 +96,7 @@ typedef struct _FCB FCB, *PFCB;
 //   with block size alignment.  If the alignment value is 1, then there is no alignment requirement.  If this method
 //   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
 //
+typedef BSTATUS(*IO_IDENTIFY_METHOD)   (PDEVICE_OBJECT BackingDevice);
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
@@ -166,6 +172,8 @@ enum
 typedef struct _IO_DISPATCH_TABLE
 {
 	uint32_t              Flags;
+	LIST_ENTRY            FileSystemListEntry;
+	IO_IDENTIFY_METHOD    Identify;
 	IO_CREATE_METHOD      Create;
 	IO_DELETE_METHOD      Delete;
 	IO_CREATE_OBJ_METHOD  CreateObject;

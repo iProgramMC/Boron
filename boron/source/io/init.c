@@ -111,8 +111,11 @@ bool IoInitSystem()
 	ObpDebugDirectory(ObpRootDirectory);
 #endif
 	
-	// Initialize all drivers.
+	IopInitPartitionManager();
+	
 	LdrInitializeDrivers();
+	
+	IoScanForFileSystems();
 	
 	// TEST: This is test code. Remove soon!
 #ifdef DEBUG

@@ -58,6 +58,10 @@ struct _DEVICE_OBJECT
 	// TODO: Maybe this belongs in a separate object?
 	PFILE_OBJECT MountRoot;
 	
+	// If this is a partitionable device, this is an entry into the list of
+	// partitionable objects.
+	LIST_ENTRY PartitionableListEntry;
+	
 	// Extension data.
 	size_t ExtensionSize;
 	char Extension[];

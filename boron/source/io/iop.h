@@ -35,3 +35,9 @@ bool IopInitializeFileType();
 BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);
 
 BSTATUS IopCreateDeviceFileObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);
+
+// Initializes the partition manager mutexes.
+void IopInitPartitionManager();
+
+// Scans for file systems.
+void IoScanForFileSystems();

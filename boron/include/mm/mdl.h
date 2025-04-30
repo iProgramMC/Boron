@@ -28,7 +28,7 @@ Author:
 // If set, the MDL is mapped into kernel memory.
 #define MDL_FLAG_MAPPED   (1 << 1)
 
-// If set, the MDL reflects a write operation.
+// If set, the MDL reflects an operation where data is written to system memory.
 #define MDL_FLAG_WRITE    (1 << 2)
 
 // If set, the MDL is allocated from the kernel pool.

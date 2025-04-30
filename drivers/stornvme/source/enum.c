@@ -95,6 +95,8 @@ void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t Names
 	
 	MmFreePool(Ident);
 	
+	IoRegisterPartitionableDevice(DeviceObject);
+	
 	// After the device object was initialized, de-reference it.
 	ObDereferenceObject(DeviceObject);
 }
