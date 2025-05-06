@@ -65,7 +65,7 @@ enum
 	
 	// I/O errors/status codes
 	STATUS_PENDING,             // Operation in progress
-	STATUS_NEXT_FRAME,
+	STATUS_INVALID_HEADER,      // The header is invalid.  First used for MBR/GPT validation but could have more uses
 	STATUS_SAME_FRAME,
 	STATUS_NO_MORE_FRAMES,
 	STATUS_MORE_PROCESSING_REQUIRED, // More processing required for this operation

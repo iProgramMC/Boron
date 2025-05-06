@@ -60,7 +60,7 @@ static const char* const RtlpStatusCodes[] =
 	"Too many handles have been opened.",
 	
 	"The operation is in progress.",
-	"STATUS_NEXT_FRAME",
+	"The header is invalid.",
 	"STATUS_SAME_FRAME",
 	"STATUS_NO_MORE_FRAMES",
 	"More processing is required for this operation.",

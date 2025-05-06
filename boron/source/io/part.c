@@ -106,7 +106,12 @@ Done2:
 	return Status;
 }
 
-void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
+static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition)
+{
+	
+}
+
+static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 {
 	BSTATUS Status;
 #ifdef DEBUG
@@ -121,9 +126,29 @@ void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 		goto Done;
 	
 	// See if this is indeed an MBR
-	DbgPrint("%s MBR First 8 Bytes: %016llx", Name, *(uint64_t*)Header);
+	PMASTER_BOOT_RECORD Mbr = (void*) Header;
+	
+	if (Mbr->BootSignature != MBR_BOOT_SIGNATURE)
+	{
+		Status = STATUS_INVALID_HEADER;
+		goto Done;
+	}
 	
 	// Scan the partition list
+	for (int i = 0; i < 4; i++)
+	{
+		PMBR_PARTITION Partition = &Mbr->Partitions[i];
+		
+		if (Partition->PartTypeDesc == 0)
+			// If this entry is unused.
+			continue;
+		
+		if (Partition->StartLBA == 0 || Partition->PartSizeSectors == 0)
+			// If this entry has invalid LBA settings.  We do not support CHS addressing.
+			continue;
+		
+		IopRegisterMbrPartition(Device, Partition);
+	}
 	
 	// Create partition objects
 	

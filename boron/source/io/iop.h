@@ -7,6 +7,32 @@
 #include <ldr.h>
 #include <string.h>
 
+typedef struct
+{
+	uint8_t BootIndicator;
+	uint8_t StartCHS[3]; // unused by Boron
+	uint8_t PartTypeDesc;
+	uint8_t EndCHS[3];   // unused by Boron
+	uint32_t StartLBA;
+	uint32_t PartSizeSectors;
+}
+PACKED
+MBR_PARTITION, *PMBR_PARTITION;
+
+// Master Boot Record
+typedef struct
+{
+	uint8_t BootloaderCode [446];
+	MBR_PARTITION Partitions[4];
+	uint16_t BootSignature; // must be 0xAA55
+}
+PACKED
+MASTER_BOOT_RECORD, *PMASTER_BOOT_RECORD;
+
+#define MBR_BOOT_SIGNATURE 0xAA55
+
+#define IOSB_STATUS(iosb, stat) (iosb->Status = stat)
+
 extern POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType;
 
 // Driver object operations

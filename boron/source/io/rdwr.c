@@ -22,8 +22,6 @@ enum
 
 #define IO_IS_WRITE(op) ((op) == IO_OP_WRITE)
 
-#define IOSB_STATUS(iosb, stat) (iosb->Status = stat)
-
 static BSTATUS IopTouchFile(PFCB Fcb, int IoType)
 {
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
