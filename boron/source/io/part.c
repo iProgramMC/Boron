@@ -45,6 +45,7 @@ void IoRegisterFileSystemDriver(PIO_DISPATCH_TABLE DispatchTable)
 
 void IopInitPartitionManager()
 {
+	IopInitializePartitionDriverObject();
 	KeInitializeMutex(&IopPartitionableListLock, 0);
 	KeInitializeMutex(&IopFileSystemListLock, 0);
 	InitializeListHead(&IopPartitionableListHead);
@@ -106,9 +107,35 @@ Done2:
 	return Status;
 }
 
-static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition)
+static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition, int Number)
 {
+	// Create the partition object.
+	PDEVICE_OBJECT Object = NULL;
+	BSTATUS Status = IoCreatePartition(
+		&Object,
+		Device,
+		MbrPartition->StartLBA * 512,
+		MbrPartition->PartSizeSectors * 512,
+		Number
+	);
 	
+	if (FAILED(Status))
+		KeCrash("Cannot create partition object: %d (%s).", Status, RtlGetStatusString(Status)); // TODO: More comprehensive debug info.
+	
+	// Check the registerable file systems.
+	PLIST_ENTRY Entry = IopFileSystemListHead.Flink;
+	while (Entry != &IopFileSystemListHead)
+	{
+		PIO_DISPATCH_TABLE Dispatch = CONTAINING_RECORD(Entry, IO_DISPATCH_TABLE, FileSystemListEntry);
+		
+		ASSERT(Dispatch->Mount);
+		
+		BSTATUS Status = Dispatch->Mount(Object);
+		if (FAILED(Status) && Status != STATUS_NOT_THIS_FILE_SYSTEM)
+			KeCrash("Failed to mount partition %d: %d (%s)", Number, Status, RtlGetStatusString(Status));
+		
+		Entry = Entry->Flink;
+	}
 }
 
 static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
@@ -116,6 +143,7 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 	BSTATUS Status;
 #ifdef DEBUG
 	const char* Name = OBJECT_GET_HEADER(Device)->ObjectName;
+	LogMsg("Scanning %s for partitions...", Name);
 #endif
 	
 	// Try MBR first
@@ -147,7 +175,7 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 			// If this entry has invalid LBA settings.  We do not support CHS addressing.
 			continue;
 		
-		IopRegisterMbrPartition(Device, Partition);
+		IopRegisterMbrPartition(Device, Partition, i);
 	}
 	
 	// Create partition objects

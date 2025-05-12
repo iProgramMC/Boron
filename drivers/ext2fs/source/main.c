@@ -16,6 +16,6 @@ Author:
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
-	LogMsg("Hello");
+	LogMsg("Hello from ext2fs");
 	return STATUS_SUCCESS;
 }

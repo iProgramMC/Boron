@@ -101,6 +101,13 @@ BSTATUS IoCreateDevice(
 	InsertTailList(&DriverObject->DeviceList, &DeviceObject->ListEntry);
 	KeReleaseSpinLock(&DriverObject->DeviceListLock, Ipl);
 	
+	// If this driver has an AddDevice callback, call it.
+	if (DriverObject->AddDevice)
+		DriverObject->AddDevice(DriverObject, DeviceObject);
+	
+	// Increment the reference count of the driver object.
+	ObReferenceObjectByPointer(DriverObject);
+	
 	return STATUS_SUCCESS;
 }
 

@@ -65,5 +65,11 @@ BSTATUS IopCreateDeviceFileObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* Out
 // Initializes the partition manager mutexes.
 void IopInitPartitionManager();
 
+// Initializes the partition driver object.
+void IopInitializePartitionDriverObject();
+
 // Scans for file systems.
 void IoScanForFileSystems();
+
+// Create a partition from a block device.
+BSTATUS IoCreatePartition(PDEVICE_OBJECT* OutDevice, PDEVICE_OBJECT InDevice, uint64_t Offset, uint64_t Size, size_t Number);
