@@ -31,6 +31,8 @@ typedef struct ELF_DYNAMIC_INFO_tag
 	size_t      RelaCount;
 	ELF_REL    *RelEntries;
 	size_t      RelCount;
+	uintptr_t  *RelrEntries;
+	size_t      RelrCount;
 	bool        PltUsesRela;
 	const char *StringTable;
 	PELF_SYMBOL SymbolTable;
@@ -47,3 +49,5 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase);
 
 void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
+
+void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);

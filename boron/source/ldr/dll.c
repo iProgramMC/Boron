@@ -224,8 +224,9 @@ void LdriLoadDll(PLIMINE_FILE File)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
 	
 	RtlParseInterestingSections(File->address, &DynInfo, LoadBase);
-	RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, LoadBase);
-	RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, LoadBase);
+	//RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, LoadBase);
+	//RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, LoadBase);
+	RtlRelocateRelrEntries(&DynInfo, LoadBase);
 	
 	if (!RtlLinkPlt(&DynInfo, LoadBase, true, File->path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);

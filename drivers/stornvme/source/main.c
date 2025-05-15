@@ -17,7 +17,17 @@ Author:
 
 PDRIVER_OBJECT NvmeDriverObject;
 
-IO_DISPATCH_TABLE NvmeDispatchTable;
+bool NvmeSeekable(UNUSED PFCB Fcb)
+{
+	return true;
+}
+
+IO_DISPATCH_TABLE NvmeDispatchTable = {
+	.Read = NvmeRead,
+	.Write = NvmeWrite,
+	.Seekable = NvmeSeekable,
+	.GetAlignmentInfo = NvmeGetAlignmentInfo
+};
 
 int AllocateVector(PKIPL Ipl, KIPL Default)
 {
@@ -30,11 +40,7 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 	return Vector;
 }
 
-bool NvmeSeekable(UNUSED PFCB Fcb)
-{
-	return true;
-}
-
+/*
 void NvmeInitializeDispatchTable()
 {
 	NvmeDispatchTable.Read = NvmeRead;
@@ -42,12 +48,12 @@ void NvmeInitializeDispatchTable()
 	NvmeDispatchTable.Seekable = NvmeSeekable;
 	NvmeDispatchTable.GetAlignmentInfo = NvmeGetAlignmentInfo;
 }
-
+*/
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
 	NvmeDriverObject = DriverObject;
 	
-	NvmeInitializeDispatchTable();
+	//NvmeInitializeDispatchTable();
 	
 	BSTATUS Status = HalPciEnumerate(
 		false,

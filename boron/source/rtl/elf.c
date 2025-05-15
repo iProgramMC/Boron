@@ -75,6 +75,30 @@ static bool RtlpComputeRelocation(
 	return true;
 }
 
+static uintptr_t RtlpResolveSymbolAddress(PELF_DYNAMIC_INFO DynInfo, int SymbolIndex, uintptr_t LoadBase)
+{
+	PELF_SYMBOL ElfSymbol = &DynInfo->DynSymTable[SymbolIndex];
+	
+	if (ElfSymbol->Value)
+		return LoadBase + ElfSymbol->Value;
+	
+	// Resolve it externally
+	const char *SymbolName = DynInfo->DynStrTable + ElfSymbol->Name;
+	
+#ifdef KERNEL
+	// Try linking against the kernel
+	uintptr_t Address = DbgLookUpAddress(SymbolName);
+	if (!Address)
+		KeCrashBeforeSMPInit("ERROR (BoronKernel): Lookup of function %s failed (offs %d value %d index %d)", SymbolName, ElfSymbol->Name, ElfSymbol->Value, SymbolIndex);
+	
+	return Address;
+#else
+	// TODO
+	DbgPrint("WARNING (Libboron): We don't know how to resolve external symbol %s right now", SymbolName);
+	return 0;
+#endif
+}
+
 static bool RtlpApplyRelocation(
 	PELF_DYNAMIC_INFO DynInfo,
 	PELF_REL PtrRel,
@@ -97,36 +121,15 @@ static bool RtlpApplyRelocation(
 		Rela.Info   = PtrRel->Info;
 	}
 	
-	if (ResolvedSymbol == 0)
-		ResolvedSymbol = DynInfo->DynSymTable[Rela.Info >> 32].Value;
+	// If there is no pre-resolved symbol and we actually have a symbol index, then look it up
+	if (ResolvedSymbol == 0 && (Rela.Info >> 32) != 0)
+		ResolvedSymbol = RtlpResolveSymbolAddress(DynInfo, Rela.Info >> 32, LoadBase);
 	
 	uintptr_t Place  = LoadBase + Rela.Offset;
 	uintptr_t Addend = Rela.Addend;
 	
 	uintptr_t Value, Length;
 	uint32_t RelType = (uint32_t) Rela.Info; // ELF64_R_TYPE(x) => (x & 0xFFFFFFFF)
-	
-	if (!PtrRela)
-	{
-		if (!RtlpComputeRelocation(RelType,
-		                           0,
-		                           LoadBase,
-		                           ResolvedSymbol,
-		                           Place,
-		                           &Value,
-		                           &Length))
-		{
-			DbgPrint("RtlpApplyRelocation: REL type relocation failed to compute!");
-			return false;
-		}
-		
-	#ifdef DEBUG
-		if (Length > sizeof(uintptr_t))
-			DbgPrint("RtlpApplyRelocation: Length %zu bigger than %zu??", Length, sizeof(uintptr_t));
-	#endif
-		
-		memcpy(&Addend, (void*) Place, Length);
-	}
 	
 	if (!RtlpComputeRelocation(RelType,
 	                           Addend,
@@ -198,6 +201,14 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 			
 			case DYN_RELASZ:
 				Info->RelaCount = DynItem->Pointer / sizeof(ELF_RELA);
+				break;
+				
+			case DYN_RELR:
+				Info->RelrEntries = (uintptr_t*)(LoadBase + DynItem->Pointer);
+				break;
+				
+			case DYN_RELRSZ:
+				Info->RelrCount = DynItem->Pointer / sizeof(uintptr_t);
 				break;
 			
 			case DYN_STRTAB:
@@ -288,12 +299,14 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED bool Allow
 	return true;
 }
 
+// TODO: Is this even needed? We aren't using it now
 bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 {
 	// Note: A check for 0 here would be redundant as the contents of the
 	// for loop just wouldn't execute if the size was zero
-	for (size_t i = 0; i < Size; i++)
+	for (size_t i = 0; i < Size; i++) {
 		Got[i] += LoadBase;
+	}
 	
 	return true;
 }
@@ -355,4 +368,40 @@ void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo
 	
 	if (StrTabSection)
 		DynInfo->StringTable = (const char*)(FileAddress + StrTabSection->OffsetInFile);
+}
+
+void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)
+{
+	// Borrowed from mlibc (https://github.com/managarm/mlibc).
+	uintptr_t* CurrentBaseAddress = NULL;
+	
+	for (size_t i = 0; i < DynInfo->RelrCount; i++)
+	{
+		uintptr_t Rel = DynInfo->RelrEntries[i];
+		
+		if (Rel & 1)
+		{
+			// Skip the first bit because we have already relocated
+			// the first entry.
+			Rel >>= 1;
+			
+			for (; Rel; Rel >>= 1)
+			{
+				if (Rel & 1)
+					*CurrentBaseAddress += ImageBase;
+				
+				CurrentBaseAddress++;
+			}
+		}
+		else
+		{
+			// Even entry indicates the beginning address of the range
+			// to relocate.
+			CurrentBaseAddress = (uintptr_t*) (ImageBase + Rel);
+			
+			// Then relocate the first entry.
+			*CurrentBaseAddress += ImageBase;
+			CurrentBaseAddress++;
+		}
+	}
 }

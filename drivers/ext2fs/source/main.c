@@ -14,6 +14,8 @@ Author:
 ***/
 #include <main.h>
 
+
+
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	LogMsg("Hello from ext2fs");
