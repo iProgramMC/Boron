@@ -22,7 +22,7 @@ bool HalWasInitted()
 	return HalpVftable.Flags & HAL_VFTABLE_LOADED;
 }
 
-void HalSetVftable(PHAL_VFTABLE Table)
+void HalSetVftable(const PHAL_VFTABLE Table)
 {
 	HalpVftable = *Table;
 }

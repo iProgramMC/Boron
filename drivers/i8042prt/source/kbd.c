@@ -179,8 +179,6 @@ void KbdInitialize(int Vector, KIPL Ipl)
 		KePortReadByte(I8042_PORT_DATA);
 }
 
-IO_DISPATCH_TABLE KbdDispatchTable;
-
 BSTATUS KbdRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
@@ -257,20 +255,17 @@ bool KbdSeekable(UNUSED PFCB Fcb)
 	return false;
 }
 
-void KbdInitializeDispatchTable()
-{
-	KbdDispatchTable.Read = &KbdRead;
-	KbdDispatchTable.Seekable = &KbdSeekable;
-	KbdDispatchTable.Flags = DISPATCH_FLAG_EXCLUSIVE;
-}
+IO_DISPATCH_TABLE KbdDispatchTable = {
+	.Read = &KbdRead,
+	.Seekable = &KbdSeekable,
+	.Flags = DISPATCH_FLAG_EXCLUSIVE,
+};
 
 extern PDRIVER_OBJECT I8042DriverObject;
 
 BSTATUS KbdCreateDeviceObject()
 {
 	BSTATUS Status;
-	
-	KbdInitializeDispatchTable();
 	
 	KeInitializeEvent(
 		&KbdAvailableEvent,

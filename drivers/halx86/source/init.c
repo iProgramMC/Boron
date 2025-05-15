@@ -35,7 +35,32 @@ uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
 
-static HAL_VFTABLE HalpVfTable;
+static const HAL_VFTABLE HalpVfTable =
+{
+	.EndOfInterrupt = HalEndOfInterrupt,
+	.RequestInterruptInTicks = HalRequestInterruptInTicks,
+	.RequestIpi = HalRequestIpi,
+	.InitSystemUP = HalInitSystemUP,
+	.InitSystemMP = HalInitSystemMP,
+	.DisplayString = HalDisplayString,
+	.CrashSystem = HalCrashSystem,
+	.ProcessorCrashed = HalProcessorCrashed,
+	.UseOneShotIntTimer = HalUseOneShotIntTimer,
+	.GetIntTimerFrequency = HalGetIntTimerFrequency,
+	.GetTickCount = HalGetTickCount,
+	.GetTickFrequency = HalGetTickFrequency,
+	.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
+	.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect,
+	.PciEnumerate = HalPciEnumerate,
+	.PciConfigReadDword = HalPciConfigReadDword,
+	.PciConfigReadWord = HalPciConfigReadWord,
+	.PciConfigWriteDword = HalPciConfigWriteDword,
+	.PciReadDeviceIdentifier = HalPciReadDeviceIdentifier,
+	.PciReadBar = HalPciReadBar,
+	.PciReadBarAddress = HalPciReadBarAddress,
+	.PciReadBarIoAddress = HalPciReadBarIoAddress,
+	.Flags = HAL_VFTABLE_LOADED,
+};
 
 PKHALCB KeGetCurrentHalCB()
 {
@@ -66,30 +91,6 @@ void HalInitSystemMP()
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	// Note! The HAL's driver object is kind of useless, it doesn't do anything actually.
-	
-	HalpVfTable.EndOfInterrupt = HalEndOfInterrupt;
-	HalpVfTable.RequestInterruptInTicks = HalRequestInterruptInTicks;
-	HalpVfTable.RequestIpi = HalRequestIpi;
-	HalpVfTable.InitSystemUP = HalInitSystemUP;
-	HalpVfTable.InitSystemMP = HalInitSystemMP;
-	HalpVfTable.DisplayString = HalDisplayString;
-	HalpVfTable.CrashSystem = HalCrashSystem;
-	HalpVfTable.ProcessorCrashed = HalProcessorCrashed;
-	HalpVfTable.UseOneShotIntTimer = HalUseOneShotIntTimer;
-	HalpVfTable.GetIntTimerFrequency = HalGetIntTimerFrequency;
-	HalpVfTable.GetTickCount = HalGetTickCount;
-	HalpVfTable.GetTickFrequency = HalGetTickFrequency;
-	HalpVfTable.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks;
-	HalpVfTable.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect;
-	HalpVfTable.PciEnumerate = HalPciEnumerate;
-	HalpVfTable.PciConfigReadDword = HalPciConfigReadDword;
-	HalpVfTable.PciConfigReadWord = HalPciConfigReadWord;
-	HalpVfTable.PciConfigWriteDword = HalPciConfigWriteDword;
-	HalpVfTable.PciReadDeviceIdentifier = HalPciReadDeviceIdentifier;
-	HalpVfTable.PciReadBar = HalPciReadBar;
-	HalpVfTable.PciReadBarAddress = HalPciReadBarAddress;
-	HalpVfTable.PciReadBarIoAddress = HalPciReadBarIoAddress;
-	HalpVfTable.Flags = HAL_VFTABLE_LOADED;
 	
 	// Hook the HAL's functions.
 	HalSetVftable(&HalpVfTable);
