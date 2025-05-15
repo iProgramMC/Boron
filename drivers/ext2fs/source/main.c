@@ -12,12 +12,15 @@ Abstract:
 Author:
 	iProgramInCpp - 30 April 2025
 ***/
-#include <main.h>
+#include "ext2.h"
 
-
+IO_DISPATCH_TABLE Ext2DispatchTable =
+{
+	.Mount = Ext2Mount,
+};
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
-	LogMsg("Hello from ext2fs");
+	IoRegisterFileSystemDriver(&Ext2DispatchTable);
 	return STATUS_SUCCESS;
 }
