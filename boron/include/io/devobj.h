@@ -77,3 +77,19 @@ BSTATUS IoCreateDevice(
 	PIO_DISPATCH_TABLE DispatchTable,
 	PDEVICE_OBJECT* OutDeviceObject
 );
+
+BSTATUS IoReadDevice(
+	PIO_STATUS_BLOCK Iosb,
+	PDEVICE_OBJECT DeviceObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);
+
+BSTATUS IoWriteDevice(
+	PIO_STATUS_BLOCK Iosb,
+	PDEVICE_OBJECT DeviceObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);

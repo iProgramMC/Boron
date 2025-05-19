@@ -13,6 +13,8 @@ Author:
 ***/
 #pragma once
 
+typedef struct _IO_STATUS_BLOCK IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
+
 enum
 {
 	FILE_FLAG_APPEND_ONLY = (1 << 0),
@@ -32,3 +34,19 @@ typedef struct _FILE_OBJECT
 FILE_OBJECT, *PFILE_OBJECT;
 
 bool IoIsSeekable(PFILE_OBJECT Object);
+
+BSTATUS IoReadFileObject(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);
+
+BSTATUS IoWriteFileObject(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);

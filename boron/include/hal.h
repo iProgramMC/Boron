@@ -31,7 +31,7 @@ uint64_t HalGetIntTimerDeltaTicks();
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
 
 #ifdef IS_HAL
-void HalSetVftable(const PHAL_VFTABLE Table);
+void HalSetVftable(const HAL_VFTABLE* Table);
 #endif
 
 
