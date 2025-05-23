@@ -311,3 +311,16 @@ PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn, int Flags)
 	
 	return Mdl;
 }
+
+BSTATUS MmCreateMdl(PMDL* OutMdl, uintptr_t VirtualAddress, size_t Length, KPROCESSOR_MODE AccessMode, bool IsWrite)
+{
+	PMDL Mdl = MmAllocateMdl(VirtualAddress, Length);
+	if (!Mdl)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	BSTATUS Status = MmProbeAndPinPagesMdl(Mdl, AccessMode, IsWrite);
+	if (FAILED(Status))
+		MmFreeMdl(Mdl);
+	
+	return Status;
+}

@@ -72,6 +72,9 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);
 // Probes the given virtual address and tries to pin all the buffer's pages.
 BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite);
 
+// Creates an MDL and captures all of the range's pages.
+BSTATUS MmCreateMdl(PMDL* OutMdl, uintptr_t VirtualAddress, size_t Length, KPROCESSOR_MODE AccessMode, bool IsWrite);
+
 // Unpins the buffer's pages and releases the reference to them.
 void MmUnpinPagesMdl(PMDL Mdl);
 
