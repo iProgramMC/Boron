@@ -322,5 +322,6 @@ BSTATUS MmCreateMdl(PMDL* OutMdl, uintptr_t VirtualAddress, size_t Length, KPROC
 	if (FAILED(Status))
 		MmFreeMdl(Mdl);
 	
+	*OutMdl = Mdl;
 	return Status;
 }

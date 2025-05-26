@@ -16,6 +16,82 @@ Author:
 #include <ex.h>
 #include <io.h>
 
+BSTATUS MmMapViewOfFileInSystemSpace(
+	PFILE_OBJECT FileObject,
+	void** BaseAddressOut,
+	size_t ViewSize,
+	int AllocationType,
+	uint64_t SectionOffset,
+	int Protection
+)
+{
+	// You cannot map files that are not seekable.
+	if (!IoIsSeekable(FileObject))
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
+	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	PMMVAD Vad = NULL;
+	PMMVAD_LIST VadList = &MiSystemVadList;
+	
+	// First, allocate the space.
+	void* StartAddress = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, ViewSizePages, POOL_TAG("MmVw"));
+	if (!StartAddress)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	// Then try to initialize and add the VAD.
+	BSTATUS Status = MiInitializeAndInsertVad(
+		VadList,
+		&Vad,
+		StartAddress,
+		ViewSizePages,
+		AllocationType,
+		Protection,
+		false
+	);
+	
+	if (FAILED(Status))
+	{
+		// Deallocate the space we allocated.
+		MmFreePoolBig(StartAddress);
+		return Status;
+	}
+	
+	// Vad Protection and Private are filled in by MiInitializeAndInsertVad.
+	Vad->Flags.Committed = 1;
+	Vad->Flags.IsFile = 1;
+	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
+	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
+	
+	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
+	MmUnlockVadList(VadList);
+	
+	return STATUS_SUCCESS;
+}
+
+void MmUnmapViewOfFileInSystemSpace(void* ViewPointer)
+{
+	// First of all, fetch the VAD from this pointer.
+	MiLockVadList(&MiSystemVadList);
+	
+	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&MiSystemVadList.Tree, (uintptr_t) ViewPointer);
+	ASSERT(Entry && "Bad pointer passed into MmUnmapViewOfFileInSystemSpace");
+	
+	PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
+	
+	// Remove it from the list of VADs.
+	RemoveItemRbTree(&MiSystemVadList.Tree, &Vad->Node.Entry);
+	
+	MmUnlockVadList(&MiSystemVadList);
+	
+	// Then, clean up.
+	MiCleanUpVad(Vad);
+	
+	// Finally, relinquish the address space we occupied.
+	MmFreePoolBig(ViewPointer);
+}
+
 // NOTE: AllocationType and Protection have been validated.
 BSTATUS MmMapViewOfFile(
 	PFILE_OBJECT FileObject,

@@ -15,21 +15,12 @@ Author:
 #include "mi.h"
 #include <ex.h>
 
-static inline void MiLockVadList(PMMVAD_LIST VadList)
-{
-	UNUSED BSTATUS Status = KeWaitForSingleObject(&VadList->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
-	ASSERT(Status == STATUS_SUCCESS);
-}
+MMVAD_LIST MiSystemVadList;
 
 PMMVAD_LIST MmLockVadListProcess(PEPROCESS Process)
 {
 	MiLockVadList(&Process->VadList);
 	return &Process->VadList;
-}
-
-void MmUnlockVadList(PMMVAD_LIST VadList)
-{
-	KeReleaseMutex(&VadList->Mutex);
 }
 
 void MmInitializeVadList(PMMVAD_LIST VadList)
@@ -38,6 +29,78 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 	InitializeRbTree(&VadList->Tree);
 }
 
+void MmUnlockVadList(PMMVAD_LIST VadList)
+{
+	KeReleaseMutex(&VadList->Mutex);
+}
+
+// Initializes and inserts a VAD.  If a VAD pointer was not provided
+// it also allocates one from pool space.
+//
+// The StartAddress and SizePages are only used if the VAD doesn't exist.
+//
+// NOTE: This locks the VAD list and unlocks it if UnlockAfter is true.
+BSTATUS MiInitializeAndInsertVad(
+	PMMVAD_LIST VadList,
+	PMMVAD* InOutVad,
+	void* StartAddress,
+	size_t SizePages,
+	int AllocationType,
+	int Protection,
+	bool UnlockAfter
+)
+{
+	// If a VAD was not provided then this VAD needs to be allocated
+	bool Allocated = false;
+	PMMVAD Vad = InOutVad ? *InOutVad : NULL;
+	
+	if (!Vad)
+	{
+		Vad = MmAllocatePool(POOL_NONPAGED, sizeof(MMVAD));
+		if (!Vad)
+			return STATUS_INSUFFICIENT_MEMORY;
+		
+		Vad->Node.StartVa = (uintptr_t) StartAddress;
+		Vad->Node.Size = SizePages;
+		
+		Allocated = true;
+	}
+	
+	MiLockVadList(VadList);
+	
+	if (!InsertItemRbTree(&VadList->Tree, &Vad->Node.Entry))
+	{
+		// Which status should we return here?
+	#ifdef DEBUG
+		KeCrash("MmInitializeAndInsertVad: Failed to insert VAD into VAD list (address %p)", Vad->Node.StartVa);
+	#endif
+		MmUnlockVadList(VadList);
+		
+		if (Allocated)
+			MmFreePool(Vad);
+		
+		return STATUS_INSUFFICIENT_VA_SPACE;
+	}
+	
+	// Clear all the fields in the VAD.
+	Vad->Flags.LongFlags  = 0;
+	Vad->Mapped.Object    = NULL;
+	Vad->SectionOffset    = 0;
+	Vad->Flags.Cow        =  (AllocationType & MEM_COW) != 0;
+	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
+	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
+	Vad->Flags.Protection = Protection;
+	
+	if (UnlockAfter)
+		MmUnlockVadList(VadList);
+	
+	if (InOutVad)
+		*InOutVad = Vad;
+	
+	return STATUS_SUCCESS;
+}
+
+// NOTE: This does not unlock the VAD list.
 BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, void* StartAddress, PMMVAD* OutVad, PMMVAD_LIST* OutVadList)
 {
 	PEPROCESS Process = PsGetAttachedProcess();
@@ -54,30 +117,15 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 		return Status;
 	
 	PMMVAD Vad = (PMMVAD) AddrNode;
-	MiLockVadList(&Process->VadList);
 	
-	if (!InsertItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry))
-	{
-		// Which status should we return here?
-	#ifdef DEBUG
-		KeCrash("MmReserveVirtualMemory: Failed to insert VAD into VAD list (address %p)", Vad->Node.StartVa);
-	#endif
-		MmUnlockVadList(&Process->VadList);
-		return STATUS_INSUFFICIENT_VA_SPACE;
-	}
+	Status = MiInitializeAndInsertVad(&Process->VadList, &Vad, NULL, 0, AllocationType, Protection, false);
 	
-	// Clear all the fields in the VAD.
-	Vad->Flags.LongFlags  = 0;
-	Vad->Mapped.Object    = NULL;
-	Vad->SectionOffset    = 0;
-	Vad->Flags.Cow        =  (AllocationType & MEM_COW) != 0;
-	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
-	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
-	Vad->Flags.Protection = Protection;
+	if (FAILED(Status))
+		KeCrash("TODO: Fix this");
 	
 	*OutVad = Vad;
 	*OutVadList = &Process->VadList;
-	return STATUS_SUCCESS;
+	return Status;
 }
 
 // Reserves a range of virtual memory.
@@ -103,18 +151,11 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** InOutAddress, int Alloca
 	return STATUS_SUCCESS;
 }
 
-// Releases a range of virtual memory represented by a VAD.
-// The range must be entirely decommitted before it is de-reserved.
-// The VAD list lock must be held before calling the function.
-void MiReleaseVad(PMMVAD Vad)
+// Cleans up all of the references to this VAD, including now-stale
+// PTEs and the object reference that this VAD holds.
+void MiCleanUpVad(PMMVAD Vad)
 {
-	PEPROCESS Process = PsGetAttachedProcess();
-
-	// Step 1.  Remove the VAD from the VAD list tree.
-	RemoveItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry);
-	MmUnlockVadList(&Process->VadList);
-	
-	// Step 2.  Zero out all of the PTEs.
+	// Zero out all of the PTEs.
 	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
 	
 	uintptr_t CurrentVa = Vad->Node.StartVa;
@@ -142,7 +183,6 @@ void MiReleaseVad(PMMVAD Vad)
 		CurrentVa += PAGE_SIZE;
 	}
 	
-	// Step 3.
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
 	
 	// Issue a TLB shootdown request covering the whole area. 
@@ -150,14 +190,29 @@ void MiReleaseVad(PMMVAD Vad)
 	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	
-	// Step 4. Remove the reference to the object if needed.
+	// Remove the reference to the object if needed.
 	if (Vad->Mapped.Object)
 	{
 		ObDereferenceObject(Vad->Mapped.Object);
 		Vad->Mapped.Object = NULL;
 	}
+}
+
+// Releases a range of virtual memory represented by a VAD.
+// The range must be entirely decommitted before it is de-reserved.
+// The VAD list lock must be held before calling the function.
+void MiReleaseVad(PMMVAD Vad)
+{
+	PEPROCESS Process = PsGetAttachedProcess();
+
+	// Step 1.  Remove the VAD from the VAD list tree.
+	RemoveItemRbTree(&Process->VadList.Tree, &Vad->Node.Entry);
+	MmUnlockVadList(&Process->VadList);
 	
-	// Step 5. Finally, add the range into the heap/free list.
+	// Step 2.  Clean up this VAD after it's freed.
+	MiCleanUpVad(Vad);
+	
+	// Step 3. Finally, add the range into the heap/free list.
 	BSTATUS Status = MmFreeAddressSpace(&Process->Heap, &Vad->Node);
 	if (FAILED(Status))
 	{

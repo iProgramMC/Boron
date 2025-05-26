@@ -306,8 +306,21 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	bool IsPageCommitted = false;
 	BSTATUS Status;
 	
+	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
+	
 	// Check if there is a VAD with the Committed flag set to 1.
-	PMMVAD_LIST VadList = MmLockVadListProcess(Process);
+	PMMVAD_LIST VadList;
+
+	if (IsViewSpace)
+	{
+		MiLockVadList(&MiSystemVadList);
+		VadList = &MiSystemVadList;
+	}
+	else
+	{
+		VadList = MmLockVadListProcess(Process);
+	}
+	
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
 	
 	if (!Vad)
@@ -388,7 +401,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
 	
-	Status = MmpHandleFaultCommittedPage(PtePtr, Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS);
+	Status = MmpHandleFaultCommittedPage(PtePtr, IsViewSpace ? 0 : MM_PTE_USERACCESS);
 
 	// This is all we needed to do for the non-object-backed case.
 	MmUnlockSpace(SpaceUnlockIpl, Va);

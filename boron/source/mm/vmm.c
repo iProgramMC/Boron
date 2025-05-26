@@ -117,6 +117,7 @@ void MmInitAllocators()
 	MiInitPoolEntryAllocator();
 	MiInitPool();
 	MiInitSlabs();
+	MmInitializeVadList(&MiSystemVadList);
 }
 
 KIPL MmLockSpaceShared(uintptr_t DecidingAddress)

@@ -261,6 +261,39 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 //
 // Note: This leaves the VAD list locked, if the function succeeds, so you must call MmUnlockVadList!
 // Note: All of the parameters are presumed valid!
-BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Protection, void* StartAddress, PMMVAD* OutVad, PMMVAD_LIST* OutVadList);
+BSTATUS MmReserveVirtualMemoryVad(
+	size_t SizePages,
+	int AllocationType,
+	int Protection,
+	void* StartAddress,
+	PMMVAD* OutVad,
+	PMMVAD_LIST* OutVadList
+);
+
+// Initializes and inserts a VAD.  If a VAD pointer was not provided
+// it also allocates one from pool space.
+//
+// The StartAddress and SizePages are only used if the VAD doesn't exist.
+//
+// NOTE: This locks the VAD list and unlocks it if UnlockAfter is true.
+BSTATUS MiInitializeAndInsertVad(
+	PMMVAD_LIST VadList,
+	PMMVAD* InOutVad,
+	void* StartAddress,
+	size_t SizePages,
+	int AllocationType,
+	int Protection,
+	bool UnlockAfter
+);
+
+// Cleans up all of the references to this VAD, including now-stale
+// PTEs and the object reference that this VAD holds.
+void MiCleanUpVad(PMMVAD Vad);
+
+// Locks a VAD list's mutex.
+#define MiLockVadList(VadList) KeWaitForSingleObject(&(VadList)->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL)
+
+// The VAD list of the system, used for view cache management.
+extern MMVAD_LIST MiSystemVadList;
 
 #endif//NS64_MI_H
