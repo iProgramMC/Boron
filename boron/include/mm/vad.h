@@ -19,7 +19,8 @@ Author:
 
 #include <mm/addrnode.h>
 
-#define MM_VAD_MUTEX_LEVEL (1)
+#define MM_VAD_MUTEX_LEVEL (3)
+#define MM_KERNEL_SPACE_MUTEX_LEVEL (3) // TODO: not sure where it is appropriate to define this
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 

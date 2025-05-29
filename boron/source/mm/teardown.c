@@ -14,10 +14,6 @@ Author:
 ***/
 #include "mi.h"
 
-// Normally you don't call MiReleaseVad or MiDecommitVad directly.
-void MiReleaseVad(PMMVAD Vad);
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages);
-
 void MmTearDownProcess(PEPROCESS Process)
 {
 	// This thread will attach to this process to perform teardown on it.

@@ -66,6 +66,8 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
 	
+	MmUnlockVadList(VadList);
+	
 	// Add this VAD into the FCB's view cache.
 	PFCB Fcb = FileObject->Fcb;
 	
@@ -75,9 +77,6 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	KeReleaseSpinLock(&Fcb->ViewCacheLock, Ipl);
 	
 	MiAddVadToViewCacheLru(Vad);
-	
-	MmUnlockVadList(VadList);
-	
 	return STATUS_SUCCESS;
 }
 
@@ -93,6 +92,9 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer)
 	
 	// Remove it from the list of VADs.
 	RemoveItemRbTree(&MiSystemVadList.Tree, &Vad->Node.Entry);
+	
+	// Decommit the VAD.
+	MiDecommitVadInSystemSpace(Vad);
 	
 	MmUnlockVadList(&MiSystemVadList);
 	

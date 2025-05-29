@@ -155,7 +155,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	return STATUS_SUCCESS;
 }
 
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages);
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
 
 // Decommits a range of virtual memory.
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)

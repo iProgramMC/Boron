@@ -29,6 +29,12 @@ void MmInitializeVadList(PMMVAD_LIST VadList)
 	InitializeRbTree(&VadList->Tree);
 }
 
+void MmInitializeSystemVadList()
+{
+	// Initialize the kernel's VAD list.
+	MmInitializeVadList(&MiSystemVadList);
+}
+
 void MmUnlockVadList(PMMVAD_LIST VadList)
 {
 	KeReleaseMutex(&VadList->Mutex);
@@ -310,3 +316,10 @@ void MmDumpVadList(PMMVAD_LIST VadList)
 	MmUnlockVadList(VadList);
 }
 #endif
+
+// Decommits a range of virtual memory in system space.
+void MiDecommitVadInSystemSpace(PMMVAD Vad)
+{
+	MiLockVadList(&MiSystemVadList);
+	MiDecommitVad(&MiSystemVadList, Vad, Vad->Node.StartVa, Vad->Node.Size);
+}

@@ -16,7 +16,7 @@ Author:
 
 #include <ke.h>
 
-#define MM_CCB_MUTEX_LEVEL    1
+#define MM_CCB_MUTEX_LEVEL    4
 
 #define MM_INDIRECTION_LEVELS 4
 #define MM_DIRECT_PAGE_COUNT  (16 - MM_INDIRECTION_LEVELS)

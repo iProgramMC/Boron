@@ -309,4 +309,19 @@ void MiMoveVadToFrontOfViewCacheLru(PMMVAD Vad);
 // This is used if view space is running out.
 PMMVAD MiRemoveHeadOfViewCacheLru();
 
+// Initializes the system VAD list.
+void MmInitializeSystemVadList();
+
+// Decommits a range of virtual memory in system space.
+void MiDecommitVadInSystemSpace(PMMVAD Vad);
+
+// Normally you don't call MiReleaseVad or MiDecommitVad directly.
+// Releases a VAD back into the active process' heap.
+void MiReleaseVad(PMMVAD Vad);
+
+// Decommits a range of virtual memory by unmapping the region.
+// If the region covers the provided VAD, then the VAD is marked
+// uncommitted and certain code paths are skipped.
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
+
 #endif//NS64_MI_H

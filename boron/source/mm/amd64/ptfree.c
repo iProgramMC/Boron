@@ -61,14 +61,19 @@ static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int RecursionC
 // This also issues a TLB shootdown covering the affected area.
 void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 {
+	bool ShouldUnmapPML4;
 	MMADDRESS_CONVERT Address;
+	PMMPTE Pte;
+	
+	ShouldUnmapPML4 = true;
 	Address.Long = StartVa;
 	
-	PMMPTE Pte = (PMMPTE) MI_PML3_LOCATION + Address.Level4Index;
+	Pte = (PMMPTE) MI_PML3_LOCATION + Address.Level4Index;
 	
 	// Currently, we can only operate in user space.  This is because
 	// in kernel space, the PML4 pages may never be deallocated. 
-	ASSERT(Address.Level4Index < PTES_PER_LEVEL / 2);
+	if (Address.Level4Index >= PTES_PER_LEVEL / 2)
+		ShouldUnmapPML4 = false;
 	
 	for (size_t PageNumber = 0;
 	     PageNumber < SizePages;
@@ -90,8 +95,11 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 			continue;
 		
 		// Returned true, so this is now ready to free.
-		MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-		*Pte = 0;
+		if (ShouldUnmapPML4)
+		{
+			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
+			*Pte = 0;
+		}
 	}
 }
 

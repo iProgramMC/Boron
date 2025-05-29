@@ -82,7 +82,7 @@ void MmSwitchKernelSpaceLock()
 	// All processors are here, if we're the bootstrap processor, perform the switch!!
 	if (Prcb->IsBootstrap)
 	{
-		KeInitializeMutex(&MmpKernelSpaceMutex, 2);
+		KeInitializeMutex(&MmpKernelSpaceMutex, MM_KERNEL_SPACE_MUTEX_LEVEL);
 		MmpLockKernelSpaceSharedFunc    = MmpLockKernelSpace_Mtx;
 		MmpLockKernelSpaceExclusiveFunc = MmpLockKernelSpace_Mtx;
 		MmpUnlockKernelSpaceFunc        = MmpUnlockKernelSpace_Mtx;
@@ -117,7 +117,7 @@ void MmInitAllocators()
 	MiInitPoolEntryAllocator();
 	MiInitPool();
 	MiInitSlabs();
-	MmInitializeVadList(&MiSystemVadList);
+	MmInitializeSystemVadList();
 }
 
 KIPL MmLockSpaceShared(uintptr_t DecidingAddress)
