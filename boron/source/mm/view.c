@@ -65,6 +65,17 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
+	
+	// Add this VAD into the FCB's view cache.
+	PFCB Fcb = FileObject->Fcb;
+	
+	KIPL Ipl;
+	KeAcquireSpinLock(&Fcb->ViewCacheLock, &Ipl);
+	InsertItemRbTree(&Fcb->ViewCache, &Vad->ViewCacheEntry);
+	KeReleaseSpinLock(&Fcb->ViewCacheLock, Ipl);
+	
+	MiAddVadToViewCacheLru(Vad);
+	
 	MmUnlockVadList(VadList);
 	
 	return STATUS_SUCCESS;
@@ -84,6 +95,16 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer)
 	RemoveItemRbTree(&MiSystemVadList.Tree, &Vad->Node.Entry);
 	
 	MmUnlockVadList(&MiSystemVadList);
+	
+	// Remove the VAD from the FCB's view cache.
+	PFILE_OBJECT FileObject = Vad->Mapped.FileObject;
+	ASSERT(ObGetObjectType(FileObject) == IoFileType);
+	
+	PFCB Fcb = FileObject->Fcb;
+	KIPL Ipl;
+	KeAcquireSpinLock(&Fcb->ViewCacheLock, &Ipl);
+	RemoveItemRbTree(&Fcb->ViewCache, &Vad->ViewCacheEntry);
+	KeReleaseSpinLock(&Fcb->ViewCacheLock, Ipl);
 	
 	// Then, clean up.
 	MiCleanUpVad(Vad);

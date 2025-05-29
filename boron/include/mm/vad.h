@@ -75,6 +75,30 @@ typedef struct _MMVAD_ENTRY
 	
 	// If this is a file or section, then the offset within it.
 	uint64_t SectionOffset;
+	
+	union
+	{
+		RBTREE_ENTRY ViewCacheEntry;
+		
+		struct
+		{
+			uintptr_t Spare1;
+			uintptr_t Spare2;
+			uintptr_t Spare3;
+			uintptr_t Spare4;
+		};
+	};
+	
+	union
+	{
+		LIST_ENTRY ViewCacheLruEntry;
+		
+		struct
+		{
+			uintptr_t Spare5;
+			uintptr_t Spare6;
+		};
+	};
 }
 MMVAD, *PMMVAD;
 

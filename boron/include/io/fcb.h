@@ -40,7 +40,11 @@ typedef struct _FCB
 	
 	EX_RW_LOCK RwLock;
 	
-	CCB CacheBlock;
+	CCB PageCache;
+	
+	// Using a spin lock might improve latency? TODO?
+	RBTREE ViewCache;
+	KSPIN_LOCK ViewCacheLock;
 	
 	// FILE_TYPE
 	uint8_t FileType;

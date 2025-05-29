@@ -15,6 +15,49 @@ Author:
 #include "mi.h"
 #include <io.h>
 
+static LIST_ENTRY MiViewCacheLru = { .Flink = &MiViewCacheLru, .Blink = &MiViewCacheLru };
+static KSPIN_LOCK MiViewCacheLruLock;
+
+// Adds a VAD to the view cache LRU list.
+void MiAddVadToViewCacheLru(PMMVAD Vad)
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
+	InsertTailList(&MiViewCacheLru, &Vad->ViewCacheLruEntry);
+	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
+}
+
+// Removes a VAD from the view cache LRU list.
+void MiRemoveVadFromViewCacheLru(PMMVAD Vad)
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
+	RemoveEntryList(&Vad->ViewCacheLruEntry);
+	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
+}
+
+// Moves a VAD to the front of the view cache LRU list.
+void MiMoveVadToFrontOfViewCacheLru(PMMVAD Vad)
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
+	RemoveEntryList(&Vad->ViewCacheLruEntry);
+	InsertTailList(&MiViewCacheLru, &Vad->ViewCacheLruEntry);
+	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
+}
+
+// Removes the head of the view cache LRU list for freeing.
+// This is used if view space is running out.
+PMMVAD MiRemoveHeadOfViewCacheLru()
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
+	PLIST_ENTRY Entry = RemoveHeadList(&MiViewCacheLru);
+	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
+	
+	return CONTAINING_RECORD(Entry, MMVAD, ViewCacheLruEntry);
+}
+
 static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.
@@ -87,13 +130,13 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	else
 	{
 		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
-		PCCB CacheBlock = &FileObject->Fcb->CacheBlock;
+		PCCB PageCache = &FileObject->Fcb->PageCache;
 		
 		MMPFN Pfn = PFN_INVALID;
 		
-		MmLockCcb(CacheBlock);
+		MmLockCcb(PageCache);
 		
-		PCCB_ENTRY PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, false);
+		PCCB_ENTRY PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, false);
 		if (PCcbEntry && AtLoad(PCcbEntry->Long))
 		{
 			// Lock the physical memory lock because the page we're looking for
@@ -122,7 +165,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			MiUnlockPfdb(Ipl);
 		}
 		
-		MmUnlockCcb(CacheBlock);
+		MmUnlockCcb(PageCache);
 		
 		// Did we find the PFN already?
 		if (Pfn != PFN_INVALID)
@@ -155,9 +198,9 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		SpaceUnlockIpl = -1;
 		
 		// First, ensure the CCB entry can be there.
-		MmLockCcb(CacheBlock);
-		PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, true);
-		MmUnlockCcb(CacheBlock);
+		MmLockCcb(PageCache);
+		PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, true);
+		MmUnlockCcb(PageCache);
 		
 		if (!PCcbEntry)
 		{
@@ -173,7 +216,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		{
 			// Out of memory.
 			DbgPrint("%s: out of memory because a page frame couldn't be allocated", __func__);
-			MmUnlockCcb(CacheBlock);
+			MmUnlockCcb(PageCache);
 			Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
 		}
@@ -198,7 +241,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			// Let the MM know we need more memory.
 			DbgPrint("%s: cannot answer page fault because I/O failed with code %d", __func__, Status);
 			MmFreePhysicalPage(Pfn);
-			MmUnlockCcb(CacheBlock);
+			MmUnlockCcb(PageCache);
 			if (Status == STATUS_INSUFFICIENT_MEMORY)
 				Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
@@ -211,8 +254,8 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		CcbEntryNew.U.Pfn = Pfn;
 		
 		// It's time to put this in the CCB and then map.
-		MmLockCcb(CacheBlock);
-		PCcbEntry = MmGetEntryPointerCcb(CacheBlock, FileOffset / PAGE_SIZE, true);
+		MmLockCcb(PageCache);
+		PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, true);
 		if (!PCcbEntry)
 		{
 			// Out of memory.  Did someone remove our prior allocation?
@@ -222,7 +265,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			// I don't feel like writing that right now.)
 			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
 			MmFreePhysicalPage(Pfn);
-			MmUnlockCcb(CacheBlock);
+			MmUnlockCcb(PageCache);
 			Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
 		}
@@ -237,7 +280,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		{
 			// Compare-exchange successful.  Note: we are surrendering
 			// our reference of the physical page to the CCB.
-			MmUnlockCcb(CacheBlock);
+			MmUnlockCcb(PageCache);
 			
 			// Acquire the address space lock now.
 			SpaceUnlockIpl = MmLockSpaceExclusive(Va);
@@ -249,7 +292,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			{
 				DbgPrint("%s: out of memory because PTE couldn't be allocated (2)", __func__);
 				MmFreePhysicalPage(Pfn);
-				MmUnlockCcb(CacheBlock);
+				MmUnlockCcb(PageCache);
 				Status = STATUS_REFAULT_SLEEP;
 				goto Exit;
 			}
@@ -285,7 +328,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		// It's most likely a good page, so let's just refault.
 		DbgPrint("%s: ccb already found by the time IO was made (%p), refaulting", __func__, Va);
 		Status = STATUS_REFAULT;
-		MmUnlockCcb(CacheBlock);
+		MmUnlockCcb(PageCache);
 	}
 	
 Exit:

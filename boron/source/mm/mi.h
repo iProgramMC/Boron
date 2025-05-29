@@ -296,4 +296,17 @@ void MiCleanUpVad(PMMVAD Vad);
 // The VAD list of the system, used for view cache management.
 extern MMVAD_LIST MiSystemVadList;
 
+// Adds a VAD to the view cache LRU list.
+void MiAddVadToViewCacheLru(PMMVAD Vad);
+
+// Removes a VAD from the view cache LRU list.
+void MiRemoveVadFromViewCacheLru(PMMVAD Vad);
+
+// Moves a VAD to the front of the view cache LRU list.
+void MiMoveVadToFrontOfViewCacheLru(PMMVAD Vad);
+
+// Removes the head of the view cache LRU list for freeing.
+// This is used if view space is running out.
+PMMVAD MiRemoveHeadOfViewCacheLru();
+
 #endif//NS64_MI_H

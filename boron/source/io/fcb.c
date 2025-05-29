@@ -25,9 +25,9 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 	Fcb->DispatchTable = DeviceObject->DispatchTable;
 	Fcb->ExtensionSize = ExtensionSize;
 	
+	MmInitializeCcb (&Fcb->PageCache);
 	ExInitializeRwLock (&Fcb->RwLock);
-	
-	MmInitializeCcb (&Fcb->CacheBlock);
+	KeInitializeSpinLock (&Fcb->ViewCacheLock);
 	
 	return Fcb;
 }
