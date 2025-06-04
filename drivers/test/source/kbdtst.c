@@ -174,7 +174,7 @@ void PerformKeyboardTest()
 	{
 		char Buffer[2] = { 0, 0 };
 		
-		Status = OSReadFile(&Iosb, DeviceHandle, Buffer, 1, true);
+		Status = OSReadFile(&Iosb, DeviceHandle, 0, Buffer, 1, 0);
 		if (FAILED(Status))
 			KeCrash("Failed to read, OSReadFile returned %d.", Status);
 		

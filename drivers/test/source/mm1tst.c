@@ -9,6 +9,8 @@ Abstract:
 	This module implements the MM1 test for the test driver.
 	It tests the functionality of the page fault handler.
 	
+	Do not run this test, it is outdated as of 4 June 2025.
+	
 Author:
 	iProgramInCpp - 29 August 2024
 ***/
@@ -122,6 +124,8 @@ void PerformCopyOnWriteTest()
 
 void PerformMm1Test()
 {
+	LogMsg("Do not run this test, it is outdated.");
+	
 	PerformDemandPageTest();
 	PerformCopyOnWriteTest();
 	

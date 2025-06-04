@@ -30,20 +30,23 @@ BSTATUS IoPerformPagingRead(
 
 #endif
 
-BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
+BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint64_t ByteOffset, uint32_t Flags);
 
-BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint32_t Flags);
+BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, PMDL Mdl, uint64_t ByteOffset, uint32_t Flags);
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite);
 
 BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut);
 
-BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Length, uint32_t Flags);
+BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
 
-BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, const void* Buffer, size_t Length, uint32_t Flags);
+BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
 
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
-BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence);
-
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);
+
+// TODO for OSWriteFile:
+//
+// If the file is opened with FILE_FLAG_APPEND_ONLY, then the size of the file after
+// the write is returned to OutSize.

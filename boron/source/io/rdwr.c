@@ -44,75 +44,37 @@ static size_t IopGetAlignmentInfo(PFCB Fcb)
 	return Dispatch->GetAlignmentInfo(Fcb);
 }
 
-static BSTATUS IopPerformOperationFileLocked(
-	PFCB Fcb,
-	PIO_STATUS_BLOCK Iosb,
-	int IoType,
-	PMDL Mdl,
-	uint32_t Flags, // See io/dispatch.h for information about this field
-	uint64_t* Offset
-)
+static BSTATUS IopReadFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset)
 {
 	// The file control block is locked.
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
 	
-	BSTATUS Status;
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	IO_READ_METHOD ReadMethod = Dispatch->Read;
+	if (!ReadMethod)
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	
+	return ReadMethod(Iosb, Fcb, Offset, Mdl, Flags);
+}
+
+static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset)
+{
+	// The file control block is locked.
+	ASSERT(Fcb);
+	ASSERT(Fcb->DispatchTable);
 	
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
 	
-	switch (IoType)
-	{
-		case IO_OP_READ:
-		{
-			IO_READ_METHOD ReadMethod = Dispatch->Read;
-			
-			if (!ReadMethod)
-				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-			
-			Status = ReadMethod (Iosb, Fcb, *Offset, Mdl, Flags);
-			break;
-		}
-		case IO_OP_WRITE:
-		{
-			IO_WRITE_METHOD WriteMethod = Dispatch->Write;
-			
-			if (!WriteMethod)
-				return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-			
-			Status = WriteMethod (Iosb, Fcb, *Offset, Mdl, Flags);
-			break;
-		}
-		default:
-		{
-			Status = STATUS_UNIMPLEMENTED;
-			ASSERT(!"IopPerformOperationFileLocked: Unimplemented IoType");
-			break;
-		}
-	}
+	IO_WRITE_METHOD WriteMethod = Dispatch->Write;
+	if (!WriteMethod)
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 	
-	if (FAILED(Status))
-		return Status;
-	
-	// The read/write methods succeeded, so advance the offset by however many bytes were read.
-	AtAddFetch(*Offset, Iosb->BytesRead);
-	return STATUS_SUCCESS;
+	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
-// NOTE: The presence of BufferDst and BufferSrc is mutually exclusive.
-//
-// On IO_OP_READ, BufferDst is used, and on IO_OP_WRITE, BufferSrc is used.
-// This is to keep const correctness throughout the code.
-BSTATUS IoPerformOperationFile(
-	PIO_STATUS_BLOCK Iosb,
-	PFCB Fcb,
-	int IoType,
-	PMDL Mdl,
-	uint32_t Flags,
-	uint32_t FileObjectFlags,
-	uint64_t* Offset,
-	bool Cached
-)
+static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
 	// TODO: Cache would intervene around here
 	// Currently, this only calls into the device's IO dispatch routines, no caching involved.
@@ -125,14 +87,7 @@ BSTATUS IoPerformOperationFile(
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
 	
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
-	// If the DISPATCH_FLAG_EXCLUSIVE flag is set, always lock the FCB's rwlock exclusively.
-	//
-	// As an optimization, if the file is opened in append only mode, and the operation is
-	// a write, then lock the FCB's rwlock exclusive, instead of locking it shared, then
-	// unlocking it, and then locking it exclusive.
-	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
-		(IoType == IO_OP_WRITE && (FileObjectFlags & FILE_FLAG_APPEND_ONLY)))
+	if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
 	{
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 		Status = IoLockFcbExclusive(Fcb);
@@ -145,7 +100,7 @@ BSTATUS IoPerformOperationFile(
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
-	Status = IopPerformOperationFileLocked(Fcb, Iosb, IoType, Mdl, Flags, Offset);
+	Status = IopReadFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
 	
 	IoUnlockFcb(Fcb);
 	
@@ -157,7 +112,55 @@ BSTATUS IoPerformOperationFile(
 		//
 		// The reason IopTouchFile returns a status is to implement a call called
 		// OSTouchFile which calls this underneath.
-		(void) IopTouchFile(Fcb, IoType);
+		(void) IopTouchFile(Fcb, IO_OP_READ);
+	}
+	
+	return Status;
+}
+
+static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint32_t FileObjectFlags, uint64_t Offset, bool Cached)
+{
+	// TODO: Cache would intervene around here
+	// Currently, this only calls into the device's IO dispatch routines, no caching involved.
+	(void) Cached;
+	
+	ASSERT(Fcb);
+	ASSERT(Fcb->DispatchTable);
+	
+	BSTATUS Status;
+	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
+	
+	// As an optimization, if the file is opened in append only mode, and the operation is
+	// a write, then lock the FCB's rwlock exclusive, instead of locking it shared, then
+	// unlocking it, and then locking it exclusive.
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
+		(FileObjectFlags & FILE_FLAG_APPEND_ONLY))
+	{
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
+		Status = IoLockFcbExclusive(Fcb);
+	}
+	else
+	{
+		Status = IoLockFcbShared(Fcb);
+	}
+	
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+	
+	Status = IopWriteFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
+	
+	IoUnlockFcb(Fcb);
+	
+	if (Status == STATUS_SUCCESS)
+	{
+		// NOTE: Dropping status here.  It is not important whether or not the file
+		// was touched successfully after the operation was performed on it -- it's
+		// not considered important.
+		//
+		// The reason IopTouchFile returns a status is to implement a call called
+		// OSTouchFile which calls this underneath.
+		(void) IopTouchFile(Fcb, IO_OP_WRITE);
 	}
 	
 	return Status;
@@ -171,7 +174,8 @@ BSTATUS IoPerformPagingRead(
 )
 {
 	ASSERT(FileObject->Fcb);
-	return IoPerformOperationFile(Iosb, FileObject->Fcb, IO_OP_READ, Mdl, IO_RW_PAGING, FileObject->Flags, &FileOffset, true);
+	
+	return IopReadFile(Iosb, FileObject->Fcb, Mdl, IO_RW_PAGING, FileOffset, true);
 }
 
 BSTATUS IoPerformOperationFileHandle(
@@ -179,6 +183,7 @@ BSTATUS IoPerformOperationFileHandle(
 	HANDLE Handle,
 	int IoType,
 	PMDL Mdl,
+	uint64_t FileOffset,
 	uint32_t Flags
 )
 {
@@ -198,7 +203,10 @@ BSTATUS IoPerformOperationFileHandle(
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	Status = IoPerformOperationFile(Iosb, FileObject->Fcb, IoType, Mdl, Flags, FileObject->Flags, &FileObject->Offset, true);
+	if (IoType == IO_OP_READ)
+		Status = IopReadFile(Iosb, FileObject->Fcb, Mdl, Flags, FileOffset, true);
+	else
+		Status = IopWriteFile(Iosb, FileObject->Fcb, Mdl, Flags, FileObject->Flags, FileOffset, true);
 	
 	ObDereferenceObject(FileObject);
 	
@@ -218,7 +226,7 @@ BSTATUS IoReadDevice(
 )
 {
 	ASSERT(DeviceObject->Fcb);
-	return IoPerformOperationFile(Iosb, DeviceObject->Fcb, IO_OP_READ, Mdl, 0, 0, &FileOffset, Cached);
+	return IopReadFile(Iosb, DeviceObject->Fcb, Mdl, 0, FileOffset, Cached);
 }
 
 BSTATUS IoWriteDevice(
@@ -230,7 +238,7 @@ BSTATUS IoWriteDevice(
 )
 {
 	ASSERT(DeviceObject->Fcb);
-	return IoPerformOperationFile(Iosb, DeviceObject->Fcb, IO_OP_WRITE, Mdl, 0, 0, &FileOffset, Cached);
+	return IopWriteFile(Iosb, DeviceObject->Fcb, Mdl, 0, 0, FileOffset, Cached);
 }
 
 BSTATUS IoReadFileObject(
@@ -242,7 +250,7 @@ BSTATUS IoReadFileObject(
 )
 {
 	ASSERT(FileObject->Fcb);
-	return IoPerformOperationFile(Iosb, FileObject->Fcb, IO_OP_READ, Mdl, 0, 0, &FileOffset, Cached);
+	return IopReadFile(Iosb, FileObject->Fcb, Mdl, 0, FileOffset, Cached);
 }
 
 BSTATUS IoWriteFileObject(
@@ -250,11 +258,10 @@ BSTATUS IoWriteFileObject(
 	PFILE_OBJECT FileObject,
 	PMDL Mdl,
 	uint64_t FileOffset,
-	bool Cached
-)
+	bool Cached)
 {
 	ASSERT(FileObject->Fcb);
-	return IoPerformOperationFile(Iosb, FileObject->Fcb, IO_OP_WRITE, Mdl, 0, 0, &FileOffset, Cached);
+	return IopWriteFile(Iosb, FileObject->Fcb, Mdl, 0, FileObject->Flags, FileOffset, Cached);
 }
 
 // =========== User-facing API ===========
@@ -265,20 +272,21 @@ BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	HANDLE Handle,
 	PMDL Mdl,
+	uint64_t FileOffset,
 	uint32_t Flags
 )
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Mdl, Flags);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Mdl, FileOffset, Flags);
 }
 
 BSTATUS IoWriteFile(
 	PIO_STATUS_BLOCK Iosb,
 	HANDLE Handle,
 	PMDL Mdl,
-	uint32_t Flags
-)
+	uint64_t FileOffset,
+	uint32_t Flags)
 {
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, Mdl, Flags);
+	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, Mdl, FileOffset, Flags);
 }
 
 BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
@@ -322,7 +330,7 @@ BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
 //
 // Perhaps it's a good idea to restrict IoReadFile/IoWriteFile to like 1MB, and have these issue multiple calls down below.
 
-BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Length, uint32_t Flags)
+BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags)
 {
 	BSTATUS Status;
 	
@@ -349,17 +357,18 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, void* Buffer, size_t Le
 	
 	// Finally, call the Io function.
 	IO_STATUS_BLOCK Iosb2;
-	Status = IoReadFile(&Iosb2, Handle, Mdl, Flags);
+	Status = IoReadFile(&Iosb2, Handle, Mdl, ByteOffset, Flags);
 	
 	// This unmaps and unpins the pages, and frees the MDL.
 	MmFreeMdl(Mdl);
 	
 	// Copy the I/O status block to the caller.
-	Status = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), false);
+	BSTATUS Status2 = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), false);
+	
 	if (FAILED(Status))
 		return Status;
 	
-	return Status;
+	return Status2;
 }
 
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
@@ -388,64 +397,4 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
 	ObDereferenceObject(FileObject);
 	
 	return MmSafeCopy(OutLength, &Length, sizeof(uint64_t), KeGetPreviousMode(), true);
-}
-
-BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewPosition, int SeekWhence)
-{
-	if (NewPosition == 0 && SeekWhence == IO_SEEK_CUR)
-		// Nothing to do
-		return STATUS_SUCCESS;
-	
-	if (NewPosition < 0 && SeekWhence != IO_SEEK_CUR)
-		// You cannot seek to a negative offset.
-		return STATUS_INVALID_PARAMETER;
-	
-	BSTATUS Status;
-	void* FileObjectV;
-	
-	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
-	if (FAILED(Status))
-		return Status;
-	
-	PFILE_OBJECT FileObject = FileObjectV;
-	
-	uint64_t FileLength = AtLoad(FileObject->Fcb->FileLength);
-	
-	switch (SeekWhence)
-	{
-		case IO_SEEK_CUR:
-		{
-			// This block ensures the incrementation is atomic, and respects every limit.
-			uint64_t OldOffset, NewOffset;
-			do
-			{
-				OldOffset = NewOffset = AtLoad(FileObject->Offset);
-				
-				// Ensure that the addition of the NewPosition doesn't cause an underflow.
-				if (NewPosition < 0 && NewOffset + NewPosition > NewOffset)
-					NewOffset = 0;
-				
-				// Or an overflow.
-				if (NewPosition > 0 && NewOffset + NewPosition < NewOffset)
-					NewOffset = (uint64_t) (int64_t) -1;
-			}
-			while (!AtCompareExchange(&FileObject->Offset, &OldOffset, NewOffset));
-			
-			break;
-		}
-		
-		case IO_SEEK_SET:
-			AtStore(FileObject->Offset, NewPosition);
-			break;
-		
-		case IO_SEEK_END:
-			AtStore(FileObject->Offset, FileLength);
-			break;
-		
-		default:
-			Status = STATUS_INVALID_PARAMETER;
-	}
-	
-	ObDereferenceObject(FileObject);
-	return Status;
 }

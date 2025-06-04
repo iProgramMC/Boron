@@ -51,7 +51,6 @@ BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, u
 	// Initialize the file object.
 	FileObject->Fcb      = Fcb;
 	FileObject->Flags    = Flags;
-	FileObject->Offset   = 0;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
 	FileObject->OpenFlags = OpenFlags;

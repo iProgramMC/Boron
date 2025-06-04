@@ -133,7 +133,6 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 	FileObject->Fcb = Fcb;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
-	FileObject->Offset = 0;
 	FileObject->Flags = 0;
 	FileObject->OpenFlags = 0;
 	

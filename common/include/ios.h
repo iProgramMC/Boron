@@ -14,6 +14,8 @@ Author:
 ***/
 #pragma once
 
+typedef struct _FCB FCB, *PFCB;
+
 typedef struct _IO_STATUS_BLOCK
 {
 	BSTATUS Status;
@@ -33,7 +35,6 @@ typedef struct _IO_STATUS_BLOCK
 		uint64_t NextOffset;
 		
 		// ParseDir
-	#ifdef KERNEL
 		struct
 		{
 			PFCB FoundFcb;
@@ -55,7 +56,6 @@ typedef struct _IO_STATUS_BLOCK
 			uint32_t BlockSizeLog;
 		}
 		AlignmentInfo;
-	#endif
 	};
 }
 IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
