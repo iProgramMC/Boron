@@ -96,6 +96,8 @@ BSTATUS MiInitializeAndInsertVad(
 	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
 	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;
+	Vad->ViewCacheLruEntry.Flink = NULL;
+	Vad->ViewCacheLruEntry.Blink = NULL;
 	
 	if (UnlockAfter)
 		MmUnlockVadList(VadList);

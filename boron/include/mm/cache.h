@@ -6,8 +6,8 @@ Module name:
 	mm/cache.h
 	
 Abstract:
-	This header defines the I/O manager's cache control
-	block structure.
+	This header defines the memory manager's page cache
+	control block structure.
 	
 Author:
 	iProgramInCpp - 18 August 2024

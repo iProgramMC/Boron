@@ -15,49 +15,6 @@ Author:
 #include "mi.h"
 #include <io.h>
 
-static LIST_ENTRY MiViewCacheLru = { .Flink = &MiViewCacheLru, .Blink = &MiViewCacheLru };
-static KSPIN_LOCK MiViewCacheLruLock;
-
-// Adds a VAD to the view cache LRU list.
-void MiAddVadToViewCacheLru(PMMVAD Vad)
-{
-	KIPL Ipl;
-	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
-	InsertTailList(&MiViewCacheLru, &Vad->ViewCacheLruEntry);
-	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
-}
-
-// Removes a VAD from the view cache LRU list.
-void MiRemoveVadFromViewCacheLru(PMMVAD Vad)
-{
-	KIPL Ipl;
-	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
-	RemoveEntryList(&Vad->ViewCacheLruEntry);
-	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
-}
-
-// Moves a VAD to the front of the view cache LRU list.
-void MiMoveVadToFrontOfViewCacheLru(PMMVAD Vad)
-{
-	KIPL Ipl;
-	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
-	RemoveEntryList(&Vad->ViewCacheLruEntry);
-	InsertTailList(&MiViewCacheLru, &Vad->ViewCacheLruEntry);
-	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
-}
-
-// Removes the head of the view cache LRU list for freeing.
-// This is used if view space is running out.
-PMMVAD MiRemoveHeadOfViewCacheLru()
-{
-	KIPL Ipl;
-	KeAcquireSpinLock(&MiViewCacheLruLock, &Ipl);
-	PLIST_ENTRY Entry = RemoveHeadList(&MiViewCacheLru);
-	KeReleaseSpinLock(&MiViewCacheLruLock, Ipl);
-	
-	return CONTAINING_RECORD(Entry, MMVAD, ViewCacheLruEntry);
-}
-
 static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.

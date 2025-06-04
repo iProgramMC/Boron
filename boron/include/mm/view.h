@@ -34,4 +34,4 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	int Protection
 );
 
-void MmUnmapViewOfFileInSystemSpace(void* ViewPointer);
+void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCache);

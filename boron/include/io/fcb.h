@@ -42,7 +42,7 @@ typedef struct _FCB
 	
 	CCB PageCache;
 	
-	// Using a spin lock might improve latency? TODO?
+	// Using a spin lock might improve latency? TODO: Profiling, etc
 	RBTREE ViewCache;
 	KSPIN_LOCK ViewCacheLock;
 	
