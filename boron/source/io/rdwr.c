@@ -216,80 +216,101 @@ BSTATUS IoPerformOperationFileHandle(
 	return Status;
 }
 
-// Helpers to read from device or file objects without holding a handle to them.
-BSTATUS IoReadDevice(
+// Helpers to read from FCBs, device objects or file objects without holding a handle to them.
+BSTATUS IoReadFcb(
 	PIO_STATUS_BLOCK Iosb,
-	PDEVICE_OBJECT DeviceObject,
-	PMDL Mdl,
+	PFCB Fcb,
+	void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 )
 {
-	ASSERT(DeviceObject->Fcb);
-	return IopReadFile(Iosb, DeviceObject->Fcb, Mdl, 0, FileOffset, Cached);
+	PMDL Mdl;
+	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), true);
+	
+	if (!FAILED(Status))
+	{
+		Status = IopReadFile(Iosb, Fcb, Mdl, 0, FileOffset, Cached);
+		MmFreeMdl(Mdl);
+	}
+	
+	return Status;
+}
+
+BSTATUS IoWriteFcb(
+	PIO_STATUS_BLOCK Iosb,
+	PFCB Fcb,
+	const void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached,
+	uint32_t FileObjectFlags
+)
+{
+	PMDL Mdl;
+	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	
+	if (!FAILED(Status))
+	{
+		Status = IopWriteFile(Iosb, Fcb, Mdl, 0, FileObjectFlags, FileOffset, Cached);
+		MmFreeMdl(Mdl);
+	}	
+	
+	return Status;
+}
+
+BSTATUS IoReadFile(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached
+)
+{
+	return IoReadFcb(Iosb, FileObject->Fcb, Buffer, Size, FileOffset, Cached);
+}
+
+BSTATUS IoWriteFile(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	const void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached
+)
+{
+	return IoWriteFcb(Iosb, FileObject->Fcb, Buffer, Size, FileOffset, Cached, FileObject->Flags);
+}
+
+BSTATUS IoReadDevice(
+	PIO_STATUS_BLOCK Iosb,
+	PDEVICE_OBJECT DeviceObject,
+	void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached
+)
+{
+	return IoReadFcb(Iosb, DeviceObject->Fcb, Buffer, Size, FileOffset, Cached);
 }
 
 BSTATUS IoWriteDevice(
 	PIO_STATUS_BLOCK Iosb,
 	PDEVICE_OBJECT DeviceObject,
-	PMDL Mdl,
+	const void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 )
 {
-	ASSERT(DeviceObject->Fcb);
-	return IopWriteFile(Iosb, DeviceObject->Fcb, Mdl, 0, 0, FileOffset, Cached);
-}
-
-BSTATUS IoReadFileObject(
-	PIO_STATUS_BLOCK Iosb,
-	PFILE_OBJECT FileObject,
-	PMDL Mdl,
-	uint64_t FileOffset,
-	bool Cached
-)
-{
-	ASSERT(FileObject->Fcb);
-	return IopReadFile(Iosb, FileObject->Fcb, Mdl, 0, FileOffset, Cached);
-}
-
-BSTATUS IoWriteFileObject(
-	PIO_STATUS_BLOCK Iosb,
-	PFILE_OBJECT FileObject,
-	PMDL Mdl,
-	uint64_t FileOffset,
-	bool Cached)
-{
-	ASSERT(FileObject->Fcb);
-	return IopWriteFile(Iosb, FileObject->Fcb, Mdl, 0, FileObject->Flags, FileOffset, Cached);
+	return IoWriteFcb(Iosb, DeviceObject->Fcb, Buffer, Size, FileOffset, Cached, 0);
 }
 
 // =========== User-facing API ===========
 
-// Note: Calling a sub-function to avoid useless duplication.
-
-BSTATUS IoReadFile(
-	PIO_STATUS_BLOCK Iosb,
-	HANDLE Handle,
-	PMDL Mdl,
-	uint64_t FileOffset,
-	uint32_t Flags
-)
-{
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_READ, Mdl, FileOffset, Flags);
-}
-
-BSTATUS IoWriteFile(
-	PIO_STATUS_BLOCK Iosb,
-	HANDLE Handle,
-	PMDL Mdl,
-	uint64_t FileOffset,
-	uint32_t Flags)
-{
-	return IoPerformOperationFileHandle(Iosb, Handle, IO_OP_WRITE, Mdl, FileOffset, Flags);
-}
-
-BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
+BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
 {
 	BSTATUS Status;
 	
@@ -306,7 +327,7 @@ BSTATUS IoTouchFile(HANDLE Handle, bool IsWrite)
 	return Status;
 }
 
-BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
+BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
 {
 	BSTATUS Status;
 	
@@ -316,13 +337,13 @@ BSTATUS IoGetAlignmentInfo(HANDLE Handle, size_t* AlignmentOut)
 		return Status;
 	
 	PFILE_OBJECT FileObject = FileObjectV;
-	*AlignmentOut = IopGetAlignmentInfo(FileObject->Fcb);
+	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
+	
+	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
 	
 	ObDereferenceObject(FileObject);
-	return STATUS_SUCCESS;
+	return Status;
 }
-
-#define IO_STATUS(Iosb, Stat) ((Iosb)->Status = (Stat))
 
 // TODO: There are several limitations in place:
 // - the supporting device driver's max read size
@@ -352,12 +373,12 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, vo
 	if (FAILED(Status))
 	{
 		MmFreeMdl(Mdl);
-		return IO_STATUS(Iosb, Status);
+		return Status;
 	}
 	
 	// Finally, call the Io function.
 	IO_STATUS_BLOCK Iosb2;
-	Status = IoReadFile(&Iosb2, Handle, Mdl, ByteOffset, Flags);
+	Status = IoPerformOperationFileHandle(&Iosb2, Handle, IO_OP_READ, Mdl, ByteOffset, Flags);
 	
 	// This unmaps and unpins the pages, and frees the MDL.
 	MmFreeMdl(Mdl);

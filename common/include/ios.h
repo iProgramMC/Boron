@@ -16,6 +16,9 @@ Author:
 
 typedef struct _FCB FCB, *PFCB;
 
+// TODO: I think we should actually phase out the status code from here.
+// Every system service already returns the status, so putting it here is
+// useless.
 typedef struct _IO_STATUS_BLOCK
 {
 	BSTATUS Status;

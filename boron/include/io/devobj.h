@@ -81,7 +81,8 @@ BSTATUS IoCreateDevice(
 BSTATUS IoReadDevice(
 	PIO_STATUS_BLOCK Iosb,
 	PDEVICE_OBJECT DeviceObject,
-	PMDL Mdl,
+	void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 );
@@ -89,7 +90,8 @@ BSTATUS IoReadDevice(
 BSTATUS IoWriteDevice(
 	PIO_STATUS_BLOCK Iosb,
 	PDEVICE_OBJECT DeviceObject,
-	PMDL Mdl,
+	const void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 );

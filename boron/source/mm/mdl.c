@@ -121,7 +121,10 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 	size_t NumPages = (EndPage - StartPage) / PAGE_SIZE;
 	
 	if (Length >= MDL_MAX_SIZE)
+	{
+		DbgPrint("WARNING: Tried to allocate %zu > %zu for the MDL", Length, MDL_MAX_SIZE);
 		return NULL;
+	}
 	
 	// TODO: maybe this is inadequate... though MmProbeAndPinPagesMdl does do proper checks
 	if (!MmIsAddressRangeValid(VirtualAddress, Length, MODE_KERNEL))

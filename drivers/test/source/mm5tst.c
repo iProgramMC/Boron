@@ -52,12 +52,6 @@ void PerformMm5Test_()
 	if (!BaseAddress || !BaseAddress2)
 		KeCrash("Mm5: Could not allocate space for Base Address");
 	
-	// BaseAddress will be the Cc read.
-	// BaseAddress2 will be the uncached read.
-	Status = CcReadFileCopy(FileObject, Offset, BaseAddress, RegionSize);
-	if (FAILED(Status))
-		KeCrash("Mm5: Cannot perform cached read from file %s: %d (%s)", FileToOpen, Status, RtlGetStatusString(Status));
-	
 	if (DoUncachedRead)
 	{
 		IO_STATUS_BLOCK Iosb;
@@ -65,6 +59,12 @@ void PerformMm5Test_()
 		if (FAILED(Status))
 			KeCrash("Mm5: Cannot perform uncached read from file %s: %d (%s)", FileToOpen, Status, RtlGetStatusString(Status));
 	}
+	
+	// BaseAddress will be the Cc read.
+	// BaseAddress2 will be the uncached read.
+	Status = CcReadFileCopy(FileObject, Offset, BaseAddress, RegionSize);
+	if (FAILED(Status))
+		KeCrash("Mm5: Cannot perform cached read from file %s: %d (%s)", FileToOpen, Status, RtlGetStatusString(Status));
 	
 	// dump the first 512 bytes.
 	LogMsg("Alright, read into %p, region size %zu.", BaseAddress, RegionSize);

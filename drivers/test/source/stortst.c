@@ -71,7 +71,7 @@ void PerformStorageTest()
 	// Fetch alignment info.
 	IO_STATUS_BLOCK Iosb = {};
 	size_t Alignment;
-	Status = IoGetAlignmentInfo(DeviceHandle, &Alignment);
+	Status = OSGetAlignmentFile(DeviceHandle, &Alignment);
 	ASSERT(SUCCEEDED(Status));
 	
 	Alignment = 1024;

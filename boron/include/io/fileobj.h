@@ -34,18 +34,20 @@ FILE_OBJECT, *PFILE_OBJECT;
 
 bool IoIsSeekable(PFILE_OBJECT Object);
 
-BSTATUS IoReadFileObject(
+BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
-	PMDL Mdl,
+	void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 );
 
-BSTATUS IoWriteFileObject(
+BSTATUS IoWriteFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
-	PMDL Mdl,
+	const void* Buffer,
+	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
 );
