@@ -32,8 +32,6 @@ typedef struct _FILE_OBJECT
 }
 FILE_OBJECT, *PFILE_OBJECT;
 
-bool IoIsSeekable(PFILE_OBJECT Object);
-
 BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,

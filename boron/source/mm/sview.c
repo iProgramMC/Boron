@@ -27,7 +27,7 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 )
 {
 	// You cannot map files that are not seekable.
-	if (!IoIsSeekable(FileObject))
+	if (!IoIsSeekable(FileObject->Fcb))
 		return STATUS_UNSUPPORTED_FUNCTION;
 	
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);

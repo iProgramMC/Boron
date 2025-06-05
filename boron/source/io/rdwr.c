@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 1 July 2024
 ***/
 #include "iop.h"
+#include <cc.h>
 
 enum
 {
@@ -74,14 +75,26 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
-static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
+static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
-	// TODO: Cache would intervene around here
-	// Currently, this only calls into the device's IO dispatch routines, no caching involved.
-	(void) Cached;
+	ASSERT(FileObject);
 	
+	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
+	
+	// Check if we may perform cached reads.
+	if (Cached)
+	{
+		if (!IoIsSeekable(Fcb))
+			Cached = false;
+	}
+	
+	// If we may use caching, use the cache.
+	if (Cached)
+	{
+		return CcReadFileMdl(FileObject, Offset, Mdl);
+	}
 	
 	BSTATUS Status;
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
@@ -118,14 +131,28 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t F
 	return Status;
 }
 
-static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint32_t FileObjectFlags, uint64_t Offset, bool Cached)
+static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
-	// TODO: Cache would intervene around here
-	// Currently, this only calls into the device's IO dispatch routines, no caching involved.
-	(void) Cached;
+	ASSERT(FileObject);
 	
+	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
+	
+	// Check if we may perform cached writes.
+	if (Cached)
+	{
+		if (!IoIsSeekable(Fcb))
+			Cached = false;
+	}
+	
+	// If we may use caching, use the cache.
+	if (Cached)
+	{
+		// TODO!
+		ASSERT(!"TODO!");
+		//return CcWriteFileMdl(FileObject, Offset, Mdl);
+	}
 	
 	BSTATUS Status;
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
@@ -135,7 +162,7 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t 
 	// unlocking it, and then locking it exclusive.
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
 	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
-		(FileObjectFlags & FILE_FLAG_APPEND_ONLY))
+		(FileObject->Flags & FILE_FLAG_APPEND_ONLY))
 	{
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 		Status = IoLockFcbExclusive(Fcb);
@@ -175,7 +202,7 @@ BSTATUS IoPerformPagingRead(
 {
 	ASSERT(FileObject->Fcb);
 	
-	return IopReadFile(Iosb, FileObject->Fcb, Mdl, IO_RW_PAGING, FileOffset, true);
+	return IopReadFile(Iosb, FileObject, Mdl, IO_RW_PAGING, FileOffset, false);
 }
 
 BSTATUS IoPerformOperationFileHandle(
@@ -204,9 +231,9 @@ BSTATUS IoPerformOperationFileHandle(
 	PFILE_OBJECT FileObject = FileObjectV;
 	
 	if (IoType == IO_OP_READ)
-		Status = IopReadFile(Iosb, FileObject->Fcb, Mdl, Flags, FileOffset, true);
+		Status = IopReadFile(Iosb, FileObject, Mdl, Flags, FileOffset, true);
 	else
-		Status = IopWriteFile(Iosb, FileObject->Fcb, Mdl, Flags, FileObject->Flags, FileOffset, true);
+		Status = IopWriteFile(Iosb, FileObject, Mdl, Flags, FileOffset, true);
 	
 	ObDereferenceObject(FileObject);
 	
@@ -216,10 +243,10 @@ BSTATUS IoPerformOperationFileHandle(
 	return Status;
 }
 
-// Helpers to read from FCBs, device objects or file objects without holding a handle to them.
-BSTATUS IoReadFcb(
+// Helpers to file objects without holding a handle to them.
+BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
-	PFCB Fcb,
+	PFILE_OBJECT FileObject,
 	void* Buffer,
 	size_t Size,
 	uint64_t FileOffset,
@@ -231,45 +258,11 @@ BSTATUS IoReadFcb(
 	
 	if (!FAILED(Status))
 	{
-		Status = IopReadFile(Iosb, Fcb, Mdl, 0, FileOffset, Cached);
+		Status = IopReadFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}
 	
 	return Status;
-}
-
-BSTATUS IoWriteFcb(
-	PIO_STATUS_BLOCK Iosb,
-	PFCB Fcb,
-	const void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached,
-	uint32_t FileObjectFlags
-)
-{
-	PMDL Mdl;
-	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
-	
-	if (!FAILED(Status))
-	{
-		Status = IopWriteFile(Iosb, Fcb, Mdl, 0, FileObjectFlags, FileOffset, Cached);
-		MmFreeMdl(Mdl);
-	}	
-	
-	return Status;
-}
-
-BSTATUS IoReadFile(
-	PIO_STATUS_BLOCK Iosb,
-	PFILE_OBJECT FileObject,
-	void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached
-)
-{
-	return IoReadFcb(Iosb, FileObject->Fcb, Buffer, Size, FileOffset, Cached);
 }
 
 BSTATUS IoWriteFile(
@@ -281,31 +274,16 @@ BSTATUS IoWriteFile(
 	bool Cached
 )
 {
-	return IoWriteFcb(Iosb, FileObject->Fcb, Buffer, Size, FileOffset, Cached, FileObject->Flags);
-}
-
-BSTATUS IoReadDevice(
-	PIO_STATUS_BLOCK Iosb,
-	PDEVICE_OBJECT DeviceObject,
-	void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached
-)
-{
-	return IoReadFcb(Iosb, DeviceObject->Fcb, Buffer, Size, FileOffset, Cached);
-}
-
-BSTATUS IoWriteDevice(
-	PIO_STATUS_BLOCK Iosb,
-	PDEVICE_OBJECT DeviceObject,
-	const void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached
-)
-{
-	return IoWriteFcb(Iosb, DeviceObject->Fcb, Buffer, Size, FileOffset, Cached, 0);
+	PMDL Mdl;
+	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	
+	if (!FAILED(Status))
+	{
+		Status = IopWriteFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
+		MmFreeMdl(Mdl);
+	}	
+	
+	return Status;
 }
 
 // =========== User-facing API ===========
@@ -408,7 +386,7 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	if (!IoIsSeekable(FileObject))
+	if (!IoIsSeekable(FileObject->Fcb))
 	{
 		ObDereferenceObject(FileObject);
 		return STATUS_UNSUPPORTED_FUNCTION;

@@ -109,7 +109,7 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 		// Create a file object for the device.
 		
 		PFILE_OBJECT* OutObject2 = (PFILE_OBJECT*) OutObject;
-		BSTATUS Status = IopCreateDeviceFileObject(DeviceObject, OutObject2, 0, 0);
+		BSTATUS Status = IoOpenDeviceObject(DeviceObject, OutObject2, 0, 0);
 		
 		if (FAILED(Status))
 			return Status;

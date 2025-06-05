@@ -14,9 +14,8 @@ Author:
 #include "iop.h"
 
 // Checks if this file is seekable.
-bool IoIsSeekable(PFILE_OBJECT FileObject)
+bool IoIsSeekable(PFCB Fcb)
 {
-	PFCB Fcb = FileObject->Fcb;
 	IO_SEEKABLE_METHOD Seekable = Fcb->DispatchTable->Seekable;
 	
 	if (!Seekable)

@@ -26,6 +26,8 @@ typedef enum _DEVICE_TYPE
 }
 DEVICE_TYPE;
 
+typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
+
 struct _DEVICE_OBJECT
 {
 	// The type of device object this is.
@@ -94,4 +96,11 @@ BSTATUS IoWriteDevice(
 	size_t Size,
 	uint64_t FileOffset,
 	bool Cached
+);
+
+BSTATUS IoOpenDeviceObject(
+	PDEVICE_OBJECT DeviceObject,
+	PFILE_OBJECT* OutObject,
+	uint32_t Flags,
+	uint32_t OpenFlags
 );

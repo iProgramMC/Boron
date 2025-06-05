@@ -98,7 +98,11 @@ static ALWAYS_INLINE inline void IoDemoteToSharedFcb(PFCB Fcb)
 	ExDemoteToSharedRwLock(&Fcb->RwLock);
 }
 
+// Checks if this FCB is directly mappable.
 static ALWAYS_INLINE inline bool IoIsDirectlyMappable(PFCB Fcb)
 {
 	return Fcb->DispatchTable->Flags & DISPATCH_FLAG_DIRECTLY_MAPPABLE;
 }
+
+// Checks if this FCB is seekable.
+bool IoIsSeekable(PFCB Fcb);

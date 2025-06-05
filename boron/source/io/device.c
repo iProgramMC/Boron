@@ -35,7 +35,7 @@ bool IopInitializeDevicesDir()
 	return true;
 }
 
-BSTATUS IopCreateDeviceFileObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
+BSTATUS IoOpenDeviceObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {
 	BSTATUS Status = IopCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
 	
