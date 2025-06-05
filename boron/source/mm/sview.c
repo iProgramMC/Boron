@@ -75,10 +75,9 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	// Add this VAD into the FCB's view cache.
 	PFCB Fcb = FileObject->Fcb;
 	
-	KIPL Ipl;
-	KeAcquireSpinLock(&Fcb->ViewCacheLock, &Ipl);
+	KeWaitForSingleObject(&Fcb->ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	InsertItemRbTree(&Fcb->ViewCache, &Vad->ViewCacheEntry);
-	KeReleaseSpinLock(&Fcb->ViewCacheLock, Ipl);
+	KeReleaseMutex(&Fcb->ViewCacheMutex);
 	
 	CcAddVadToViewCacheLru(Vad);
 	return STATUS_SUCCESS;
@@ -109,10 +108,9 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 		ASSERT(ObGetObjectType(FileObject) == IoFileType);
 		
 		PFCB Fcb = FileObject->Fcb;
-		KIPL Ipl;
-		KeAcquireSpinLock(&Fcb->ViewCacheLock, &Ipl);
+		KeWaitForSingleObject(&Fcb->ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		RemoveItemRbTree(&Fcb->ViewCache, &Vad->ViewCacheEntry);
-		KeReleaseSpinLock(&Fcb->ViewCacheLock, Ipl);
+		KeReleaseMutex(&Fcb->ViewCacheMutex);
 	}
 	
 	// Then, clean up.

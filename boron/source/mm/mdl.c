@@ -14,6 +14,7 @@ Author:
 #include <mm.h>
 #include <ex.h>
 #include <ps.h>
+#include <string.h>
 
 void MmUnmapPagesMdl(PMDL Mdl)
 {
@@ -324,4 +325,70 @@ BSTATUS MmCreateMdl(PMDL* OutMdl, uintptr_t VirtualAddress, size_t Length, KPROC
 	
 	*OutMdl = Mdl;
 	return Status;
+}
+
+void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t Size)
+{
+	const char* SourceBufferChr = (const char*) SourceBuffer;
+	
+	// NOTE: The MDL's starting pointer isn't necessarily page aligned.
+	// As such, push the offset forward by Mdl->ByteOffset to allow the
+	// code below to pretend that the starting pointer is page aligned.
+	Offset += Mdl->ByteOffset;
+	
+	while (Size)
+	{
+		size_t PageIndex = Offset / PAGE_SIZE;
+		size_t PageOffs  = Offset % PAGE_SIZE;
+		
+		ASSERT(PageIndex < Mdl->NumberPages);
+		
+		size_t BytesTillNext = PAGE_SIZE - PageOffs;
+		size_t CopyAmount;
+		
+		if (Size < BytesTillNext)
+			CopyAmount = Size;
+		else
+			CopyAmount = BytesTillNext;
+		
+		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
+		memcpy(PageDest + PageOffs, SourceBufferChr, CopyAmount);
+		
+		SourceBufferChr += CopyAmount;
+		Offset += CopyAmount;
+		Size -= CopyAmount;
+	}
+}
+
+void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t Size)
+{
+	char* DestBufferChr = (char*) DestinationBuffer;
+	
+	// NOTE: The MDL's starting pointer isn't necessarily page aligned.
+	// As such, push the offset forward by Mdl->ByteOffset to allow the
+	// code below to pretend that the starting pointer is page aligned.
+	Offset += Mdl->ByteOffset;
+	
+	while (Size)
+	{
+		size_t PageIndex = Offset / PAGE_SIZE;
+		size_t PageOffs  = Offset % PAGE_SIZE;
+		
+		ASSERT(PageIndex < Mdl->NumberPages);
+		
+		size_t BytesTillNext = PAGE_SIZE - PageOffs;
+		size_t CopyAmount;
+		
+		if (Size < BytesTillNext)
+			CopyAmount = Size;
+		else
+			CopyAmount = BytesTillNext;
+		
+		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
+		memcpy(DestBufferChr, PageDest + PageOffs, CopyAmount);
+		
+		DestBufferChr += CopyAmount;
+		Offset += CopyAmount;
+		Size -= CopyAmount;
+	}
 }

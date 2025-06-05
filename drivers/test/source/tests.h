@@ -32,3 +32,4 @@ void PerformMm1Test(void);
 void PerformMm2Test(void);
 void PerformMm3Test(void);
 void PerformMm4Test(void);
+void PerformMm5Test(void);

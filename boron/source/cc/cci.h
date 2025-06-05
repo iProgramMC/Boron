@@ -35,3 +35,12 @@ Author:
 #define VIEW_CACHE_MAX_COUNT (1024)
 
 #endif
+
+static ALWAYS_INLINE inline
+void CcAcquireMutex(PKMUTEX Mutex)
+{
+	UNUSED BSTATUS Status;
+	
+	Status = KeWaitForSingleObject(Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+}

@@ -93,3 +93,9 @@ void MmUnmapPagesMdl(PMDL Mdl);
 
 // Unmaps the MDL, and unpins the buffer, and deallocates the MDL if needed.
 void MmFreeMdl(PMDL Mdl);
+
+// Copies from a source buffer into an MDL in a "scatter" operation.
+void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t Size);
+
+// Copies from an MDL into a destination buffer in a "gather" operation.
+void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t Size);

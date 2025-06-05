@@ -42,9 +42,8 @@ typedef struct _FCB
 	
 	CCB PageCache;
 	
-	// Using a spin lock might improve latency? TODO: Profiling, etc
 	RBTREE ViewCache;
-	KSPIN_LOCK ViewCacheLock;
+	KMUTEX ViewCacheMutex;
 	
 	// FILE_TYPE
 	uint8_t FileType;

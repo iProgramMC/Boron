@@ -14,8 +14,12 @@ Author:
 ***/
 #pragma once
 
+#include <main.h>
+
 typedef struct _MMVAD_ENTRY MMVAD, *PMMVAD;
 typedef struct _FCB FCB, *PFCB;
+typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
+typedef struct _MDL MDL, *PMDL;
 
 // -- View Cache LRU List --
 
@@ -39,3 +43,18 @@ void CcPurgeViewsOverLimit(int LeaveSpaceFor);
 // Purge any VADs associated with this FCB.
 // This function is to be called when the FCB loses its last reference.
 void CcPurgeViewsForFile(PFCB Fcb);
+
+// Reads the contents of a file and copies them to a buffer.
+BSTATUS CcReadFileMdl(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	PMDL Mdl
+);
+
+// Reads the contents of a file and copies them to a buffer.
+BSTATUS CcReadFileCopy(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	void* Buffer,
+	size_t Size
+);
