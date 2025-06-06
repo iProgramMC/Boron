@@ -18,4 +18,4 @@ Author:
 #include <main.h>
 #include <io.h>
 
-BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice);
+BSTATUS Ext2Mount(PFILE_OBJECT);

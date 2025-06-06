@@ -52,61 +52,6 @@ void IopInitPartitionManager()
 	InitializeListHead(&IopFileSystemListHead);
 }
 
-BSTATUS IopReadFromDeviceObject(PDEVICE_OBJECT DeviceObject, uint8_t* Data, size_t Size, uint64_t Offset)
-{
-	MMPFN TempPage = MmAllocatePhysicalPage();
-	if (TempPage == PFN_INVALID)
-		return STATUS_INSUFFICIENT_MEMORY;
-	
-	UNUSED BSTATUS Status = STATUS_SUCCESS;
-	
-	MDL_ONEPAGE Mdl;
-	MmInitializeSinglePageMdl(&Mdl, TempPage, MDL_FLAG_WRITE);
-	
-	PFCB Fcb = DeviceObject->Fcb;
-	PIO_DISPATCH_TABLE Dispatch = DeviceObject->DispatchTable;
-	
-	ASSERT(Fcb);
-	ASSERT(Dispatch);
-	
-	uint32_t Flags = 0;
-	
-	if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
-	{
-		Flags |= IO_RW_LOCKEDEXCLUSIVE;
-		Status = IoLockFcbExclusive(Fcb);
-	}
-	else
-	{
-		Status = IoLockFcbShared(Fcb);
-	}
-	
-	if (FAILED(Status))
-		goto Done2;
-	
-	IO_READ_METHOD ReadMethod = Dispatch->Read;
-	if (!ReadMethod)
-	{
-		Status = STATUS_UNSUPPORTED_FUNCTION;
-		goto Done;
-	}
-	
-	IO_STATUS_BLOCK Iosb;
-	memset(&Iosb, 0, sizeof Iosb);
-	
-	Status = ReadMethod(&Iosb, Fcb, Offset, &Mdl.Base, Flags);
-	
-	if (SUCCEEDED(Status))
-		memcpy(Data, MmGetHHDMOffsetAddr(MmPFNToPhysPage(TempPage)), Size);
-	
-Done:
-	IoUnlockFcb(Fcb);
-Done2:
-	MmFreeMdl(&Mdl.Base);
-	MmFreePhysicalPage(TempPage);
-	return Status;
-}
-
 static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition, int Number)
 {
 	// Create the partition object.
@@ -122,20 +67,37 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 	if (FAILED(Status))
 		KeCrash("Cannot create partition object: %d (%s).", Status, RtlGetStatusString(Status)); // TODO: More comprehensive debug info.
 	
+	// Open this partition as a file.
+	PFILE_OBJECT FileObject;
+	Status = IoOpenDeviceObject(Object, &FileObject, 0, 0);
+	if (FAILED(Status))
+		KeCrash("Cannot open newly created partition device object as a file: %d (%s)", Status, RtlGetStatusString(Status));
+	
 	// Check the registerable file systems.
 	PLIST_ENTRY Entry = IopFileSystemListHead.Flink;
 	while (Entry != &IopFileSystemListHead)
 	{
 		PIO_DISPATCH_TABLE Dispatch = CONTAINING_RECORD(Entry, IO_DISPATCH_TABLE, FileSystemListEntry);
-		
 		ASSERT(Dispatch->Mount);
 		
-		BSTATUS Status = Dispatch->Mount(Object);
+		// Add a reference to the file object.
+		ObReferenceObjectByPointer(FileObject);
+		
+		// Try to mount.
+		BSTATUS Status = Dispatch->Mount(FileObject);
 		if (FAILED(Status) && Status != STATUS_NOT_THIS_FILE_SYSTEM)
 			KeCrash("Failed to mount partition %d: %d (%s)", Number, Status, RtlGetStatusString(Status));
 		
+		// If the mount failed (because this is not the right file system), then
+		// they don't need this reference and we can dereference it here.
+		if (FAILED(Status))
+			ObDereferenceObject(FileObject);
+		
 		Entry = Entry->Flink;
 	}
+	
+	// Remove this function's reference to the object.
+	ObDereferenceObject(FileObject);
 }
 
 static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
@@ -146,10 +108,16 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 	LogMsg("Scanning %s for partitions...", Name);
 #endif
 	
+	PFILE_OBJECT FileObject;
+	Status = IoOpenDeviceObject(Device, &FileObject, 0, 0);
+	if (FAILED(Status))
+		KeCrash("Cannot open newly disk device object as a file: %d (%s)", Status, RtlGetStatusString(Status));
+	
 	// Try MBR first
 	uint8_t Header[512];
 	
-	Status = IopReadFromDeviceObject(Device, Header, sizeof Header, 0);
+	IO_STATUS_BLOCK Iosb;
+	Status = IoReadFile(&Iosb, FileObject, Header, sizeof Header, 0, true);
 	if (FAILED(Status))
 		goto Done;
 	

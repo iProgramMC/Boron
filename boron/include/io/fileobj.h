@@ -31,21 +31,3 @@ typedef struct _FILE_OBJECT
 	uint32_t OpenFlags;
 }
 FILE_OBJECT, *PFILE_OBJECT;
-
-BSTATUS IoReadFile(
-	PIO_STATUS_BLOCK Iosb,
-	PFILE_OBJECT FileObject,
-	void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached
-);
-
-BSTATUS IoWriteFile(
-	PIO_STATUS_BLOCK Iosb,
-	PFILE_OBJECT FileObject,
-	const void* Buffer,
-	size_t Size,
-	uint64_t FileOffset,
-	bool Cached
-);

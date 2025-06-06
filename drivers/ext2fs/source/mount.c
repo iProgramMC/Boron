@@ -14,9 +14,9 @@ Author:
 ***/
 #include "ext2.h"
 
-BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice)
+BSTATUS Ext2Mount(PFILE_OBJECT BackingFile)
 {
 	// TODO
-	LogMsg("Ext2: Attempt to mount from %p", BackingDevice);
+	LogMsg("Ext2: Attempt to mount from %p", BackingFile);
 	return STATUS_UNIMPLEMENTED;
 }

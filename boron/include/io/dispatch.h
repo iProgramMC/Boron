@@ -26,8 +26,8 @@ typedef struct _FCB FCB, *PFCB;
 // - The BSTATUS returned must have the same value as the value inside the "Status" pointer, if it exists.
 //
 // - IO_MOUNT_METHOD returns whether or not this device object (e.g. a partition on a drive, or a floppy diskette, etc)
-//   contains the file system described by this dispatch table.  If it does, the file system will try to mount this file
-//   system and set the host device's MountRoot to it.
+//   (actually a file object that *can* refer to a device object), contains the file system described by this dispatch table.
+//   If it does, the file system will try to mount this file system and set the host device's MountRoot to it.
 //   Otherwise, it will return a non-zero error code.  On debug builds, any status codes other than STATUS_NOT_THIS_FILE_SYSTEM
 //   will throw up an assertion error.
 //
@@ -97,7 +97,7 @@ typedef struct _FCB FCB, *PFCB;
 //   with block size alignment.  If the alignment value is 1, then there is no alignment requirement.  If this method
 //   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
 //
-typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice);
+typedef BSTATUS(*IO_MOUNT_METHOD)      (PFILE_OBJECT BackingFile);
 typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);

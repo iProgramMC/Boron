@@ -30,6 +30,10 @@ BSTATUS IoPerformPagingRead(
 
 #endif
 
+BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);
+
+BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);
+
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);

@@ -88,6 +88,8 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 	// First of all, fetch the VAD from this pointer.
 	MiLockVadList(&MiSystemVadList);
 	
+	DbgPrint("MmUnmapViewOfFileInSystemSpace(%p)", ViewPointer);
+	
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&MiSystemVadList.Tree, (uintptr_t) ViewPointer);
 	ASSERT(Entry && "Bad pointer passed into MmUnmapViewOfFileInSystemSpace");
 	
