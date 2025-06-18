@@ -55,9 +55,9 @@ void IopInitPartitionManager()
 static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition, int Number)
 {
 	// Create the partition object.
-	PDEVICE_OBJECT Object = NULL;
+	PDEVICE_OBJECT DeviceObject = NULL;
 	BSTATUS Status = IoCreatePartition(
-		&Object,
+		&DeviceObject,
 		Device,
 		MbrPartition->StartLBA * 512,
 		MbrPartition->PartSizeSectors * 512,
@@ -69,7 +69,7 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 	
 	// Open this partition as a file.
 	PFILE_OBJECT FileObject;
-	Status = IoOpenDeviceObject(Object, &FileObject, 0, 0);
+	Status = IoOpenDeviceObject(DeviceObject, &FileObject, 0, 0);
 	if (FAILED(Status))
 		KeCrash("Cannot open newly created partition device object as a file: %d (%s)", Status, RtlGetStatusString(Status));
 	
@@ -80,18 +80,22 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 		PIO_DISPATCH_TABLE Dispatch = CONTAINING_RECORD(Entry, IO_DISPATCH_TABLE, FileSystemListEntry);
 		ASSERT(Dispatch->Mount);
 		
-		// Add a reference to the file object.
+		// Add a reference to the device and file object.
+		ObReferenceObjectByPointer(DeviceObject);
 		ObReferenceObjectByPointer(FileObject);
 		
 		// Try to mount.
-		BSTATUS Status = Dispatch->Mount(FileObject);
+		BSTATUS Status = Dispatch->Mount(DeviceObject, FileObject);
 		if (FAILED(Status) && Status != STATUS_NOT_THIS_FILE_SYSTEM)
 			KeCrash("Failed to mount partition %d: %d (%s)", Number, Status, RtlGetStatusString(Status));
 		
 		// If the mount failed (because this is not the right file system), then
-		// they don't need this reference and we can dereference it here.
+		// they don't need these references and we can dereference them here.
 		if (FAILED(Status))
+		{
+			ObDereferenceObject(DeviceObject);
 			ObDereferenceObject(FileObject);
+		}
 		
 		Entry = Entry->Flink;
 	}
