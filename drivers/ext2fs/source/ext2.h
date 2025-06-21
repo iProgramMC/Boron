@@ -47,7 +47,7 @@ struct _EXT2_FILE_SYSTEM
 	EXT2_SUPERBLOCK SuperBlock;
 	
 	// If this file system is read only because it uses features that make it so.
-	bool IsReadOnly;
+	bool ForceReadOnly;
 };
 
 // ** Ext2 File System object type functions **

@@ -70,16 +70,16 @@ typedef union _EXT2_SUPERBLOCK
 		uint32_t LastCheckTime;
 		uint32_t MaximumCheckInterval;
 		uint32_t CreatorOSID;
-		uint32_t MajorVersion;
-		uint32_t ReservedBlockUid;
-		uint32_t ReservedBlockGid;
+		uint32_t Version;
+		uint16_t ReservedBlockUid;
+		uint16_t ReservedBlockGid;
 		
 		// Extended super block fields (EXT2_DYNAMIC_REV)
 		uint32_t FirstNonReservedInode;
 		uint16_t InodeStructureSize;
 		uint16_t BlockGroupNumber;
 		uint32_t CompatibleFeatures;
-		uint32_t IncompatibleFeaetures;
+		uint32_t IncompatibleFeatures;
 		uint32_t ReadOnlyFeatures;
 		uint8_t  FileSystemUUID[16];
 		char     VolumeName[16];
