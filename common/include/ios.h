@@ -77,6 +77,17 @@ typedef struct _IO_DIRECTORY_ENTRY
 	// Null-terminated file name.
 	char Name[IO_MAX_NAME];
 	
-	char Reserved[256 - IO_MAX_NAME];
+	union
+	{
+		char Reserved[256 - IO_MAX_NAME];
+		struct
+		{
+			uint64_t InodeNumber;
+			uint64_t NextOffset;
+			int Type;
+		};
+	};
 }
 IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
+
+static_assert(sizeof(IO_DIRECTORY_ENTRY) == 256);

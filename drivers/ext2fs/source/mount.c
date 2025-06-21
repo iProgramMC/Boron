@@ -76,10 +76,51 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 				Sb->ReadOnlyFeatures & EXT2_OPT_UNSUPPORTED_FLAGS
 			);
 		}
+		
+		// Fill in some details which are not hardcoded in EXT2_DYNAMIC_REV.
+		FileSystem->FirstInode = Sb->FirstNonReservedInode;
+		FileSystem->InodeSize = Sb->InodeStructureSize;
+	}
+	else
+	{
+		// These details are hardecoded in EXT2_GOOD_OLD_REV
+		FileSystem->FirstInode = EXT2_DEF_FIRST_INODE;
+		FileSystem->InodeSize = EXT2_DEF_INODE_SIZE;
 	}
 	
-	LogMsg("Ext2: Found a file system!");
-	return STATUS_UNIMPLEMENTED;
+	FileSystem->BlockSizeLog2 = 10 + Sb->BlockSizeLog2;
+	FileSystem->BlockSize    = 1024 << Sb->BlockSizeLog2;
+	FileSystem->FragmentSize = 1024 << Sb->FragmentSizeLog2;
+	FileSystem->InodesPerGroup = Sb->InodesPerGroup;
+	FileSystem->BlocksPerGroup = Sb->BlocksPerGroup;
+	
+	// Initialize the rest of the file system data structure.
+	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
+	InitializeRbTree(&FileSystem->InodeTree);
+	
+	// Read the "/" inode.  It is inode 2.
+	PFCB RootFcb;
+	Status = Ext2OpenInode(FileSystem, 2, &RootFcb);
+	if (FAILED(Status))
+	{
+		DbgPrint("Ext2: Failed to read root inode. %d (%s)", Status, RtlGetStatusString(Status));
+		goto Failure;
+	}
+	
+	PFILE_OBJECT RootFile;
+	Status = IoCreateFileObject(RootFcb, &RootFile, 0, 0);
+	if (FAILED(Status))
+	{
+		DbgPrint("Ext2: Failed to create file object for root dir. %d (%s)", Status, RtlGetStatusString(Status));
+		Ext2FreeInode(RootFcb);
+	}
+	
+	// Assign it as the mount root of this device object.
+	BackingDevice->MountRoot = RootFile;
+	
+	// Now we can return success, finally.
+	LogMsg("Ext2: Found file system on %s", Name);
+	
 	
 Failure:
 	ObDereferenceObject(FileSystem);

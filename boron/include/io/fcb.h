@@ -34,8 +34,6 @@ enum FILE_TYPE
 
 typedef struct _FCB
 {
-	PDEVICE_OBJECT DeviceObject;
-	
 	PIO_DISPATCH_TABLE DispatchTable;
 	
 	EX_RW_LOCK RwLock;
@@ -60,7 +58,7 @@ typedef struct _FCB
 FCB, *PFCB;
 
 // Allocates an FCB.  
-PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPaged);
+PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPaged);
 
 // Frees an FCB.
 void IoFreeFcb(PFCB Fcb);

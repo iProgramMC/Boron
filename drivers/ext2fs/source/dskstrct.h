@@ -39,6 +39,9 @@ Author:
 #define EXT2_REQ_USE_JOURNAL_DEV     (1 << 3)
 #define EXT2_REQ_UNSUPPORTED_FLAGS   ((-1) ^ (EXT2_REQ_DIR_TYPE_FIELD))
 
+#define EXT2_DEF_FIRST_INODE   11
+#define EXT2_DEF_INODE_SIZE    128
+
 #include <main.h>
 
 typedef union _EXT2_SUPERBLOCK

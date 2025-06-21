@@ -31,3 +31,6 @@ typedef struct _FILE_OBJECT
 	uint32_t OpenFlags;
 }
 FILE_OBJECT, *PFILE_OBJECT;
+
+// Create a file object. This doesn't actually open the object.
+BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);

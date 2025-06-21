@@ -98,9 +98,9 @@ typedef struct _FCB FCB, *PFCB;
 //   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
 //
 typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile);
-typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
+//typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
-typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
+//typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
 typedef bool   (*IO_SEEKABLE_METHOD)   (PFCB Fcb);
@@ -175,8 +175,8 @@ typedef struct _IO_DISPATCH_TABLE
 	uint32_t              Flags;
 	LIST_ENTRY            FileSystemListEntry;
 	IO_MOUNT_METHOD       Mount;
-	IO_CREATE_METHOD      Create;
-	IO_DELETE_METHOD      Delete;
+	//IO_CREATE_METHOD      Create;
+	//IO_DELETE_METHOD      Delete;
 	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_OBJ_METHOD  DeleteObject;
 	IO_DEREFERENCE_METHOD Dereference;

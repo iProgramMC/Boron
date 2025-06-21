@@ -37,7 +37,7 @@ bool IopInitializeDevicesDir()
 
 BSTATUS IoOpenDeviceObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {
-	BSTATUS Status = IopCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
+	BSTATUS Status = IoCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
 	
 	// TODO: Permission inheritance
 	
@@ -82,7 +82,7 @@ BSTATUS IoCreateDevice(
 	
 	// Create the associated FCB.
 	DeviceObject->Fcb = IoAllocateFcb(
-		DeviceObject,
+		DeviceObject->DispatchTable,
 		FcbExtensionSize,
 		true
 	);

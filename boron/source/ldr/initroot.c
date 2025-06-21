@@ -96,7 +96,7 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 	PFCB Fcb;
 	PINIT_ROOT_FCB_EXT Ext;
 	
-	Fcb = IoAllocateFcb(&LdrpInitRootDevice, sizeof(INIT_ROOT_FCB_EXT), true);
+	Fcb = IoAllocateFcb(LdrpInitRootDevice.DispatchTable, sizeof(INIT_ROOT_FCB_EXT), true);
 	if (!Fcb)
 	{
 		DbgPrint("Ldr: Could not create FCB for file %s - out of memory", File->path);

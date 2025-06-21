@@ -16,6 +16,7 @@ Author:
 
 IO_DISPATCH_TABLE Ext2DispatchTable =
 {
+	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
 };
 

@@ -13,7 +13,7 @@ Author:
 ***/
 #include "iop.h"
 
-PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPaged)
+PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPaged)
 {
 	// Allocate the actual FCB object.
 	PFCB Fcb = MmAllocatePool (NonPaged ? POOL_NONPAGED : POOL_PAGED, sizeof(FCB) + ExtensionSize);
@@ -21,8 +21,7 @@ PFCB IoAllocateFcb(PDEVICE_OBJECT DeviceObject, size_t ExtensionSize, bool NonPa
 	if (!Fcb)
 		return NULL;
 	
-	Fcb->DeviceObject = DeviceObject;
-	Fcb->DispatchTable = DeviceObject->DispatchTable;
+	Fcb->DispatchTable = Dispatch;
 	Fcb->ExtensionSize = ExtensionSize;
 	
 	MmInitializeCcb(&Fcb->PageCache);

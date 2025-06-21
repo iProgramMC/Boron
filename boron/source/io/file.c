@@ -24,8 +24,8 @@ bool IoIsSeekable(PFCB Fcb)
 	return Seekable(Fcb);
 }
 
-// Create a file object. This doesn't actually open the object.
-BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
+// Create a file object from an FCB.
+BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {
 	BSTATUS Status;
 	
@@ -56,9 +56,8 @@ BSTATUS IopCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, u
 	
 	// Call the FCB's create object method, if it exists.
 	//
-	// This will NOT add a reference to the FCB -- the job of adding the reference
-	// falls back to the file system driver (FSD), because only it can add the
-	// reference in a thread-safe way.
+	// This should add a reference to the FCB through the file system driver
+	// (FSD) -- the kernel does not actually manage FCBs' reference counts!
 	IO_CREATE_OBJ_METHOD CreateObjMethod = Fcb->DispatchTable->CreateObject;
 	
 	if (CreateObjMethod)

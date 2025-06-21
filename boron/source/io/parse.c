@@ -72,20 +72,16 @@ static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const cha
 	// Note that ParseDir will have added a reference to the FCB.
 	PFILE_OBJECT* OutObject2 = (PFILE_OBJECT*) OutObject;
 	
-	Status = IopCreateFileObject(
+	Status = IoCreateFileObject(
 		FoundFcb,
 		OutObject2,
 		0,
 		0
 	);
 	
-	// this should be removed soon.  The FCB doesn't stay referenced if IopCreateFileObject failed.
-	/*
-	// If the file object couldn't be created (due to out of memory issues for example), then
-	// the found FCB will be dereferenced immediately.
-	if (FAILED(Status))
-		IoDereferenceFcb(FoundFcb);
-	*/
+	// Remove this function's reference.
+	// IoCreateFileObject creates a reference of its own.
+	IoDereferenceFcb(FoundFcb);
 	
 	return Status;
 }
