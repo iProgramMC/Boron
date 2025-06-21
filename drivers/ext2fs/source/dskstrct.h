@@ -14,6 +14,31 @@ Author:
 ***/
 #pragma once
 
+#define EXT2_SIGNATURE    (0xEF53)
+#define EXT2_INVALID_NODE (~0U)
+
+// optional features
+#define EXT2_OPT_PREALLOCATE         (1 << 0)
+#define EXT2_OPT_AFS_SERVER_INODES   (1 << 1)
+#define EXT2_OPT_JOURNAL             (1 << 2)
+#define EXT2_OPT_INODE_EXT_ATTRS     (1 << 3)
+#define EXT2_OPT_FS_RESIZE_SELF      (1 << 4)
+#define EXT2_OPT_DIRS_USE_HASH_INDEX (1 << 5)
+#define EXT2_OPT_UNSUPPORTED_FLAGS   ((-1) ^ (0))
+
+// read-only features
+#define EXT2_ROF_SPARSE_SBLOCKS_AND_GDTS (1 << 0)
+#define EXT2_ROF_FS_USES_64_BIT_SIZES    (1 << 1)
+#define EXT2_ROF_DIR_IN_BINARY_TREE      (1 << 2)
+#define EXT2_ROF_UNSUPPORTED_FLAGS   ((-1) ^ (EXT2_ROF_FS_USES_64_BIT_SIZES | EXT2_ROF_SPARSE_SBLOCKS_AND_GDTS))
+
+// required features
+#define EXT2_REQ_COMPRESSION_USED    (1 << 0)
+#define EXT2_REQ_DIR_TYPE_FIELD      (1 << 1)
+#define EXT2_REQ_REPLAY_JOURNAL      (1 << 2)
+#define EXT2_REQ_USE_JOURNAL_DEV     (1 << 3)
+#define EXT2_REQ_UNSUPPORTED_FLAGS   ((-1) ^ (EXT2_REQ_DIR_TYPE_FIELD))
+
 #include <main.h>
 
 typedef union _EXT2_SUPERBLOCK

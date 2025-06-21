@@ -24,8 +24,8 @@ static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
 
 void PerformMm5Test_()
 {
-	const int Offset = 0;
-	const bool DoUncachedRead = true;
+	const int Offset = 0x7E00 + 1024;
+	const bool DoUncachedRead = false;
 	
 	BSTATUS Status;
 	HANDLE FileHandle;

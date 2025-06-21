@@ -55,7 +55,7 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 #error TODO: Should we just use 64-bit keys throughout? The RB trees currently have 32-bit keys.
 #endif
 	
-	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Fcb->ViewCache, FileOffset & (VIEW_CACHE_SIZE - 1));
+	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Fcb->ViewCache, FileOffset & ~(VIEW_CACHE_SIZE - 1));
 	if (Entry)
 	{
 		// Already exists!  Just return it then.
@@ -70,7 +70,7 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 			&View,
 			VIEW_CACHE_SIZE,
 			MEM_RESERVE | MEM_COMMIT,
-			FileOffset & (VIEW_CACHE_SIZE - 1),
+			FileOffset & ~(VIEW_CACHE_SIZE - 1),
 			PAGE_READ | PAGE_WRITE
 		);
 	}

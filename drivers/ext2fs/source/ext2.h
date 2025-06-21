@@ -45,9 +45,14 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT, PFILE_OBJECT);
 struct _EXT2_FILE_SYSTEM
 {
 	EXT2_SUPERBLOCK SuperBlock;
+	
+	// If this file system is read only because it uses features that make it so.
+	bool IsReadOnly;
 };
 
 // ** Ext2 File System object type functions **
 extern POBJECT_TYPE Ext2FileSystemType;
 
 void Ext2DeleteFileSystem(void* FileSystemV);
+
+BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out);

@@ -16,9 +16,41 @@ Author:
 
 BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 {
-	// First of all, ensure that this is truly an ext2 file system.
+	LogMsg("Sup");
+	PEXT2_FILE_SYSTEM FileSystem;
+	BSTATUS Status;
 	
+	// Create the Ext2 file system object.
+	Status = Ext2CreateFileSystemObject(&FileSystem);
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: %d (%s) at mount.c:%d", Status, RtlGetStatusString(Status), __LINE__);
+		return Status;
+	}
+	
+	// Read the super block into it.
+	Status = CcReadFileCopy(BackingFile, 1024, &FileSystem->SuperBlock, sizeof(EXT2_SUPERBLOCK));
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: %d (%s) at mount.c:%d", Status, RtlGetStatusString(Status), __LINE__);
+		goto Failure;
+	}
+	
+	// Check if the signature is correct.
+	if (FileSystem->SuperBlock.Ext2Signature != EXT2_SIGNATURE)
+	{
+		Status = STATUS_NOT_THIS_FILE_SYSTEM;
+		DbgPrint("ERROR: %d (%s) at mount.c:%d   Sig: %04x", Status, RtlGetStatusString(Status), __LINE__, FileSystem->SuperBlock.Ext2Signature);
+		goto Failure;
+	}
+	
+	// Check if there are any required features.
+	
+	
+	LogMsg("Ext2: Found a file system!");
 	return STATUS_UNIMPLEMENTED;
+	
+Failure:
+	ObDereferenceObject(FileSystem);
+	return Status;
 }
 
 void Ext2DeleteFileSystem(void* FileSystemV)

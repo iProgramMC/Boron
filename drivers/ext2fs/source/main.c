@@ -23,12 +23,39 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 // can track the number of references to the Ext2 file system
 // instance using the object manager's reference counting
 // mechanisms.
+//
+// This object is not exposed in the object namespace because
+// we don't need to do that. What we *do* expose is the
+// actual device object that acts as a mount point.
 OBJECT_TYPE_INFO Ext2FileSystemTypeInfo =
 {
 	.Delete = Ext2DeleteFileSystem,
 };
 
 POBJECT_TYPE Ext2FileSystemType;
+
+BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
+{
+	void* Object = NULL;
+	BSTATUS Status = ObCreateObject(
+		&Object,
+		NULL,
+		Ext2FileSystemType,
+		NULL,
+		OB_FLAG_KERNEL | OB_FLAG_NO_DIRECTORY,
+		NULL,
+		sizeof(EXT2_FILE_SYSTEM)
+	);
+	
+	if (FAILED(Status))
+	{
+		LogMsg("Ext2: failed to create file system object: %d (%s)", Status, RtlGetStatusString(Status));
+		return Status;
+	}
+	
+	*Out = Object;
+	return STATUS_SUCCESS;
+}
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {

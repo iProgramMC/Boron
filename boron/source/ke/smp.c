@@ -31,7 +31,6 @@ KPRCB** KiGetProcessorList() { return KeProcessorList; }
 // TODO: an "init data" section.  Currently there's not much in the data segment
 // that can be considered worthy of being purged after system initialization.
 KTHREAD  KiExInitThread;
-uint8_t  KiExInitThreadStack[8192];
 
 int KeGetProcessorCount()
 {
@@ -73,12 +72,16 @@ void KiCPUBootstrap(struct limine_smp_info* pInfo)
 	
 	if (Prcb->IsBootstrap)
 	{
+		void* Stack = MmAllocateKernelStack();
+		if (!Stack)
+			KeCrash("Could not allocate kernel stack for executive init.");
+		
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
 		KeInitializeThread2(
 			&KiExInitThread,
-			KiExInitThreadStack,
-			sizeof KiExInitThreadStack,
+			Stack,
+			KERNEL_STACK_SIZE,
 			ExpInitializeExecutive,
 			NULL,
 			KeGetSystemProcess()
