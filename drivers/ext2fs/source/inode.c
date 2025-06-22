@@ -24,6 +24,41 @@ Author:
 #define DemoteBlockRwlockToShared(in)   ExDemoteToSharedRwLock(&(in)->BlockRwlock)
 #define ReleaseBlockRwlock(in) ExReleaseRwLock(&(in)->BlockRwlock)
 
+uint64_t Ext2FileSize(PFCB Fcb)
+{
+	PREP_EXT;
+	
+	if (Ext->OwnerFS->SuperBlock.Version == 0)
+		return Ext->Inode.Size;
+	else
+		return Ext->Inode.Size | ((uint64_t) Ext->Inode.SizeUpper << 32);
+}
+
+int Ext2TypeIndicatorToFileType(uint8_t TypeIndicator)
+{
+	switch (TypeIndicator)
+	{
+		case EXT2_FT_REG_FILE:
+			return FILE_TYPE_FILE;
+		case EXT2_FT_DIR:
+			return FILE_TYPE_DIRECTORY;
+		case EXT2_FT_SYMLINK:
+			return FILE_TYPE_SYMBOLIC_LINK;
+		
+		// now, how could *these* be the case?!
+		case EXT2_FT_CHRDEV:
+			return FILE_TYPE_CHARACTER_DEVICE;
+		case EXT2_FT_BLKDEV:
+			return FILE_TYPE_BLOCK_DEVICE;
+		case EXT2_FT_FIFO:
+			return FILE_TYPE_PIPE;
+		case EXT2_FT_SOCK:
+			return FILE_TYPE_SOCKET;
+		default:
+			return FILE_TYPE_UNKNOWN;
+	}
+}
+
 PFCB Ext2CreateFcb(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber)
 {
 	PFCB Fcb = IoAllocateFcb(&Ext2DispatchTable, sizeof(EXT2_FCB_EXT), false);
@@ -323,6 +358,16 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	Size = MdlBuffer->ByteCount;
 	MdlOffset = 0;
 	
+	uint64_t FileSize = Ext2FileSize(Fcb);
+	
+	// Check for an overflow.
+	if (Size + Offset < Size || Size + Offset < Offset)
+		return IOSB_STATUS(Iosb, STATUS_INVALID_PARAMETER);
+	
+	// Ensure a cap over the size of the file.
+	if (Size + Offset >= FileSize)
+		Size = FileSize - Offset;
+	
 	// TODO: A better way?
 	uint8_t* BlockBuffer = MmAllocatePool(POOL_NONPAGED, FileSystem->BlockSize);
 	if (!BlockBuffer)
@@ -374,4 +419,76 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	
 	MmFreePool(BlockBuffer);
 	return Status;
+}
+
+BSTATUS Ext2ReadCopy(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, void* Buffer, size_t Size, uint32_t Flags)
+{
+	PMDL Mdl;
+	BSTATUS Status;
+	
+	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+	
+	Status = Ext2Read(Iosb, Fcb, Offset, Mdl, Flags);
+	
+	MmFreeMdl(Mdl);
+	
+	return Status;
+}
+
+BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
+{
+	BSTATUS Status;
+	PREP_EXT;
+	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
+	
+	// TODO: Check if this file was modified by comparing the Version
+	// with the FCB's version.  If it was, then we need to re-validate
+	// the current offset.
+	(void) Version;
+	
+	EXT2_DIRENT Dirent;
+	uint64_t NewVersion = Ext->Version;
+	
+	if (Offset >= Ext2FileSize(Fcb))
+		return STATUS_END_OF_FILE;
+	
+	// Since we can only do reads at the moment, just read.
+	Status = Ext2ReadCopy(Iosb, Fcb, Offset, &Dirent, sizeof(EXT2_DIRENT), 0);
+	if (FAILED(Status))
+		return Status;
+	
+	if (Iosb->BytesRead < sizeof(EXT2_DIRENT))
+		return STATUS_END_OF_FILE;
+	
+	// Read the name, and ensure fits within our IO_NAME_MAX-1 characters.
+	size_t NameLength = Dirent.NameLength;
+	if (FileSystem->SuperBlock.Version == 0)
+		NameLength = Dirent.NameLength16;
+	
+	if (NameLength < IO_MAX_NAME - 1)
+		NameLength = IO_MAX_NAME - 1;
+	
+	Status = Ext2ReadCopy(Iosb, Fcb, Offset + sizeof(EXT2_DIRENT), &DirectoryEntry->Name, NameLength, 0);
+	if (FAILED(Status))
+		return Status;
+	
+	if (Iosb->BytesRead < NameLength)
+		return STATUS_END_OF_FILE;
+	
+	DirectoryEntry->Name[NameLength] = 0;
+	
+	// Also fill in the inode # and type.
+	DirectoryEntry->InodeNumber = Dirent.InodeNumber;
+	
+	if (FileSystem->SuperBlock.Version == 0)
+		DirectoryEntry->Type = FILE_TYPE_UNKNOWN;
+	else
+		DirectoryEntry->Type = Ext2TypeIndicatorToFileType(Dirent.TypeIndicator);
+	
+	Iosb->ReadDir.NextOffset = Offset + sizeof(EXT2_DIRENT) + Dirent.RecordLength;
+	Iosb->ReadDir.Version = NewVersion;
+	
+	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }

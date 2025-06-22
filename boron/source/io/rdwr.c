@@ -75,6 +75,31 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
+BSTATUS IoReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
+{
+	BSTATUS Status;
+	ASSERT(FileObject);
+	
+	PFCB Fcb = FileObject->Fcb;
+	ASSERT(Fcb);
+	ASSERT(Fcb->DispatchTable);
+	
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	Status = IoLockFcbShared(Fcb);
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+	
+	IO_READ_DIR_METHOD ReadDir = Dispatch->ReadDir;
+	if (ReadDir)
+		Status = ReadDir(Iosb, Fcb, Offset, Version, DirectoryEntry);
+	else
+		Status = IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	
+	IoUnlockFcb(Fcb);
+	return Status;
+}
+
 static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
 	ASSERT(FileObject);

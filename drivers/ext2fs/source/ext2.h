@@ -47,6 +47,10 @@ typedef struct _EXT2_FCB_EXT
 	// This FCB's location in the file system's inode tree.
 	bool AddedToInodeTree;
 	RBTREE_ENTRY InodeTreeEntry;
+	
+	// This field tells us whether or not we need to re-validate
+	// when performing a "read directory" operation.
+	uint64_t Version;
 }
 EXT2_FCB_EXT, *PEXT2_FCB_EXT;
 
@@ -69,6 +73,8 @@ void Ext2DereferenceInode(PFCB Fcb);
 bool Ext2Seekable(PFCB Fcb);
 
 BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
+
+BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
 
 // *** Ext2 File System Struct ***
 

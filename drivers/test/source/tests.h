@@ -33,3 +33,4 @@ void PerformMm2Test(void);
 void PerformMm3Test(void);
 void PerformMm4Test(void);
 void PerformMm5Test(void);
+void PerformFs1Test(void);

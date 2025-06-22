@@ -76,10 +76,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
+CFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL -DIS_KERNEL_MODE $(DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL $(DEFINES)
+CXXFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL -DIS_KERNEL_MODE $(DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(DDKI_DIR)

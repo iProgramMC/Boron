@@ -34,6 +34,8 @@ BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, void* Buffer,
 
 BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);
 
+BSTATUS IoReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
+
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);

@@ -25,6 +25,14 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - The BSTATUS returned must have the same value as the value inside the "Status" pointer, if it exists.
 //
+// - IO_READ_METHOD and IO_WRITE_METHOD are protected by a rwlock associated with the FCB.  By default, this rwlock
+//   is locked shared, but when the system decides it'd be more efficient to be locked exclusive, the IO_RW_LOCKEDEXCLUSIVE
+//   flag is passed.
+//
+// - Careful! IO_READ_METHOD and IO_WRITE_METHOD may be called from the context of multiple threads at the same time!
+//   Device and FS drivers must take care to prevent race conditions in this regard.  Note that this may be disabled
+//   by setting a flag in the dispatch table.
+//
 // - IO_MOUNT_METHOD returns whether or not this device object (e.g. a partition on a drive, or a floppy diskette, etc)
 //   (actually a file object that *can* refer to a device object), contains the file system described by this dispatch table.
 //   If it does, the file system will try to mount this file system and set the host device's MountRoot to it.
@@ -81,10 +89,6 @@ typedef struct _FCB FCB, *PFCB;
 // - IO_DEREFERENCE_METHOD is the method called when a reference to the FCB is deleted. For example, a file object being
 //   deleted will call this function on its FCB.
 //
-// - Careful! IO_READ_METHOD and IO_WRITE_METHOD may be called from the context of multiple threads at the same time!
-//   Device and FS drivers must take care to prevent race conditions in this regard.  Note that this may be disabled
-//   by setting a flag in the dispatch table.
-//
 // - For IO_WRITE_METHOD, IsLockedExclusively is used when determining whether to drop the FCB's rwlock and re-acquire
 //   it exclusively for expansion.
 //
@@ -110,7 +114,7 @@ typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_
 typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
-typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, int ParseLoopCount);
 typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);

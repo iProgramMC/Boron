@@ -161,3 +161,34 @@ typedef struct _EXT2_INODE
 EXT2_INODE, *PEXT2_INODE;
 
 static_assert(sizeof(EXT2_INODE) == 128);
+
+typedef struct _EXT2_DIRENT
+{
+	uint32_t InodeNumber;
+	uint16_t RecordLength;
+	
+	union
+	{
+		struct
+		{
+			uint8_t NameLength;
+			uint8_t TypeIndicator;
+		};
+		
+		uint16_t NameLength16;
+	};
+}
+EXT2_DIRENT, *PEXT2_DIRENT;
+
+enum
+{
+	EXT2_FT_UNKNOWN,
+	EXT2_FT_REG_FILE,
+	EXT2_FT_DIR,
+	EXT2_FT_CHRDEV,
+	EXT2_FT_BLKDEV,
+	EXT2_FT_FIFO,
+	EXT2_FT_SOCK,
+	EXT2_FT_SYMLINK
+};
+

@@ -14,48 +14,8 @@ Author:
 ***/
 #include "ext2.h"
 
-#include <string.h>
-void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
-{
-	uint8_t* Data = DataV;
-	
-	#define A(x) (((x) >= 0x20 && (x) <= 0x7F) ? (x) : '.')
-	
-	const size_t PrintPerRow = 32;
-	
-	for (size_t i = 0; i < DataSize; i += PrintPerRow) {
-		char Buffer[256];
-		Buffer[0] = 0;
-		
-		//sprintf(Buffer + strlen(Buffer), "%04lx: ", i);
-		sprintf(Buffer + strlen(Buffer), "%p: ", Data + i);
-		
-		for (size_t j = 0; j < PrintPerRow; j++) {
-			if (i + j >= DataSize)
-				strcat(Buffer, "   ");
-			else
-				sprintf(Buffer + strlen(Buffer), "%02x ", Data[i + j]);
-		}
-		
-		strcat(Buffer, "  ");
-		
-		for (size_t j = 0; j < PrintPerRow; j++) {
-			if (i + j >= DataSize)
-				strcat(Buffer, " ");
-			else
-				sprintf(Buffer + strlen(Buffer), "%c", A(Data[i + j]));
-		}
-		
-		if (LogScreen)
-			LogMsg("%s", Buffer);
-		else
-			DbgPrint("%s", Buffer);
-	}
-}
-
 BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 {
-	LogMsg("Sup");
 	PEXT2_FILE_SYSTEM FileSystem;
 	PEXT2_SUPERBLOCK Sb;
 	BSTATUS Status;
@@ -159,50 +119,6 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 	
 	// Assign it as the mount root of this device object.
 	BackingDevice->MountRoot = RootFile;
-	
-	// Let's actually print some data about the root inode though.
-	PEXT2_INODE I = &EXT(RootFcb)->Inode;
-	LogMsg(
-		"Info about the root inode:\n"
-		"Mode: %u\n"
-		"Uid: %u\n"
-		"Gid: %u\n"
-		"Size: %u\n"
-		"AccessTime: %u\n"
-		"CreateTime: %u\n"
-		"ModifyTime: %u\n"
-		"DeleteTime: %u\n"
-		"LinkCount: %u\n"
-		"BlockCount: %u\n"
-		"Flags: %u\n"
-		"DirectBlockPointer0: %u\n"
-		"DirectBlockPointer1: %u",
-		I->Mode,
-		I->Uid,
-		I->Gid,
-		I->Size,
-		I->AccessTime,
-		I->CreateTime,
-		I->ModifyTime,
-		I->DeleteTime,
-		I->LinkCount,
-		I->BlockCount,
-		I->Flags,
-		I->DirectBlockPointer[0],
-		I->DirectBlockPointer[1]
-	);
-	
-	// Now try and read the root inode!
-	uint8_t *Data = MmAllocatePool(POOL_NONPAGED, 4096);
-	Status = CcReadFileCopy(RootFile, 0, Data, 4096);
-	if (FAILED(Status))
-		KeCrash("FAILED to read data from root file: %d (%s)", Status, RtlGetStatusString(Status));
-	
-	LogMsg("Here's the data from the root file.");
-	DumpHex(Data, 256, true);
-	
-	
-	MmFreePool(Data);
 	
 	// Now we can return success, finally.
 	LogMsg("Ext2: Found file system on %s", Name);

@@ -22,16 +22,6 @@ Author:
 #include <mm/cache.h>
 #include <io/dispatch.h>
 
-// Supported types of files:
-enum FILE_TYPE
-{
-	FILE_TYPE_UNKNOWN,
-	FILE_TYPE_FILE,
-	FILE_TYPE_DIRECTORY,
-	FILE_TYPE_BLOCK_DEVICE,
-	FILE_TYPE_CHARACTER_DEVICE,
-};
-
 typedef struct _FCB
 {
 	PIO_DISPATCH_TABLE DispatchTable;

@@ -20,6 +20,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
 	.Read = Ext2Read,
+	.ReadDir = Ext2ReadDir,
 	.Seekable = Ext2Seekable,
 };
 
