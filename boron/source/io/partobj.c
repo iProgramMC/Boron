@@ -22,7 +22,7 @@ typedef struct
 }
 FCB_PART_EXT, *PFCB_PART_EXT;
 
-static void IopPartitionCreateObject(PFCB Fcb, void* FileObject)
+static void IopPartitionCreateObject(PFCB Fcb, PFILE_OBJECT FileObject)
 {
 	ASSERT(Fcb->ExtensionSize == sizeof(FCB_PART_EXT));
 	PFCB_PART_EXT PartExt = (void*) Fcb->Extension;
@@ -31,7 +31,7 @@ static void IopPartitionCreateObject(PFCB Fcb, void* FileObject)
 		PartExt->Device->DispatchTable->CreateObject(PartExt->Device, FileObject);
 }
 
-static void IopPartitionDeleteObject(PFCB Fcb, void* FileObject)
+static void IopPartitionDeleteObject(PFCB Fcb, PFILE_OBJECT FileObject)
 {
 	ASSERT(Fcb->ExtensionSize == sizeof(FCB_PART_EXT));
 	PFCB_PART_EXT PartExt = (void*) Fcb->Extension;

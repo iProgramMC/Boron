@@ -88,13 +88,14 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 BSTATUS CcReadFileMdl(
 	PFILE_OBJECT FileObject,
 	uint64_t FileOffset,
-	PMDL Mdl
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
 )
 {
 	// TODO: Any possible race conditions?!
 	BSTATUS Status;
-	size_t Size = Mdl->ByteCount;
-	size_t MdlOffset = 0;
+	size_t Size = ByteCount;
 	
 	ASSERT(FileObject);
 	
@@ -153,7 +154,7 @@ BSTATUS CcReadFileCopy(
 	if (FAILED(Status))
 		return Status;
 	
-	Status = CcReadFileMdl(FileObject, FileOffset, Mdl);
+	Status = CcReadFileMdl(FileObject, FileOffset, Mdl, 0, Size);
 	
 	MmFreeMdl(Mdl);
 	

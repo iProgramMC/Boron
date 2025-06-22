@@ -16,8 +16,11 @@ Author:
 
 IO_DISPATCH_TABLE Ext2DispatchTable =
 {
+	.CreateObject = Ext2CreateObject,
 	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
+	.Read = Ext2Read,
+	.Seekable = Ext2Seekable,
 };
 
 // The only reason we make a type of object is so that we

@@ -19,6 +19,11 @@ Author:
 #define AcquireInodeTreeMutex(fs) KeWaitForSingleObject(&(fs)->InodeTreeMutex, false, TIMEOUT_INFINITE, MODE_KERNEL)
 #define ReleaseInodeTreeMutex(fs) KeReleaseMutex(&(fs)->InodeTreeMutex)
 
+#define AcquireBlockRwlockShared(in)    ExAcquireSharedRwLock(&(in)->BlockRwlock, false, false, false)
+#define AcquireBlockRwlockExclusive(in) ExAcquireExclusiveRwLock(&(in)->BlockRwlock, false, false)
+#define DemoteBlockRwlockToShared(in)   ExDemoteToSharedRwLock(&(in)->BlockRwlock)
+#define ReleaseBlockRwlock(in) ExReleaseRwLock(&(in)->BlockRwlock)
+
 PFCB Ext2CreateFcb(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber)
 {
 	PFCB Fcb = IoAllocateFcb(&Ext2DispatchTable, sizeof(EXT2_FCB_EXT), false);
@@ -31,6 +36,7 @@ PFCB Ext2CreateFcb(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber)
 	Ext->OwnerFS = FileSystem;
 	Ext->InodeTreeEntry.Key = InodeNumber;
 	ObReferenceObjectByPointer(FileSystem);
+	ExInitializeRwLock(&Ext->BlockRwlock);
 	
 	return Fcb;
 }
@@ -71,6 +77,11 @@ void Ext2ReferenceInode(PFCB Fcb)
 	{
 		// TODO: Freshly referenced, remove it off of the to-be-reclaimed list.
 	}
+}
+
+void Ext2CreateObject(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)
+{
+	Ext2ReferenceInode(Fcb);
 }
 
 void Ext2DereferenceInode(PFCB Fcb)
@@ -119,22 +130,6 @@ BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 	Status = Ext2ReadBlockGroupDescriptor(FileSystem, BlockGroup, &Descriptor);
 	if (FAILED(Status))
 		return Status;
-	
-	LogMsg(
-		"BGD:\n"
-		"	Block bitmap start: %u\n"
-		"	Inode bitmap start: %u\n"
-		"	Inode table start: %u\n"
-		"	Free blocks: %u\n"
-		"	Free inodes: %u\n"
-		"	Dir count: %u",
-		Descriptor.BlockBitmapBlockId,
-		Descriptor.InodeBitmapBlockId,
-		Descriptor.InodeTableBlockId,
-		Descriptor.FreeBlockCount,
-		Descriptor.FreeInodeCount,
-		Descriptor.DirectoryCount
-	);
 	
 	// Get the block group's inode table address and the
 	// inode's index within that block group table.
@@ -210,4 +205,165 @@ Retry:
 	
 	*OutFcb = Fcb;
 	return STATUS_SUCCESS;
+}
+
+// NOTE: The block rwlock must be locked!!
+BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlockOut)
+{
+	BSTATUS Status;
+	PREP_EXT;
+	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
+	
+	uintptr_t AddrsPerBlock = FileSystem->BlockSize >> 2;
+	
+	if (BlockIndex < 12)
+	{
+		// Oh, easy, this is just the index within the block.
+		*OnDiskBlockOut = Ext->Inode.DirectBlockPointer[BlockIndex];
+		return STATUS_SUCCESS;
+	}
+	
+	BlockIndex -= 12;
+	
+	// Is this the singly indirect block pointer.
+	if (BlockIndex < AddrsPerBlock)
+	{
+		if (Ext->Inode.SinglyIndirectBlockPointer)
+			goto ZeroBlock;
+		
+		uint64_t Address = BLOCK_ADDRESS(Ext->Inode.SinglyIndirectBlockPointer, FileSystem);
+		return CcReadFileCopy(FileSystem->File, Address + 4 * BlockIndex, OnDiskBlockOut, sizeof(uint32_t));
+	}
+	
+	BlockIndex -= AddrsPerBlock;
+	
+	// Is this the doubly indirect block pointer.
+	if (BlockIndex < AddrsPerBlock * AddrsPerBlock)
+	{
+		if (Ext->Inode.DoublyIndirectBlockPointer)
+			goto ZeroBlock;
+		
+		// TODO: Optimize these divisions away
+		uint32_t Part1 = BlockIndex / AddrsPerBlock;
+		uint32_t Part2 = BlockIndex % AddrsPerBlock;
+		uint64_t Address;
+		
+		Address = BLOCK_ADDRESS(Ext->Inode.DoublyIndirectBlockPointer, FileSystem);
+		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
+		if (FAILED(Status))
+			return Status;
+		
+		if (Part1 == 0)
+			goto ZeroBlock;
+		
+		Address = BLOCK_ADDRESS(Part1, FileSystem);
+		return CcReadFileCopy(FileSystem->File, Address + 4 * Part2, OnDiskBlockOut, sizeof(uint32_t));
+	}
+	
+	BlockIndex -= AddrsPerBlock;
+	
+	if (BlockIndex < AddrsPerBlock * AddrsPerBlock * AddrsPerBlock)
+	{
+		if (Ext->Inode.TriplyIndirectBlockPointer)
+			goto ZeroBlock;
+		
+		// TODO: Optimize these divisions away
+		uint32_t Part1 = BlockIndex / AddrsPerBlock / AddrsPerBlock;
+		uint32_t Part2 = BlockIndex / AddrsPerBlock % AddrsPerBlock;
+		uint32_t Part3 = BlockIndex % AddrsPerBlock;
+		uint64_t Address;
+		
+		Address = BLOCK_ADDRESS(Ext->Inode.TriplyIndirectBlockPointer, FileSystem);
+		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
+		if (FAILED(Status))
+			return Status;
+		
+		if (Part1 == 0)
+			goto ZeroBlock;
+		
+		Address = BLOCK_ADDRESS(Part1, FileSystem);
+		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part2, &Part2, sizeof(uint32_t));
+		if (FAILED(Status))
+			return Status;
+		
+		if (Part2 == 0)
+			goto ZeroBlock;
+		
+		Address = BLOCK_ADDRESS(Part2, FileSystem);
+		return CcReadFileCopy(FileSystem->File, Address + 4 * Part3, OnDiskBlockOut, sizeof(uint32_t));
+	}
+	
+	// Can't write more data
+	return STATUS_INSUFFICIENT_SPACE;
+	
+ZeroBlock:
+	*OnDiskBlockOut = 0;
+	return STATUS_SUCCESS;
+}
+
+#define IOSB_STATUS(iosb, stat) (iosb->Status = stat)
+
+bool Ext2Seekable(UNUSED PFCB Fcb)
+{
+	return true;
+}
+
+BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, UNUSED uint32_t Flags)
+{
+	BSTATUS Status;
+	size_t Size, MdlOffset;
+	size_t BytesRead = 0;
+	PEXT2_FILE_SYSTEM FileSystem;
+	
+	PREP_EXT;
+	FileSystem = Ext->OwnerFS;
+	
+	ASSERT(MdlBuffer->Flags & MDL_FLAG_WRITE);
+	
+	Size = MdlBuffer->ByteCount;
+	MdlOffset = 0;
+	
+	while (Size)
+	{
+		// Which block index is this offset within?
+		uint32_t BlockIndex = Offset >> FileSystem->BlockSizeLog2;
+		uint32_t OnDiskBlock = 0;
+		
+		AcquireBlockRwlockShared(Ext);
+		Status = Ext2FindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock);
+		ReleaseBlockRwlock(Ext);
+		if (FAILED(Status))
+			break;
+		
+		uint32_t BlockOffset = Offset & (FileSystem->BlockSize - 1);
+		
+		size_t BytesTillNext = FileSystem->BlockSize - BlockOffset;
+		size_t CopyAmount = Size;
+		if (CopyAmount > BytesTillNext)
+			CopyAmount = BytesTillNext;
+		
+		// Okay, now do the read itself.
+		if (OnDiskBlock)
+		{
+			// TODO we don't need to do cached crap please!
+			uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem) + BlockOffset;
+			Status = CcReadFileMdl(FileSystem->File, Address, MdlBuffer, MdlOffset, CopyAmount);
+			if (FAILED(Status))
+				break;
+		}
+		else
+		{
+			MmSetIntoMdl(MdlBuffer, MdlOffset, 0, CopyAmount);
+		}
+		
+		MdlOffset += CopyAmount;
+		Offset += CopyAmount;
+		BytesRead += CopyAmount;
+		Size -= CopyAmount;
+	}
+	
+	Iosb->BytesRead = BytesRead;
+	Iosb->Status = Status;
+	
+	return Status;
 }

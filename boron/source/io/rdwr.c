@@ -93,7 +93,7 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 	// If we may use caching, use the cache.
 	if (Cached)
 	{
-		return CcReadFileMdl(FileObject, Offset, Mdl);
+		return CcReadFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
 	}
 	
 	BSTATUS Status;

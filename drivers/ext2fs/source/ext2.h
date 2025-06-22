@@ -29,16 +29,24 @@ typedef struct _EXT2_FILE_SYSTEM EXT2_FILE_SYSTEM, *PEXT2_FILE_SYSTEM;
 // The FCB extension of an ext2 inode.
 typedef struct _EXT2_FCB_EXT
 {
+	// This inode's number.
 	uint32_t InodeNumber;
 	
+	// This inode's reference count.
+	uintptr_t ReferenceCount;
+	
+	// The on-disk representation of the file.
 	EXT2_INODE Inode;
 	
+	// This guards the direct block array.
+	EX_RW_LOCK BlockRwlock;
+	
+	// Back-pointer to the file system instance.
 	PEXT2_FILE_SYSTEM OwnerFS;
 	
+	// This FCB's location in the file system's inode tree.
 	bool AddedToInodeTree;
 	RBTREE_ENTRY InodeTreeEntry;
-	
-	uintptr_t ReferenceCount;
 }
 EXT2_FCB_EXT, *PEXT2_FCB_EXT;
 
@@ -54,8 +62,13 @@ extern IO_DISPATCH_TABLE Ext2DispatchTable;
 
 BSTATUS Ext2Mount(PDEVICE_OBJECT, PFILE_OBJECT);
 
+void Ext2CreateObject(PFCB Fcb, PFILE_OBJECT FileObject);
+
 void Ext2DereferenceInode(PFCB Fcb);
 
+bool Ext2Seekable(PFCB Fcb);
+
+BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
 
 // *** Ext2 File System Struct ***
 

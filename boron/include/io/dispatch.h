@@ -99,9 +99,9 @@ typedef struct _FCB FCB, *PFCB;
 //
 typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile);
 //typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
-typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
 //typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
-typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, void* FileObject);
+typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
+typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
 typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
 typedef bool   (*IO_SEEKABLE_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
