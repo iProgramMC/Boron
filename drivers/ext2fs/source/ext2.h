@@ -62,7 +62,8 @@ void Ext2DereferenceInode(PFCB Fcb);
 // The file system instance.  Has a reference for every in-memory inode.
 struct _EXT2_FILE_SYSTEM
 {
-	PDEVICE_OBJECT Device;
+	PDEVICE_OBJECT BackingDevice;
+	PFILE_OBJECT File;
 	
 	EXT2_SUPERBLOCK SuperBlock;
 	

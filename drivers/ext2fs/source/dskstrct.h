@@ -14,6 +14,8 @@ Author:
 ***/
 #pragma once
 
+#include <main.h>
+
 #define EXT2_SIGNATURE    (0xEF53)
 #define EXT2_INVALID_NODE (~0U)
 
@@ -42,7 +44,7 @@ Author:
 #define EXT2_DEF_FIRST_INODE   11
 #define EXT2_DEF_INODE_SIZE    128
 
-#include <main.h>
+#define BLOCK_ADDRESS(x, fs) (((uint64_t)(x)) << (fs)->BlockSizeLog2)
 
 typedef union _EXT2_SUPERBLOCK
 {

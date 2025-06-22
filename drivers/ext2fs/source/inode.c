@@ -85,13 +85,70 @@ void Ext2DereferenceInode(PFCB Fcb)
 	}
 }
 
+BSTATUS Ext2ReadBlockGroupDescriptor(PEXT2_FILE_SYSTEM FileSystem, uint32_t BlockGroup, PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor)
+{
+	// If the block's size is 1024, then the block group descriptor table
+	// is at block 2, otherwise it's bigger, so at block 1.
+	uint64_t Address = FileSystem->BlockSize == 1024 ? 2048 : 1024;
+	
+	Address += BlockGroup * sizeof(EXT2_BLOCK_GROUP_DESCRIPTOR);
+	
+	return CcReadFileCopy(
+		FileSystem->File,
+		Address,
+		Descriptor,
+		sizeof *Descriptor
+	);
+}
+
 BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 {
+	EXT2_BLOCK_GROUP_DESCRIPTOR Descriptor;
+	BSTATUS Status;
 	PREP_EXT;
 	
+	if (Ext->InodeNumber == 0)
+		return STATUS_INVALID_PARAMETER;
+	
+	uint32_t InodeNo = Ext->InodeNumber - 1;
+	
 	// Determine which block group this inode belongs to.
-	// TODO
-	return STATUS_UNIMPLEMENTED;
+	uint32_t InodesPerGroup = FileSystem->SuperBlock.InodesPerGroup;
+	uint32_t BlockGroup = InodeNo / InodesPerGroup;
+	
+	Status = Ext2ReadBlockGroupDescriptor(FileSystem, BlockGroup, &Descriptor);
+	if (FAILED(Status))
+		return Status;
+	
+	LogMsg(
+		"BGD:\n"
+		"	Block bitmap start: %u\n"
+		"	Inode bitmap start: %u\n"
+		"	Inode table start: %u\n"
+		"	Free blocks: %u\n"
+		"	Free inodes: %u\n"
+		"	Dir count: %u",
+		Descriptor.BlockBitmapBlockId,
+		Descriptor.InodeBitmapBlockId,
+		Descriptor.InodeTableBlockId,
+		Descriptor.FreeBlockCount,
+		Descriptor.FreeInodeCount,
+		Descriptor.DirectoryCount
+	);
+	
+	// Get the block group's inode table address and the
+	// inode's index within that block group table.
+	uint32_t InodeTableAddr  = Descriptor.InodeTableBlockId;
+	uint32_t InodeTableIndex = InodeNo % InodesPerGroup;
+	
+	// And finally, read.
+	uint64_t Address = BLOCK_ADDRESS(InodeTableAddr, FileSystem) + InodeTableIndex * FileSystem->InodeSize;
+	return CcReadFileCopy(
+		FileSystem->File,
+		Address,
+		&Ext->Inode,
+		sizeof(EXT2_INODE)
+	);
 }
 
 BSTATUS Ext2OpenInode(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber, PFCB* OutFcb)

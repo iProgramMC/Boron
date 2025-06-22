@@ -98,6 +98,9 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
 	InitializeRbTree(&FileSystem->InodeTree);
 	
+	FileSystem->BackingDevice = BackingDevice;
+	FileSystem->File = BackingFile;
+	
 	// Read the "/" inode.  It is inode 2.
 	PFCB RootFcb;
 	Status = Ext2OpenInode(FileSystem, 2, &RootFcb);
@@ -117,6 +120,38 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 	
 	// Assign it as the mount root of this device object.
 	BackingDevice->MountRoot = RootFile;
+	
+	// Let's actually print some data about the root inode though.
+	PEXT2_INODE I = &EXT(RootFcb)->Inode;
+	LogMsg(
+		"Info about the root inode:\n"
+		"Mode: %u\n"
+		"Uid: %u\n"
+		"Gid: %u\n"
+		"Size: %u\n"
+		"AccessTime: %u\n"
+		"CreateTime: %u\n"
+		"ModifyTime: %u\n"
+		"DeleteTime: %u\n"
+		"LinkCount: %u\n"
+		"BlockCount: %u\n"
+		"Flags: %u\n"
+		"DirectBlockPointer0: %u\n"
+		"DirectBlockPointer1: %u",
+		I->Mode,
+		I->Uid,
+		I->Gid,
+		I->Size,
+		I->AccessTime,
+		I->CreateTime,
+		I->ModifyTime,
+		I->DeleteTime,
+		I->LinkCount,
+		I->BlockCount,
+		I->Flags,
+		I->DirectBlockPointer[0],
+		I->DirectBlockPointer[1]
+	);
 	
 	// Now we can return success, finally.
 	LogMsg("Ext2: Found file system on %s", Name);
