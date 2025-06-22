@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	io/device.c
+	io/file.c
 	
 Abstract:
 	This module implements the I/O File object type.

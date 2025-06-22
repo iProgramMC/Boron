@@ -323,6 +323,12 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	Size = MdlBuffer->ByteCount;
 	MdlOffset = 0;
 	
+	// TODO: A better way?
+	uint8_t* BlockBuffer = MmAllocatePool(POOL_NONPAGED, FileSystem->BlockSize);
+	if (!BlockBuffer)
+		// TODO: Use the builtin one for paging if Flags & PAGING
+		return STATUS_INSUFFICIENT_MEMORY;
+	
 	while (Size)
 	{
 		// Which block index is this offset within?
@@ -345,11 +351,12 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 		// Okay, now do the read itself.
 		if (OnDiskBlock)
 		{
-			// TODO we don't need to do cached crap please!
-			uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem) + BlockOffset;
-			Status = CcReadFileMdl(FileSystem->File, Address, MdlBuffer, MdlOffset, CopyAmount);
+			uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem);
+			Status = IoReadFile(Iosb, FileSystem->File, BlockBuffer, FileSystem->BlockSize, Address, false);
 			if (FAILED(Status))
 				break;
+			
+			MmCopyIntoMdl(MdlBuffer, MdlOffset, BlockBuffer + BlockOffset, CopyAmount);
 		}
 		else
 		{
@@ -365,5 +372,6 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	Iosb->BytesRead = BytesRead;
 	Iosb->Status = Status;
 	
+	MmFreePool(BlockBuffer);
 	return Status;
 }
