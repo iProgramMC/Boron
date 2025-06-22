@@ -465,9 +465,10 @@ BSTATUS Ext2ReadCopy(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, void* Buf
 	return Status;
 }
 
-BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
+BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
 {
 	BSTATUS Status;
+	PFCB Fcb = FileObject->Fcb;
 	PREP_EXT;
 	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
 	
@@ -480,15 +481,15 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t V
 	uint64_t NewVersion = Ext->Version;
 	
 	if (Offset >= Ext2FileSize(Fcb))
-		return STATUS_END_OF_FILE;
+		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 	
 	// Since we can only do reads at the moment, just read.
-	Status = Ext2ReadCopy(Iosb, Fcb, Offset, &Dirent, sizeof(EXT2_DIRENT), 0);
+	Status = CcReadFileCopy(FileObject, Offset, &Dirent, sizeof(EXT2_DIRENT));
 	if (FAILED(Status))
-		return Status;
+		return IOSB_STATUS(Iosb, Status);
 	
 	if (Iosb->BytesRead < sizeof(EXT2_DIRENT))
-		return STATUS_END_OF_FILE;
+		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 	
 	// Read the name, and ensure fits within our IO_NAME_MAX-1 characters.
 	size_t NameLength = Dirent.NameLength;
@@ -498,12 +499,12 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t V
 	if (NameLength > IO_MAX_NAME - 1)
 		NameLength = IO_MAX_NAME - 1;
 	
-	Status = Ext2ReadCopy(Iosb, Fcb, Offset + sizeof(EXT2_DIRENT), &DirectoryEntry->Name, NameLength, 0);
+	Status = CcReadFileCopy(FileObject, Offset + sizeof(EXT2_DIRENT), &DirectoryEntry->Name, NameLength);
 	if (FAILED(Status))
-		return Status;
+		return IOSB_STATUS(Iosb, Status);
 	
 	if (Iosb->BytesRead < NameLength)
-		return STATUS_END_OF_FILE;
+		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 	
 	DirectoryEntry->Name[NameLength] = 0;
 	
@@ -521,8 +522,10 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t V
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }
 
-BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, UNUSED int ParseLoopCount)
+BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, UNUSED int ParseLoopCount)
 {
+	PFCB InitialFcb = FileObject->Fcb;
+	
 	if (InitialFcb->FileType == FILE_TYPE_DIRECTORY)
 	{
 		if (*ParsePath == '\0' || *ParsePath == OB_PATH_SEPARATOR)
@@ -537,7 +540,7 @@ BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePa
 		
 		while (true)
 		{
-			Status = Ext2ReadDir(&Iosb2, InitialFcb, Offset, Version, &DirEnt);
+			Status = Ext2ReadDir(&Iosb2, FileObject, Offset, Version, &DirEnt);
 			if (Status == STATUS_END_OF_FILE)
 				break;
 			

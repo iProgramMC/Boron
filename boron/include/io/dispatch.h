@@ -101,6 +101,11 @@ typedef struct _FCB FCB, *PFCB;
 //   with block size alignment.  If the alignment value is 1, then there is no alignment requirement.  If this method
 //   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
 //
+// - You might be wondering why IO_READ_DIR_METHOD and IO_PARSE_DIR_METHOD take a PFILE_OBJECT instead of an PFCB like
+//   usual? Well, it's because these should do *cached* accesses, and we can't do that without a FILE_OBJECT, because
+//   our view cache infrastructure relies on those! (Sure, maybe I should refactor it to use FCBs throughout, or maybe
+//   not?!)
+//
 typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
 //typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 //typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
@@ -114,8 +119,8 @@ typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_
 typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
-typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, int ParseLoopCount);
+typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount);
 typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
 typedef BSTATUS(*IO_MAKE_DIR_METHOD)   (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);

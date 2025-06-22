@@ -15,9 +15,11 @@ Author:
 #include "iop.h"
 
 // NOTE: Unlocks the FCB when done.
-static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const char** OutReparsePath, void** OutObject)
+static BSTATUS IopCallParse(PFILE_OBJECT FileObject, const char* Path, int LoopCount, const char** OutReparsePath, void** OutObject)
 {
 	BSTATUS Status;
+	PFCB Fcb = FileObject->Fcb;
+	
 	PFCB FoundFcb = NULL;
 	IO_PARSE_DIR_METHOD Parse = Fcb->DispatchTable->ParseDir;
 	
@@ -46,7 +48,7 @@ static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const cha
 		memset (&Iosb, 0, sizeof Iosb);
 	#endif
 		
-		Status = Parse(&Iosb, Fcb, Path, LoopCount);
+		Status = Parse(&Iosb, FileObject, Path, LoopCount);
 		
 		IoUnlockFcb(Fcb);
 		
@@ -88,8 +90,6 @@ static BSTATUS IopCallParse(PFCB Fcb, const char* Path, int LoopCount, const cha
 
 BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UNUSED int LoopCount, void** OutObject)
 {
-	BSTATUS Status;
-	
 	// TODO: We no longer directly use device objects for mounting, so lots of this code is useless.
 	
 	if (ObGetObjectType(Object) != IoDeviceType)
@@ -117,21 +117,7 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 		return STATUS_SUCCESS;
 	}
 	
-	// There is a path.  Call the mounted file system (if any) to resolve it. TODO
-	PFCB Fcb = DeviceObject->Fcb;
-	
-	Status = IoLockFcbShared(Fcb);
-	
-	if (FAILED(Status))
-		return Status;
-	
-	if (Fcb->FileType == FILE_TYPE_DIRECTORY)
-	{
-		return IopCallParse(Fcb, Path, LoopCount, Name, OutObject);
-	}
-	
-	// This is unsupported for a parse operation.
-	IoUnlockFcb(Fcb);
+	// There is a path. Device objects are not directories no matter how much they say they are.
 	return STATUS_NOT_A_DIRECTORY;
 }
 
@@ -142,5 +128,5 @@ BSTATUS IopParseFile(void* Object, const char** ParsePath, UNUSED void* Context,
 	PFILE_OBJECT FileObject = Object;
 	
 	IoLockFcbShared(FileObject->Fcb);
-	return IopCallParse(FileObject->Fcb, PathName, LoopCount, ParsePath, OutObject);
+	return IopCallParse(FileObject, PathName, LoopCount, ParsePath, OutObject);
 }
