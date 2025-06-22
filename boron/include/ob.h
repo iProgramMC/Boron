@@ -321,6 +321,11 @@ BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable);
 // Deletes a handle table and closes every handle.
 BSTATUS ObKillHandleTable(void* HandleTable);
 
+// Matches a file name with the first segment of the path name,
+// up until a backslash ('\') character within the `Path`.
+// Returns 0 if not matched, >0 (length of path consumed) if matched.
+size_t ObMatchPathName(const char* FileName, const char* Path);
+
 // Object manager provided object types:
 
 enum

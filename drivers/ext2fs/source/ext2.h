@@ -64,7 +64,7 @@ void Ext2FreeInode(PFCB Fcb);
 
 extern IO_DISPATCH_TABLE Ext2DispatchTable;
 
-BSTATUS Ext2Mount(PDEVICE_OBJECT, PFILE_OBJECT);
+BSTATUS Ext2Mount(PDEVICE_OBJECT, PFILE_OBJECT, POBJECT_DIRECTORY MountDir);
 
 void Ext2CreateObject(PFCB Fcb, PFILE_OBJECT FileObject);
 
@@ -75,6 +75,8 @@ bool Ext2Seekable(PFCB Fcb);
 BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
 
 BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
+
+BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, int ParseLoopCount);
 
 // *** Ext2 File System Struct ***
 
@@ -101,12 +103,17 @@ struct _EXT2_FILE_SYSTEM
 	// This is for lookup by inode #.
 	RBTREE InodeTree;
 	KMUTEX InodeTreeMutex;
+	
+	// This is a quick reference to the root directory.
+	PFCB RootInode;
 };
 
 // ** Ext2 File System object type functions **
 extern POBJECT_TYPE Ext2FileSystemType;
 
 void Ext2DeleteFileSystem(void* FileSystemV);
+
+BSTATUS Ext2ParseFileSystem(void* FileSystemV, const char** Name, void* Context, int LoopCount, void** OutObject);
 
 BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out);
 

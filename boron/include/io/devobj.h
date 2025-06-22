@@ -55,11 +55,6 @@ struct _DEVICE_OBJECT
 	// (Note: This object is referenced for the lifetime of this device)
 	PDEVICE_OBJECT ParentDevice;
 	
-	// If this is a mounted partition, this is the file object pointing to the
-	// root of said mount.
-	// TODO: Maybe this belongs in a separate object?
-	PFILE_OBJECT MountRoot;
-	
 	// If this is a partitionable device, this is an entry into the list of
 	// partitionable objects.
 	LIST_ENTRY PartitionableListEntry;

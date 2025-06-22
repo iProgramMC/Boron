@@ -90,6 +90,8 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 {
 	BSTATUS Status;
 	
+	// TODO: We no longer directly use device objects for mounting, so lots of this code is useless.
+	
 	if (ObGetObjectType(Object) != IoDeviceType)
 		return STATUS_TYPE_MISMATCH;
 	
@@ -128,30 +130,9 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 		return IopCallParse(Fcb, Path, LoopCount, Name, OutObject);
 	}
 	
-	if (Fcb->FileType != FILE_TYPE_BLOCK_DEVICE)
-	{
-		// This is unsupported for a parse operation.
-		IoUnlockFcb(Fcb);
-		return STATUS_NOT_A_DIRECTORY;
-	}
-	
-	// Check if this block device has a mount.
-	if (!DeviceObject->MountRoot)
-	{
-		IoUnlockFcb(Fcb);
-		return STATUS_NOT_A_DIRECTORY;
-	}
-	
-	PFILE_OBJECT MountRoot = DeviceObject->MountRoot;
-	if (MountRoot->Fcb->FileType != FILE_TYPE_DIRECTORY)
-	{
-		IoUnlockFcb(Fcb);
-		return STATUS_NOT_A_DIRECTORY;
-	}
-	
-	Status = IopCallParse(MountRoot->Fcb, Path, LoopCount, Name, OutObject);
+	// This is unsupported for a parse operation.
 	IoUnlockFcb(Fcb);
-	return Status;
+	return STATUS_NOT_A_DIRECTORY;
 }
 
 BSTATUS IopParseFile(void* Object, const char** ParsePath, UNUSED void* Context, int LoopCount, void** OutObject)

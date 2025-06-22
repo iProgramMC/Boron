@@ -44,8 +44,6 @@ int Ext2TypeIndicatorToFileType(uint8_t TypeIndicator)
 			return FILE_TYPE_DIRECTORY;
 		case EXT2_FT_SYMLINK:
 			return FILE_TYPE_SYMBOLIC_LINK;
-		
-		// now, how could *these* be the case?!
 		case EXT2_FT_CHRDEV:
 			return FILE_TYPE_CHARACTER_DEVICE;
 		case EXT2_FT_BLKDEV:
@@ -53,6 +51,29 @@ int Ext2TypeIndicatorToFileType(uint8_t TypeIndicator)
 		case EXT2_FT_FIFO:
 			return FILE_TYPE_PIPE;
 		case EXT2_FT_SOCK:
+			return FILE_TYPE_SOCKET;
+		default:
+			return FILE_TYPE_UNKNOWN;
+	}
+}
+
+int Ext2InodeModeToFileType(uint16_t Mode)
+{
+	switch (Mode & EXT2_S_IFMSK)
+	{
+		case EXT2_S_IFREG:
+			return FILE_TYPE_FILE;
+		case EXT2_S_IFDIR:
+			return FILE_TYPE_DIRECTORY;
+		case EXT2_S_IFLNK:
+			return FILE_TYPE_SYMBOLIC_LINK;
+		case EXT2_S_IFCHR:
+			return FILE_TYPE_CHARACTER_DEVICE;
+		case EXT2_S_IFBLK:
+			return FILE_TYPE_BLOCK_DEVICE;
+		case EXT2_S_IFIFO:
+			return FILE_TYPE_PIPE;
+		case EXT2_S_IFSOCK:
 			return FILE_TYPE_SOCKET;
 		default:
 			return FILE_TYPE_UNKNOWN;
@@ -173,12 +194,19 @@ BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 	
 	// And finally, read.
 	uint64_t Address = BLOCK_ADDRESS(InodeTableAddr, FileSystem) + InodeTableIndex * FileSystem->InodeSize;
-	return CcReadFileCopy(
+	Status = CcReadFileCopy(
 		FileSystem->File,
 		Address,
 		&Ext->Inode,
 		sizeof(EXT2_INODE)
 	);
+	if (FAILED(Status))
+		return Status;
+	
+	// Now, fill in this FCB's data:
+	Fcb->FileType = Ext2InodeModeToFileType(Ext->Inode.Mode);
+	Fcb->FileLength = Ext2FileSize(Fcb);
+	return STATUS_SUCCESS;
 }
 
 BSTATUS Ext2OpenInode(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber, PFCB* OutFcb)
@@ -426,7 +454,7 @@ BSTATUS Ext2ReadCopy(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, void* Buf
 	PMDL Mdl;
 	BSTATUS Status;
 	
-	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
@@ -467,7 +495,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t V
 	if (FileSystem->SuperBlock.Version == 0)
 		NameLength = Dirent.NameLength16;
 	
-	if (NameLength < IO_MAX_NAME - 1)
+	if (NameLength > IO_MAX_NAME - 1)
 		NameLength = IO_MAX_NAME - 1;
 	
 	Status = Ext2ReadCopy(Iosb, Fcb, Offset + sizeof(EXT2_DIRENT), &DirectoryEntry->Name, NameLength, 0);
@@ -487,8 +515,71 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, uint64_t V
 	else
 		DirectoryEntry->Type = Ext2TypeIndicatorToFileType(Dirent.TypeIndicator);
 	
-	Iosb->ReadDir.NextOffset = Offset + sizeof(EXT2_DIRENT) + Dirent.RecordLength;
+	Iosb->ReadDir.NextOffset = Offset + Dirent.RecordLength;
 	Iosb->ReadDir.Version = NewVersion;
 	
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+}
+
+BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFCB InitialFcb, const char* ParsePath, UNUSED int ParseLoopCount)
+{
+	if (InitialFcb->FileType == FILE_TYPE_DIRECTORY)
+	{
+		if (*ParsePath == '\0' || *ParsePath == OB_PATH_SEPARATOR)
+			goto ParsedThis;
+		
+		// This is a directory, so let's read it until we find something.
+		// Note: The FCB is locked shared now.
+		IO_STATUS_BLOCK Iosb2;
+		IO_DIRECTORY_ENTRY DirEnt;
+		BSTATUS Status;
+		uint64_t Offset = 0, Version = 0;
+		
+		while (true)
+		{
+			Status = Ext2ReadDir(&Iosb2, InitialFcb, Offset, Version, &DirEnt);
+			if (Status == STATUS_END_OF_FILE)
+				break;
+			
+			if (FAILED(Status))
+				return IOSB_STATUS(Iosb, Status);
+			
+			size_t Match = ObMatchPathName(DirEnt.Name, ParsePath);
+			if (!Match)
+				continue;
+
+			// Path name matched! Load the inode.
+			PEXT2_FILE_SYSTEM FileSystem = EXT(InitialFcb)->OwnerFS;
+			Status = Ext2OpenInode(FileSystem, DirEnt.InodeNumber, &Iosb->ParseDir.FoundFcb);
+			if (FAILED(Status))
+				return IOSB_STATUS(Iosb, Status);
+			
+			Iosb->ParseDir.ReparsePath = ParsePath + Match;
+			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+		}
+		
+		// Not Found
+		return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
+	}
+	else if (InitialFcb->FileType == FILE_TYPE_SYMBOLIC_LINK)
+	{
+		// TODO
+		ASSERT(!"Symlink Dereference Not Implemented");
+		return IOSB_STATUS(Iosb, STATUS_UNIMPLEMENTED);
+	}
+	else
+	{
+		// This is a file or something else, so only return success
+		// if there are no remaining path components remaining.
+		if (!ParsePath || *ParsePath == '\0')
+		{
+		ParsedThis:
+			Iosb->ParseDir.FoundFcb = InitialFcb;
+			Iosb->ParseDir.ReparsePath = NULL;
+			Ext2ReferenceInode(InitialFcb);
+			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+		}
+		
+		return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
+	}
 }

@@ -14,7 +14,7 @@ Author:
 ***/
 #include "ext2.h"
 
-BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
+BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir)
 {
 	PEXT2_FILE_SYSTEM FileSystem;
 	PEXT2_SUPERBLOCK Sb;
@@ -109,19 +109,18 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile)
 		goto Failure;
 	}
 	
-	PFILE_OBJECT RootFile;
-	Status = IoCreateFileObject(RootFcb, &RootFile, 0, 0);
+	FileSystem->RootInode = RootFcb;
+	
+	// Now, we can link the object into the mount directory, hopefully.
+	Status = ObLinkObject(MountDir, FileSystem, Name);
 	if (FAILED(Status))
 	{
-		DbgPrint("Ext2: Failed to create file object for root dir. %d (%s)", Status, RtlGetStatusString(Status));
-		Ext2FreeInode(RootFcb);
+		DbgPrint("Ext2: Failed to link to mount dir. %d (%s)", Status, RtlGetStatusString(Status));
+		goto Failure;
 	}
 	
-	// Assign it as the mount root of this device object.
-	BackingDevice->MountRoot = RootFile;
-	
 	// Now we can return success, finally.
-	LogMsg("Ext2: Found file system on %s", Name);
+	LogMsg("Ext2: Found file system on %s.", Name);
 	
 	
 Failure:
@@ -134,4 +133,18 @@ void Ext2DeleteFileSystem(void* FileSystemV)
 	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
 	DbgPrint("Ext2: File System %p Deleted", FileSystem);
 	// TODO
+}
+
+BSTATUS Ext2ParseFileSystem(
+	void* FileSystemV,
+	UNUSED const char** Name,
+	UNUSED void* Context,
+	UNUSED int LoopCount,
+	void** OutObject
+)
+{
+	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
+	DbgPrint("Ext2ParseFileSystem");
+	
+	return IoCreateFileObject(FileSystem->RootInode, (PFILE_OBJECT*) OutObject, 0, 0);
 }

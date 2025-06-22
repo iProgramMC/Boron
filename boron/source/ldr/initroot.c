@@ -154,7 +154,6 @@ bool LdrPrepareInitialRoot()
 	D->Fcb = NULL;
 	D->ParentController = NULL;
 	D->ParentDevice = NULL;
-	D->MountRoot = NULL;
 	D->ExtensionSize = 0;
 	
 	// Now that the Bin directory is loaded, put everything inside.

@@ -21,8 +21,8 @@ Author:
 #include <string.h>
 #include "utils.h"
 
-const char* RootDir = "\\Devices\\Nvme0Disk1Part0";
-const char* SomeFile = "\\Devices\\Nvme0Disk1Part0\\gamma64.nse";
+const char* RootDir = "\\Mount\\Nvme0Disk1Part0";
+const char* SomeFile = "\\Mount\\Nvme0Disk1Part0\\gamma64.nse";
 
 void PerformFs1Test()
 {
@@ -45,7 +45,6 @@ void PerformFs1Test()
 	
 	PFILE_OBJECT File = (PFILE_OBJECT) ObjectV;
 	
-	/*
 	uint64_t Offset = 0, Version = 0;
 	IO_STATUS_BLOCK Iosb;
 	IO_DIRECTORY_ENTRY DirEnt;
@@ -62,7 +61,6 @@ void PerformFs1Test()
 		Offset  = Iosb.ReadDir.NextOffset;
 		Version = Iosb.ReadDir.Version;
 	}
-	*/
 	
 	ObDereferenceObject(File);
 	ObClose(Handle);

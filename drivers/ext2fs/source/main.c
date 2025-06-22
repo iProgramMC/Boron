@@ -21,6 +21,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.Mount = Ext2Mount,
 	.Read = Ext2Read,
 	.ReadDir = Ext2ReadDir,
+	.ParseDir = Ext2ParseDir,
 	.Seekable = Ext2Seekable,
 };
 
@@ -35,6 +36,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 OBJECT_TYPE_INFO Ext2FileSystemTypeInfo =
 {
 	.Delete = Ext2DeleteFileSystem,
+	.Parse = Ext2ParseFileSystem,
 };
 
 POBJECT_TYPE Ext2FileSystemType;
@@ -42,12 +44,14 @@ POBJECT_TYPE Ext2FileSystemType;
 BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 {
 	void* Object = NULL;
+	
+	// The object will be assigned a directory later.
 	BSTATUS Status = ObCreateObject(
 		&Object,
 		NULL,
 		Ext2FileSystemType,
 		NULL,
-		OB_FLAG_KERNEL | OB_FLAG_NO_DIRECTORY,
+		OB_FLAG_NO_DIRECTORY,
 		NULL,
 		sizeof(EXT2_FILE_SYSTEM)
 	);

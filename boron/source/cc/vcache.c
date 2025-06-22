@@ -150,7 +150,7 @@ BSTATUS CcReadFileCopy(
 	PMDL Mdl;
 	BSTATUS Status;
 	
-	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), true);
 	if (FAILED(Status))
 		return Status;
 	

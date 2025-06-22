@@ -59,6 +59,8 @@ BSTATUS ObLinkObject(
 		}
 	}
 	
+	// TODO: Check if the name already exists.
+	
 	// Add it proper
 	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
 	Directory->Count++;
@@ -121,7 +123,7 @@ void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 // is the name of a directory entry that is entered during path traversal.
 // For example, in the path name \ObjectTypes\Directory, ObjectTypes and
 // Directory are two separate segments of the path name.
-static size_t ObpMatchPathName(const char* FileName, const char* Path)
+size_t ObMatchPathName(const char* FileName, const char* Path)
 {
 	const char* OriginalPath = Path;
 	
@@ -170,7 +172,7 @@ BSTATUS ObpLookUpDirectoryEntry(
 	{
 		POBJECT_HEADER Header = CONTAINING_RECORD(Entry, OBJECT_HEADER, DirectoryListEntry);
 		
-		size_t MatchLength = ObpMatchPathName(Header->ObjectName, PathToMatch);
+		size_t MatchLength = ObMatchPathName(Header->ObjectName, PathToMatch);
 		if (MatchLength != 0)
 		{
 			ObReferenceObjectByPointer(Header->Body);

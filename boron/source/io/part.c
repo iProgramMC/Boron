@@ -14,6 +14,8 @@ Author:
 ***/
 #include "iop.h"
 
+static const char* const IopDefaultMountPath = "\\Mount";
+
 // The list of partitionable devices.
 static LIST_ENTRY IopPartitionableListHead;
 static KMUTEX IopPartitionableListLock;
@@ -52,7 +54,7 @@ void IopInitPartitionManager()
 	InitializeListHead(&IopFileSystemListHead);
 }
 
-static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition, int Number)
+static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPartition, int Number, POBJECT_DIRECTORY MountDir)
 {
 	// Create the partition object.
 	PDEVICE_OBJECT DeviceObject = NULL;
@@ -85,7 +87,7 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 		ObReferenceObjectByPointer(FileObject);
 		
 		// Try to mount.
-		BSTATUS Status = Dispatch->Mount(DeviceObject, FileObject);
+		BSTATUS Status = Dispatch->Mount(DeviceObject, FileObject, MountDir);
 		if (FAILED(Status) && Status != STATUS_NOT_THIS_FILE_SYSTEM)
 			KeCrash("Failed to mount partition %d: %d (%s)", Number, Status, RtlGetStatusString(Status));
 		
@@ -104,7 +106,7 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 	ObDereferenceObject(FileObject);
 }
 
-static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
+static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device, POBJECT_DIRECTORY MountDir)
 {
 	BSTATUS Status;
 #ifdef DEBUG
@@ -147,14 +149,8 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device)
 			// If this entry has invalid LBA settings.  We do not support CHS addressing.
 			continue;
 		
-		IopRegisterMbrPartition(Device, Partition, i);
+		IopRegisterMbrPartition(Device, Partition, i, MountDir);
 	}
-	
-	// Create partition objects
-	
-	// Scan for file systems on those
-	
-	// Etc...
 	
 Done:
 	if (FAILED(Status))
@@ -167,13 +163,25 @@ void IoScanForFileSystems()
 	void* Objects[] = { &IopPartitionableListLock, &IopFileSystemListLock };
 	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
 	
+	// Create the "\\Mount" directory.
+	POBJECT_DIRECTORY MountDir;
+	BSTATUS Status = ObCreateDirectoryObject(
+		&MountDir,
+		NULL,
+		IopDefaultMountPath,
+		OB_FLAG_PERMANENT
+	);
+	
+	if (FAILED(Status))
+		KeCrash("ERROR: Failed to create %s: %d (%s)", IopDefaultMountPath, Status, RtlGetStatusString(Status));
+	
 	for (PLIST_ENTRY Entry = IopPartitionableListHead.Flink;
 		Entry != &IopPartitionableListHead;
 		Entry = Entry->Flink)
 	{
 		PDEVICE_OBJECT Device = CONTAINING_RECORD(Entry, DEVICE_OBJECT, PartitionableListEntry);
 		
-		IopScanForFileSystemsOnDevice(Device);
+		IopScanForFileSystemsOnDevice(Device, MountDir);
 	}
 	
 	KeReleaseMutex(&IopPartitionableListLock);

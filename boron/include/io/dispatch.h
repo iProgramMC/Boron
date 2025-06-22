@@ -35,9 +35,9 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - IO_MOUNT_METHOD returns whether or not this device object (e.g. a partition on a drive, or a floppy diskette, etc)
 //   (actually a file object that *can* refer to a device object), contains the file system described by this dispatch table.
-//   If it does, the file system will try to mount this file system and set the host device's MountRoot to it.
-//   Otherwise, it will return a non-zero error code.  On debug builds, any status codes other than STATUS_NOT_THIS_FILE_SYSTEM
-//   will throw up an assertion error.  The BackingFile pointer *must* be opened from the BackingDevice pointer.
+//   If it does, the file system will try to mount this file system. Otherwise, it will return STATUS_NOT_THIS_FILE_SYSTEM. 
+//   On debug builds, any status codes other than STATUS_NOT_THIS_FILE_SYSTEM will throw up an assertion error.  The
+//   BackingFile pointer *must* be opened from the BackingDevice pointer. The `MountDir' must exist.
 //
 // - IO_SEEKABLE_METHOD returns whether or not the file is seekable.  This is, in this case, equal to whether the file
 //   is mappable.  Block devices and file system backed files should return TRUE, while stream I/O devices such as
@@ -101,7 +101,7 @@ typedef struct _FCB FCB, *PFCB;
 //   with block size alignment.  If the alignment value is 1, then there is no alignment requirement.  If this method
 //   isn't specified, then the alignment is presumed to be 1 byte.  The alignment value may not be zero.
 //
-typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile);
+typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
 //typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
 //typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
