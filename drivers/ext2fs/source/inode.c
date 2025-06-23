@@ -393,6 +393,11 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 		return IOSB_STATUS(Iosb, STATUS_INVALID_PARAMETER);
 	
 	// Ensure a cap over the size of the file.
+	if (Offset >= FileSize) {
+		Iosb->BytesRead = 0;
+		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+	}
+	
 	if (Size + Offset >= FileSize)
 		Size = FileSize - Offset;
 	

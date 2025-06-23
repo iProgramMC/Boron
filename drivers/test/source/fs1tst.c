@@ -21,27 +21,23 @@ Author:
 #include <string.h>
 #include "utils.h"
 
-const char* RootDir = "\\Mount\\Nvme0Disk1Part0";
-const char* SomeFile = "\\Mount\\Nvme0Disk1Part0\\gamma64.nse";
+//const char* RootDir = "\\Mount\\Nvme0Disk1Part0";
+//const char* SomeFile = "\\Mount\\Nvme0Disk1Part0\\gamma64.nse";
 
-void PerformFs1Test()
+void DirectoryList(const char* Path)
 {
-	PerformDelay(1000, NULL);
+	LogMsg("Directory of %s\n", Path);
 	
 	HANDLE Handle;
 	BSTATUS Status;
 	
-	Status = ObOpenObjectByName(RootDir, HANDLE_NONE, 0, NULL, &Handle);
+	Status = ObOpenObjectByName(Path, HANDLE_NONE, 0, IoFileType, &Handle);
 	if (FAILED(Status))
-		KeCrash("Fs1: Failed to open object %s: %d (%s)", RootDir, Status, RtlGetStatusString(Status));
+		KeCrash("Fs1: Failed to open %s: %d (%s)", Path, Status, RtlGetStatusString(Status));
 	
-	// Reference this object by its handle.
+	// TODO: Replace with OS* calls.
 	void* ObjectV;
 	Status = ObReferenceObjectByHandle(Handle, NULL, &ObjectV);
-	
-	// Check if this object is of the file type.
-	if (ObGetObjectType(ObjectV) != IoFileType)
-		KeCrash("Fs1: When opened, %s(%p) is not of the type IoFileType.\nObject type: %p, IoFileType: %p", RootDir, ObjectV, ObGetObjectType(ObjectV), IoFileType);
 	
 	PFILE_OBJECT File = (PFILE_OBJECT) ObjectV;
 	
@@ -64,37 +60,47 @@ void PerformFs1Test()
 	
 	ObDereferenceObject(File);
 	OSClose(Handle);
-	
-	LogMsg("Done with the directory listing.");
-	LogMsg("Now, let's try opening %s.", SomeFile);
+}
+
+void FileList(const char* Path, size_t StartOffset, size_t Size, size_t SizePrint)
+{
+	HANDLE Handle;
+	BSTATUS Status;
+	IO_STATUS_BLOCK Iosb;
 	
 	OBJECT_ATTRIBUTES Attrs;
 	memset(&Attrs, 0, sizeof Attrs);
 	Attrs.RootDirectory = HANDLE_NONE;
-	Attrs.ObjectName = SomeFile;
-	Attrs.ObjectNameLength = strlen(SomeFile);
+	Attrs.ObjectName = Path;
+	Attrs.ObjectNameLength = strlen(Path);
 	Attrs.OpenFlags = 0;
 	
 	Status = OSOpenFile(&Handle, &Attrs);
 	if (FAILED(Status))
-		KeCrash("Fs1: Failed to open %s: %d (%s)", SomeFile, Status, RtlGetStatusString(Status));
+		KeCrash("Fs1: Failed to open %s: %d (%s)", Path, Status, RtlGetStatusString(Status));
 	
-	void* Buffer = MmAllocatePool(POOL_NONPAGED, 4096);
+	void* Buffer = MmAllocatePool(POOL_NONPAGED, Size);
 	if (!Buffer)
 		KeCrash("Fs1: Out of memory, cannot allocate 4K buffer");
 	
-	Status = OSReadFile(&Iosb, Handle, 4096, Buffer, 4096, 0);
+	Status = OSReadFile(&Iosb, Handle, StartOffset, Buffer, Size, 0);
 	if (FAILED(Status))
 		KeCrash("Fs1: Failed to read from file: %s (%d)", Status, RtlGetStatusString(Status));
 	
 	LogMsg("Read in %lld bytes.", Iosb.BytesRead);
-	if (Iosb.BytesRead > 512)
-		Iosb.BytesRead = 512;
+	if (Iosb.BytesRead > SizePrint)
+		Iosb.BytesRead = SizePrint;
 	DumpHex(Buffer, Iosb.BytesRead, true);
 	
 	LogMsg("Closing now.");
 	OSClose(Handle);
 	MmFreePool(Buffer);
+}
+
+void PerformFs1Test()
+{
+	PerformDelay(1000, NULL);
 	
-	LogMsg("Done.");
+	DirectoryList("\\Mount\\Nvme0Disk1Part0");
+	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 4096, 4096, 512);
 }

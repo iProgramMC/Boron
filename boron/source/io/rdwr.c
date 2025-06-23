@@ -77,26 +77,58 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 
 static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
+	BSTATUS Status;
 	ASSERT(FileObject);
 	
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
 	
+	bool IsSeekable = IoIsSeekable(Fcb);
+	
+	size_t ByteCount = Mdl->ByteCount;
+	
+	// Check for an overflow.
+	if (ByteCount + Offset < ByteCount || ByteCount + Offset < Offset)
+		return STATUS_INVALID_PARAMETER;
+	
 	// Check if we may perform cached reads.
-	if (Cached)
+	if (!IsSeekable)
 	{
-		if (!IoIsSeekable(Fcb))
-			Cached = false;
+		Cached = false;
+	}
+	else
+	{
+		// Seekable, so check for the file's length.
+		//
+		// N.B.  There is a possible race condition where, while the file is
+		// being expanded, this value might be stale.  However, I don't think
+		// that really matters here.
+		uint64_t FileSize = Fcb->FileLength;
+		
+		// Ensure a cap over the size of the file.
+		if (Offset >= FileSize)
+		{
+			// Trying to read way out of the bounds of the file, so just return zero.
+			Iosb->BytesRead = 0;
+			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+		}
+		
+		if (ByteCount + Offset >= FileSize)
+			ByteCount = FileSize - Offset;
 	}
 	
 	// If we may use caching, use the cache.
 	if (Cached)
 	{
-		return CcReadFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
+		Status = CcReadFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
+		if (FAILED(Status))
+			return IOSB_STATUS(Iosb, Status);
+		
+		Iosb->BytesRead = ByteCount;
+		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
 	
-	BSTATUS Status;
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
 	
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
