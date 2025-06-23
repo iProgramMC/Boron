@@ -86,6 +86,9 @@ void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t Names
 	
 	KeInitializeMutex(&DeviceExtension->ReserveIoMutex, 1);
 	
+	// Initialize the FCB.
+	DeviceObject->Fcb->FileLength = Ident->NamespaceSize << BlockSizeLog;
+	
 	// Initialize the FCB extension.
 	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) DeviceObject->Fcb->Extension;
 	FcbExtension->ControllerExtension = ContExtension;

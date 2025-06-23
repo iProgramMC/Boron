@@ -211,6 +211,8 @@ BSTATUS IoCreatePartition(PDEVICE_OBJECT* OutDevice, PDEVICE_OBJECT InDevice, ui
 	{
 		*OutDevice = DeviceObject;
 		
+		DeviceObject->Fcb->FileLength = Size;
+		
 		PFCB_PART_EXT Ext = (void*) DeviceObject->Fcb->Extension;
 		Ext->Offset = Offset;
 		Ext->Size = Size;

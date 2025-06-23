@@ -489,7 +489,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 	
 	// Since we can only do reads at the moment, just read.
-	Status = CcReadFileCopy(FileObject, Offset, &Dirent, sizeof(EXT2_DIRENT));
+	Status = IoReadFile(Iosb, FileObject, &Dirent, sizeof(EXT2_DIRENT), Offset, true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
@@ -504,7 +504,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 	if (NameLength > IO_MAX_NAME - 1)
 		NameLength = IO_MAX_NAME - 1;
 	
-	Status = CcReadFileCopy(FileObject, Offset + sizeof(EXT2_DIRENT), &DirectoryEntry->Name, NameLength);
+	Status = IoReadFile(Iosb, FileObject, &DirectoryEntry->Name, NameLength, Offset + sizeof(EXT2_DIRENT), true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	

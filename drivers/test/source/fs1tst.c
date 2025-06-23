@@ -103,4 +103,8 @@ void PerformFs1Test()
 	
 	DirectoryList("\\Mount\\Nvme0Disk1Part0");
 	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 4096, 4096, 512);
+	
+	//LogMsg("** Starting additional tests.");
+	//DirectoryList("\\Mount\\Nvme0Disk1Part0\\d");
+	//FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 15681535, 4096, 512);
 }

@@ -40,20 +40,9 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 	return Vector;
 }
 
-/*
-void NvmeInitializeDispatchTable()
-{
-	NvmeDispatchTable.Read = NvmeRead;
-	NvmeDispatchTable.Write = NvmeWrite;
-	NvmeDispatchTable.Seekable = NvmeSeekable;
-	NvmeDispatchTable.GetAlignmentInfo = NvmeGetAlignmentInfo;
-}
-*/
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
 	NvmeDriverObject = DriverObject;
-	
-	//NvmeInitializeDispatchTable();
 	
 	BSTATUS Status = HalPciEnumerate(
 		false,
