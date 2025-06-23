@@ -93,6 +93,22 @@ OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo =
 #endif
 };
 
+BSTATUS ObpInitializeSymbolicLink(void* Object, void* Context)
+{
+	POBJECT_SYMLINK SymLink = Object;
+	const char* LinkTarget = Context;
+	
+	size_t Length = strlen(LinkTarget);
+	
+	// Fill in the symbolic link.
+	SymLink->DestPath = MmAllocatePool(POOL_FLAG_NON_PAGED, Length + 1);
+	if (!SymLink->DestPath)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	strcpy(SymLink->DestPath, LinkTarget);
+	return STATUS_SUCCESS;
+}
+
 BSTATUS ObCreateSymbolicLinkObject(
 	void** OutObject,
 	const char* LinkTarget,
@@ -124,36 +140,23 @@ BSTATUS ObCreateSymbolicLinkObject(
 	ObDereferenceObject(Object);
 	Object = NULL;
 	
-	ObpEnterRootDirectoryMutex();
-	
 	// Create the link itself.
-	Status = ObCreateObject(
+	Status = ObCreateObjectCallback(
 		&Object,
 		NULL, // ParentDirectory
 		ObSymbolicLinkType,
 		ObjectName,
 		Flags | OB_FLAG_NONPAGED, // <--- TODO: Right now, everything related to object directories is nonpaged.
 		NULL,
-		sizeof(OBJECT_SYMLINK)
+		sizeof(OBJECT_SYMLINK),
+		ObpInitializeSymbolicLink,
+		(void*) LinkTarget
 	);
 	
 	if (FAILED(Status))
-	{
-		ObpLeaveRootDirectoryMutex();
 		return Status;
-	}
-	
-	size_t Length = strlen(LinkTarget);
-	
-	// Fill in the symbolic link.
-	POBJECT_SYMLINK SymLink = Object;
-	
-	SymLink->DestPath = MmAllocatePool(POOL_FLAG_NON_PAGED, Length + 1);
-	strcpy(SymLink->DestPath, LinkTarget);
 	
 	*OutObject = Object;
-	
-	ObpLeaveRootDirectoryMutex();
 	
 	// Ta-da!
 	return STATUS_SUCCESS;

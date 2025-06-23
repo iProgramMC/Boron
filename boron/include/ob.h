@@ -211,6 +211,9 @@ enum
 // just be linked to an orphan directory.
 struct _OBJECT_DIRECTORY
 {
+	// The mutex guarding this object directory.
+	KMUTEX Mutex;
+	
 	// Head of the list of children.
 	// TODO: Replace with an AATREE
 	LIST_ENTRY ListHead;
@@ -242,6 +245,22 @@ BSTATUS ObCreateObject(
 	int Flags,
 	void* ParseContext,
 	size_t BodySize
+);
+
+// Creates an object of a certain type, and optionally calls a callback
+// function, before adding it to the destination directory.
+typedef BSTATUS(*OB_INIT_CALLBACK)(void* Object, void* CallbackContext);
+
+BSTATUS ObCreateObjectCallback(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	void* ParseContext,
+	size_t BodySize,
+	OB_INIT_CALLBACK Callback,
+	void* CallbackContext
 );
 
 // Creates a directory object.

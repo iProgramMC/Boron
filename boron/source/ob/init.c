@@ -18,10 +18,8 @@ INIT
 bool ObpInitializeBasicMutexes()
 {
 	extern KMUTEX ObpObjectTypeMutex;
-	extern KMUTEX ObpRootDirectoryMutex;
 	
 	KeInitializeMutex(&ObpObjectTypeMutex, OB_MUTEX_LEVEL_OBJECT_TYPES);
-	KeInitializeMutex(&ObpRootDirectoryMutex, OB_MUTEX_LEVEL_DIRECTORY);
 	
 	return true;
 }

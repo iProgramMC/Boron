@@ -17,14 +17,11 @@ Author:
 #include <ob.h>
 #include <string.h>
 
-// TODO: Restore to 1 and 2, after making mutexes per-object-directory.
-#define OB_MUTEX_LEVEL_HANDLE_TABLE (0)
-#define OB_MUTEX_LEVEL_DIRECTORY    (0)
+#define OB_MUTEX_LEVEL_HANDLE_TABLE (1)
+#define OB_MUTEX_LEVEL_DIRECTORY    (2)
 #define OB_MUTEX_LEVEL_OBJECT_TYPES (3)
 
 #define OB_MAX_LOOP (16) // Completely arbitrary
-
-extern KMUTEX ObpRootDirectoryMutex;
 
 // Private functions
 BSTATUS ObpAllocateObject(
@@ -76,5 +73,5 @@ bool ObpInitializeReaperThread();
 // Mutexes
 void ObpEnterObjectTypeMutex();
 void ObpLeaveObjectTypeMutex();
-void ObpEnterRootDirectoryMutex();
-void ObpLeaveRootDirectoryMutex();
+void ObpEnterDirectoryMutex(POBJECT_DIRECTORY Directory);
+void ObpLeaveDirectoryMutex(POBJECT_DIRECTORY Directory);

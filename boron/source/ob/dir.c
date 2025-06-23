@@ -19,14 +19,14 @@ extern POBJECT_TYPE ObSymbolicLinkType;
 
 KMUTEX ObpRootDirectoryMutex;
 
-void ObpEnterRootDirectoryMutex()
+void ObpEnterDirectoryMutex(POBJECT_DIRECTORY Directory)
 {
-	KeWaitForSingleObject(&ObpRootDirectoryMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	KeWaitForSingleObject(&Directory->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 }
 
-void ObpLeaveRootDirectoryMutex()
+void ObpLeaveDirectoryMutex(POBJECT_DIRECTORY Directory)
 {
-	KeReleaseMutex(&ObpRootDirectoryMutex);
+	KeReleaseMutex(&Directory->Mutex);
 }
 
 POBJECT_DIRECTORY ObpRootDirectory;
@@ -37,12 +37,12 @@ BSTATUS ObLinkObject(
 	void* Object,
 	const char* Name)
 {
-	ObpEnterRootDirectoryMutex();
+	ObpEnterDirectoryMutex(Directory);
 	
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	if (Header->ParentDirectory)
 	{
-		ObpLeaveRootDirectoryMutex();
+		ObpLeaveDirectoryMutex(Directory);
 		return STATUS_ALREADY_LINKED;
 	}
 	
@@ -54,7 +54,7 @@ BSTATUS ObLinkObject(
 		BSTATUS Status = ObpAssignName (Header, Name);
 		if (FAILED(Status))
 		{
-			ObpLeaveRootDirectoryMutex();
+			ObpLeaveDirectoryMutex(Directory);
 			return Status;
 		}
 	}
@@ -68,15 +68,17 @@ BSTATUS ObLinkObject(
 	
 	Header->ParentDirectory = Directory;
 	
-	ObpLeaveRootDirectoryMutex();
+	ObpLeaveDirectoryMutex(Directory);
 	
 	return STATUS_SUCCESS;
 }
 
 // Same as ObpRemoveObjectFromDirectory, but with the root directory mutex entered
-void ObpRemoveObjectFromDirectoryLocked(POBJECT_DIRECTORY Directory, void* Object)
+void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 {
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	
+	ObpEnterDirectoryMutex(Directory);
 	
 #ifdef DEBUG
 	// Assert that this object actually belongs to the directory.
@@ -106,13 +108,8 @@ void ObpRemoveObjectFromDirectoryLocked(POBJECT_DIRECTORY Directory, void* Objec
 	RemoveEntryList(&Header->DirectoryListEntry);
 	Directory->Count--;
 	ObDereferenceObject(Directory);
-}
-
-void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
-{
-	ObpEnterRootDirectoryMutex();
-	ObpRemoveObjectFromDirectoryLocked (Directory, Object);
-	ObpLeaveRootDirectoryMutex();
+	
+	ObpLeaveDirectoryMutex(Directory);
 }
 
 // Matches a file name with the first segment of the path name,
@@ -217,8 +214,6 @@ BSTATUS ObpLookUpObjectPath(
 		// We can't risk it!
 		return STATUS_LOOP_TOO_DEEP;
 	
-	ObpEnterRootDirectoryMutex();
-	
 	// If there is no initial parse object, then the path name is absolute
 	// and we should start lookup from the root directory. However, we must
 	// check if the path is actually absolute; if not, the caller made a
@@ -228,10 +223,7 @@ BSTATUS ObpLookUpObjectPath(
 		InitialParseObject = ObpRootDirectory;
 		
 		if (*ObjectName != OB_PATH_SEPARATOR)
-		{
-			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
-		}
 		
 		// Skip the separator.
 		ObjectName++;
@@ -245,17 +237,11 @@ BSTATUS ObpLookUpObjectPath(
 		// N.B. We also check if the object name is empty. 
 		if (*ObjectName == OB_PATH_SEPARATOR ||
 			*ObjectName == '\0')
-		{
-			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
-		}
 		
 		// Check if the parse object is actually a directory.
 		if (ObpGetObjectType(InitialParseObject) != ObDirectoryType)
-		{
-			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
-		}
 	}
 	
 	ObReferenceObjectByPointer(InitialParseObject);
@@ -279,13 +265,14 @@ BSTATUS ObpLookUpObjectPath(
 				//
 				// N.B. The object is already referenced.
 				*FoundObject = CurrentObject;
-				ObpLeaveRootDirectoryMutex();
 				return STATUS_SUCCESS;
 			}
 			
 			// We do, so browse the directory to find an entry with the same name
 			// as the current path segment.
 			POBJECT_DIRECTORY Directory = CurrentObject;
+			
+			ObpEnterDirectoryMutex(Directory);
 			
 			size_t MatchLength = 0;
 			void* LookedUpObject = NULL;
@@ -297,7 +284,7 @@ BSTATUS ObpLookUpObjectPath(
 				//
 				// N.B. We added a reference to the object we were using!
 				ObDereferenceObject(CurrentObject);
-				ObpLeaveRootDirectoryMutex();
+				ObpLeaveDirectoryMutex(Directory);
 				return STATUS_NAME_NOT_FOUND;
 			}
 			
@@ -305,6 +292,7 @@ BSTATUS ObpLookUpObjectPath(
 			CurrentPath += MatchLength;
 			
 			ObDereferenceObject(CurrentObject);
+			ObpLeaveDirectoryMutex(Directory);
 			CurrentObject = LookedUpObject;
 			
 			CurrDepth--;
@@ -337,7 +325,6 @@ BSTATUS ObpLookUpObjectPath(
 			if (FAILED(Status))
 			{
 				ObDereferenceObject(CurrentObject);
-				ObpLeaveRootDirectoryMutex();
 				return Status;
 			}
 			
@@ -364,7 +351,6 @@ BSTATUS ObpLookUpObjectPath(
 			// Obviously \ObjectTypes\Directory isn't a directory or symbolic link
 			// we can parse, so CantFindMe can't possibly exist.
 			ObDereferenceObject(CurrentObject);
-			ObpLeaveRootDirectoryMutex();
 			return STATUS_PATH_INVALID;
 		}
 		
@@ -373,20 +359,28 @@ BSTATUS ObpLookUpObjectPath(
 		if (ExpectedType != NULL && ExpectedType != ObjectType)
 		{
 			ObDereferenceObject(CurrentObject);
-			ObpLeaveRootDirectoryMutex();
 			return STATUS_TYPE_MISMATCH;
 		}
 		
 		*FoundObject = CurrentObject;
-		ObpLeaveRootDirectoryMutex();
 		return STATUS_SUCCESS;
 	}
 	
 	// There shouldn't be another way to break out of this loop.
 	ASSERT(CurrDepth == 0);
 	
-	ObpLeaveRootDirectoryMutex();
 	return STATUS_PATH_TOO_DEEP;
+}
+
+BSTATUS ObpInitializeDirectoryObject(void* ObjectV, UNUSED void* Unused)
+{
+	POBJECT_DIRECTORY NewDir = ObjectV;
+	
+	KeInitializeMutex(&NewDir->Mutex, OB_MUTEX_LEVEL_DIRECTORY);
+	InitializeListHead(&NewDir->ListHead);
+	NewDir->Count = 0;
+	
+	return STATUS_SUCCESS;
 }
 
 BSTATUS ObCreateDirectoryObject(
@@ -402,32 +396,20 @@ BSTATUS ObCreateDirectoryObject(
 	POBJECT_DIRECTORY NewDir;
 	BSTATUS Status;
 	
-	// Acquire the directory mutex, lest we want to use an uninitialized dir.
-	// Note that we can enter a mutex more than once on the same thread.
-	ObpEnterRootDirectoryMutex();
-	
-	Status = ObCreateObject(
+	Status = ObCreateObjectCallback(
 		(void**) &NewDir,
 		ParentDirectory,
 		ObDirectoryType,
 		Name,
 		Flags | OB_FLAG_NONPAGED,
 		NULL, // TODO
-		sizeof(OBJECT_DIRECTORY)
+		sizeof(OBJECT_DIRECTORY),
+		ObpInitializeDirectoryObject,
+		NULL
 	);
 	
 	if (FAILED(Status))
-	{
-		ObpLeaveRootDirectoryMutex();
 		return Status;
-	}
-	
-	// Initialize the directory object.
-	InitializeListHead(&NewDir->ListHead);
-	NewDir->Count = 0;
-	
-	// Leave the root directory mutex now.
-	ObpLeaveRootDirectoryMutex();
 	
 	*OutDirectory = NewDir;
 	return STATUS_SUCCESS;
@@ -611,15 +593,11 @@ BSTATUS ObpNormalizeParentDirectoryAndName(
 BSTATUS ObUnlinkObject(void* Object)
 {
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
+	POBJECT_DIRECTORY Dir = Header->ParentDirectory;
 	
-	ObpEnterRootDirectoryMutex();
-	if (!Header->ParentDirectory)
-	{
-		ObpLeaveRootDirectoryMutex();
+	if (!Dir)
 		return STATUS_NOT_LINKED;
-	}
 	
-	ObpRemoveObjectFromDirectoryLocked(Header->ParentDirectory, Object);
-	ObpLeaveRootDirectoryMutex();
+	ObpRemoveObjectFromDirectory(Dir, Object);
 	return STATUS_SUCCESS;
 }

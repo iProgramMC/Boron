@@ -138,14 +138,17 @@ BSTATUS ObpAssignName(
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ObCreateObject(
+BSTATUS ObCreateObjectCallback(
 	void** OutObject,
 	POBJECT_DIRECTORY ParentDirectory,
 	POBJECT_TYPE ObjectType,
 	const char* ObjectName,
 	int Flags,
 	void* ParseContext,
-	size_t BodySize)
+	size_t BodySize,
+	OB_INIT_CALLBACK Callback,
+	void* CallbackContext
+)
 {
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
@@ -187,6 +190,16 @@ BSTATUS ObCreateObject(
 	if (FAILED(Status))
 		return Status;
 	
+	if (Callback)
+	{
+		Status = Callback(Hdr->Body, CallbackContext);
+		if (FAILED(Status))
+		{
+			ObpFreeObject(Hdr);
+			return Status;
+		}
+	}	
+	
 	*OutObject = Hdr->Body;
 	
 	// If the caller did not request this object to be added to a directory,
@@ -198,4 +211,27 @@ BSTATUS ObCreateObject(
 	}
 	
 	return Status;
+}
+
+BSTATUS ObCreateObject(
+	void** OutObject,
+	POBJECT_DIRECTORY ParentDirectory,
+	POBJECT_TYPE ObjectType,
+	const char* ObjectName,
+	int Flags,
+	void* ParseContext,
+	size_t BodySize
+)
+{
+	return ObCreateObjectCallback(
+		OutObject,
+		ParentDirectory,
+		ObjectType,
+		ObjectName,
+		Flags,
+		ParseContext,
+		BodySize,
+		NULL,
+		NULL
+	);
 }
