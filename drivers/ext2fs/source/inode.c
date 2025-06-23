@@ -547,6 +547,9 @@ BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char*
 			if (FAILED(Status))
 				return IOSB_STATUS(Iosb, Status);
 			
+			Offset  = Iosb2.ReadDir.NextOffset;
+			Version = Iosb2.ReadDir.Version;
+			
 			size_t Match = ObMatchPathName(DirEnt.Name, ParsePath);
 			if (!Match)
 				continue;

@@ -63,7 +63,38 @@ void PerformFs1Test()
 	}
 	
 	ObDereferenceObject(File);
-	ObClose(Handle);
+	OSClose(Handle);
+	
+	LogMsg("Done with the directory listing.");
+	LogMsg("Now, let's try opening %s.", SomeFile);
+	
+	OBJECT_ATTRIBUTES Attrs;
+	memset(&Attrs, 0, sizeof Attrs);
+	Attrs.RootDirectory = HANDLE_NONE;
+	Attrs.ObjectName = SomeFile;
+	Attrs.ObjectNameLength = strlen(SomeFile);
+	Attrs.OpenFlags = 0;
+	
+	Status = OSOpenFile(&Handle, &Attrs);
+	if (FAILED(Status))
+		KeCrash("Fs1: Failed to open %s: %d (%s)", SomeFile, Status, RtlGetStatusString(Status));
+	
+	void* Buffer = MmAllocatePool(POOL_NONPAGED, 4096);
+	if (!Buffer)
+		KeCrash("Fs1: Out of memory, cannot allocate 4K buffer");
+	
+	Status = OSReadFile(&Iosb, Handle, 4096, Buffer, 4096, 0);
+	if (FAILED(Status))
+		KeCrash("Fs1: Failed to read from file: %s (%d)", Status, RtlGetStatusString(Status));
+	
+	LogMsg("Read in %lld bytes.", Iosb.BytesRead);
+	if (Iosb.BytesRead > 512)
+		Iosb.BytesRead = 512;
+	DumpHex(Buffer, Iosb.BytesRead, true);
+	
+	LogMsg("Closing now.");
+	OSClose(Handle);
+	MmFreePool(Buffer);
 	
 	LogMsg("Done.");
 }

@@ -65,7 +65,7 @@ static BSTATUS IopCallParse(PFILE_OBJECT FileObject, const char* Path, int LoopC
 		// Ensure that it's a substring of the current path in debug mode.
 #ifdef DEBUG
 		size_t Length = strlen (Path);
-		ASSERT((Iosb.ParseDir.ReparsePath == NULL || (Path <= Iosb.ParseDir.ReparsePath && Iosb.ParseDir.ReparsePath < Path + Length)) &&
+		ASSERT((Iosb.ParseDir.ReparsePath == NULL || (Path <= Iosb.ParseDir.ReparsePath && Iosb.ParseDir.ReparsePath <= Path + Length)) &&
 			"ParseDir is supposed to return a substring of the initial path or NULL");
 #endif
 	}
