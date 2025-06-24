@@ -106,7 +106,13 @@ void PerformFs1Test()
 	DirectoryList("\\Mount\\Nvme0Disk1Part0");
 	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 4096, 4096, 512);
 	
-	LogMsg("** Starting additional tests.");
+	LogMsg("** Starting additional tests in 4 seconds...");
+	PerformDelay(4000, NULL);
 	DirectoryList("\\Mount\\Nvme0Disk1Part0\\d");
 	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 15681176 - 3, 4096, 512);
+	
+	LogMsg("** Starting additional tests in 4 seconds...");
+	PerformDelay(4000, NULL);
+	DirectoryList("\\Mount\\Nvme0Disk1Part0\\ns\\initrd\\Game");
+	FileList("\\Mount\\Nvme0Disk1Part0\\ns\\initrd\\Game\\celeste.nes", 0xCB30, 4096, 512);
 }

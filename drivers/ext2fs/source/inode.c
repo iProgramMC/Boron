@@ -291,7 +291,7 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 	// Is this the singly indirect block pointer.
 	if (BlockIndex < AddrsPerBlock)
 	{
-		if (Ext->Inode.SinglyIndirectBlockPointer)
+		if (!Ext->Inode.SinglyIndirectBlockPointer)
 			goto ZeroBlock;
 		
 		uint64_t Address = BLOCK_ADDRESS(Ext->Inode.SinglyIndirectBlockPointer, FileSystem);
@@ -303,7 +303,7 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 	// Is this the doubly indirect block pointer.
 	if (BlockIndex < AddrsPerBlock * AddrsPerBlock)
 	{
-		if (Ext->Inode.DoublyIndirectBlockPointer)
+		if (!Ext->Inode.DoublyIndirectBlockPointer)
 			goto ZeroBlock;
 		
 		// TODO: Optimize these divisions away
@@ -327,7 +327,7 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 	
 	if (BlockIndex < AddrsPerBlock * AddrsPerBlock * AddrsPerBlock)
 	{
-		if (Ext->Inode.TriplyIndirectBlockPointer)
+		if (!Ext->Inode.TriplyIndirectBlockPointer)
 			goto ZeroBlock;
 		
 		// TODO: Optimize these divisions away
