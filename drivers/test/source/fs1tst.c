@@ -109,7 +109,7 @@ void PerformFs1Test()
 	LogMsg("** Starting additional tests in 4 seconds...");
 	PerformDelay(4000, NULL);
 	DirectoryList("\\Mount\\Nvme0Disk1Part0\\d");
-	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 15681176 - 3, 4096, 512);
+	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 15681176 - 24, 4096, 512);
 	
 	LogMsg("** Starting additional tests in 4 seconds...");
 	PerformDelay(4000, NULL);

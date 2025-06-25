@@ -118,15 +118,17 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 			ByteCount = FileSize - Offset;
 	}
 	
+	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
+	
 	// If we may use caching, use the cache.
 	if (Cached)
 	{
 		Status = CcReadFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
-		if (FAILED(Status))
-			return IOSB_STATUS(Iosb, Status);
+		if (SUCCEEDED(Status))
+			Iosb->BytesRead = ByteCount;
 		
-		Iosb->BytesRead = ByteCount;
-		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+		KeSetAddressMode(OldMode);
+		return IOSB_STATUS(Iosb, Status);
 	}
 	
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
@@ -143,7 +145,10 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 	}
 	
 	if (FAILED(Status))
+	{
+		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
+	}
 	
 	Status = IopReadFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
 	
@@ -160,6 +165,7 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 		(void) IopTouchFile(Fcb, IO_OP_READ);
 	}
 	
+	KeSetAddressMode(OldMode);
 	return Status;
 }
 
@@ -177,6 +183,8 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		if (!IoIsSeekable(Fcb))
 			Cached = false;
 	}
+	
+	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
 	
 	// If we may use caching, use the cache.
 	if (Cached)
@@ -205,7 +213,10 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	}
 	
 	if (FAILED(Status))
+	{
+		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
+	}
 	
 	Status = IopWriteFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
 	
@@ -222,6 +233,7 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		(void) IopTouchFile(Fcb, IO_OP_WRITE);
 	}
 	
+	KeSetAddressMode(OldMode);
 	return Status;
 }
 
