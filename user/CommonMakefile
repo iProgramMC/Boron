@@ -1,21 +1,26 @@
-# Boron Layer DLL makefile
+# Boron application makefile
 
 # DEBUG flags
 DEBUG ?= yes
 DEBUG2 ?= no
 
-BUILD_DIR = build
-SRC_DIR = src
-INC_DIR = include
-DDK_DIR = ../common/include
-SDK_DIR = ../user/include
+# User parms
+USER_DEFINES ?=
 
-ENTRY_POINT = RelocateSelf
+# Only turn on debug2 temporarily
+
+BUILD_DIR = build
+SRC_DIR = source
+INC_DIR = include
+DDK_DIR = ../../common/include
+SDK_DIR = ../../user/include
+LINKER_FILE = linker.ld
+
 ARCHITECTURE = AMD64
 
-# This is the name that our final driver executable will have.
+# This is the name that our final appication executable will have.
 # Change as needed.
-override TARGET := $(BUILD_DIR)/libboron.so
+override TARGET := $(BUILD_DIR)/$(APP_NAME).exe
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -27,7 +32,7 @@ define DEFAULT_VAR =
 	endif
 endef
 
-DEFINES = -DIS_BORON_DLL
+DEFINES = -DIS_DRIVER
 OPT = -O2
 
 ifeq ($(DEBUG), yes)
@@ -49,10 +54,10 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
+CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
+CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
@@ -92,7 +97,6 @@ override CXXFLAGS +=        \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
-	-fPIC                   \
 	-m64                    \
 	-march=x86-64           \
 	-mabi=sysv              \
@@ -108,11 +112,11 @@ override CXXFLAGS +=        \
 	-I.
 	
 override LDFLAGSBASE +=     \
-	-nostdlib -shared -fPIC \
-	-Bsymbolic              \
-	-e $(ENTRY_POINT)       \
+	-nostdlib               \
 	-m elf_x86_64           \
-	-z max-page-size=0x1000
+	-z max-page-size=0x1000 \
+	-lboron                 \
+	-L../../build
 
 # Internal linker flags that should not be changed by the user.
 override LDFLAGS +=  \
@@ -123,19 +127,19 @@ override NASMFLAGS += \
 	-f elf64
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
-override CXXFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
-override ASFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
-override NASMFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
 override OBJ := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))
 override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
 
 # Default target.
 .PHONY: all
-all: borondll
+all: driver
 
-# Link rules for the final DLL.
-$(TARGET): $(OBJ) $(LINKER_FILE)
+# Link rules for the final driver executable.
+$(TARGET): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET)"
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 
@@ -172,4 +176,4 @@ clean:
 	@echo "Cleaning"
 	@rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
 
-borondll: $(TARGET)
+driver: $(TARGET)

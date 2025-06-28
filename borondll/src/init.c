@@ -3,8 +3,6 @@
 NO_RETURN
 void TestThreadStart();
 
-const char HiStr[] = "Hissssssssssss, Viper Lives\n";
-
 HIDDEN
 void DLLEntryPoint()
 {
@@ -48,6 +46,8 @@ void DLLEntryPoint()
 	DbgPrint("Closing new thread handle.");
 	OSClose(Handle);
 	
+	OSDummy();
+	
 	DbgPrint("Main Thread exiting.");
 	OSExitThread();
 }
@@ -55,7 +55,7 @@ void DLLEntryPoint()
 NO_RETURN
 void TestThreadStart()
 {
-	OSOutputDebugString(HiStr, sizeof HiStr);
+	OSDummy();
 	
 	DbgPrint("New Thread exiting.");
 	OSExitThread();

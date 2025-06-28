@@ -25,11 +25,17 @@ DRIVERS_LIST = \
 	ext2fs     \
 	test
 
+APPS_LIST = \
+	init
+
 # The build directory
 BUILD_DIR = build
 
 # The driver directory
 DRIVERS_DIR = drivers
+
+# The userland directory
+USER_DIR = user
 
 # The ISO root directory
 ISO_DIR=$(BUILD_DIR)/iso_root
@@ -43,6 +49,7 @@ SYSDLL_BUILD=borondll/build
 KERNEL_ELF=$(KERNEL_BUILD)/$(KERNEL_NAME)
 SYSDLL_ELF=$(SYSDLL_BUILD)/$(SYSDLL_NAME)
 
+APPS_TARGETS          = $(patsubst %,$(BUILD_DIR)/%.exe,$(APPS_LIST))
 DRIVERS_TARGETS       = $(patsubst %,$(BUILD_DIR)/%.sys,$(DRIVERS_LIST))
 DRIVERS_DIRECTORIES   = $(patsubst %,$(DRIVERS_DIR)/%,$(DRIVERS_LIST))
 DRIVERS_BUILD_DIRS    = $(patsubst %,%/build,$(DRIVERS_DIRECTORIES))
@@ -70,7 +77,7 @@ clean:
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel borondll drivers limine_config
+$(IMAGE_TARGET): kernel borondll drivers apps limine_config
 	@echo "Building iso..."
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
@@ -93,19 +100,31 @@ borondll: $(SYSDLL_ELF)
 
 drivers: $(DRIVERS_TARGETS)
 
+apps: $(APPS_TARGETS)
+
 $(KERNEL_ELF): FORCE
+	@mkdir -p $(BUILD_DIR)
 	@echo "[MK]\tMaking $(KERNEL_ELF)"
 	@$(MAKE) -C boron
+	@cp $(KERNEL_ELF) $(BUILD_DIR)/$(KERNEL_NAME)
 
 $(SYSDLL_ELF): FORCE
+	@mkdir -p $(BUILD_DIR)
 	@echo "[MK]\tMaking $(SYSDLL_ELF)"
 	@$(MAKE) -C borondll
+	@cp $(SYSDLL_ELF) $(BUILD_DIR)/$(SYSDLL_NAME)
 
-# note: the $(dir $(dir)) is kind of cheating but it works!
+$(BUILD_DIR)/%.exe: FORCE
+	@mkdir -p $(BUILD_DIR)
+	@echo "[MK]\tMaking app $(patsubst $(BUILD_DIR)/%.exe,%,$@)"
+	@echo $(patsubst $(BUILD_DIR)/%.exe,$(USER_DIR)/%,$@)
+	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.exe,$(USER_DIR)/%,$@)
+	@cp $(USER_DIR)/$*/build/$*.exe $@
+
 $(BUILD_DIR)/%.sys: FORCE
+	@mkdir -p $(BUILD_DIR)
 	@echo "[MK]\tMaking driver $(patsubst $(BUILD_DIR)/%.sys,%,$@)"
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%,$@)
-	@mkdir -p $(dir $@)
 	@cp $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%/build/out.sys,$@) $@
 
 limine_config: limine.cfg

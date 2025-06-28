@@ -142,8 +142,8 @@ override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $
 all: driver
 
 # Link rules for the final driver executable.
-$(TARGET): $(OBJ) $(LINKER_FILE)
-	@echo "[LD]\tBuilding $(KERNEL)"
+$(TARGET): $(OBJ)
+	@echo "[LD]\tBuilding $(TARGET)"
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.

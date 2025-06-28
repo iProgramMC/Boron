@@ -8,7 +8,6 @@ BUILD_DIR = build
 SRC_DIR = src
 INC_DIR = include
 DDK_DIR = ../common/include
-SDK_DIR = ../user/include
 
 ENTRY_POINT = RelocateSelf
 ARCHITECTURE = AMD64
@@ -55,10 +54,10 @@ CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_
 CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
-CPPFLAGS ?= -I $(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+CPPFLAGS ?= -I $(INC_DIR) -I $(DDK_DIR)
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(DDK_DIR)
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=
