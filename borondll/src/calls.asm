@@ -26,11 +26,29 @@ global %2
 	ret
 %endmacro
 
-CALL 0, OSClose
-CALL 1, OSCreateThread
-CALL 2, OSCreateProcess
-CALL 3, OSDummy
-CALL 4, OSExitThread
-CALL 5, OSOutputDebugString
-CALL 6, OSWaitForSingleObject
-CALL 7, OSWaitForMultipleObjects
+CALL 0, OSAllocateVirtualMemory
+CALL 1, OSClose
+CALL 2, OSCreateEvent
+CALL 3, OSCreateMutex
+CALL 4, OSCreateProcess
+CALL 5, OSCreateThread
+CALL 6, OSDummy
+CALL 7, OSExitThread
+CALL 8, OSFreeVirtualMemory
+CALL 9, OSGetAlignmentFile
+CALL 10, OSGetLengthFile
+CALL 11, OSMapViewOfObject
+CALL 12, OSOpenEvent
+CALL 13, OSOpenFile
+CALL 14, OSOpenMutex
+CALL 15, OSOutputDebugString
+CALL 16, OSPulseEvent
+CALL 17, OSQueryEvent
+CALL 18, OSQueryMutex
+CALL 19, OSReadFile
+CALL 20, OSReleaseMutex
+CALL 21, OSResetEvent
+CALL 22, OSSetEvent
+CALL 23, OSTouchFile
+CALL 24, OSWaitForMultipleObjects
+CALL 25, OSWaitForSingleObject

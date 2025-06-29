@@ -19,26 +19,62 @@ bits 64
 ;%define ENABLE_SYSCALL_TRACE
 
 ; *** SYSTEM SERVICE TABLE ***
+extern OSAllocateVirtualMemory
 extern OSClose
-extern OSCreateThread
+extern OSCreateEvent
+extern OSCreateMutex
 extern OSCreateProcess
+extern OSCreateThread
 extern OSDummy
 extern OSExitThread
+extern OSFreeVirtualMemory
+extern OSGetAlignmentFile
+extern OSGetLengthFile
+extern OSMapViewOfObject
+extern OSOpenEvent
+extern OSOpenFile
+extern OSOpenMutex
 extern OSOutputDebugString
-extern OSWaitForSingleObject
+extern OSPulseEvent
+extern OSQueryEvent
+extern OSQueryMutex
+extern OSReadFile
+extern OSReleaseMutex
+extern OSResetEvent
+extern OSSetEvent
+extern OSTouchFile
 extern OSWaitForMultipleObjects
+extern OSWaitForSingleObject
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
 KiSystemServiceTable:
+	dq OSAllocateVirtualMemory
 	dq OSClose
-	dq OSCreateThread
+	dq OSCreateEvent
+	dq OSCreateMutex
 	dq OSCreateProcess
+	dq OSCreateThread
 	dq OSDummy
 	dq OSExitThread
+	dq OSFreeVirtualMemory
+	dq OSGetAlignmentFile
+	dq OSGetLengthFile
+	dq OSMapViewOfObject
+	dq OSOpenEvent
+	dq OSOpenFile
+	dq OSOpenMutex
 	dq OSOutputDebugString
-	dq OSWaitForSingleObject
+	dq OSPulseEvent
+	dq OSQueryEvent
+	dq OSQueryMutex
+	dq OSReadFile
+	dq OSReleaseMutex
+	dq OSResetEvent
+	dq OSSetEvent
+	dq OSTouchFile
 	dq OSWaitForMultipleObjects
+	dq OSWaitForSingleObject
 KiSystemServiceTableEnd:
 	nop
 
