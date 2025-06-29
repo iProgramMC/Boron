@@ -4,10 +4,14 @@ NO_RETURN
 void TestThreadStart();
 
 HIDDEN
-void DLLEntryPoint()
+void DLLEntryPoint(PPEB Peb)
 {
 	HANDLE Handle;
 	BSTATUS Status;
+	
+	DbgPrint("Peb: %p", Peb);
+	DbgPrint("Image Name: '%s'", Peb->ImageName);
+	DbgPrint("Command Line: '%s'", Peb->CommandLine);
 	
 	DbgPrint("Calling OSDummy twice.");
 	OSDummy();

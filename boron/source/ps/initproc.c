@@ -18,7 +18,14 @@ Author:
 #include <io.h>
 #include <rtl/elf.h>
 
-static const char* PspInitialProcessFileName = "\\InitRoot\\libboron.so";
+// TODO: make these changeable
+
+// path to libboron.so. temporary
+const char* PspBoronDllFileName = "\\InitRoot\\libboron.so";
+
+// path to init.exe and command line. temporary
+const char* PspInitialProcessFileName = "\\InitRoot\\init.exe";
+const char* PspInitialProcessCommandLine = "/?";
 
 // TODO: Share a lot of this code with Ldr.
 
@@ -48,6 +55,12 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	ELF_HEADER ElfHeader;
 	const char* Func;
 	
+	// TODO: Make these changeable!
+	const char* BoronDllPath = PspBoronDllFileName;
+	
+	const char* ImageName = PspInitialProcessFileName;
+	const char* CommandLine = PspInitialProcessCommandLine;
+	
 	Func = __func__;
 	
 	Status = OSCreateProcess(
@@ -61,8 +74,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Failed to create initial process: %d (%s)", Status, RtlGetStatusString(Status));
 	
 	FileAttributes.RootDirectory = HANDLE_NONE;
-	FileAttributes.ObjectName = PspInitialProcessFileName;
-	FileAttributes.ObjectNameLength = strlen(PspInitialProcessFileName);
+	FileAttributes.ObjectName = BoronDllPath;
+	FileAttributes.ObjectNameLength = strlen(BoronDllPath);
 	FileAttributes.OpenFlags = 0;
 	
 	Status = OSOpenFile(
@@ -71,17 +84,17 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	);
 	
 	if (FAILED(Status))
-		KeCrash("%s: Failed to open %s: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
+		KeCrash("%s: Failed to open %s: %d (%s)", Func, BoronDllPath, Status, RtlGetStatusString(Status));
 	
 	// The file has been opened.
 	uint64_t FileSize = 0;
 	Status = OSGetLengthFile(FileHandle, &FileSize);
 	if (FAILED(Status))
-		KeCrash("%s: Failed to get length of file %s: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
+		KeCrash("%s: Failed to get length of file %s: %d (%s)", Func, BoronDllPath, Status, RtlGetStatusString(Status));
 	
 	// XXX: Arbitrary
 	if (FileSize > 0x800000)
-		KeCrash("%s: %s is just too big", Func, PspInitialProcessFileName);
+		KeCrash("%s: %s is just too big", Func, BoronDllPath);
 	
 	// There is no need to complicate ourselves at all.  We will simply map the
 	// entire file once, then map each page individually where needed, and unmap
@@ -100,7 +113,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	);
 	
 	if (FAILED(Status))
-		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, PspInitialProcessFileName, Status, RtlGetStatusString(Status));
+		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, BoronDllPath, Status, RtlGetStatusString(Status));
 	
 	DbgPrint("Mapped entire file to %p", ElfMappingBase);
 	
@@ -146,7 +159,14 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	Size = (Size + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
 	
 	// Now, the PEB will occupy however many pages, so we will need to cut those out too.
-	size_t PebSize = (sizeof(PEB) + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
+	size_t PebSize = sizeof(PEB);
+	
+	// and the size of the command line and image name
+	PebSize += strlen(ImageName) + 1 + sizeof(uintptr_t);
+	PebSize += strlen(CommandLine) + 1 + sizeof(uintptr_t);
+	
+	// Now round it up to a page size
+	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
 	BoronDllBase = MM_USER_SPACE_END + 1 - (PebSize + Size) * PAGE_SIZE;
 	DbgPrint("BoronDllBase: %p", BoronDllBase);
@@ -209,11 +229,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (!IsDynamicLoaded)
 		KeCrash("%s: There is no LOAD segment that maps the DYNAMIC table.", Func);
 	
-	// Attach to this process.
-	PEPROCESS Process = NULL;
-	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
-	ASSERT(SUCCEEDED(Status));
-	
 	// Make sure to unmap from the system address space.
 	Status = OSFreeVirtualMemory(
 		CURRENT_PROCESS_HANDLE,
@@ -226,8 +241,46 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	ElfMappingBase = NULL;
 	
-	ObDereferenceObject(Process);
 	OSClose(FileHandle);
+	
+	// Now, map the PEB into memory and fill it in.
+	void* PebPtr = NULL;
+	RegionSize = PebSize;
+	Status = OSAllocateVirtualMemory(ProcessHandle, &PebPtr, &RegionSize, MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE);
+	if (FAILED(Status))
+		KeCrash("%s: Failed to allocate PEB: %d (%s)", Func, Status, RtlGetStatusString(Status));
+	
+	DbgPrint("PEB Pointer: %p,  Size: %zu,  RgnSize: %zu", PebPtr, PebSize, RegionSize);
+	
+	// Attach to this process so that we can write to the PEB.
+	PEPROCESS Process = NULL;
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+	ASSERT(SUCCEEDED(Status));
+	
+	PEPROCESS OldAttached = PsSetAttachedProcess(Process);
+	
+	PPEB PPeb = PebPtr;
+	PPeb->PebFreeSize = RegionSize;
+	
+	// Copy the image name.
+	char* AfterPeb = (char*) PebPtr + sizeof(PEB);
+	PPeb->ImageName = AfterPeb;
+	PPeb->ImageNameSize = strlen(ImageName);
+	strcpy(AfterPeb, ImageName);
+	
+	AfterPeb += PPeb->ImageNameSize + 1;
+	
+	// Align to a uintptr_t boundary.
+	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
+	
+	// Copy the command line.
+	PPeb->CommandLine = AfterPeb;
+	PPeb->CommandLineSize = strlen(CommandLine);
+	strcpy(AfterPeb, CommandLine);
+	
+	// Detach and dereference the process.
+	PsSetAttachedProcess(OldAttached);
+	ObDereferenceObject(Process);
 	
 	void* EntryPoint = (void*) (BoronDllBase + ElfHeader.EntryPoint);
 	
@@ -236,7 +289,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Failed to create thread in process: Insufficient Memory", Func);
 	
 	Context->InstructionPointer = EntryPoint;
-	Context->UserContext = NULL;
+	Context->UserContext = PPeb;
 	
 	// OK. Now, the process is mapped.
 	// Create a thread to make it call the entry point.

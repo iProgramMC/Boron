@@ -31,7 +31,7 @@ extern HIDDEN void DLLEntryPoint();
 // needs to be relocated.
 //
 // This is the entry point of Libboron.so.
-void RelocateSelf()
+void RelocateSelf(PPEB Peb)
 {
 	size_t RelOffset = 0, RelSize = 0, RelaOffset = 0, RelaSize = 0, RelrOffset = 0, RelrSize = 0;
 	
@@ -139,5 +139,5 @@ void RelocateSelf()
 	}
 	
 	// Finally, run the entry point.
-	DLLEntryPoint();
+	DLLEntryPoint(Peb);
 }

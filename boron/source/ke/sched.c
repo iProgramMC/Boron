@@ -627,6 +627,8 @@ void KiPerformYield()
 			
 			KeInitializeDpc(&CurrentThread->DeleteDpc, KepCleanUpThread, CurrentThread);
 			KeEnqueueDpc(&CurrentThread->DeleteDpc, NULL, NULL);
+			
+			ASSERT(NextThread != CurrentThread);
 		}
 	}
 	
