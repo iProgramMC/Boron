@@ -43,6 +43,12 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 			return Status;
 		}
 		
+		if (ElfProgramHeader.SizeInMemory == 0)
+		{
+			DbgPrint("OSDLL: Skipping segment because its size in memory is zero...");
+			continue;
+		}
+		
 		int Protection = 0;
 		int CowFlag = 0;
 		
@@ -66,12 +72,6 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 				"the file does not have the same alignment as its virtual address!"
 			);
 			return STATUS_UNIMPLEMENTED;
-		}
-		
-		if (ElfProgramHeader.SizeInMemory == 0)
-		{
-			DbgPrint("OSDLL: Skipping segment because its size in memory is zero...");
-			continue;
 		}
 		
 		if (ElfProgramHeader.SizeInFile == 0)

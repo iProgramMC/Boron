@@ -431,7 +431,7 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, vo
 	MmFreeMdl(Mdl);
 	
 	// Copy the I/O status block to the caller.
-	BSTATUS Status2 = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), false);
+	BSTATUS Status2 = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), true);
 	
 	if (FAILED(Status))
 		return Status;
