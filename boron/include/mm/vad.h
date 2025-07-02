@@ -24,13 +24,6 @@ Author:
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
-enum
-{
-	PAGE_READ    = 1,
-	PAGE_WRITE   = 2,
-	PAGE_EXECUTE = 4,
-};
-
 typedef union
 {
 	struct
