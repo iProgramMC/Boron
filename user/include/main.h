@@ -70,5 +70,6 @@ void DbgPrint(const char* msg, ...);
 #define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)(Pointer) - (uintptr_t)offsetof(Type, Field)))
 
 #include <list.h>
+#include <rtl/check64.h>
 
 #endif//NS64_MAIN_H
