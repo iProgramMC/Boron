@@ -2,6 +2,6 @@
 
 int _start()
 {
-	DbgPrint("Hissssssssssss, Viper Lives\n");
+	DbgPrint("Init is running!\n");
 	OSExitThread();
 }

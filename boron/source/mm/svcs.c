@@ -233,11 +233,12 @@ BSTATUS OSFreeVirtualMemory(
 //
 //     MappedObject - The object of which a view is to be mapped.
 //
-//     BaseAddressOut - The base address of the view.  If MEM_FIXED is specified, then the address
-//                      will be read from this parameter.
+//     BaseAddressOut - The base address of the view.  If this is not NULL, and the value that this
+//                      points to is also not NULL, then the address will be used as the mapping base
+//                      instead.  Mapping to address zero is not allowed.
 //
 //     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
-//                     size of the view after its creation.
+//                size of the view after its creation.
 //
 //     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
 //

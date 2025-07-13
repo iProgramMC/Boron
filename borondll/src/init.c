@@ -2,6 +2,11 @@
 #include <elf.h>
 #include <rtl/assert.h>
 
+// Limitations of this ELF loader that I don't plan to solve:
+//
+// - No programs with an image base of 0
+// - The misalignment of the file offset and the virtual address must match
+//
 
 HIDDEN
 BSTATUS OSDLLMapElfFile(HANDLE Handle)
@@ -45,100 +50,118 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 		
 		if (ElfProgramHeader.SizeInMemory == 0)
 		{
-			DbgPrint("OSDLL: Skipping segment because its size in memory is zero...");
+			DbgPrint("OSDLL: Skipping segment %d because its size in memory is zero...", i);
 			continue;
 		}
 		
-		int Protection = 0;
-		int CowFlag = 0;
-		
-		if (ElfProgramHeader.Flags & 1) Protection |= PAGE_EXECUTE;
-		if (ElfProgramHeader.Flags & 4) Protection |= PAGE_READ;
-		if (ElfProgramHeader.Flags & 2) CowFlag = MEM_COW;
-		
-		if (Protection == 0)
+		switch (ElfProgramHeader.Type)
 		{
-			DbgPrint("OSDLL: Skipping segment because its protection is zero...");
-			continue;
-		}
-		
-		// Check if the virtual address and offset within the file have the
-		// same alignment.
-		if ((ElfProgramHeader.Offset & (PAGE_SIZE - 1)) !=
-			(ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1)))
-		{
-			DbgPrint(
-				"OSDLL: Don't support this program header where the offset within "
-				"the file does not have the same alignment as its virtual address!"
-			);
-			return STATUS_UNIMPLEMENTED;
-		}
-		
-		if (ElfProgramHeader.SizeInFile == 0)
-		{
-			DbgPrint("OSDLL: Uninitialized data at %p", ElfProgramHeader.VirtualAddress);
-			
-			// Make sure the represented range is aligned to page boundaries and covers
-			// the entire range.
-			size_t MapSize = ElfProgramHeader.SizeInMemory;
-			void* Address = (void*) (ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1));
-			MapSize += ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1);
-			MapSize = (MapSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-			
-		#ifdef DEBUG
-			void* OldAddress = Address;
-		#endif
-			
-			Status = OSAllocateVirtualMemory(
-				CURRENT_PROCESS_HANDLE,
-				&Address,
-				&MapSize,
-				MEM_COMMIT | MEM_RESERVE | MEM_FIXED,
-				Protection
-			);
-			
-			ASSERT(OldAddress == Address);
-			
-			if (FAILED(Status))
+			// a LOAD PHDR means that that segment must be mapped in from the source.
+			case PROG_LOAD:
+			{
+				int Protection = 0;
+				int CowFlag = 0;
+				
+				if (ElfProgramHeader.Flags & 1) Protection |= PAGE_EXECUTE;
+				if (ElfProgramHeader.Flags & 4) Protection |= PAGE_READ;
+				if (ElfProgramHeader.Flags & 2) CowFlag = MEM_COW;
+				
+				if (Protection == 0)
+				{
+					DbgPrint("OSDLL: Skipping segment %d because its protection is zero...", i);
+					continue;
+				}
+				
+				// Check if the virtual address and offset within the file have the
+				// same alignment.
+				if ((ElfProgramHeader.Offset & (PAGE_SIZE - 1)) !=
+					(ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1)))
+				{
+					DbgPrint(
+						"OSDLL: Don't support this program header where the offset within "
+						"the file does not have the same alignment as its virtual address!"
+					);
+					return STATUS_UNIMPLEMENTED;
+				}
+				
+				if (ElfProgramHeader.SizeInFile == 0)
+				{
+					DbgPrint("OSDLL: Uninitialized data at %p", ElfProgramHeader.VirtualAddress);
+					
+					// Make sure the represented range is aligned to page boundaries and covers
+					// the entire range.
+					size_t MapSize = ElfProgramHeader.SizeInMemory;
+					void* Address = (void*) (ElfProgramHeader.VirtualAddress & ~(PAGE_SIZE - 1));
+					MapSize += ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1);
+					MapSize = (MapSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+					
+				#ifdef DEBUG
+					void* OldAddress = Address;
+				#endif
+					
+					Status = OSAllocateVirtualMemory(
+						CURRENT_PROCESS_HANDLE,
+						&Address,
+						&MapSize,
+						MEM_COMMIT | MEM_RESERVE,
+						Protection
+					);
+					
+					ASSERT(OldAddress == Address);
+					
+					if (FAILED(Status))
+					{
+						DbgPrint(
+							"OSDLL: Failed to map uninitialized data in ELF: %d (%s)",
+							Status,
+							RtlGetStatusString(Status)
+						);
+						return Status;
+					}
+					
+					continue;
+				}
+				
+				void* Address = (void*) ElfProgramHeader.VirtualAddress;
+				
+			#ifdef DEBUG
+				void* OldAddress = Address;
+			#endif
+				
+				DbgPrint("Initialized data at offset %p.", OldAddress);
+				
+				// Initialized data.
+				Status = OSMapViewOfObject(
+					CURRENT_PROCESS_HANDLE,
+					Handle,
+					&Address,
+					ElfProgramHeader.SizeInMemory,
+					MEM_COMMIT | CowFlag,
+					ElfProgramHeader.Offset,
+					Protection
+				);
+				
+				ASSERT(OldAddress == Address);
+					
+				if (FAILED(Status))
+				{
+					DbgPrint(
+						"OSDLL: Failed to map initialized data in ELF: %d (%s)",
+						Status,
+						RtlGetStatusString(Status)
+					);
+					return Status;
+				}
+				break;
+			}
+			default:
 			{
 				DbgPrint(
-					"OSDLL: Failed to map uninitialized data in ELF: %d (%s)",
-					Status,
-					RtlGetStatusString(Status)
+					"OSDLL: Skipping phdr %d because its type is %d.",
+					i,
+					ElfProgramHeader.Type
 				);
-				return Status;
 			}
-			
-			continue;
-		}
-		
-		void* Address = (void*) ElfProgramHeader.VirtualAddress;
-		
-	#ifdef DEBUG
-		void* OldAddress = Address;
-	#endif
-		
-		// Initialized data.
-		Status = OSMapViewOfObject(
-			CURRENT_PROCESS_HANDLE,
-			Handle,
-			&Address,
-			ElfProgramHeader.SizeInMemory,
-			MEM_COMMIT | MEM_RESERVE | MEM_FIXED | CowFlag,
-			ElfProgramHeader.Offset,
-			Protection
-		);
-		
-		ASSERT(OldAddress == Address);
-			
-		if (FAILED(Status))
-		{
-			DbgPrint(
-				"OSDLL: Failed to map initialized data in ELF: %d (%s)",
-				Status,
-				RtlGetStatusString(Status)
-			);
-			return Status;
 		}
 	}
 	
