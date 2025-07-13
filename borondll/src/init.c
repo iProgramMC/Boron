@@ -1,5 +1,6 @@
 #include <boron.h>
 #include <elf.h>
+#include <string.h>
 #include <rtl/assert.h>
 
 // Limitations of this ELF loader that I don't plan to solve:
@@ -16,6 +17,9 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 	ELF_HEADER ElfHeader;
 	ELF_PROGRAM_HEADER ElfProgramHeader;
 	
+	bool HasDynamicProgramHeader;
+	ELF_PROGRAM_HEADER DynamicProgramHeader;
+	
 	Status = OSReadFile(&Iosb, Handle, 0, &ElfHeader, sizeof ElfHeader, 0);
 	if (FAILED(Status))
 	{
@@ -27,6 +31,7 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 		return Status;
 	}
 	
+	// Step 1.  Parse program headers.
 	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
 	{
 		Status = OSReadFile(
@@ -154,6 +159,13 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 				}
 				break;
 			}
+			case PROG_DYNAMIC:
+			{
+				// Found the dynamic program header.
+				HasDynamicProgramHeader = true;
+				DynamicProgramHeader = ElfProgramHeader;
+				break;
+			}
 			default:
 			{
 				DbgPrint(
@@ -161,6 +173,53 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 					i,
 					ElfProgramHeader.Type
 				);
+			}
+		}
+	}
+	
+	// Step 2.  Parse the dynamic segment, if it exists.
+	// If it doesn't exist, it's probably a statically linked program.
+	if (HasDynamicProgramHeader)
+	{
+		size_t Offset = 0;
+		ELF_DYNAMIC_ITEM DynItem;
+		
+		while (true)
+		{
+			memset(&DynItem, 0, sizeof DynItem);
+			
+			Status = OSReadFile(
+				&Iosb,
+				Handle,
+				DynamicProgramHeader.Offset + Offset,
+				&DynItem,
+				sizeof(DynItem),
+				0
+			);
+			
+			if (FAILED(Status))
+			{
+				DbgPrint(
+					"OSDLL: Failed to read ELF dynamic item from dynamic segment: %d (%s)",
+					Status,
+					RtlGetStatusString(Status)
+				);
+				return Status;
+			}
+			
+			// Stop at DYN_NULL
+			if (DynItem.Tag == DYN_NULL)
+				break;
+			
+			Offset += sizeof(DynItem);
+			
+			switch (DynItem.Tag)
+			{
+				case DYN_NEEDED:
+				{
+					// Read the needed library.
+					break;
+				}
 			}
 		}
 	}

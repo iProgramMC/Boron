@@ -69,7 +69,7 @@ typedef struct _FCB FCB, *PFCB;
 // - IO_DELETE_METHOD is the final dispatch call performed on an FCB.  After the call, the FCB is deleted from the host
 //   file system's cache.
 //
-// - The initial set of calls have been copied from NanoShell as they have been deemed adequate.  More calls might be added
+// - The initial set of calls has been copied from NanoShell as they have been deemed adequate.  More calls might be added
 //   in the future, or these calls might be changed.
 //
 // - TODO: Define a kernel-wide time format (64-bit Unix epoch time?)
