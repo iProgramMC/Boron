@@ -11,3 +11,4 @@
 #include "pss.h"
 
 #include "svcs.h"
+#include "heap.h"
