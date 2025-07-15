@@ -14,5 +14,19 @@ Author:
 ***/
 #pragma once
 
+// TODO: Define as uint32_t on 32-bit architectures.
+typedef uint64_t KAFFINITY;
+
+// Note. We define it as a qword, and cast it down later if needed.
+#define AFFINITY_ALL ((KAFFINITY) ~0ULL)
+
+typedef int KPRIORITY;
+
+enum
+{
+	EVENT_SYNCHRONIZATION,
+	EVENT_NOTIFICATION,
+};
+
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
 

@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ke/atomics.h
+	atom.h
 	
 Abstract:
 	This header file contains the definitions for the
@@ -64,5 +64,7 @@ Author:
 // Otherwise, the contents of *var are written to *exp and false is returned.
 
 // Note for AtClear: Don't use for anything other than bool and char.
+
+#define SpinHint() __asm__("pause")
 
 #endif//BORON_KE_ATOMICS_H

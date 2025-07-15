@@ -19,12 +19,12 @@ Author:
 #include <arch.h>
 
 #include <kes.h>
-#include <ke/types.h>
+#include <atom.h>
+
 #include <ke/mode.h>
 #include <ke/ipl.h>
 #include <ke/locks.h>
 #include <ke/prcb.h>
-#include <ke/atomics.h>
 #include <ke/stats.h>
 #include <ke/irq.h>
 #include <ke/int.h>

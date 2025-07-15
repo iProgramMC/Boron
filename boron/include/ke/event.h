@@ -14,17 +14,11 @@ Author:
 ***/
 #pragma once
 
-enum // [1]
-{
-	EVENT_SYNCHRONIZATION,
-	EVENT_NOTIFICATION,
-};
-
 typedef struct KEVENT_tag
 {
 	KDISPATCH_HEADER Header;
 	
-	int Type; // [1]
+	int Type; // EVENT_SYNCHRONIZATION or EVENT_NOTIFICATION
 }
 KEVENT, *PKEVENT;
 
