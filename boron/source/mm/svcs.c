@@ -153,13 +153,9 @@ BSTATUS OSAllocateVirtualMemory(
 //
 //   If FreeType is MEM_DECOMMIT, the memory region is only decommitted and not released.
 //
-//   If FreeType is MEM_RELEASE, the memory region is released.  If MEM_DECOMMIT isn't set,
-//   the region passed in as parameter must not be committed in any place.  Otherwise,
-//   the committed regions are decommitted before releasing the memory region.
+//   If FreeType is MEM_RELEASE, the memory region is first decommitted, and then released.
 //
-//   If MEM_DECOMMIT | MEM_RELEASE is specified, but the memory range does not cover an
-//   entire reserved region, the memory will still be decommitted, but an error status
-//   will be returned.
+//   If MEM_DECOMMIT | MEM_RELEASE is specified, an error will be returned.
 //
 //   If BaseAddress is not aligned to the page, then it will be rounded to the lowest
 //   virtual page aligned address and the region's size will be increased by the reported

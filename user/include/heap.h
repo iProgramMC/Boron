@@ -38,7 +38,18 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size);
 void OSFreeHeap(POS_HEAP Heap, void* Memory);
 
 // Initialize a heap instance.
-void OSInitializeHeap(POS_HEAP Heap);
+BSTATUS OSInitializeHeap(POS_HEAP Heap);
 
 // Delete a heap instance.  Currently this must be used only after everything has been freed.
 void OSDeleteHeap(POS_HEAP Heap);
+
+#ifdef IS_BORON_DLL
+// Initializes the global heap.
+void OSDLLInitializeGlobalHeap(void);
+#endif
+
+// Allocates a block on the global heap.
+void* OSAllocate(size_t Size);
+
+// Frees a block on the global heap.
+void OSFree(void* Memory);

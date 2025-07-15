@@ -2,13 +2,38 @@
 #include <elf.h>
 #include <string.h>
 #include <rtl/assert.h>
+#include "dll.h"
 
 // Limitations of this ELF loader that I don't plan to solve:
 //
 // - No programs with an image base of 0
 // - The misalignment of the file offset and the virtual address must match
+// - The entire strtab section must be loaded inside a LOAD PHDR.
 //
 
+static LIST_ENTRY OSDllLoadQueue;
+static LIST_ENTRY OSDllsLoaded;
+
+// Adds a NEEDED entry, which resolves to an offset in strtab which
+// will be resolved later.
+HIDDEN
+bool OSDLLAddDllToLoad(uintptr_t StrTabOffset)
+{
+	PDLL_LOAD_QUEUE_ITEM QueueItem = OSAllocate(sizeof(DLL_LOAD_QUEUE_ITEM));
+	
+	if (!QueueItem)
+		return false;
+	
+	QueueItem->PathNameOffsetInStrTab = StrTabOffset;
+	QueueItem->LoadedPathName = false;
+	
+	InsertTailList(&OSDllLoadQueue, &QueueItem->ListEntry);
+	
+	return true;
+}
+
+// TODO: If we need to implement loading libraries at runtime,
+// we should protect this with a critical section!
 HIDDEN
 BSTATUS OSDLLMapElfFile(HANDLE Handle)
 {
@@ -181,7 +206,9 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 	// If it doesn't exist, it's probably a statically linked program.
 	if (HasDynamicProgramHeader)
 	{
+		const char* StrTabAddress = NULL;
 		size_t Offset = 0;
+		bool HasExtraDLLs = false;
 		ELF_DYNAMIC_ITEM DynItem;
 		
 		while (true)
@@ -217,9 +244,40 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 			{
 				case DYN_NEEDED:
 				{
-					// Read the needed library.
+					// NOTE: This is an offset within strtab.
+					OSDLLAddDllToLoad(DynItem.Pointer);
+					HasExtraDLLs = true;
 					break;
 				}
+				
+				case DYN_STRTAB:
+				{
+					// The string table will be used to determine
+					// the needed libraries' names.
+					StrTabAddress = (const char*) DynItem.Pointer;
+					break;
+				}
+			}
+		}
+		
+		if (HasExtraDLLs)
+		{
+			PLIST_ENTRY Entry = OSDllLoadQueue.Flink;
+			while (Entry != &OSDllLoadQueue)
+			{
+				PDLL_LOAD_QUEUE_ITEM QueueItem = CONTAINING_RECORD(
+					Entry,
+					DLL_LOAD_QUEUE_ITEM,
+					ListEntry
+				);
+				
+				if (!QueueItem->LoadedPathName)
+				{
+					QueueItem->LoadedPathName = true;
+					QueueItem->PathName = StrTabAddress + QueueItem->PathNameOffsetInStrTab;
+				}
+				
+				Entry = Entry->Flink;
 			}
 		}
 	}
@@ -253,8 +311,24 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 	}
 	
 	Status = OSDLLMapElfFile(Handle);
-	
 	OSClose(Handle);
+	
+	// TODO: Load the DLLs in the queue.
+	while (!IsListEmpty(&OSDllLoadQueue))
+	{
+		PLIST_ENTRY Entry = OSDllLoadQueue.Flink;
+		RemoveEntryList(Entry);
+		
+		PDLL_LOAD_QUEUE_ITEM QueueItem = CONTAINING_RECORD(Entry, DLL_LOAD_QUEUE_ITEM, ListEntry);
+		
+		if (QueueItem->LoadedPathName)
+			DbgPrint("OSDLL: Need library %s.", QueueItem->PathName);
+		else
+			DbgPrint("OSDLL: Someone didn't load a library's name!");
+		
+		OSFree(QueueItem);
+	}
+	
 	
 	if (FAILED(Status))
 	{
@@ -273,6 +347,10 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 HIDDEN
 void DLLEntryPoint(PPEB Peb)
 {
+	OSDLLInitializeGlobalHeap();
+	InitializeListHead(&OSDllLoadQueue);
+	InitializeListHead(&OSDllsLoaded);
+	
 	BSTATUS Status;
 	
 	DbgPrint("-- LibBoron.so init!");

@@ -382,7 +382,7 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 			CURRENT_PROCESS_HANDLE,
 			Header,
 			sizeof(OS_HEAP_HEADER) + Header->BlockSize,
-			MEM_DECOMMIT | MEM_RELEASE
+			MEM_RELEASE
 		);
 		
 		if (FAILED(Status))
@@ -393,12 +393,12 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 	OSLeaveCriticalSection(&Heap->CriticalSection);
 }
 
-void OSInitializeHeap(POS_HEAP Heap)
+BSTATUS OSInitializeHeap(POS_HEAP Heap)
 {
 	InitializeListHead(&Heap->BlockList);
 	InitializeListHead(&Heap->FreeList);
 	
-	OSInitializeCriticalSection(&Heap->CriticalSection);
+	return OSInitializeCriticalSection(&Heap->CriticalSection);
 }
 
 void OSDeleteHeap(POS_HEAP Heap)
@@ -406,4 +406,29 @@ void OSDeleteHeap(POS_HEAP Heap)
 	OSDeleteCriticalSection(&Heap->CriticalSection);
 	
 	// TODO: Free every block of memory
+}
+
+// TODO: Add OSReallocateHeap
+
+// Global Heap
+static OS_HEAP OSDLLGlobalHeap;
+
+void OSDLLInitializeGlobalHeap()
+{
+	BSTATUS Status = OSInitializeHeap(&OSDLLGlobalHeap);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to initialize heap. %d (%s)", Status, RtlGetStatusString(Status));
+		ABORT();
+	}
+}
+
+void* OSAllocate(size_t Size)
+{
+	return OSAllocateHeap(&OSDLLGlobalHeap, Size);
+}
+
+void OSFree(void* Memory)
+{
+	OSFreeHeap(&OSDLLGlobalHeap, Memory);
 }
