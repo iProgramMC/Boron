@@ -19,7 +19,9 @@ Author:
 // some applications or diminish it in others.  It has to be benchmarked.
 #define MULTIPLE_WAITERS_WAKEUP 0
 
-BSTATUS OSInitializeCriticalSection(POS_CRITICAL_SECTION CriticalSection, int MaxSpins)
+#define DEFAULT_MAX_SPINS 1024
+
+BSTATUS OSInitializeCriticalSectionWithSpinCount(POS_CRITICAL_SECTION CriticalSection, int MaxSpins)
 {
 	CriticalSection->Locked = 0;
 	CriticalSection->MaxSpins = MaxSpins;
@@ -32,6 +34,11 @@ BSTATUS OSInitializeCriticalSection(POS_CRITICAL_SECTION CriticalSection, int Ma
 	);
 
 	return Status;
+}
+
+BSTATUS OSInitializeCriticalSection(POS_CRITICAL_SECTION CriticalSection)
+{
+	return OSInitializeCriticalSectionWithSpinCount(CriticalSection, DEFAULT_MAX_SPINS);
 }
 
 void OSDeleteCriticalSection(POS_CRITICAL_SECTION CriticalSection)

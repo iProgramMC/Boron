@@ -14,6 +14,7 @@ Author:
 #pragma once
 
 #include <list.h>
+#include <csect.h>
 
 typedef struct
 {
@@ -23,6 +24,9 @@ typedef struct
 
 	// The free list is used to determine where to allocate.
 	LIST_ENTRY FreeList;
+	
+	// The critical section that guards the whole structure.
+	OS_CRITICAL_SECTION CriticalSection;
 }
 OS_HEAP, *POS_HEAP;
 
@@ -35,3 +39,6 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory);
 
 // Initialize a heap instance.
 void OSInitializeHeap(POS_HEAP Heap);
+
+// Delete a heap instance.  Currently this must be used only after everything has been freed.
+void OSDeleteHeap(POS_HEAP Heap);

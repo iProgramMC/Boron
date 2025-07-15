@@ -142,6 +142,8 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 	if (!Size)
 		return NULL;
 	
+	OSEnterCriticalSection(&Heap->CriticalSection);
+	
 	PLIST_ENTRY Entry;
 
 	// Make sure the size is aligned to 8 bytes.
@@ -184,7 +186,8 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 
 			Header->IsFree = false;
 			Header->WasMapped = false;
-
+			
+			OSLeaveCriticalSection(&Heap->CriticalSection);
 			return Header->Data;
 		}
 
@@ -198,10 +201,11 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 			if (!Header)
 			{
 				// Out of virtual address space (or memory)
+				OSLeaveCriticalSection(&Heap->CriticalSection);
 				return NULL;
 			}
 
-			// The arena has been added, so do a retry
+			// The arena has been added, so do a retry.
 			continue;
 		}
 
@@ -212,6 +216,7 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 		Header->IsFree = false;
 		Header->WasMapped = true;
 
+		OSLeaveCriticalSection(&Heap->CriticalSection);
 		return Header->Data;
 	}
 }
@@ -289,12 +294,16 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 	if (!Memory)
 		return;
 	
+	OSEnterCriticalSection(&Heap->CriticalSection);
+	
 	// Access the header.
 	POS_HEAP_HEADER Header = CONTAINING_RECORD(Memory, OS_HEAP_HEADER, Data);
 
-	// I know this is not particularly effective, but who honestly cares?
+	// I know this is not particularly effective, so I might add
+	// some signature checks at some point.
 	if (Header->IsFree)
 	{
+		OSLeaveCriticalSection(&Heap->CriticalSection);
 		DbgPrint("OS: double-free detected");
 		ABORT();
 		return;
@@ -328,6 +337,7 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 
 #endif
 
+		OSLeaveCriticalSection(&Heap->CriticalSection);
 		return;
 	}
 
@@ -353,7 +363,7 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 	}
 
 	// If this is an arena beginning, and its size fills the entirety of the
-	// mapped size.
+	// mapped size, then unmap the whole region.
 	if (Header->IsArenaStart &&
 		Header->BlockSize + sizeof(OS_HEAP_HEADER) == DEFAULT_ARENA_SIZE)
 	{
@@ -378,13 +388,22 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 		if (FAILED(Status))
 			DbgPrint("OS: Cannot free arena %p: %d (%s).", Header, Status, RtlGetStatusString(Status));
 #endif
-
-		return;
 	}
+	
+	OSLeaveCriticalSection(&Heap->CriticalSection);
 }
 
 void OSInitializeHeap(POS_HEAP Heap)
 {
 	InitializeListHead(&Heap->BlockList);
 	InitializeListHead(&Heap->FreeList);
+	
+	OSInitializeCriticalSection(&Heap->CriticalSection);
+}
+
+void OSDeleteHeap(POS_HEAP Heap)
+{
+	OSDeleteCriticalSection(&Heap->CriticalSection);
+	
+	// TODO: Free every block of memory
 }
