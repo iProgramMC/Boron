@@ -7,8 +7,11 @@ typedef struct
 	char Name[32];
 	
 	uintptr_t ImageBase;
+	
+	char* StringTable;
+	char* DynamicTable;
 }
-LOADED_DLL, *PLOADED_DLL;
+LOADED_IMAGE, *PLOADED_IMAGE;
 
 typedef struct
 {

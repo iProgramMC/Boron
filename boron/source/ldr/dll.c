@@ -312,7 +312,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 		if (Length > 16)
 			Length = 16;
 		
-		strncpy(DriverName, Dll->Name, Length);
+		StringCopySafe(DriverName, Dll->Name, Length);
 		
 		DbgPrint("Creating driver object at \\Drivers\\%s", DriverName);
 		Status = ObCreateObject(

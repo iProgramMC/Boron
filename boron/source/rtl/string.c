@@ -77,6 +77,18 @@ char* strcpy(char* s, const char * d)
 
 char* strncpy(char* dst, const char* src, size_t szBuf)
 {
+	for (size_t i = 0; i < szBuf; i++)
+	{
+		dst[i] = *src;
+		if (*src)
+			src++;
+	}
+	
+	return dst;
+}
+
+char* StringCopySafe(char* dst, const char* src, size_t szBuf)
+{
 	if (szBuf == 0)
 		return NULL;
 	
@@ -87,7 +99,8 @@ char* strncpy(char* dst, const char* src, size_t szBuf)
 		dst[i] = src[i];
 	
 	// If the size is already completely used, clear the
-	// last byte of the buffer.
+	// last byte of the buffer.  This function shall not
+	// generate unterminated strings.
 	if (i == szBuf)
 		dst[szBuf - 1] = 0;
 	

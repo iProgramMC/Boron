@@ -32,18 +32,36 @@ bool OSDLLAddDllToLoad(uintptr_t StrTabOffset)
 	return true;
 }
 
+HIDDEN
+const char* OSDLLOffsetPathAway(const char* Name)
+{
+	if (!Name)
+		return "Unknown";
+	
+	intptr_t Length = (intptr_t) strlen(Name);
+	while (--Length >= 0)
+	{
+		if (Name[Length] == OB_PATH_SEPARATOR)
+			return &Name[Length + 1];
+	}
+	
+	return Name;
+}
+
 // TODO: If we need to implement loading libraries at runtime,
 // we should protect this with a critical section!
 HIDDEN
-BSTATUS OSDLLMapElfFile(HANDLE Handle)
+BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name)
 {
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	ELF_HEADER ElfHeader;
 	ELF_PROGRAM_HEADER ElfProgramHeader;
+	char* StrTabAddress = NULL;
+	char* DynamicAddress = NULL;
 	
-	bool HasDynamicProgramHeader;
-	ELF_PROGRAM_HEADER DynamicProgramHeader;
+	Name = OSDLLOffsetPathAway(Name);
+	DbgPrint("OSDLL: Mapping ELF file %s.", Name);
 	
 	Status = OSReadFile(&Iosb, Handle, 0, &ElfHeader, sizeof ElfHeader, 0);
 	if (FAILED(Status))
@@ -187,8 +205,7 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 			case PROG_DYNAMIC:
 			{
 				// Found the dynamic program header.
-				HasDynamicProgramHeader = true;
-				DynamicProgramHeader = ElfProgramHeader;
+				DynamicAddress = (char*) ElfProgramHeader.VirtualAddress;
 				break;
 			}
 			default:
@@ -204,35 +221,15 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 	
 	// Step 2.  Parse the dynamic segment, if it exists.
 	// If it doesn't exist, it's probably a statically linked program.
-	if (HasDynamicProgramHeader)
+	if (DynamicAddress)
 	{
-		const char* StrTabAddress = NULL;
 		size_t Offset = 0;
 		bool HasExtraDLLs = false;
 		ELF_DYNAMIC_ITEM DynItem;
 		
 		while (true)
 		{
-			memset(&DynItem, 0, sizeof DynItem);
-			
-			Status = OSReadFile(
-				&Iosb,
-				Handle,
-				DynamicProgramHeader.Offset + Offset,
-				&DynItem,
-				sizeof(DynItem),
-				0
-			);
-			
-			if (FAILED(Status))
-			{
-				DbgPrint(
-					"OSDLL: Failed to read ELF dynamic item from dynamic segment: %d (%s)",
-					Status,
-					RtlGetStatusString(Status)
-				);
-				return Status;
-			}
+			memcpy(&DynItem, DynamicAddress + Offset, sizeof DynItem);
 			
 			// Stop at DYN_NULL
 			if (DynItem.Tag == DYN_NULL)
@@ -254,7 +251,7 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 				{
 					// The string table will be used to determine
 					// the needed libraries' names.
-					StrTabAddress = (const char*) DynItem.Pointer;
+					StrTabAddress = (char*) DynItem.Pointer;
 					break;
 				}
 			}
@@ -282,9 +279,17 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle)
 		}
 	}
 	
+	PLOADED_IMAGE LoadedImage = OSAllocate(sizeof(LOADED_IMAGE));
+	
+	StringCopySafe(LoadedImage->Name, Name, sizeof(LoadedImage->Name));
+	
+	LoadedImage->StringTable = StrTabAddress;
+	LoadedImage->DynamicTable = DynamicAddress;
+	
+	InsertTailList(&OSDllsLoaded, &LoadedImage->ListEntry);
+	
 	return STATUS_SUCCESS;
 }
-
 
 HIDDEN
 BSTATUS OSDLLRunImage(PPEB Peb)
@@ -310,8 +315,18 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 		return Status;
 	}
 	
-	Status = OSDLLMapElfFile(Handle);
+	Status = OSDLLMapElfFile(Handle, Peb->ImageName);
 	OSClose(Handle);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint(
+			"OSDLL: Failed to map ELF image %s: %d (%s)",
+			Peb->ImageName,
+			Status,
+			RtlGetStatusString(Status)
+		);
+	}
 	
 	// TODO: Load the DLLs in the queue.
 	while (!IsListEmpty(&OSDllLoadQueue))
@@ -327,17 +342,6 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 			DbgPrint("OSDLL: Someone didn't load a library's name!");
 		
 		OSFree(QueueItem);
-	}
-	
-	
-	if (FAILED(Status))
-	{
-		DbgPrint(
-			"OSDLL: Failed to map ELF image %s: %d (%s)",
-			Peb->ImageName,
-			Status,
-			RtlGetStatusString(Status)
-		);
 	}
 	
 	return Status;
