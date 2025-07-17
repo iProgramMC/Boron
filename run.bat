@@ -8,9 +8,9 @@ cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
 if exist %nspath%\vdiske2.vdi (
-	set DriveOptions=-cdrom %nspath%\build\image.iso -drive id=nvm,file=%nspath%\vdiske2.vdi,if=none -device nvme,serial=deadbeef,drive=nvm
+	set DriveOptions=-cdrom %nspath%\build\image.amd64.iso -drive id=nvm,file=%nspath%\vdiske2.vdi,if=none -device nvme,serial=deadbeef,drive=nvm
 ) else (
-	set DriveOptions=-cdrom %nspath%\build\image.iso
+	set DriveOptions=-cdrom %nspath%\build\image.amd64.iso
 )
 
 qemu-system-x86_64.exe -no-reboot -no-shutdown -d int -M smm=off ^

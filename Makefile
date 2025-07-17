@@ -5,7 +5,8 @@ DEBUG ?= yes
 DEBUG2 ?= no
 
 # The platform we are targetting
-TARGET=AMD64
+TARGET ?= AMD64
+TARGETL ?= $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(TARGET)))))))))))))))))))))))))))
 
 # debug1: general debugging text, works all the time and keeps the
 #   kernel behaving how it should
@@ -29,7 +30,7 @@ APPS_LIST = \
 	init
 
 # The build directory
-BUILD_DIR = build
+BUILD_DIR = build/$(TARGETL)
 
 # The driver directory
 DRIVERS_DIR = drivers
@@ -38,16 +39,16 @@ DRIVERS_DIR = drivers
 USER_DIR = user
 
 # The ISO root directory
-ISO_DIR=$(BUILD_DIR)/iso_root
+ISO_DIR = $(BUILD_DIR)/iso_root
 
 # The ISO target.
-IMAGE_TARGET=$(BUILD_DIR)/image.iso
+IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).iso
 
-KERNEL_BUILD=boron/build
-SYSDLL_BUILD=borondll/build
+KERNEL_BUILD = boron/build
+SYSDLL_BUILD = borondll/build
 
-KERNEL_ELF=$(KERNEL_BUILD)/$(KERNEL_NAME)
-SYSDLL_ELF=$(SYSDLL_BUILD)/$(SYSDLL_NAME)
+KERNEL_ELF = $(patsubst %.elf,%.$(TARGETL).elf,$(KERNEL_BUILD)/$(KERNEL_NAME))
+SYSDLL_ELF = $(patsubst %.so,%.$(TARGETL).so,$(SYSDLL_BUILD)/$(SYSDLL_NAME))
 
 APPS_TARGETS          = $(patsubst %,$(BUILD_DIR)/%.exe,$(APPS_LIST))
 APPS_DIRECTORIES      = $(patsubst %,$(USER_DIR)/%,$(APPS_LIST))
@@ -55,7 +56,7 @@ APPS_BUILD_DIRS       = $(patsubst %,%/build,$(APPS_DIRECTORIES))
 DRIVERS_TARGETS       = $(patsubst %,$(BUILD_DIR)/%.sys,$(DRIVERS_LIST))
 DRIVERS_DIRECTORIES   = $(patsubst %,$(DRIVERS_DIR)/%,$(DRIVERS_LIST))
 DRIVERS_BUILD_DIRS    = $(patsubst %,%/build,$(DRIVERS_DIRECTORIES))
-DRIVERS_LOCAL_TARGETS = $(patsubst %,%/build/out.sys,$(DRIVERS_DIRECTORIES))
+DRIVERS_LOCAL_TARGETS = $(patsubst %,%/build/out.$(TARGETL).sys,$(DRIVERS_DIRECTORIES))
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -83,7 +84,9 @@ $(IMAGE_TARGET): kernel borondll drivers apps limine_config
 	@echo "Building iso..."
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_ELF) $(SYSDLL_ELF) $(DRIVERS_TARGETS) $(APPS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
+	@cp $(KERNEL_ELF) $(ISO_DIR)/$(KERNEL_NAME)
+	@cp $(SYSDLL_ELF) $(ISO_DIR)/$(SYSDLL_NAME)
+	@cp $(DRIVERS_TARGETS) $(APPS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
 	@xorriso -as mkisofs -b limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
@@ -121,13 +124,13 @@ $(BUILD_DIR)/%.exe: FORCE
 	@echo "[MK]\tMaking app $(patsubst $(BUILD_DIR)/%.exe,%,$@)"
 	@echo $(patsubst $(BUILD_DIR)/%.exe,$(USER_DIR)/%,$@)
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.exe,$(USER_DIR)/%,$@)
-	@cp $(USER_DIR)/$*/build/$*.exe $@
+	@cp $(USER_DIR)/$*/build/$*.$(TARGETL).exe $@
 
 $(BUILD_DIR)/%.sys: FORCE
 	@mkdir -p $(BUILD_DIR)
 	@echo "[MK]\tMaking driver $(patsubst $(BUILD_DIR)/%.sys,%,$@)"
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%,$@)
-	@cp $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%/build/out.sys,$@) $@
+	@cp $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%/build/out.$(TARGETL).sys,$@) $@
 
 limine_config: limine.cfg
 	@echo "[MK]\tlimine.cfg was updated"

@@ -27,11 +27,14 @@ LINKER_FILE = linker.ld
 ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
-TARGET=AMD64
+TARGET ?= AMD64
+
+# This sucks.
+TARGETL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(TARGET)))))))))))))))))))))))))))
 
 # This is the name that our final kernel executable will have.
 # Change as needed.
-override KERNEL := $(BUILD_DIR)/kernel.elf
+override KERNEL := $(BUILD_DIR)/kernel.$(TARGETL).elf
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -171,16 +174,16 @@ override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c'
 override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
 override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
 override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
-override OBJ := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))
+override OBJ := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
 
 # It's kind of a mess, but basically, here's what everything does:
 # kernel2.elf - Kernel.elf without the symbol table
 # kernelp.o   - The entire kernel as an object file, so that we don't have to link _everything_ twice
 # _symtab.o   - The compiled symbol table (currently, only .text) for the kernel.
-KERNEL2        = $(BUILD_DIR)/kernel2.elf
-KERNEL_PARTIAL = $(BUILD_DIR)/kernelp.o
-SYMBOLS        = $(BUILD_DIR)/_symtab.o
+KERNEL2        = $(BUILD_DIR)/kernel2.$(TARGETL).elf
+KERNEL_PARTIAL = $(BUILD_DIR)/kernelp.$(TARGETL).o
+SYMBOLS        = $(BUILD_DIR)/_symtab.$(TARGETL).o
 
 # Default target.
 .PHONY: all
@@ -193,8 +196,8 @@ $(KERNEL): $(SYMBOLS)
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.asm
-	@nasm $(NASMFLAGS) $(BUILD_DIR)/_symtab.asm -o $(BUILD_DIR)/_symtab.o
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.$(TARGETL).asm
+	@nasm $(NASMFLAGS) $(BUILD_DIR)/_symtab.$(TARGETL).asm -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
 	@echo "[LD]\tLinking kernel to extract symbols"
@@ -209,25 +212,25 @@ $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
 -include $(HEADER_DEPS)
 
 # Compilation rules for *.c files.
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp
 	@echo "[CXX]\tCompiling $<"
 	@mkdir -p $(dir $@)
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Compilation rules for *.S files.
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.S
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.S
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.asm (nasm) files.
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.asm
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
 	@nasm $(NASMFLAGS) $< -o $@
