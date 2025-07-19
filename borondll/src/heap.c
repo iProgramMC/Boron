@@ -223,6 +223,9 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 
 static bool OSTryMergeNext(POS_HEAP Heap, POS_HEAP_HEADER Header)
 {
+	if (!Header->IsFree)
+		return false;
+	
 	if (Header->BlockListEntry.Flink == &Heap->BlockList)
 		return false;
 
