@@ -64,17 +64,17 @@ MmProbeAddressSub:
 	
 	; rdi - Address
 	; rsi - Length
-	; rcx - ProbeWrite
+	;  dl - ProbeWrite
 	mov  r8, rdi          ; Load the address into r8, a scratch register.
 	add  r8, rsi          ; Add the length to r8.
 	dec  r8               ; Decrement r8.  This will be the final byte of the range we're probing.
 	mov  al, [r8]         ; Load a byte from that address.
-	test rcx, rcx         ; Check if ProbeWrite is zero.
+	test dl, dl           ; Check if ProbeWrite is zero.
 	jz   .StartLoop
 	mov  [r8], al         ; If not, then store that byte to that address.
 .StartLoop:
 	mov  al, [rdi]        ; Load a byte from the start address.
-	test rcx, rcx         ; Check if ProbeWrite is zero
+	test dl, dl           ; Check if ProbeWrite is zero
 	jz   .DontWrite
 	mov  [rdi], al        ; If not, then store that byte to that address.
 .DontWrite:
