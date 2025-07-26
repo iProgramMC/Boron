@@ -21,10 +21,6 @@ typedef struct ELF_DYNAMIC_INFO_tag
 {
 	const char *DynStrTable;
 	PELF_SYMBOL DynSymTable;
-	uintptr_t  *GlobalOffsetTable;
-	size_t      GlobalOffsetTableSize;
-	uintptr_t  *GotPlt;
-	size_t      GotPltSize;
 	const void *PltRelocations;
 	size_t      PltRelocationCount;
 	ELF_RELA   *RelaEntries;
@@ -48,6 +44,6 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, bool AllowKernelL
 
 bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase);
 
-void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
+void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo);
 
 void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);

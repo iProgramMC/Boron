@@ -311,9 +311,10 @@ bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 	return true;
 }
 
-void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
+// The symbol table is used for debugging purposes.
+void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo)
 {
-	PELF_SECTION_HEADER GotSection = NULL, GotPltSection = NULL, SymTabSection = NULL, StrTabSection = NULL;
+	PELF_SECTION_HEADER SymTabSection = NULL, StrTabSection = NULL;
 	PELF_HEADER Header = (PELF_HEADER) FileAddress;
 	uintptr_t Offset = (uintptr_t) FileAddress + Header->SectionHeadersOffset;
 	
@@ -328,36 +329,10 @@ void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo
 		// Seems like we gotta grab the name. But we have grabbed the string table already
 		const char* SectName = &SHStringTable[SectionHeader->Name];
 		
-		if (strcmp(SectName, ".got") == 0)
-			GotSection = SectionHeader;
-		else if (strcmp(SectName, ".got.plt") == 0)
-			GotPltSection = SectionHeader;
-		else if (strcmp(SectName, ".symtab") == 0)
+		if (strcmp(SectName, ".symtab") == 0)
 			SymTabSection = SectionHeader;
 		else if (strcmp(SectName, ".strtab") == 0)
 			StrTabSection = SectionHeader;
-	}
-	
-	if (GotSection)
-	{
-		DynInfo->GlobalOffsetTable     = (uintptr_t*)(LoadBase + GotSection->VirtualAddress);
-		DynInfo->GlobalOffsetTableSize = GotSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GlobalOffsetTable     = NULL;
-		DynInfo->GlobalOffsetTableSize = 0;
-	}
-	
-	if (GotPltSection)
-	{
-		DynInfo->GotPlt     = (uintptr_t*)(LoadBase + GotPltSection->VirtualAddress);
-		DynInfo->GotPltSize = GotPltSection->Size / sizeof(uintptr_t);
-	}
-	else
-	{
-		DynInfo->GotPlt     = NULL;
-		DynInfo->GotPltSize = 0;
 	}
 	
 	if (SymTabSection)
@@ -367,7 +342,9 @@ void RtlParseInterestingSections(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo
 	}
 	
 	if (StrTabSection)
+	{
 		DynInfo->StringTable = (const char*)(FileAddress + StrTabSection->OffsetInFile);
+	}
 }
 
 void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)

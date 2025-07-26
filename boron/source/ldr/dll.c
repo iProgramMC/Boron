@@ -223,16 +223,13 @@ void LdriLoadDll(PLIMINE_FILE File)
 	if (!RtlPerformRelocations(&DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
 	
-	RtlParseInterestingSections(File->address, &DynInfo, LoadBase);
-	//RtlUpdateGlobalOffsetTable(DynInfo.GlobalOffsetTable, DynInfo.GlobalOffsetTableSize, LoadBase);
-	//RtlUpdateGlobalOffsetTable(DynInfo.GotPlt, DynInfo.GotPltSize, LoadBase);
+	RtlFindSymbolTable(File->address, &DynInfo);
 	RtlRelocateRelrEntries(&DynInfo, LoadBase);
 	
 	if (!RtlLinkPlt(&DynInfo, LoadBase, true, File->path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);
 	
 	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);
-	//LdrpLookUpRoutineAddress(&DynInfo, LoadBase, "DriverEntry");
 	
 	if (!LoadedDLL->EntryPoint)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
