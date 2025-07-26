@@ -15,6 +15,14 @@ Author:
 #include "mi.h"
 #include <io.h>
 
+//#define PAGE_FAULT_DEBUG
+
+#ifdef PAGE_FAULT_DEBUG
+#define PFDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define PFDbgPrint(...)
+#endif
+
 static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.
@@ -145,7 +153,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			
 			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
 			
-			DbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
+			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
 			Status = STATUS_SUCCESS;
 			goto Exit;
 		}
@@ -276,7 +284,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			
 			*PtePtr = NewPte;
 			
-			DbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
+			PFDbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
 			Status = STATUS_SUCCESS;
 			goto Exit;
 		}
@@ -417,6 +425,18 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	// - Access violation
 	//
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
+	
+	if (*PtePtr & MM_PTE_READWRITE)
+	{
+		// Either a spurious fault, or an access of kernel mode addresses from user mode.
+		if (KeGetPreviousMode() == MODE_USER && (~*PtePtr & MM_PTE_USERACCESS))
+		{
+			DbgPrint("MiWriteFault: Declaring access violation on address %p because accessing kernel mode data from user mode isn't allowed");
+			return STATUS_ACCESS_VIOLATION;
+		}
+		
+		return STATUS_SUCCESS;
+	}
 	
 	if (*PtePtr & MM_PTE_COW)
 	{

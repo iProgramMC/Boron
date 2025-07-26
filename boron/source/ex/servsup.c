@@ -239,6 +239,8 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		Attributes = *ObjectAttributes;
 	}
 	
+	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
+	
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObOpenObjectByName(
 		Attributes.ObjectName,
@@ -247,6 +249,8 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		ObjectType,
 		&Handle
 	);
+	
+	KeSetAddressMode(OldMode);
 	
 	if (FAILED(Status))
 		goto Fail;
