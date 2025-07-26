@@ -27,6 +27,14 @@ Author:
 #define DbgPrint2(...)
 #endif
 
+#ifdef IS_BORON_DLL
+
+extern bool OSDLLAddDllToLoad(const char* DllName);
+
+extern uintptr_t OSDLLGetProcedureAddress(const char* ProcName);
+
+#endif
+
 static bool RtlpComputeRelocation(
 	uint32_t Type,
 	uintptr_t Addend,
@@ -171,9 +179,18 @@ bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 	return true;
 }
 
+// Parses the dynamic table of an ELF file and fills in the relevant info in the
+// ELF_DYNAMIC_INFO structure.
+//
+// Context is used by libboron.so to know which DLL is being loaded when a DYN_NEEDED
+// is found.
 bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase)
 {
 	memset(Info, 0, sizeof *Info);
+	
+#ifdef IS_BORON_DLL
+	PELF_DYNAMIC_ITEM Backup = DynItem;
+#endif
 	
 	for (; DynItem->Tag != DYN_NULL; DynItem++)
 	{
@@ -184,8 +201,11 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 				break;
 			
 			case DYN_NEEDED:
+#ifdef KERNEL
 				DbgPrint("DYN_NEEDED not supported - libboron.so and drivers may not have other DLLs as dependencies");
 				return false;
+#endif
+				break;
 			
 			case DYN_REL:
 				Info->RelEntries = (ELF_REL*)(LoadBase + DynItem->Pointer);
@@ -230,8 +250,27 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 			case DYN_PLTREL:
 				Info->PltUsesRela = DynItem->Value == DYN_RELA;
 				break;
+				
+			case DYN_HASH:
+				Info->HashTable = (ELF_HASH_TABLE*)(LoadBase + DynItem->Pointer);
+				break;
 		}
 	}
+	
+#ifdef IS_BORON_DLL
+	// Resolve DLLs to load from DYN_NEEDED.  This is because DYN_NEEDED
+	// items may come before DYN_STRTAB is specified.
+	DynItem = Backup;
+	
+	for (; DynItem->Tag != DYN_NULL; DynItem++)
+	{
+		if (DynItem->Tag != DYN_NEEDED)
+			continue;
+		
+		if (!OSDLLAddDllToLoad(Info->DynStrTable + DynItem->Pointer))
+			return false;
+	}
+#endif
 	
 	return true;
 }
@@ -261,9 +300,7 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 #ifdef KERNEL
 			SymbolAddress = DbgLookUpAddress(SymbolName);
 #else
-			// Libboron.so's librarian knows how to link against other DLLs.
-			// TODO
-			DbgPrint("ERROR: Need to link against function %s but we don't know how to do that", SymbolName);
+			SymbolAddress = OSDLLGetProcedureAddress(SymbolName);
 #endif
 		}
 		
@@ -370,4 +407,23 @@ void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)
 			CurrentBaseAddress++;
 		}
 	}
+}
+
+uint32_t RtlElfHash(const char* Name)
+{
+	const uint8_t* NameU = (const uint8_t*) Name;
+	
+	uint32_t H = 0, G;
+	
+	while (*NameU)
+	{
+		H = (H << 4) + *NameU++;
+		
+		if ((G = H & 0xF0000000))
+			H ^= G >> 24;
+		
+		H &= ~G;
+	}
+	
+	return H;
 }

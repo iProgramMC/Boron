@@ -229,4 +229,12 @@ typedef struct
 PACKED
 ELF_RELA, *PELF_RELA;
 
+typedef struct
+{
+	uint32_t BucketCount;
+	uint32_t ChainCount;
+	uint32_t Data[];
+}
+ELF_HASH_TABLE, *PELF_HASH_TABLE;
+
 #endif//BORON_ELF_H

@@ -4,11 +4,17 @@
 #include <rtl/assert.h>
 #include "dll.h"
 
+typedef int(*ELF_ENTRY_POINT2)();
+
+extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
+
 // Limitations of this ELF loader that I don't plan to solve:
 //
 // - No programs with an image base of 0
 // - The misalignment of the file offset and the virtual address must match
 // - The entire strtab section must be loaded inside a LOAD PHDR.
+//
+// TODO: Add better error propagation.
 //
 
 static LIST_ENTRY OSDllLoadQueue;
@@ -17,18 +23,16 @@ static LIST_ENTRY OSDllsLoaded;
 // Adds a NEEDED entry, which resolves to an offset in strtab which
 // will be resolved later.
 HIDDEN
-bool OSDLLAddDllToLoad(uintptr_t StrTabOffset)
+bool OSDLLAddDllToLoad(const char* DllName)
 {
-	PDLL_LOAD_QUEUE_ITEM QueueItem = OSAllocate(sizeof(DLL_LOAD_QUEUE_ITEM));
+	size_t Length = strlen(DllName);
+	PDLL_LOAD_QUEUE_ITEM QueueItem = OSAllocate(sizeof(DLL_LOAD_QUEUE_ITEM) + Length + 1);
 	
 	if (!QueueItem)
 		return false;
 	
-	QueueItem->PathNameOffsetInStrTab = StrTabOffset;
-	QueueItem->LoadedPathName = false;
-	
+	strcpy(QueueItem->PathName, DllName);
 	InsertTailList(&OSDllLoadQueue, &QueueItem->ListEntry);
-	
 	return true;
 }
 
@@ -51,14 +55,14 @@ const char* OSDLLOffsetPathAway(const char* Name)
 // TODO: If we need to implement loading libraries at runtime,
 // we should protect this with a critical section!
 HIDDEN
-BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name)
+BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEntryPoint)
 {
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	ELF_HEADER ElfHeader;
 	ELF_PROGRAM_HEADER ElfProgramHeader;
-	char* StrTabAddress = NULL;
-	char* DynamicAddress = NULL;
+	PELF_DYNAMIC_ITEM DynamicTable = NULL;
+	PLOADED_IMAGE LoadedImage;
 	
 	Name = OSDLLOffsetPathAway(Name);
 	DbgPrint("OSDLL: Mapping ELF file %s.", Name);
@@ -72,6 +76,15 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name)
 			RtlGetStatusString(Status)
 		);
 		return Status;
+	}
+	
+	uintptr_t ImageBase = 0;
+	
+	// TODO: Decide on an image base automatically for shared objects.
+	if (ElfHeader.Type != ELF_TYPE_EXECUTABLE)
+	{
+		DbgPrint("OSDLL: Cannot load anything other than ET_EXEC at the moment.");
+		return STATUS_UNIMPLEMENTED;
 	}
 	
 	// Step 1.  Parse program headers.
@@ -205,7 +218,7 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name)
 			case PROG_DYNAMIC:
 			{
 				// Found the dynamic program header.
-				DynamicAddress = (char*) ElfProgramHeader.VirtualAddress;
+				DynamicTable = (PELF_DYNAMIC_ITEM)(ImageBase + ElfProgramHeader.VirtualAddress);
 				break;
 			}
 			default:
@@ -219,80 +232,52 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name)
 		}
 	}
 	
-	// Step 2.  Parse the dynamic segment, if it exists.
-	// If it doesn't exist, it's probably a statically linked program.
-	if (DynamicAddress)
-	{
-		size_t Offset = 0;
-		bool HasExtraDLLs = false;
-		ELF_DYNAMIC_ITEM DynItem;
-		
-		while (true)
-		{
-			memcpy(&DynItem, DynamicAddress + Offset, sizeof DynItem);
-			
-			// Stop at DYN_NULL
-			if (DynItem.Tag == DYN_NULL)
-				break;
-			
-			Offset += sizeof(DynItem);
-			
-			switch (DynItem.Tag)
-			{
-				case DYN_NEEDED:
-				{
-					// NOTE: This is an offset within strtab.
-					OSDLLAddDllToLoad(DynItem.Pointer);
-					HasExtraDLLs = true;
-					break;
-				}
-				
-				case DYN_STRTAB:
-				{
-					// The string table will be used to determine
-					// the needed libraries' names.
-					StrTabAddress = (char*) DynItem.Pointer;
-					break;
-				}
-			}
-		}
-		
-		if (HasExtraDLLs)
-		{
-			PLIST_ENTRY Entry = OSDllLoadQueue.Flink;
-			while (Entry != &OSDllLoadQueue)
-			{
-				PDLL_LOAD_QUEUE_ITEM QueueItem = CONTAINING_RECORD(
-					Entry,
-					DLL_LOAD_QUEUE_ITEM,
-					ListEntry
-				);
-				
-				if (!QueueItem->LoadedPathName)
-				{
-					QueueItem->LoadedPathName = true;
-					QueueItem->PathName = StrTabAddress + QueueItem->PathNameOffsetInStrTab;
-				}
-				
-				Entry = Entry->Flink;
-			}
-		}
-	}
-	
-	PLOADED_IMAGE LoadedImage = OSAllocate(sizeof(LOADED_IMAGE));
-	
+	LoadedImage = OSAllocate(sizeof(LOADED_IMAGE));
 	StringCopySafe(LoadedImage->Name, Name, sizeof(LoadedImage->Name));
 	
-	LoadedImage->StringTable = StrTabAddress;
-	LoadedImage->DynamicTable = DynamicAddress;
+	// Step 2.  Parse the dynamic segment, if it exists.
+	// If it doesn't exist, it's probably a statically linked program.
+	if (DynamicTable &&
+		!RtlParseDynamicTable(DynamicTable, &LoadedImage->DynamicInfo, ImageBase))
+	{
+		OSFree(LoadedImage);
+		return STATUS_INVALID_EXECUTABLE;
+	}
 	
+	LoadedImage->DynamicTable = DynamicTable;	
 	InsertTailList(&OSDllsLoaded, &LoadedImage->ListEntry);
+	
+	*OutEntryPoint = (ELF_ENTRY_POINT2)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
 	
 	return STATUS_SUCCESS;
 }
 
 HIDDEN
-BSTATUS OSDLLRunImage(PPEB Peb)
+void OSDLLAddSelfToDllList()
+{
+	PLOADED_IMAGE LoadedImage = OSAllocate(sizeof(LOADED_IMAGE));
+	strcpy(LoadedImage->Name, "libboron.so");
+	
+	LoadedImage->ImageBase = RtlGetImageBase();
+	LoadedImage->DynamicTable = _DYNAMIC;
+	
+#ifdef DEBUG
+	// Assert that DYN_NEEDED is not specified.
+	PELF_DYNAMIC_ITEM Item = _DYNAMIC;
+	while (Item->Tag != DYN_NULL)
+	{
+		ASSERT(Item->Tag != DYN_NEEDED);
+		Item++;
+	}
+#endif
+	
+	RtlParseDynamicTable(LoadedImage->DynamicTable, &LoadedImage->DynamicInfo, LoadedImage->ImageBase);
+	
+	InsertTailList(&OSDllsLoaded, &LoadedImage->ListEntry);
+}
+
+HIDDEN
+BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 {
 	BSTATUS Status;
 	HANDLE Handle;
@@ -315,7 +300,7 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 		return Status;
 	}
 	
-	Status = OSDLLMapElfFile(Handle, Peb->ImageName);
+	Status = OSDLLMapElfFile(Handle, Peb->ImageName, OutEntryPoint);
 	OSClose(Handle);
 	
 	if (FAILED(Status))
@@ -336,17 +321,123 @@ BSTATUS OSDLLRunImage(PPEB Peb)
 		
 		PDLL_LOAD_QUEUE_ITEM QueueItem = CONTAINING_RECORD(Entry, DLL_LOAD_QUEUE_ITEM, ListEntry);
 		
-		if (QueueItem->LoadedPathName)
-			DbgPrint("OSDLL: Need library %s.", QueueItem->PathName);
-		else
-			DbgPrint("OSDLL: Someone didn't load a library's name!");
+		bool NeedToLoad = true;
 		
+		// TODO: More efficient way to do this.
+		// Check if the DLL is already loaded.
+		PLIST_ENTRY DllEntry = OSDllsLoaded.Flink;
+		while (DllEntry != &OSDllsLoaded)
+		{
+			PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
+			
+			if (strcmp(LoadedImage->Name, QueueItem->PathName) == 0)
+			{
+				DbgPrint("OSDLL: Already loaded library %s.", QueueItem->PathName);
+				NeedToLoad = false;
+				break;
+			}
+			
+			DllEntry = DllEntry->Flink;
+		}
+		
+		if (!NeedToLoad)
+		{
+			OSFree(QueueItem);
+			continue;
+		}
+		
+		// TODO: Load the library.
+		DbgPrint("OSDLL: Need library %s.", QueueItem->PathName);
 		OSFree(QueueItem);
+	}
+	
+	// Start linking the executables to each other.
+	PLIST_ENTRY DllEntry = OSDllsLoaded.Flink;
+	while (DllEntry != &OSDllsLoaded)
+	{
+		PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
+		
+		if (!RtlPerformRelocations(&LoadedImage->DynamicInfo, LoadedImage->ImageBase))
+		{
+			DbgPrint("OSDLL: Cannot perform relocations on module %s.", LoadedImage->Name);
+			return STATUS_INVALID_EXECUTABLE;
+		}
+		
+		RtlRelocateRelrEntries(&LoadedImage->DynamicInfo, LoadedImage->ImageBase);
+		
+		if (!RtlLinkPlt(&LoadedImage->DynamicInfo, LoadedImage->ImageBase, LoadedImage->Name))
+		{
+			DbgPrint("OSDLL: Module %s could not be linked.", LoadedImage->Name);
+			return STATUS_INVALID_EXECUTABLE;
+		}
+		
+		// TODO: Change permissions so that the code segments cannot be written to anymore.
+		
+		DllEntry = DllEntry->Flink;
 	}
 	
 	return Status;
 }
 
+HIDDEN
+uintptr_t OSDLLGetProcedureAddressInModule(PLOADED_IMAGE Image, const char* ProcName)
+{
+	PELF_HASH_TABLE HashTable = Image->DynamicInfo.HashTable;
+	PELF_SYMBOL DynSymTable = Image->DynamicInfo.DynSymTable;
+	const char* DynStrTable = Image->DynamicInfo.DynStrTable;
+	uint32_t* Chains = &HashTable->Data[HashTable->BucketCount];
+	
+	if (!HashTable || HashTable->BucketCount == 0)
+	{
+		DbgPrint("OSDLL: Module %s does not have a hash table.", Image->Name);
+		return 0;
+	}
+	
+	uint32_t NameHash = RtlElfHash(ProcName);
+	uint32_t BucketIndex = NameHash % HashTable->BucketCount;
+	
+	for (uint32_t SymbolIndex = HashTable->Data[BucketIndex];
+	     SymbolIndex != 0; // STN_UNDEF
+	     SymbolIndex = Chains[SymbolIndex])
+	{
+		PELF_SYMBOL Symbol = &DynSymTable[SymbolIndex];
+		const char* Name = DynStrTable + Symbol->Name;
+		
+		if (strcmp(Name, ProcName) == 0)
+			return Image->ImageBase + Symbol->Value;
+	}
+	
+	DbgPrint("OSDLL: Cannot find address of procedure %s in module %s.", ProcName, Image->Name);
+	return 0;
+}
+
+HIDDEN
+uintptr_t OSDLLGetProcedureAddress(const char* ProcName)
+{
+	PLIST_ENTRY DllEntry = OSDllsLoaded.Flink;
+	while (DllEntry != &OSDllsLoaded)
+	{
+		PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
+		
+		uintptr_t Address = OSDLLGetProcedureAddressInModule(LoadedImage, ProcName);
+		if (Address)
+		{
+			DbgPrint(
+				"OSDLL: Found procedure %s in module %s at address %p.",
+				ProcName,
+				LoadedImage->Name,
+				Address
+			);
+			
+			return Address;
+		}
+		
+		DllEntry = DllEntry->Flink;
+	}
+	
+	DbgPrint("OSDLL: Cannot find address of procedure %s.", ProcName);
+	return 0;
+}
 
 HIDDEN
 void DLLEntryPoint(PPEB Peb)
@@ -354,6 +445,7 @@ void DLLEntryPoint(PPEB Peb)
 	OSDLLInitializeGlobalHeap();
 	InitializeListHead(&OSDllLoadQueue);
 	InitializeListHead(&OSDllsLoaded);
+	OSDLLAddSelfToDllList();
 	
 	BSTATUS Status;
 	
@@ -362,8 +454,18 @@ void DLLEntryPoint(PPEB Peb)
 	DbgPrint("Image Name: '%s'", Peb->ImageName);
 	DbgPrint("Command Line: '%s'", Peb->CommandLine);
 	
-	Status = OSDLLRunImage(Peb);
+	ELF_ENTRY_POINT2 EntryPoint = NULL;
+	Status = OSDLLRunImage(Peb, &EntryPoint);
 	DbgPrint("OSDLLRunImage exited with status %d (%s)", Status, RtlGetStatusString(Status));
 	
+	if (SUCCEEDED(Status))
+	{
+		DbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
+		Status = EntryPoint();
+	}
+	
+	DbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);
+	
+	// TODO: OSExitProcess()
 	OSExitThread();
 }

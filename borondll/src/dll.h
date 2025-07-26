@@ -1,28 +1,24 @@
 #pragma once
 
+#include <rtl/elf.h>
+
 typedef struct
 {
 	LIST_ENTRY ListEntry;
-	
 	char Name[32];
 	
 	uintptr_t ImageBase;
-	
-	char* StringTable;
-	char* DynamicTable;
+	PELF_DYNAMIC_ITEM DynamicTable;
+	ELF_DYNAMIC_INFO DynamicInfo;
 }
 LOADED_IMAGE, *PLOADED_IMAGE;
 
 typedef struct
 {
 	LIST_ENTRY ListEntry;
-	
-	bool LoadedPathName;
-	
-	union
-	{
-		uintptr_t PathNameOffsetInStrTab;
-		const char* PathName;
-	};
+	char PathName[];
 }
 DLL_LOAD_QUEUE_ITEM, *PDLL_LOAD_QUEUE_ITEM;
+
+// Gets the image base of libboron.so.
+uintptr_t RtlGetImageBase();

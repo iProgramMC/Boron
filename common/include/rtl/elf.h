@@ -33,6 +33,7 @@ typedef struct ELF_DYNAMIC_INFO_tag
 	const char *StringTable;
 	PELF_SYMBOL SymbolTable;
 	size_t      SymbolTableSize;
+	PELF_HASH_TABLE HashTable;
 }
 ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
 
@@ -47,3 +48,5 @@ bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo);
 
 void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
+
+uint32_t RtlElfHash(const char* Name);

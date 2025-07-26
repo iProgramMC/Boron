@@ -73,6 +73,9 @@ static const char* const RtlpStatusCodes[] =
 	"This file system does not exist on this volume.",
 	"The end of the file has been reached.",
 	
+	"The executable file is invalid.",
+	"The executable file is valid, but for a machine type other than the current machine.",
+	
 	"Not enough virtual address space is available to complete the operation.",
 	"The virtual address requested is not located at the base of a reserved region.",
 	"The virtual address requested does not have a reserved memory range associated with it.",

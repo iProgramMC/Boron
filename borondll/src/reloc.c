@@ -2,10 +2,11 @@
 #include <boron.h>
 #include <elf.h>
 
-extern __attribute__((visibility("hidden"))) ELF_DYNAMIC_ITEM _DYNAMIC[];
-extern __attribute__((visibility("hidden"))) void* _GLOBAL_OFFSET_TABLE_[];
+extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
+extern HIDDEN void* _GLOBAL_OFFSET_TABLE_[];
 
-static uintptr_t RtlpGetImageBase()
+HIDDEN
+uintptr_t RtlGetImageBase()
 {
 	// The GOT's first entry is the link-time address of _DYNAMIC.
 	uintptr_t AddressLT = (uintptr_t) _GLOBAL_OFFSET_TABLE_[0];
@@ -61,7 +62,7 @@ void RelocateSelf(PPEB Peb)
 		}
 	}
 	
-	uintptr_t ImageBase = RtlpGetImageBase();
+	uintptr_t ImageBase = RtlGetImageBase();
 	
 	for (size_t i = 0; i < RelaSize; i += sizeof(ELF_RELA))
 	{

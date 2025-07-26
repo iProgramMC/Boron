@@ -85,6 +85,10 @@ enum
 	STATUS_MEMORY_COMMITTED,    // There is committed memory but decommit wasn't explicitly requested.
 	STATUS_CONFLICTING_ADDRESSES, // The given address range conflicts with existing address space, or overlaps multiple reserved regions, or overlaps unreserved regions.
 	
+	// Execution error codes
+	STATUS_INVALID_EXECUTABLE,  // The executable file is invalid.
+	STATUS_INVALID_ARCHITECTURE,// The executable file is valid, but for a machine type other than the current machine.
+	
 	STATUS_MAX,
 	
 	// Wait for object(s) error ranges
