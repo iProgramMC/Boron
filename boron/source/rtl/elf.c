@@ -236,7 +236,7 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 	return true;
 }
 
-bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED bool AllowKernelLinking, UNUSED const char* FileName)
+bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName)
 {
 	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
 	
@@ -259,19 +259,7 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED bool Allow
 		if (!SymbolAddress)
 		{
 #ifdef KERNEL
-			// Kernel drivers can only link against the kernel, and not against each other, for now.
-			// Libboron.so cannot link against anyone.
-			if (AllowKernelLinking)
-			{
-				SymbolAddress = DbgLookUpAddress(SymbolName);
-			}
-			else
-			{
-				// TODO: Look up in own DLL if needed.  But if the function is in the DLL then
-				// the offset shouldn't be zero.
-				DbgPrint("ERROR: Cannot link against kernel or another DLL.  Function: %s", SymbolName);
-				return false;
-			}
+			SymbolAddress = DbgLookUpAddress(SymbolName);
 #else
 			// Libboron.so's librarian knows how to link against other DLLs.
 			// TODO
@@ -311,7 +299,8 @@ bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 	return true;
 }
 
-// The symbol table is used for debugging purposes.
+// The symbol table is used for debugging purposes.  Specifically, this is used by the kernel's
+// crash handler to find symbols within loaded kernel shared objects.
 void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo)
 {
 	PELF_SECTION_HEADER SymTabSection = NULL, StrTabSection = NULL;

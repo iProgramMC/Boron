@@ -226,7 +226,7 @@ void LdriLoadDll(PLIMINE_FILE File)
 	RtlFindSymbolTable(File->address, &DynInfo);
 	RtlRelocateRelrEntries(&DynInfo, LoadBase);
 	
-	if (!RtlLinkPlt(&DynInfo, LoadBase, true, File->path))
+	if (!RtlLinkPlt(&DynInfo, LoadBase, File->path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);
 	
 	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);
