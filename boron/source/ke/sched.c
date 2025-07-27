@@ -812,11 +812,3 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }
-
-void KiCheckThreadTerminatedBeforeSyscallReturn()
-{
-	PKTHREAD Thread = KeGetCurrentThread();
-	
-	if (Thread->PendingTermination)
-		KeTerminateThread(Thread->IncrementTerminated);
-}
