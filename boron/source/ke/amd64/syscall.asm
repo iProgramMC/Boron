@@ -138,10 +138,13 @@ KiSystemServiceHandler:
 	; TODO: Add a table to see whether or not RAX needs to be cleared or not.
 	; RBP is preserved.
 	
-	CLEAR_REGS
-	
 	; Check if the thread was terminated before returning to user mode.
+	; TODO: Do we even need to do this?
+	push rax
 	call KiCheckThreadTerminatedBeforeSyscallReturn
+	pop  rax
+	
+	CLEAR_REGS
 	
 	pop  rbp
 	pop  r11
