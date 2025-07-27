@@ -212,6 +212,7 @@ int KeWaitForMultipleObjects(
 {
 	ASSERT(WaitType == WAIT_TYPE_ALL || WaitType == WAIT_TYPE_ANY);
 	
+	BSTATUS Status = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();
 	
 	int Maximum = MAXIMUM_WAIT_BLOCKS;
@@ -320,28 +321,43 @@ int KeWaitForMultipleObjects(
 		// until after this thread has completely yielded.
 		KiUnlockDispatcher(IPL_DPC);
 		KeYieldCurrentThread();
-		KeLowerIPL(Ipl);
 		
-		ASSERT(Alertable || Thread->WaitStatus != STATUS_ALERTED);
+		// Fetch the wait status.
+		KIPL UnusedIpl = KiLockDispatcher();
+		(void) UnusedIpl;
 		
-		if (Thread->WaitStatus == STATUS_ALERTED)
+		Status = Thread->WaitStatus;
+		KiUnlockDispatcher(Ipl);
+		
+		ASSERT(Alertable || Status != STATUS_ALERTED);
+		
+		if (Alertable || WaitMode == MODE_USER)
 		{
-			// TODO:
-			// This is a user mode wait that was interrupted.
-			// Call KeTestAlertThread and return STATUS_ALERTED.
-			DbgPrint("Ke: TODO: Call KeTestAlertThread here");
-			break;
+			if (Status == STATUS_ALERTED)
+			{
+				// TODO:
+				// This is a user mode wait that was interrupted.
+				// Call KeTestAlertThread and return STATUS_ALERTED.
+				DbgPrint("Ke: TODO: Call KeTestAlertThread here");
+				break;
+			}
+			
+			if (Status == STATUS_KILLED)
+			{
+				DbgPrint("Ke: Thread was killed");
+				break;
+			}
 		}
 		
-		ASSERT(Thread->WaitStatus != STATUS_WAITING);
+		ASSERT(Status != STATUS_WAITING);
 		
-		if (Thread->WaitStatus != STATUS_KERNEL_APC)
+		if (Status != STATUS_KERNEL_APC)
 			break;
 		
 		// Request a wait again after a kernel APC.
 	}
 	
-	return Thread->WaitStatus;
+	return Status;
 }
 
 int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode)

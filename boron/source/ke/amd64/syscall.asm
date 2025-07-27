@@ -92,6 +92,7 @@ KiSystemServiceTableEnd:
 ; R14 - Argument 9
 
 extern KiSystemServices
+extern KiCheckThreadTerminatedBeforeSyscallReturn
 global KiSystemServiceHandler
 KiSystemServiceHandler:
 	cmp  rax, (KiSystemServiceTableEnd - KiSystemServiceTable) / 8
@@ -138,6 +139,9 @@ KiSystemServiceHandler:
 	; RBP is preserved.
 	
 	CLEAR_REGS
+	
+	; Check if the thread was terminated before returning to user mode.
+	call KiCheckThreadTerminatedBeforeSyscallReturn
 	
 	pop  rbp
 	pop  r11

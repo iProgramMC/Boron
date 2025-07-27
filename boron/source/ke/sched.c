@@ -435,6 +435,8 @@ static void KepCleanUpThread(UNUSED PKDPC Dpc, void* ContextV, UNUSED void* Syst
 	// Remove the thread from the parent process' list of threads.
 	RemoveEntryList(&Thread->EntryProc);
 	
+	// TODO: Remove every mutex that this thread owned before it died.
+	
 	// Finally, signal all threads that are waiting on this thread.
 	// Signaling NOW and not in KeTerminateThread prevents a race condition where
 	// code that looks as follows could free the thread while it is still in the
@@ -811,3 +813,10 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }
 
+void KiCheckThreadTerminatedBeforeSyscallReturn()
+{
+	PKTHREAD Thread = KeGetCurrentThread();
+	
+	if (Thread->PendingTermination)
+		KeTerminateThread(Thread->IncrementTerminated);
+}

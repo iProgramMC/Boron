@@ -106,6 +106,40 @@ void KeYieldCurrentThread()
 	KiHandleQuantumEnd(Ipl);
 }
 
+void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment)
+{
+	if (Thread == KeGetCurrentThread())
+	{
+		KeTerminateThread(Increment);
+		return;
+	}
+	
+	KIPL Ipl = KiLockDispatcher();
+	
+	if (Thread->PendingTermination)
+	{
+		// Another termination was requested.
+		KiUnlockDispatcher(Ipl);
+		return;
+	}
+	
+	Thread->PendingTermination = true;
+	Thread->IncrementTerminated = Increment;
+	
+	// If this thread is currently running in user mode, then it will notice
+	// that this flag was set and will immediately exit.
+	
+	// Check if the thread is waiting for something, and the wait is alertable,
+	// or initiated from user mode.
+	if (Thread->Status == KTHREAD_STATUS_WAITING &&
+		(Thread->WaitIsAlertable || Thread->WaitMode == MODE_USER))
+	{
+		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
+	}
+	
+	KiUnlockDispatcher(Ipl);
+}
+
 void KeInitializeThread(PKTHREAD Thread, void* KernelStack, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	size_t KernelStackSize = MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;

@@ -111,8 +111,9 @@ KiTrapCommon:
 	mov   rdi, rsp                         ; Retrieve the PKREGISTERS to call the trap handler
 	call  [KiTrapCallList + 8 * rbx]       ; Call the trap handler. It returns the new RSP.
 	mov   rsp, rax                         ; Use the new PKREGISTERS instance as what to pull
-	pop   rdi                              ; Pop the old IPL that was pushed before
+	mov   rdi, rax                         ; Get the pointer to the register context
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
+	pop   rdi                              ; Pop the old IPL because we don't need it any more
 	pop   rbp                              ; Leave the stack frame
 	pop   rcx                              ; Skip over the RIP duplicate that we pushed
 	POP_STATE                              ; Pop the state

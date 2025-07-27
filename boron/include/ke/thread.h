@@ -116,6 +116,10 @@ struct KTHREAD_tag
 	// when exiting a wait.
 	bool DontSteal;
 	
+	// Whether the thread is marked terminated.  Before a thread descends
+	// into user mode, this value is checked, and the thread will exit.
+	bool PendingTermination;
+	
 	// APC queues.
 	LIST_ENTRY UserApcQueue;
 	LIST_ENTRY KernelApcQueue;
@@ -173,6 +177,9 @@ void KeWakeUpThread(PKTHREAD Thread);
 
 // Terminate the current thread.
 NO_RETURN void KeTerminateThread(KPRIORITY Increment);
+
+// Terminate another thread.
+void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment);
 
 // Switch this thread into user mode.
 NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext);

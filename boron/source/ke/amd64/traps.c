@@ -128,15 +128,25 @@ int KiEnterHardwareInterrupt(int NewIpl)
 	return OldIpl;
 }
 
-void KiExitHardwareInterrupt(int OldIpl)
+void KiExitHardwareInterrupt(PKREGISTERS Registers)
 {
 	DISABLE_INTERRUPTS();
+	
+	int OldIpl = Registers->OldIpl;
 	
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	
 	KIPL PrevIpl = Prcb->Ipl;
 	Prcb->Ipl = OldIpl;
 	KeOnUpdateIPL(OldIpl, PrevIpl);
+	
+	// Check if the current thread is terminated and we are about to
+	// return to user mode.
+	if (KeGetCurrentThread()->PendingTermination &&
+		Registers->cs == SEG_RING_3_CODE)
+	{
+		KeTerminateThread(KeGetCurrentThread()->IncrementTerminated);
+	}
 	
 	// Note: safe to call here beecause KiDispatchSoftwareInterrupts
 	// preserves interrupt disable state across a call to it
