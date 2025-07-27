@@ -27,6 +27,14 @@ const char* PspBoronDllFileName = "\\InitRoot\\libboron.so";
 const char* PspInitialProcessFileName = "\\InitRoot\\init.exe";
 const char* PspInitialProcessCommandLine = "/?";
 
+// TODO THIS IS A PLACEHOLDER
+#include <limreq.h>
+
+bool PsShouldStartInitialProcess()
+{
+	return !StringContainsCaseInsensitive(KeGetBootCommandLine(), "/noinit");
+}
+
 // TODO: Share a lot of this code with Ldr.
 
 static PELF_PROGRAM_HEADER PspLdrFindDynamicPhdr(
@@ -325,6 +333,12 @@ bool PsInitSystemPart2()
 {
 	PETHREAD Thread = NULL;
 	BSTATUS Status;
+	
+	if (!PsShouldStartInitialProcess())
+	{
+		LogMsg("/NOINIT specified, not starting initial process.");
+		return true;
+	}
 	
 	Status = PsCreateSystemThreadFast(
 		&Thread,

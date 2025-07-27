@@ -83,3 +83,12 @@ volatile void* KeLimineGetRequest(int RequestId)
 	
 	return KepLimineRequestTable[RequestId];
 }
+
+const char* KeGetBootCommandLine()
+{
+	const char* cmdLine = KeLimineKernelFileRequest.response->kernel_file->cmdline;
+	if (!cmdLine)
+		cmdLine = "";
+	
+	return cmdLine;
+}

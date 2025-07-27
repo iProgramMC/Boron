@@ -160,3 +160,37 @@ int strcmp(const char* s1, const char* s2)
 	}
 	return 0;
 }
+
+bool StringMatchesCaseInsensitive(const char* String1, const char* String2, size_t Length)
+{
+	while (Length--)
+	{
+		char Ch1 = *String1;
+		char Ch2 = *String2;
+		
+		if (Ch1 >= 'a' && Ch1 <= 'z') Ch1 = Ch1 - 'a' + 'A';
+		if (Ch2 >= 'a' && Ch2 <= 'z') Ch2 = Ch2 - 'a' + 'A';
+		
+		if (Ch1 != Ch2)
+			return false;
+		
+		String1++;
+		String2++;
+	}
+	
+	return true;
+}
+
+bool StringContainsCaseInsensitive(const char* Haystack, const char* Needle)
+{
+	size_t NeedleLength = strlen(Needle);
+	size_t HaystackLength = strlen(Haystack);
+	
+	for (size_t i = 0; i + NeedleLength <= HaystackLength; i++)
+	{
+		if (StringMatchesCaseInsensitive(Haystack + i, Needle, NeedleLength))
+			return true;
+	}
+	
+	return false;
+}

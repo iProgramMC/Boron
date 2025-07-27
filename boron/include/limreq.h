@@ -55,4 +55,6 @@ volatile void* KeLimineGetRequest(int RequestId);
 
 #endif
 
+const char* KeGetBootCommandLine();
+
 #endif//BORON_LIMREQ_H
