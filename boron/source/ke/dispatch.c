@@ -331,22 +331,23 @@ int KeWaitForMultipleObjects(
 		
 		ASSERT(Alertable || Status != STATUS_ALERTED);
 		
-		if (Alertable || WaitMode == MODE_USER)
+		if (Status == STATUS_KILLED && (Alertable || WaitMode == MODE_USER))
 		{
-			if (Status == STATUS_ALERTED)
-			{
-				// TODO:
-				// This is a user mode wait that was interrupted.
-				// Call KeTestAlertThread and return STATUS_ALERTED.
-				DbgPrint("Ke: TODO: Call KeTestAlertThread here");
-				break;
-			}
-			
-			if (Status == STATUS_KILLED)
-			{
-				DbgPrint("Ke: Thread was killed");
-				break;
-			}
+			// A wait can be interrupted by thread termination in
+			// the cases where:
+			// - The wait is alertable
+			// - The wait is in user mode regardless of alertableness
+			DbgPrint("Ke: Thread was terminated.");
+			break;
+		}
+		
+		if (Status == STATUS_ALERTED && Alertable && WaitMode == MODE_USER)
+		{
+			// TODO:
+			// This is a user mode wait that was interrupted.
+			// Call KeTestAlertThread and return STATUS_ALERTED.
+			DbgPrint("Ke: TODO: Call KeTestAlertThread here");
+			break;
 		}
 		
 		ASSERT(Status != STATUS_WAITING);
