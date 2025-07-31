@@ -14,6 +14,13 @@ Author:
 ***/
 #include "ki.h"
 
+//#define WAIT_DEBUG
+#ifdef WAIT_DEBUG
+#define WaitDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define WaitDbgPrint(...)
+#endif
+
 KSPIN_LOCK KiDispatcherLock;
 
 NO_DISCARD
@@ -238,7 +245,7 @@ int KeWaitForMultipleObjects(
 		// Am I dead though?!
 		if (WaitMode == MODE_USER && Thread->PendingTermination)
 		{
-			DbgPrint("Ke: Thread was killed when entering");
+			WaitDbgPrint("Ke: Thread was killed when entering");
 			KiUnlockDispatcher(Ipl);
 			return STATUS_KILLED;
 		}
@@ -345,7 +352,7 @@ int KeWaitForMultipleObjects(
 			// the cases where:
 			// - The wait is alertable
 			// - The wait is in user mode regardless of alertableness
-			DbgPrint("Ke: Thread was terminated.");
+			WaitDbgPrint("Ke: Thread was terminated.");
 			break;
 		}
 		
@@ -354,14 +361,17 @@ int KeWaitForMultipleObjects(
 			// TODO:
 			// This is a user mode wait that was interrupted.
 			// Call KeTestAlertThread and return STATUS_ALERTED.
-			DbgPrint("Ke: TODO: Call KeTestAlertThread here");
+			WaitDbgPrint("Ke: TODO: Call KeTestAlertThread here");
 			break;
 		}
 		
 		ASSERT(Status != STATUS_WAITING);
 		
 		if (Status != STATUS_KERNEL_APC)
+		{
+			WaitDbgPrint("Ke: Breaking because there was no kernel APC.");
 			break;
+		}
 		
 		// Request a wait again after a kernel APC.
 	}

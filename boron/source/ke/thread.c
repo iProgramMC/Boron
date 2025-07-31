@@ -80,7 +80,6 @@ void KiSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
 	if (Thread->Suspended == IsSuspended)
 		return;
 	
-	DbgPrint("KiSetSuspendedThread(%p, %d)", Thread, IsSuspended);
 	Thread->Suspended = IsSuspended;
 	
 	if (IsSuspended)
@@ -100,7 +99,6 @@ void KiSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
 	}
 	else
 	{
-		DbgPrint("KiSetSuspendedThread(false). Thread->Status = %d", Thread->Status);
 		if (Thread->Status == KTHREAD_STATUS_INITIALIZED)
 		{
 			KiReadyThread(Thread);
@@ -161,7 +159,6 @@ void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment)
 		return;
 	}
 	
-	DbgPrint("Thread %p is being TERMINATED.", Thread);
 	Thread->PendingTermination = true;
 	Thread->IncrementTerminated = Increment;
 	
@@ -176,7 +173,6 @@ void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment)
 		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
 	}
 	
-	DbgPrint("Termination done.");
 	KiUnlockDispatcher(Ipl);
 }
 
