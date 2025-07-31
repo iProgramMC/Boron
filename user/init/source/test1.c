@@ -1,11 +1,6 @@
 #include <boron.h>
 #include <string.h>
-
-#define CRASH(...) do {    \
-	DbgPrint("CRASH:");    \
-	DbgPrint(__VA_ARGS__); \
-	OSExitThread();        \
-} while (0)
+#include "misc.h"
 
 void DumpHex(void* DataV, size_t DataSize)
 {

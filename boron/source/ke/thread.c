@@ -53,6 +53,7 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 	Thread->LastProcessor = KeGetCurrentPRCB()->Id;
 	Thread->DontSteal = false;
 	Thread->Probing = false;
+	Thread->Suspended = true;
 	
 	// Add thread to process' thread list.
 	InsertTailList(&Process->ThreadList, &Thread->EntryProc);
@@ -64,10 +65,47 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 	Thread->ApcDisableCount = 0;
 	Thread->ApcInProgress = 0;
 	
+	KeInitializeTimer(&Thread->SleepTimer);
+	
 #ifdef DEBUG
 	// When a thread spawns, it holds the dispatcher lock.
 	Thread->HoldingSpinlocks = 1;
 #endif
+}
+
+void KiSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
+{
+	KiAssertOwnDispatcherLock();
+	
+	if (Thread->Suspended == IsSuspended)
+		return;
+	
+	DbgPrint("KiSetSuspendedThread(%p, %d)", Thread, IsSuspended);
+	Thread->Suspended = IsSuspended;
+	
+	if (IsSuspended)
+	{
+		if (KeGetCurrentThread() == Thread)
+		{
+			// Yield immediately.
+			KiUnlockDispatcher(IPL_DPC);
+			
+			KeYieldCurrentThread();
+			
+			// Regrab the lock because it turns out we're still in
+			// a function that expects us to have it when we return
+			KIPL Ipl = KiLockDispatcher();
+			(void) Ipl;
+		}
+	}
+	else
+	{
+		DbgPrint("KiSetSuspendedThread(false). Thread->Status = %d", Thread->Status);
+		if (Thread->Status == KTHREAD_STATUS_INITIALIZED)
+		{
+			KiReadyThread(Thread);
+		}
+	}
 }
 
 PKTHREAD KeAllocateThread()
@@ -106,7 +144,7 @@ void KeYieldCurrentThread()
 	KiHandleQuantumEnd(Ipl);
 }
 
-void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment)
+void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment)
 {
 	if (Thread == KeGetCurrentThread())
 	{
@@ -123,6 +161,7 @@ void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment)
 		return;
 	}
 	
+	DbgPrint("Thread %p is being TERMINATED.", Thread);
 	Thread->PendingTermination = true;
 	Thread->IncrementTerminated = Increment;
 	
@@ -137,6 +176,7 @@ void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment)
 		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
 	}
 	
+	DbgPrint("Termination done.");
 	KiUnlockDispatcher(Ipl);
 }
 
@@ -153,5 +193,12 @@ void KeInitializeThread2(PKTHREAD Thread, void* KernelStack, size_t KernelStackS
 {
 	KIPL Ipl = KiLockDispatcher();
 	KiInitializeThread(Thread, KernelStack, KernelStackSize, StartRoutine, StartContext, Process);
+	KiUnlockDispatcher(Ipl);
+}
+
+void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
+{
+	KIPL Ipl = KiLockDispatcher();
+	KiSetSuspendedThread(Thread, IsSuspended);
 	KiUnlockDispatcher(Ipl);
 }

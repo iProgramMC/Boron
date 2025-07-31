@@ -235,6 +235,14 @@ int KeWaitForMultipleObjects(
 	{
 		KIPL Ipl = KiLockDispatcher();
 		
+		// Am I dead though?!
+		if (WaitMode == MODE_USER && Thread->PendingTermination)
+		{
+			DbgPrint("Ke: Thread was killed when entering");
+			KiUnlockDispatcher(Ipl);
+			return STATUS_KILLED;
+		}
+		
 		// Perform an initial check to see if there are any objects we can acquire right away.
 		// Do not enqueue the thread wait blocks on the objects' queues yet, because we're maybe
 		// going to break early, or only polling(TODO). However, we are going to fill in the

@@ -42,6 +42,9 @@ extern OSReadFile
 extern OSReleaseMutex
 extern OSResetEvent
 extern OSSetEvent
+extern OSSetSuspendedThread
+extern OSSleep
+extern OSTerminateThread
 extern OSTouchFile
 extern OSWaitForMultipleObjects
 extern OSWaitForSingleObject
@@ -72,6 +75,9 @@ KiSystemServiceTable:
 	dq OSReleaseMutex
 	dq OSResetEvent
 	dq OSSetEvent
+	dq OSSetSuspendedThread
+	dq OSSleep
+	dq OSTerminateThread
 	dq OSTouchFile
 	dq OSWaitForMultipleObjects
 	dq OSWaitForSingleObject
@@ -91,6 +97,7 @@ KiSystemServiceTableEnd:
 ; R13 - Argument 8
 ; R14 - Argument 9
 
+extern KiCheckTerminatedUserMode
 extern KiSystemServices
 global KiSystemServiceHandler
 KiSystemServiceHandler:
@@ -127,6 +134,10 @@ KiSystemServiceHandler:
 %endif
 	
 	call [KiSystemServiceTable + 8 * rax]
+	
+	push rax
+	call KiCheckTerminatedUserMode
+	pop rax
 	
 	; Clean up the 3 extra parameters.
 	add  rsp, 24

@@ -106,6 +106,8 @@ struct KTHREAD_tag
 	
 	PKPROCESS AttachedProcess;
 	
+	bool Suspended;
+	
 	// Whether the thread is in MmProbeAddress.  This value is preserved
 	// because we don't want to disable interrupts during the probe, but
 	// we also don't want other threads' invalid page faults to jump to
@@ -138,6 +140,9 @@ struct KTHREAD_tag
 	// Method called when the thread terminates.
 	// The method is called in a DPC context.
 	PKTHREAD_TERMINATE_METHOD TerminateMethod;
+	
+	// The timer used for the OSSleep system call.
+	KTIMER SleepTimer;
 	
 #ifdef DEBUG
 	// How many spin locks a thread is holding.
@@ -172,14 +177,14 @@ void KeReadyThread(PKTHREAD Thread);
 // Yield this thread's time slice.
 void KeYieldCurrentThread();
 
-// Wakes up a thread after a wait.
-void KeWakeUpThread(PKTHREAD Thread);
-
 // Terminate the current thread.
 NO_RETURN void KeTerminateThread(KPRIORITY Increment);
 
 // Terminate another thread.
-void KeMarkTerminatedThread(PKTHREAD Thread, KPRIORITY Increment);
+void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment);
+
+// Sets a thread's suspended status.
+void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended);
 
 // Switch this thread into user mode.
 NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext);

@@ -146,6 +146,7 @@ void KiReadyThread(PKTHREAD Thread)
 	KiAssertOwnDispatcherLock();
 	
 	Thread->Status = KTHREAD_STATUS_READY;
+	Thread->Suspended = false;
 	
 	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
@@ -396,22 +397,29 @@ void KiEndThreadQuantum()
 	
 	Scheduler->NextThread = NextThread;
 	
-	// Since the current thread's quantum has expired, it's of course ready to run again!
+	// Since the current thread's quantum has expired, it's probably ready to run again!
 	if (CurrentThread)
 	{
-		CurrentThread->Status = KTHREAD_STATUS_READY;
-		
-		SchedDebug("Emplacing Thread %p In Queue", CurrentThread);
-		
-		// Emplace it back on the ready queue.
-		InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
-		
-		Scheduler->ThreadsOnQueueCount++;
-		Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
+		if (CurrentThread->Suspended)
+		{
+			// Suspended thread -- do not add to any queue.
+			CurrentThread->Status = KTHREAD_STATUS_INITIALIZED;
+		}
+		else
+		{
+			CurrentThread->Status = KTHREAD_STATUS_READY;
+			
+			SchedDebug("Emplacing Thread %p In Queue", CurrentThread);
+			
+			// Emplace it back on the ready queue.
+			InsertTailList(&Scheduler->ExecQueue[CurrentThread->Priority], &CurrentThread->EntryQueue);
+			
+			Scheduler->ThreadsOnQueueCount++;
+			Scheduler->ExecQueueMask |= QUEUE_BIT(CurrentThread->Priority);
+		}
 		
 		// Set the last processor ID of the thread.
 		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
-		
 		CurrentThread->EnqueuedTime = HalGetTickCount();
 		
 		KiCheckOverloadedExecQueues();

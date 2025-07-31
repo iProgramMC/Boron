@@ -57,5 +57,11 @@ BSTATUS OSCreateThread(
 	bool CreateSuspended
 );
 
+BSTATUS OSTerminateThread(HANDLE Handle);
+
+BSTATUS OSSetSuspendedThread(HANDLE Handle, bool IsSuspended);
+
+BSTATUS OSSleep(int Milliseconds);
+
 // TODO: Need I do anything more?
 #define PsTerminateThread() KeTerminateThread(1)

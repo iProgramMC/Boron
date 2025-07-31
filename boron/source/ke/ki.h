@@ -73,6 +73,8 @@ void KiOnKillProcess(PKPROCESS Process);
 
 void KiSwitchThreadStack(void** OldStack, void** NewStack);
 
+void KiReadyThread(PKTHREAD Thread);
+
 // Same as KiSwitchThreadStack, but discards the old context.  Used during
 // initialization of the scheduler when no thread was switched to before.
 void KiSwitchThreadStackForever(void* NewStack);

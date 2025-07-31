@@ -247,3 +247,49 @@ BSTATUS OSCreateThread(
 	
 	return Status;
 }
+
+BSTATUS OSTerminateThread(HANDLE Handle)
+{
+	void* ThreadV;
+	BSTATUS Status = ExReferenceObjectByHandle(Handle, PsThreadObjectType, &ThreadV);
+	if (FAILED(Status))
+		return Status;
+	
+	// TODO: Thread permissions
+	
+	PKTHREAD Thread = ThreadV;
+	KeTerminateThread2(Thread, 1);
+	
+	return STATUS_SUCCESS;
+}
+
+BSTATUS OSSetSuspendedThread(HANDLE Handle, bool IsSuspended)
+{
+	void* ThreadV;
+	BSTATUS Status = ExReferenceObjectByHandle(Handle, PsThreadObjectType, &ThreadV);
+	if (FAILED(Status))
+		return Status;
+	
+	// TODO: Thread permissions
+	
+	PKTHREAD Thread = ThreadV;
+	KeSetSuspendedThread(Thread, IsSuspended);
+	
+	return STATUS_SUCCESS;
+}
+
+BSTATUS OSSleep(int Milliseconds)
+{
+	if (Milliseconds < 1)
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	PKTIMER Timer = &KeGetCurrentThread()->SleepTimer;
+	KeInitializeTimer(Timer);
+	KeSetTimer(Timer, Milliseconds, NULL);	
+	
+	Status = KeWaitForSingleObject(Timer, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+	
+	KeCancelTimer(Timer);
+	return Status;
+}

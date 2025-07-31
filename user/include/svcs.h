@@ -79,6 +79,12 @@ BSTATUS OSResetEvent(HANDLE EventHandle);
 
 BSTATUS OSSetEvent(HANDLE EventHandle);
 
+BSTATUS OSSetSuspendedThread(HANDLE ThreadHandle, bool IsSuspended);
+
+BSTATUS OSSleep(int Milliseconds);
+
+BSTATUS OSTerminateThread(HANDLE ThreadHandle);
+
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite);
 
 BSTATUS OSWaitForMultipleObjects(

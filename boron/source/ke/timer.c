@@ -69,6 +69,9 @@ bool KiSetTimer(PKTIMER Timer, uint64_t DueTimeMs, PKDPC Dpc)
 		// the TSC's resolution is quite fine.  Give it an ever so slight upper hand.
 		Timer->ExpiryTick++;
 		InsertStatus = KiInsertTimerTree(Timer);
+		
+		if (!InsertStatus)
+			DbgPrint("Setting Timer Failed!! %d   Tick %lld", __LINE__, Timer->ExpiryTick);
 	}
 	
 	Timer->IsEnqueued = true;
@@ -141,11 +144,10 @@ void KiDispatchTimerObjects()
 			KeEnqueueDpc(Timer->Dpc, NULL, NULL);
 		
 		Timer->Header.Signaled = true;
-		KiWaitTest(&Timer->Header, TIMER_EXPIRE_INCREMENT);
-		
 		Timer->IsEnqueued = false;
-		
 		KiRemoveTimerTree(Timer);
+		
+		KiWaitTest(&Timer->Header, TIMER_EXPIRE_INCREMENT);
 	}
 }
 

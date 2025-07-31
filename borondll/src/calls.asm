@@ -49,6 +49,9 @@ CALL 19, OSReadFile
 CALL 20, OSReleaseMutex
 CALL 21, OSResetEvent
 CALL 22, OSSetEvent
-CALL 23, OSTouchFile
-CALL 24, OSWaitForMultipleObjects
-CALL 25, OSWaitForSingleObject
+CALL 23, OSSetSuspendedThread
+CALL 24, OSSleep
+CALL 25, OSTerminateThread
+CALL 26, OSTouchFile
+CALL 27, OSWaitForMultipleObjects
+CALL 28, OSWaitForSingleObject

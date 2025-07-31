@@ -143,6 +143,7 @@ void KiExitHardwareInterrupt(PKREGISTERS Registers)
 	// Check if the current thread is terminated and we are about to
 	// return to user mode.
 	if (KeGetCurrentThread()->PendingTermination &&
+		Registers->OldIpl == IPL_NORMAL &&
 		Registers->cs == SEG_RING_3_CODE)
 	{
 		KeTerminateThread(KeGetCurrentThread()->IncrementTerminated);
@@ -152,6 +153,13 @@ void KiExitHardwareInterrupt(PKREGISTERS Registers)
 	// preserves interrupt disable state across a call to it
 	if (Prcb->PendingSoftInterrupts >> OldIpl)
 		KiDispatchSoftwareInterrupts(OldIpl);
+}
+
+void KiCheckTerminatedUserMode()
+{
+	// Before entering user mode, check if the thread was terminated first.
+	if (KeGetCurrentThread()->PendingTermination)
+		KeTerminateThread(1);
 }
 
 // ==== Interrupt Handlers ====
