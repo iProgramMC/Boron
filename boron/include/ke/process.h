@@ -61,3 +61,6 @@ PKPROCESS KeSetAttachedProcess(PKPROCESS Process);
 
 // Get a pointer to the current process.
 PKPROCESS KeGetCurrentProcess();
+
+// Terminate every thread from a process, except the current thread.
+void KeTerminateOtherThreadsProcess(PKPROCESS Process);

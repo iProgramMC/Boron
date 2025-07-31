@@ -87,3 +87,25 @@ PKPROCESS KeSetAttachedProcess(PKPROCESS Process)
 	KiSwitchToAddressSpaceProcess(Process ? Process : Thread->Process);
 	return OldProcess;
 }
+
+void KeTerminateOtherThreadsProcess(PKPROCESS Process)
+{
+	// Lock the dispatcher so that the list of threads isn't
+	// invalidated while we process it
+	KIPL Ipl = KiLockDispatcher();
+	
+	// Exit every thread other than our own.
+	PLIST_ENTRY ListEntry = Process->ThreadList.Flink;
+	while (ListEntry != &Process->ThreadList)
+	{
+		PKTHREAD Thread = CONTAINING_RECORD(ListEntry, KTHREAD, EntryProc);
+		
+		if (Thread != KeGetCurrentThread())
+			KiTerminateThread(Thread, 1);
+		
+		ListEntry = ListEntry->Flink;
+	}
+	
+	// Unlock the dispatcher because we don't need it anymore.
+	KiUnlockDispatcher(Ipl);
+}

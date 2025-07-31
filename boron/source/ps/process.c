@@ -243,3 +243,11 @@ Fail:
 	OSClose(Handle);
 	return Status;
 }
+
+NO_RETURN
+void OSExitProcess()
+{
+	PEPROCESS Process = PsGetCurrentProcess();
+	KeTerminateOtherThreadsProcess(&Process->Pcb);
+	OSExitThread();
+}

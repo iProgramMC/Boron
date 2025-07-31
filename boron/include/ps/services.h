@@ -14,4 +14,6 @@ Author:
 ***/
 #pragma once
 
-BSTATUS OSExitThread();
+NO_RETURN void OSExitThread();
+
+NO_RETURN void OSExitProcess();

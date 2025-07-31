@@ -75,6 +75,8 @@ void KiSwitchThreadStack(void** OldStack, void** NewStack);
 
 void KiReadyThread(PKTHREAD Thread);
 
+void KiTerminateThread(PKTHREAD Thread, KPRIORITY Increment);
+
 // Same as KiSwitchThreadStack, but discards the old context.  Used during
 // initialization of the scheduler when no thread was switched to before.
 void KiSwitchThreadStackForever(void* NewStack);

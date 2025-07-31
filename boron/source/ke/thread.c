@@ -106,6 +106,29 @@ void KiSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
 	}
 }
 
+void KiTerminateThread(PKTHREAD Thread, KPRIORITY Increment)
+{
+	if (Thread->PendingTermination)
+	{
+		// Another termination was requested.
+		return;
+	}
+	
+	Thread->PendingTermination = true;
+	Thread->IncrementTerminated = Increment;
+	
+	// If this thread is currently running in user mode, then it will notice
+	// that this flag was set and will immediately exit.
+	
+	// Check if the thread is waiting for something, and the wait is alertable,
+	// or initiated from user mode.
+	if (Thread->Status == KTHREAD_STATUS_WAITING &&
+		(Thread->WaitIsAlertable || Thread->WaitMode == MODE_USER))
+	{
+		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
+	}
+}
+
 PKTHREAD KeAllocateThread()
 {
 	PKTHREAD Thread = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KTHREAD));
@@ -151,28 +174,7 @@ void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment)
 	}
 	
 	KIPL Ipl = KiLockDispatcher();
-	
-	if (Thread->PendingTermination)
-	{
-		// Another termination was requested.
-		KiUnlockDispatcher(Ipl);
-		return;
-	}
-	
-	Thread->PendingTermination = true;
-	Thread->IncrementTerminated = Increment;
-	
-	// If this thread is currently running in user mode, then it will notice
-	// that this flag was set and will immediately exit.
-	
-	// Check if the thread is waiting for something, and the wait is alertable,
-	// or initiated from user mode.
-	if (Thread->Status == KTHREAD_STATUS_WAITING &&
-		(Thread->WaitIsAlertable || Thread->WaitMode == MODE_USER))
-	{
-		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
-	}
-	
+	KiTerminateThread(Thread, Increment);
 	KiUnlockDispatcher(Ipl);
 }
 

@@ -26,6 +26,7 @@ extern OSCreateMutex
 extern OSCreateProcess
 extern OSCreateThread
 extern OSDummy
+extern OSExitProcess
 extern OSExitThread
 extern OSFreeVirtualMemory
 extern OSGetAlignmentFile
@@ -59,6 +60,7 @@ KiSystemServiceTable:
 	dq OSCreateProcess
 	dq OSCreateThread
 	dq OSDummy
+	dq OSExitProcess
 	dq OSExitThread
 	dq OSFreeVirtualMemory
 	dq OSGetAlignmentFile

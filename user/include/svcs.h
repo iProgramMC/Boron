@@ -32,6 +32,8 @@ BSTATUS OSCreateThread(
 
 void OSDummy();
 
+NO_RETURN void OSExitProcess();
+
 NO_RETURN void OSExitThread();
 
 //TODO: NO_RETURN void OSExitProcess();

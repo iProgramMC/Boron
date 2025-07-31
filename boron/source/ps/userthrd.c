@@ -42,7 +42,7 @@ void PspUserThreadStart(void* ContextV)
 }
 
 NO_RETURN
-BSTATUS OSExitThread()
+void OSExitThread()
 {
 	BSTATUS Status;
 	
