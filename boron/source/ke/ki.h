@@ -71,11 +71,15 @@ void KiSetPendingQuantumEnd();
 
 void KiOnKillProcess(PKPROCESS Process);
 
-void KiSwitchThreadStack(void** OldStack, void** NewStack);
-
 void KiReadyThread(PKTHREAD Thread);
 
 void KiTerminateThread(PKTHREAD Thread, KPRIORITY Increment);
+
+// Terminates the current thread and checks if its user mode stack
+// should be freed.  This function does not return.
+NO_RETURN void KiTerminateUserModeThread(KPRIORITY Increment);
+
+void KiSwitchThreadStack(void** OldStack, void** NewStack);
 
 // Same as KiSwitchThreadStack, but discards the old context.  Used during
 // initialization of the scheduler when no thread was switched to before.

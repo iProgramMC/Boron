@@ -36,32 +36,43 @@ void PspUserThreadStart(void* ContextV)
 	
 	PsGetCurrentThread()->UserStack = StackAddress;
 	PsGetCurrentThread()->UserStackSize = StackSize;
+	PsGetCurrentThread()->Tcb.IsUserThread = true;
 	
 	KeGetCurrentThread()->Mode = MODE_USER;
 	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext);
 }
 
-NO_RETURN
-void OSExitThread()
+void PsOnTerminateUserThread()
 {
-	BSTATUS Status;
+	// We may have been in the context of an interrupt handler previously,
+	// however, KiExitHardwareInterrupt will only call KiTerminateUserModeThread
+	// if it was about to return to user mode, so in practice nothing should happen.
+	
+	// Ensure our state is ready to lock things from the memory manager.
+	KeLowerIPL(IPL_NORMAL);
+	ENABLE_INTERRUPTS();
 	
 	// Free everything that this thread needed to allocate.
 	
-	// TODO: What happens if the user thread partially frees its own kernel-given stack?!
-	//
-	// Currently we don't allow that.
-	Status = OSFreeVirtualMemory(
+	// TODO: What happens if the user thread partially frees its own kernel-given stack?
+	// Their problem, I guess.  We honestly don't really care if this succeeds or not.
+	BSTATUS Status = OSFreeVirtualMemory(
 		CURRENT_PROCESS_HANDLE,
 		PsGetCurrentThread()->UserStack,
 		PsGetCurrentThread()->UserStackSize,
 		MEM_RELEASE
 	);
 	
-	ASSERT(SUCCEEDED(Status));
+	if (FAILED(Status))
+		DbgPrint("Ps: Failed to free user stack: %d (%s)", Status, RtlGetStatusString(Status));
 	
 	(void) Status;
-	
+}
+
+NO_RETURN
+void OSExitThread()
+{
+	PsOnTerminateUserThread();
 	PsTerminateThread();
 }
 

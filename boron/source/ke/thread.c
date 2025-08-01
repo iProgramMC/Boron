@@ -15,6 +15,9 @@ Author:
 ***/
 #include "ki.h"
 
+// Well, this upwards dependency sucks...
+void PsOnTerminateUserThread();
+
 void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSize, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process)
 {
 	ASSERT(KernelStack);
@@ -127,6 +130,14 @@ void KiTerminateThread(PKTHREAD Thread, KPRIORITY Increment)
 	{
 		KiUnwaitThread(Thread, STATUS_KILLED, Increment);
 	}
+}
+
+NO_RETURN void KiTerminateUserModeThread(KPRIORITY Increment)
+{
+	if (KeGetCurrentThread()->IsUserThread)
+		PsOnTerminateUserThread();
+	
+	KeTerminateThread(Increment);
 }
 
 PKTHREAD KeAllocateThread()
