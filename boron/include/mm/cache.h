@@ -34,22 +34,10 @@ Author:
 typedef struct _FCB FCB, *PFCB;
 typedef struct _CCB_INDIRECTION CCB_INDIRECTION, *PCCB_INDIRECTION;
 
-static_assert(sizeof(MMPFN) == sizeof(int), "If you expanded the PFN type to >32 bits, change the CCB entry!");
-
 typedef union _CCB_ENTRY
 {
-	// TODO: What if 32-bit
 	PCCB_INDIRECTION Indirection;
-	
-	struct
-	{
-		uint32_t  Modified : 1;
-		uint32_t  Mapped   : 1;
-		uint32_t  Spare    : 30;
-		uint32_t  Pfn      : 32;
-	}
-	PACKED U;
-	
+	MMPFN Pfn;
 	uintptr_t Long;
 }
 CCB_ENTRY, *PCCB_ENTRY;

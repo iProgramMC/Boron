@@ -123,7 +123,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			{
 				// We managed to find the PFN in one piece.  Add a reference to it as we
 				// will just map it directly.
-				Pfn = CcbEntry.U.Pfn;
+				Pfn = CcbEntry.Pfn;
 				MiPageAddReferenceWithPfdbLocked(Pfn);
 			}
 			
@@ -216,7 +216,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		// Prepare the CCB entry.
 		CCB_ENTRY CcbEntryNew;
 		CcbEntryNew.Long = 0;
-		CcbEntryNew.U.Pfn = Pfn;
+		CcbEntryNew.Pfn = Pfn;
 		
 		// It's time to put this in the CCB and then map.
 		MmLockCcb(PageCache);
