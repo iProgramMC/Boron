@@ -320,7 +320,7 @@ void ExDemoteToSharedRwLock(PEX_RW_LOCK Lock)
 BSTATUS ExWaitOnRwLock(UNUSED PEX_RW_LOCK Lock, void* EventObject)
 {
 #ifdef DEBUG
-	if (Lock->GuardLock.Locked)
+	if (Lock->GuardLock.Locked && KeGetProcessorCount() == 1)
 		KeCrash("ExWaitOnRwLock: Rwlock's spinlock is locked for some reason");
 #endif
 

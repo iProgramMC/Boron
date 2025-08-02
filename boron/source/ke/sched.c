@@ -217,6 +217,9 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	
 	KiCheckOverloadedExecQueues();
 	
+	KiCancelTimer(&Thread->WaitTimer);
+	KiCancelTimer(&Thread->SleepTimer);
+	
 	// If the current thread is running at a lower priority than this one, yield
 	// as soon as the dispatcher lock is unlocked.
 	if (KeGetCurrentThread()->Priority < Thread->Priority)
@@ -808,6 +811,11 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = KeGetCurrentThread();
+	
+	// TODO: Release all mutexes this thread owns.
+	
+	KiCancelTimer(&Thread->WaitTimer);
+	KiCancelTimer(&Thread->SleepTimer);
 	
 	// Mark the thread as terminated.
 	Thread->Status = KTHREAD_STATUS_TERMINATED;

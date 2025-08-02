@@ -103,4 +103,6 @@ void KiSwitchToAddressSpaceProcess(PKPROCESS Process);
 
 void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSize, PKTHREAD_START StartRoutine, void* StartContext, PKPROCESS Process);
 
+bool KiCancelTimer(PKTIMER Timer);
+
 #endif//BORON_KE_KI_H
