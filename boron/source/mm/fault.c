@@ -446,48 +446,36 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		// However, the page may actually be part of a page cache which the caller definitely didn't
 		// want to overwrite.
 		KIPL Ipl = MiLockPfdb();
-		
-		int RefCount = 1;
 		MMPFN Pfn = PFN_INVALID;
 		
 		if (*PtePtr & MM_PTE_ISFROMPMM)
 		{
 			Pfn = (*PtePtr & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
-			RefCount = MiGetReferenceCountPfn(Pfn);
-			ASSERT(RefCount > 0);
+			ASSERT(MiGetReferenceCountPfn(Pfn) > 0);
 		}
 		
-		if (false && RefCount == 1)
+		// The page has to be duplicated.
+		MiUnlockPfdb(Ipl);
+		
+		MMPFN NewPfn = MmAllocatePhysicalPage();
+		if (NewPfn == PFN_INVALID)
 		{
-			// Simply make the page writable.
-			*PtePtr = (*PtePtr & ~MM_PTE_COW) | MM_PTE_READWRITE;
-			MiUnlockPfdb(Ipl);
+			// TODO: This is probably bad
+			return STATUS_REFAULT_SLEEP;
 		}
-		else
-		{
-			// The page has to be duplicated.
-			MiUnlockPfdb(Ipl);
-			
-			MMPFN NewPfn = MmAllocatePhysicalPage();
-			if (NewPfn == PFN_INVALID)
-			{
-				// TODO: This is probably bad
-				return STATUS_REFAULT_SLEEP;
-			}
-			
-			void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
-			memcpy(Address, (void*)(Va & ~(PAGE_SIZE - 1)), PAGE_SIZE);
-			
-			// Now assign the new PFN.
-			*PtePtr =
-				(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
-				MM_PTE_READWRITE |
-				(NewPfn * PAGE_SIZE);
-			
-			// Finally, free the reference to the old page frame.
-			if (Pfn != PFN_INVALID)
-				MmFreePhysicalPage(Pfn);
-		}
+		
+		void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
+		memcpy(Address, (void*)(Va & ~(PAGE_SIZE - 1)), PAGE_SIZE);
+		
+		// Now assign the new PFN.
+		*PtePtr =
+			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
+			MM_PTE_READWRITE |
+			(NewPfn * PAGE_SIZE);
+		
+		// Finally, free the reference to the old page frame.
+		if (Pfn != PFN_INVALID)
+			MmFreePhysicalPage(Pfn);
 		
 		return STATUS_SUCCESS;
 	}

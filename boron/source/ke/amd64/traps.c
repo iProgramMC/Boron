@@ -149,7 +149,7 @@ void KiExitHardwareInterrupt(PKREGISTERS Registers)
 		KiTerminateUserModeThread(KeGetCurrentThread()->IncrementTerminated);
 	}
 	
-	// Note: safe to call here beecause KiDispatchSoftwareInterrupts
+	// Note: safe to call here because KiDispatchSoftwareInterrupts
 	// preserves interrupt disable state across a call to it
 	if (Prcb->PendingSoftInterrupts >> OldIpl)
 		KiDispatchSoftwareInterrupts(OldIpl);
