@@ -46,6 +46,9 @@ void MiDetransitionPfn(MMPFN Pfn);
 // Adds a reference to the page frame with the page frame database locked.
 void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn);
 
+// Sets a page frame as modified, with the page frame database locked.
+void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn);
+
 // ===== Slab Allocator =====
 
 struct MISLAB_CONTAINER_tag;

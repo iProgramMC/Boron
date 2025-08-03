@@ -28,7 +28,7 @@ enum
 	MEM_COW      = 0x0040, // The memory will be copied on write, instead of any writes being committed to the backing file.
 };
 
-enum
+enum ACCESS_FLAG
 {
 	PAGE_READ    = 1,
 	PAGE_WRITE   = 2,

@@ -498,9 +498,35 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		return STATUS_SUCCESS;
 	}
 	
-	DbgPrint("MiWriteFault: Declaring access violation on VA %p because I don't know how to handle such a write fault.  PTE: %p", Va, *PtePtr);
+	if (~Vad->Flags.Protection & PAGE_WRITE)
+	{
+		DbgPrint("MiWriteFault: Declaring access violation on VA %p because this page isn't mapped writable. PTE: %p", Va, *PtePtr);
+		MmUnlockVadList(VadList);
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
+	// This is a dirty page.  Its permissions need to be upgraded, and the
+	// page frame should be marked modified.
+	KIPL Ipl = MiLockPfdb();
+	
+	MMPTE Pte = *PtePtr;
+	if (~Pte & MM_PTE_PRESENT)
+	{
+		// PTE vanished.  Refault.
+		MiUnlockPfdb(Ipl);
+		MmUnlockVadList(VadList);
+		return STATUS_REFAULT;
+	}
+	
+	MiSetModifiedPageWithPfdbLocked((Pte & MM_PTE_ADDRESSMASK) / PAGE_SIZE);
+	
+	*PtePtr = Pte | MM_PTE_READWRITE;
+	
+	MiUnlockPfdb(Ipl);
+	
+	DbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);
-	return STATUS_ACCESS_VIOLATION;
+	return STATUS_SUCCESS;
 }
 
 // Returns: If the page fault failed to be handled, then the reason why.

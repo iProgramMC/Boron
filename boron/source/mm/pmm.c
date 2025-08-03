@@ -689,6 +689,14 @@ void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn)
 	}
 }
 
+void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
+	PageFrame->Modified = true;
+}
+
 void MmPageAddReference(MMPFN Pfn)
 {
 	KIPL OldIpl;
