@@ -23,6 +23,24 @@ Author:
 #define PFDbgPrint(...)
 #endif
 
+static PMMVAD_LIST MmpLockVadListByAddress(PEPROCESS Process, uintptr_t Va)
+{
+	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
+	PMMVAD_LIST VadList;
+
+	if (IsViewSpace)
+	{
+		MiLockVadList(&MiSystemVadList);
+		VadList = &MiSystemVadList;
+	}
+	else
+	{
+		VadList = MmLockVadListProcess(Process);
+	}
+	
+	return VadList;
+}
+
 static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.
@@ -314,21 +332,8 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	bool IsPageCommitted = false;
 	BSTATUS Status;
 	
-	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
-	
 	// Check if there is a VAD with the Committed flag set to 1.
-	PMMVAD_LIST VadList;
-
-	if (IsViewSpace)
-	{
-		MiLockVadList(&MiSystemVadList);
-		VadList = &MiSystemVadList;
-	}
-	else
-	{
-		VadList = MmLockVadListProcess(Process);
-	}
-	
+	PMMVAD_LIST VadList = MmpLockVadListByAddress(Process, Va);
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
 	
 	if (!Vad)
@@ -409,6 +414,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
 	
+	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
 	Status = MmpHandleFaultCommittedPage(PtePtr, IsViewSpace ? 0 : MM_PTE_USERACCESS);
 
 	// This is all we needed to do for the non-object-backed case.
@@ -428,17 +434,27 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	
 	if (*PtePtr & MM_PTE_READWRITE)
 	{
-		// Either a spurious fault, or an access of kernel mode addresses from user mode.
-		if (KeGetPreviousMode() == MODE_USER && (~*PtePtr & MM_PTE_USERACCESS))
-		{
-			DbgPrint("MiWriteFault: Declaring access violation on address %p because accessing kernel mode data from user mode isn't allowed");
-			return STATUS_ACCESS_VIOLATION;
-		}
-		
+		// Spurious fault
 		return STATUS_SUCCESS;
 	}
 	
-	if (*PtePtr & MM_PTE_COW)
+	// We'll need the VAD to check the range's properties.
+	// Now, MiNormalFault would have brought this PTE into existence, so we only really
+	// need to check if the VAD allows CoW, or if the VAD allows direct writing.
+	PMMVAD_LIST VadList = MmpLockVadListByAddress(Process, Va);
+	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
+	if (!Vad)
+	{
+		// There is no VAD at this address.
+		
+		// TODO: But there might be a system wide file map going on!
+		MmUnlockVadList(VadList);
+		DbgPrint("MiWriteFault: Declaring access violation on VA %p because there is no VAD", Va);
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
+	// TODO: Remove the MM_PTE_COW flag.
+	if ((*PtePtr & MM_PTE_COW) || Vad->Flags.Cow)
 	{
 		// Lock the PFDB to check the reference count of the page.
 		//
@@ -461,6 +477,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		if (NewPfn == PFN_INVALID)
 		{
 			// TODO: This is probably bad
+			MmUnlockVadList(VadList);
 			return STATUS_REFAULT_SLEEP;
 		}
 		
@@ -477,10 +494,12 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		if (Pfn != PFN_INVALID)
 			MmFreePhysicalPage(Pfn);
 		
+		MmUnlockVadList(VadList);
 		return STATUS_SUCCESS;
 	}
 	
 	DbgPrint("MiWriteFault: Declaring access violation on VA %p because I don't know how to handle such a write fault.  PTE: %p", Va, *PtePtr);
+	MmUnlockVadList(VadList);
 	return STATUS_ACCESS_VIOLATION;
 }
 
@@ -497,6 +516,12 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		Process = &PsSystemProcess;
 	}
 	
+	if (KeGetPreviousMode() == MODE_USER && IsKernelSpace)
+	{
+		// No, no, no.  You cannot access kernel mode data from user mode.
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
 	// TODO: There may be conditions where accesses to kernel space are done on
 	// behalf of a user process.
 	
@@ -508,14 +533,13 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	// If the PTE is present.
 	if (PtePtr && (*PtePtr & MM_PTE_PRESENT))
 	{
-		// The PTE exists and is present.
-		if (*PtePtr & MM_PTE_READWRITE)
+		// If this is a user mode thread and it's trying to access kernel mode addresses,
+		// declare failure instantly.
+		if ((~*PtePtr & MM_PTE_USERACCESS) && KeGetPreviousMode() == MODE_USER)
 		{
-			// The PTE is writable already, therefore this fault may have been spurious
-			// and we should simply return.
-			Status = STATUS_SUCCESS;
+			Status = STATUS_ACCESS_VIOLATION;
 			MmUnlockSpace(OldIpl, FaultAddress);
-			return Status;
+			goto EarlyExit;
 		}
 		
 		if (FaultMode & MM_FAULT_WRITE)
@@ -550,6 +574,8 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 EarlyExit:
 	if (Status == STATUS_REFAULT_SLEEP)
 	{
+		DbgPrint("MmPageFault: Out of memory, sleeping %d ms waiting for more memory.", MI_REFAULT_SLEEP_MS);
+		
 		// The page fault could not be serviced due to an out of memory condition.
 		// It will be retried in a few milliseconds.
 		//
@@ -563,11 +589,16 @@ EarlyExit:
 		KTIMER Timer;
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, MI_REFAULT_SLEEP_MS, NULL);
-		KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 		
-		DbgPrint("Out of memory!");
-		
-		Status = STATUS_REFAULT;
+		BSTATUS Status = KeWaitForSingleObject(&Timer, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+		if (FAILED(Status))
+		{
+			KeCancelTimer(&Timer);
+		}
+		else
+		{
+			Status = STATUS_REFAULT;
+		}
 	}
 	
 	return Status;
