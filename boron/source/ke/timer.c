@@ -19,7 +19,8 @@ Author:
 
 bool KiRemoveTimerTree(PKTIMER Timer)
 {
-	return RemoveItemRbTree(&KiGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	ASSERT(Timer->Scheduler);
+	return RemoveItemRbTree(&Timer->Scheduler->TimerTree, &Timer->EntryTree);
 }
 
 bool KiInsertTimerTree(PKTIMER Timer)
@@ -27,7 +28,8 @@ bool KiInsertTimerTree(PKTIMER Timer)
 	// XXX: What if the key is 32-bit for some reason? Should the key stay 64-bit instead?
 	Timer->EntryTree.Key = Timer->ExpiryTick;
 	
-	return InsertItemRbTree(&KiGetCurrentScheduler()->TimerTree, &Timer->EntryTree);
+	Timer->Scheduler = KiGetCurrentScheduler();
+	return InsertItemRbTree(&Timer->Scheduler->TimerTree, &Timer->EntryTree);
 }
 
 bool KiCancelTimer(PKTIMER Timer)

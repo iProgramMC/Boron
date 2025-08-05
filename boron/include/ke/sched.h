@@ -48,9 +48,8 @@ enum
 	PRIORITY_COUNT = 32,
 };
 
-typedef struct
-{
-	
+typedef struct _KSCHEDULER
+{	
 	// Execution queue mask. If a bit is set, that means that a thread
 	// of the priority corresponding to that bit exists in the queue.
 	QUEUE_MASK ExecQueueMask;

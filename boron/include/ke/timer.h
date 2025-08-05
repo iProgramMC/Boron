@@ -16,11 +16,15 @@ Author:
 
 #include <ke/dispatch.h>
 
+typedef struct _KSCHEDULER KSCHEDULER, *PKSCHEDULER;
+
 typedef struct KTIMER_tag
 {
 	KDISPATCH_HEADER Header;
 	
 	RBTREE_ENTRY EntryTree; // Entry in the global timer tree
+	
+	PKSCHEDULER Scheduler; // Scheduler whose queue we are a part of
 	
 	uint64_t ExpiryTick;   // Time at which the timer expires
 	
