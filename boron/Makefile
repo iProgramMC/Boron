@@ -175,7 +175,7 @@ override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.
 override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
 override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
 override OBJ := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
-override HEADER_DEPS := $(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.d) $(CXXFILES:.cpp=.d) $(ASFILES:.S=.d))
+override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # It's kind of a mess, but basically, here's what everything does:
 # kernel2.elf - Kernel.elf without the symbol table
