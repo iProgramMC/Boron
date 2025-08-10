@@ -66,6 +66,13 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!PsInitSystemPart2())
 		KeCrash("Could not initialize process manager - part 2");
 	
+	// TODO: Crash inside of these functions instead of returning false.
+	// It'll be more useful because those functions actually have the
+	// context needed to resolve the bug.
+	//
+	// We should do it like this:
+	MmInitializeModifiedPageWriter();
+	
 	KeTerminateThread(0);
 }
 

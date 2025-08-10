@@ -14,6 +14,7 @@ Author:
 ***/
 #include "mi.h"
 #include <io.h>
+#include <ps.h>
 
 // The modified page writer system will be implemented in two halves:
 //
@@ -41,9 +42,11 @@ static BSTATUS MiFlushModifiedPage(MMPFN Pfn)
 NO_RETURN
 void MmModifiedPageWriterWorker(UNUSED void* Context)
 {
+	BSTATUS Status;
+
 	while (true)
 	{
-		BSTATUS Status = KeWaitForSingleObject(
+		Status = KeWaitForSingleObject(
 			&MmModifiedPageWriterEvent,
 			false,
 			TIMEOUT_INFINITE,
@@ -90,7 +93,7 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			// then the actual data that was meant to be written, is written.
 			
 			// Flush the page frame to disk.
-			BSTATUS Status = MiFlushModifiedPage(Pfn);
+			Status = MiFlushModifiedPage(Pfn);
 			
 			Ipl = MiLockPfdb();
 			
@@ -119,7 +122,32 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 	}
 }
 
+INIT
 void MmInitializeModifiedPageWriter()
 {
+	KeInitializeEvent(&MmModifiedPageWriterEvent, EVENT_SYNCHRONIZATION, false);
 	
+	PETHREAD Thread;
+	
+	BSTATUS Status = PsCreateSystemThreadFast(
+		&Thread,
+		MmModifiedPageWriterWorker,
+		NULL,
+		false
+	);
+	
+	if (FAILED(Status))
+	{
+		KeCrash(
+			"ERROR: Could not launch modified page writer worker: %d (%s)",
+			Status,
+			RtlGetStatusString(Status)
+		);
+	}
+	
+	// TODO: The object manager reaper worker has real time priority.
+	// Do we want this worker to have real time priority too?
+	
+	// NOTE: It really doesn't matter if we do this or not.
+	ObDereferenceObject(Thread);
 }

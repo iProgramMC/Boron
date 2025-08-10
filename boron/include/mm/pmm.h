@@ -82,4 +82,8 @@ void MmFreePhysicalPageHHDM(void* Page);
 // Gets the total amount of free pages.
 size_t MmGetTotalFreePages();
 
+
+// TODO: Not sure where to place this.  Do we really need a new file?
+void MmInitializeModifiedPageWriter(void);
+
 #endif//BORON_MM_PMM_H
