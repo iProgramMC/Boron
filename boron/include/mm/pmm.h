@@ -17,6 +17,8 @@ Author:
 
 #include <mm/pfn.h>
 
+typedef struct _FCB FCB, *PFCB;
+
 #ifdef KERNEL
 
 // Initialize the physical memory manager.
@@ -51,6 +53,19 @@ void MmPageAddReference(MMPFN Pfn);
 
 // Assign a prototype PTE address to the page frame.
 void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte);
+
+// Assign a prototype PTE address, FCB pointer and offset, to the page frame.
+//
+// Note that the reference to the FCB is weak, i.e. it does not count towards
+// the FCB's reference count.  When the FCB is deleted, the entire page cache
+// is deleted anyway, letting go all of the pages.
+//
+// The offset is saved in multiples of page size, but the passed in offset
+// is in bytes.
+void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t Offset);
+
+// Set an allocated page as modified.
+void MmSetModifiedPfn(MMPFN Pfn);
 
 // This expects a PFN. Use MmPhysPageToPFN if you have a physically
 // addressed page to free. Decrements the reference counter of the physical page.

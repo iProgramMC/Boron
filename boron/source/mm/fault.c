@@ -169,7 +169,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			
 			*PtePtr = NewPte;
 			
-			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
+			MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
 			
 			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
 			Status = STATUS_SUCCESS;
@@ -298,7 +298,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			if (VadFlags.Cow)
 				NewPte |= MM_PTE_COW;
 			
-			MmSetPrototypePtePfn(Pfn, &PCcbEntry->Long);
+			MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
 			
 			*PtePtr = NewPte;
 			

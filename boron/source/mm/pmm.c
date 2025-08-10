@@ -553,6 +553,40 @@ void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
+void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t Offset)
+{
+	Offset /= PAGE_SIZE;
+	
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	Pfdbe->FileCache._PrototypePte = (uint64_t) PrototypePte;
+	Pfdbe->FileCache._Fcb = (uint64_t) Fcb;
+	Pfdbe->FileCache._OffsetLower = Offset;
+	Pfdbe->_OffsetUpper = (Offset >> 32);
+	Pfdbe->IsFileCache = 1;
+	Pfdbe->Modified = 0;
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
+void MmSetModifiedPfn(MMPFN Pfn)
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	// This function must only be called for allocated pages.
+	ASSERT(Pfdbe->Type == PF_TYPE_USED);
+	
+	Pfdbe->Modified = 1;
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
 void MmFreePhysicalPage(MMPFN pfn)
 {
 	KIPL OldIpl;
