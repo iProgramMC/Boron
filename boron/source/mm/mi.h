@@ -49,6 +49,18 @@ void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn);
 // Sets a page frame as modified, with the page frame database locked.
 void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn);
 
+// Gets the pointer to the page frame structure.
+MMPFDBE* MmGetPageFrameFromPFN(MMPFN Pfn);
+
+// Turns a modified page into a standby page.
+void MiTransformPageToStandbyPfn(MMPFN Pfn);
+
+// Reinserts a page into the modified page list.  This is used in case of an I/O failure.
+void MiReinsertIntoModifiedList(MMPFN Pfn);
+
+// Removes one page frame from the modified list.
+MMPFN MiRemoveOneModifiedPfn();
+
 // ===== Slab Allocator =====
 
 struct MISLAB_CONTAINER_tag;

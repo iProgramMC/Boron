@@ -21,6 +21,16 @@ void MmInitializeCcb(PCCB Ccb)
 	KeInitializeMutex(&Ccb->Mutex, MM_CCB_MUTEX_LEVEL);
 }
 
+void MmTearDownCcb(PCCB Ccb)
+{
+	// This is used when an FCB is freed.  This looks at every cached page,
+	// flushes it to disk if it is modified, and frees it.  Then, it frees
+	// the indirection levels too.
+	
+	// TODO
+	DbgPrint("TODO: MmTearDownCcb(%p)", Ccb);
+}
+
 PCCB_ENTRY MmGetEntryPointerCcb(PCCB Ccb, uint64_t PageOffset, bool TryAllocateLowerLevels)
 {
 	ASSERT(Ccb->Mutex.Header.Signaled > 0 && Ccb->Mutex.OwnerThread == KeGetCurrentThread());

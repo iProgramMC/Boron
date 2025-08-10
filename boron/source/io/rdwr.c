@@ -237,6 +237,38 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	return Status;
 }
 
+// This function is similar to IopWriteFile, except it completely bypasses the cache
+// (which is why FileObject is necessary there)
+//
+// We get around this by creating a fake file object.  Because the only places the
+// file object is checked is the cache check, and the append only check, this is safe.
+//
+// The file system driver doesn't see the file object nor are any Ob functions called
+// on it.
+BSTATUS IoPerformModifiedPageWrite(
+	PFCB Fcb,
+	MMPFN Pfn,
+	uint64_t FileOffset
+)
+{
+	BSTATUS Status;
+	FILE_OBJECT File;
+	MDL_ONEPAGE Mdl;
+	IO_STATUS_BLOCK Iosb;
+	
+	memset(&File, 0, sizeof File);
+	File.Fcb = Fcb;
+	
+	MmInitializeSinglePageMdl(&Mdl, Pfn, 0);
+	
+	// NOTE: Cache is disabled here.
+	Status = IopWriteFile(&Iosb, &File, &Mdl.Base, IO_RW_PAGING, FileOffset, false);
+	
+	MmFreeMdl(&Mdl.Base);
+	
+	return Status;
+}
+
 BSTATUS IoPerformPagingRead(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,

@@ -79,6 +79,8 @@ CCB, *PCCB;
 
 void MmInitializeCcb(PCCB Ccb);
 
+void MmTearDownCcb(PCCB Ccb);
+
 ALWAYS_INLINE static inline
 void MmLockCcb(PCCB Ccb)
 {

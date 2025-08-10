@@ -441,7 +441,6 @@ void MiDetransitionPfn(MMPFN Pfn)
 	MmpEnsurePfnIsntEndsOfList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfdbe, Pfn);
 	
 	// Now that the PFN is unlinked, we can turn it into a used PFN.
-	Pfdbe->FileCache._PrototypePte = 0;
 	Pfdbe->RefCount = 1;
 	Pfdbe->NextFrame = 0;
 	Pfdbe->PrevFrame = 0;
@@ -541,6 +540,22 @@ MMPFN MmAllocatePhysicalPage()
 	return currPFN;
 }
 
+MMPFN MiRemoveOneModifiedPfn()
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstModifiedPFN, &MiLastModifiedPFN);
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+	
+#ifdef PMMDEBUG
+	DbgPrint("MiRemoveOneModifiedPfn() => %d (RA:%p)", currPFN, __builtin_return_address(0));
+#endif
+	
+	return currPFN;
+}
+
 void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 {
 	KIPL OldIpl;
@@ -611,6 +626,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 			MmReclaimedPageCount++;
 #endif
 		
+		PageFrame->IsInModifiedPageList = 0;
 		if (PageFrame->FileCache._PrototypePte)
 		{
 			// This is part of a cache control block.  Was this written?
@@ -620,8 +636,11 @@ void MmFreePhysicalPage(MMPFN pfn)
 				// page will remain marked as "used" until the modified page
 				// writer actually writes to the page.
 				//
-				// TODO: Signal the modified page writter to start writing.
+				// TODO: Signal the modified page writter to start writing,
+				// when pressure builds up on the modified page list or when
+				// memory is running low.
 				MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, pfn);
+				PageFrame->IsInModifiedPageList = 1;
 			}
 			else
 			{
@@ -640,6 +659,59 @@ void MmFreePhysicalPage(MMPFN pfn)
 	}
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
+void MiTransformPageToStandbyPfn(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	// If this page has transitioned back into actual use, then its reference count
+	// will be higher than zero, so we will be able to ignore it.
+	if (Pfdbe->RefCount > 0 || Pfdbe->Type != PF_TYPE_USED)
+	{
+		DbgPrint(
+			"MiTransformPageToStandbyPfn: Not transforming pfn %d to standby as its type is "
+			"%d and refcount is %d.",
+			Pfn,
+			Pfdbe->Type,
+			Pfdbe->RefCount
+		);
+		
+		return;
+	}
+	
+	// If this page is in the modified list, then it has been modified after it was
+	// removed by the modified page writer worker.  We need to flush these changes too.
+	if (Pfdbe->IsInModifiedPageList)
+	{
+		DbgPrint(
+			"MiTransformPageToStandbyPfn: Not transforming pfn %d to standby as it was "
+			"re-added into the modified list.",
+			Pfn
+		);
+		
+		return;
+	}
+	
+	MmpAddPfnToList(&MiFirstStandbyPFN, &MiLastStandbyPFN, Pfn);
+	Pfdbe->Type = PF_TYPE_TRANSITION;
+	Pfdbe->Modified = 0;
+	MmTotalFreePages++;
+}
+
+void MiReinsertIntoModifiedList(MMPFN Pfn)
+{
+	ASSERT(MmPfnLock.Locked);
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	if (Pfdbe->RefCount > 0 || Pfdbe->Type != PF_TYPE_USED)
+		return;
+	
+	if (!Pfdbe->IsInModifiedPageList)
+		MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfn);
 }
 
 // Zeroes out a free PFN, takes it off the free PFN list and adds it to

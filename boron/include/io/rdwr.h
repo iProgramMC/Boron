@@ -28,6 +28,16 @@ BSTATUS IoPerformPagingRead(
 	uint64_t FileOffset
 );
 
+// Performs a direct write operation over an FCB for the modified
+// page writer's use.  Only meant for the kernel, should not be used
+// by device drivers.
+
+BSTATUS IoPerformModifiedPageWrite(
+	PFCB Fcb,
+	MMPFN Pfn,
+	uint64_t FileOffset
+);
+
 #endif
 
 BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);

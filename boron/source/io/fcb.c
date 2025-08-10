@@ -34,7 +34,7 @@ PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPa
 void IoFreeFcb(PFCB Fcb)
 {
 	ExDeinitializeRwLock(&Fcb->RwLock);
-	
+	MmTearDownCcb(&Fcb->PageCache);
 	MmFreePool(Fcb);
 }
 

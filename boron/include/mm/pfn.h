@@ -44,10 +44,13 @@ typedef struct
 		// file.
 		unsigned Modified : 1;
 		
+		// If this flag is set, then this page is part of the Modified page list.
+		unsigned IsInModifiedPageList : 1;
+		
 		// If this flag is set, then this page is part of a file's page cache.
 		unsigned IsFileCache : 1;
 		
-		unsigned Spare : 10;
+		unsigned Spare : 9;
 		
 		// The upper part of the offset within the page cache of a file, if needed.
 		unsigned _OffsetUpper : 16;
@@ -102,12 +105,12 @@ MMPFDBE, *PMMPFDBE;
 #ifdef IS_64_BIT
 
 #define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB*)      (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)       (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
 
 #else
 
 #define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) ((Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB*)      ((Pfdbe)->FileCache._Fcb))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)       ((Pfdbe)->FileCache._Fcb))
 
 #endif
 
