@@ -434,14 +434,14 @@ void MiDetransitionPfn(MMPFN Pfn)
 	ASSERT(MmPfnLock.Locked);
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
 	
-	ASSERT(Pfdbe->PrototypePte && "How did we recover this page?!");
+	ASSERT(Pfdbe->FileCache._PrototypePte && "How did we recover this page?!");
 	
 	MmpUnlinkPfn(Pfdbe);
 	MmpEnsurePfnIsntEndsOfList(&MiFirstStandbyPFN, &MiLastStandbyPFN, Pfdbe, Pfn);
 	MmpEnsurePfnIsntEndsOfList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfdbe, Pfn);
 	
 	// Now that the PFN is unlinked, we can turn it into a used PFN.
-	Pfdbe->PrototypePte = 0;
+	Pfdbe->FileCache._PrototypePte = 0;
 	Pfdbe->RefCount = 1;
 	Pfdbe->NextFrame = 0;
 	Pfdbe->PrevFrame = 0;
@@ -493,9 +493,9 @@ static void MmpInitializePfn(PMMPFDBE Pfdbe)
 		//       MiDetransitionPfn(PFN(pte))
 		//       release PTE lock
 		//   }
-		ASSERT(Pfdbe->PrototypePte);
+		ASSERT(Pfdbe->FileCache._PrototypePte);
 		
-		uintptr_t* Ptr = (uintptr_t*) Pfdbe->PrototypePte;
+		uintptr_t* Ptr = PFDBE_PrototypePte(Pfdbe);
 		AtStore(*Ptr, 0);
 	}
 	
@@ -503,7 +503,7 @@ static void MmpInitializePfn(PMMPFDBE Pfdbe)
 	Pfdbe->RefCount = 1;
 	Pfdbe->NextFrame = 0;
 	Pfdbe->PrevFrame = 0;
-	Pfdbe->PrototypePte = 0;
+	Pfdbe->FileCache._PrototypePte = 0;
 	MmTotalFreePages--;
 }
 
@@ -548,7 +548,7 @@ void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 	
 	// If this page is freed after this operation, then the prototype
 	// PTE will be atomically set to zero when reclaimed.
-	MmGetPageFrameFromPFN(Pfn)->PrototypePte = (uint64_t) PrototypePte;
+	MmGetPageFrameFromPFN(Pfn)->FileCache._PrototypePte = (uint64_t) PrototypePte;
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
@@ -577,7 +577,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 			MmReclaimedPageCount++;
 #endif
 		
-		if (PageFrame->PrototypePte)
+		if (PageFrame->FileCache._PrototypePte)
 		{
 			// This is part of a cache control block.  Was this written?
 			if (PageFrame->Modified)

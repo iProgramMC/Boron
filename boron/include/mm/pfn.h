@@ -27,7 +27,8 @@ typedef int MMPFN, *PMMPFN;
 
 // Page frame database entry structure.
 //
-// Keep this structure's size a power of 2.
+// NOTE: Fields prefixed with underscore are not meant to be accessed
+// directly and should instead be accessed via a macro!
 typedef struct
 {
 	// Flags for the specifically referenced page frame.
@@ -43,7 +44,13 @@ typedef struct
 		// file.
 		unsigned Modified : 1;
 		
-		unsigned Spare : 27;
+		// If this flag is set, then this page is part of a file's page cache.
+		unsigned IsFileCache : 1;
+		
+		unsigned Spare : 10;
+		
+		// The upper part of the offset within the page cache of a file, if needed.
+		unsigned _OffsetUpper : 16;
 	};
 	
 	// Disregard if this is allocated.  Eventually these will be part of a union
@@ -56,14 +63,55 @@ typedef struct
 	// page.
 	int RefCount;
 	
-	// Prototype PTE.  This points to the entry in an FCB's page cache, if this
-	// page is found on the standby list.
-	uint64_t PrototypePte;
-	
-	// Unused for now.
-	uint64_t qword3;
+#ifdef IS_64_BIT
+	union
+	{
+		struct
+		{
+			// Prototype PTE.  This points to the entry in an FCB's page cache, if this
+			// page is found on the standby list.
+			uint64_t _PrototypePte : 48;
+			
+			// The pointer to the FCB that contains this file page.
+			uint64_t _Fcb : 48;
+			
+			// The lower 32-bit offset of this page.  Note that this offset is counted
+			// in multiples of 4KB.
+			uint64_t _OffsetLower : 32;
+		}
+		PACKED
+		FileCache;
+	};
+#else
+	union
+	{
+		struct
+		{
+			uint32_t _PrototypePte;
+			
+			uint32_t _Fcb;
+			
+			uint32_t _OffsetLower;
+		};
+	};
+#endif
 }
+PACKED
 MMPFDBE, *PMMPFDBE;
+
+#ifdef IS_64_BIT
+
+#define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB*)      (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
+
+#else
+
+#define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) ((Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB*)      ((Pfdbe)->FileCache._Fcb))
+
+#endif
+
+#define PFDBE_Offset(Pfdbe)       ((uint64_t)(Pfdbe)->FileCache._OffsetLower | ((uint64_t)(Pfdbe)->_OffsetUpper << 16))
 
 #define PFN_FLAG_CAPTURED (1 << 0)
 
@@ -78,6 +126,8 @@ enum
 
 #define PFN_INVALID ((MMPFN)-1)
 
+#ifdef IS_64_BIT
 static_assert((sizeof(MMPFDBE) & (sizeof(MMPFDBE) - 1)) == 0,  "The page frame struct should be a power of two");
+#endif
 
 #endif//BORON_MM_PFN_H
