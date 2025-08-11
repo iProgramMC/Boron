@@ -602,6 +602,8 @@ void MmSetModifiedPfn(MMPFN Pfn)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
+extern KEVENT MmModifiedPageWriterEvent;
+
 void MmFreePhysicalPage(MMPFN pfn)
 {
 	KIPL OldIpl;
@@ -641,6 +643,12 @@ void MmFreePhysicalPage(MMPFN pfn)
 				// memory is running low.
 				MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, pfn);
 				PageFrame->IsInModifiedPageList = 1;
+				
+				// TEMPORARY TEMPORARY
+				// TODO: Only signal the modified page writer event when significant
+				// build up has happened, or shutdown is requested, or something else.
+				// This is just for debugging.
+				KeSetEvent(&MmModifiedPageWriterEvent, 100);
 			}
 			else
 			{

@@ -160,3 +160,86 @@ BSTATUS CcReadFileCopy(
 	
 	return Status;
 }
+
+// Writes the contents of a buffer to a file through an MDL.
+//
+// NOTE: This will always block, because we cannot control when a page
+// fault will block or will not block.
+BSTATUS CcWriteFileMdl(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+)
+{
+	// TODO: Any possible race conditions?!
+	//
+	// NOTE: Expansion of the file should be handled in IopWriteFile, which calls this.
+	
+	BSTATUS Status;
+	size_t Size = ByteCount;
+	
+	ASSERT(FileObject);
+	
+	PFCB Fcb = FileObject->Fcb;
+	ASSERT(Fcb);
+	CcAcquireMutex(&Fcb->ViewCacheMutex);
+	
+	while (Size)
+	{
+		size_t ViewOffset = FileOffset % VIEW_CACHE_SIZE;
+		
+		size_t BytesTillNext = VIEW_CACHE_SIZE - ViewOffset;
+		size_t CopyAmount;
+		
+		if (Size < BytesTillNext)
+			CopyAmount = Size;
+		else
+			CopyAmount = BytesTillNext;
+		
+		// First of all, look up the view, see if it exists.
+		//
+		// If it does not exist, CcGetViewOfFile creates one for it.
+		void* View = NULL;
+		Status = CciGetViewOfFile(FileObject, FileOffset, &View);
+		
+		if (FAILED(Status))
+		{
+			KeReleaseMutex(&Fcb->ViewCacheMutex);
+			return Status;
+		}
+		
+		// The view exists, so let's copy.
+		MmCopyFromMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
+		
+		MdlOffset += CopyAmount;
+		FileOffset += CopyAmount;
+		Size -= CopyAmount;
+	}
+	
+	KeReleaseMutex(&Fcb->ViewCacheMutex);
+	return STATUS_SUCCESS;
+}
+
+// Reads the contents of a file and copies them to a buffer.
+BSTATUS CcWriteFileCopy(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	const void* Buffer,
+	size_t Size
+)
+{
+	PMDL Mdl;
+	BSTATUS Status;
+	
+	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		return Status;
+	
+	Status = CcWriteFileMdl(FileObject, FileOffset, Mdl, 0, Size);
+	
+	MmFreeMdl(Mdl);
+	
+	return Status;
+}

@@ -54,10 +54,28 @@ BSTATUS CcReadFileMdl(
 	size_t ByteCount
 );
 
+// Writes the contents of a buffer to a file through an MDL.
+// The MDL's ByteCount member is ignored for this one.
+BSTATUS CcWriteFileMdl(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+);
+
 // Reads the contents of a file and copies them to a buffer.
 BSTATUS CcReadFileCopy(
 	PFILE_OBJECT FileObject,
 	uint64_t FileOffset,
 	void* Buffer,
+	size_t Size
+);
+
+// Reads the contents of a file and copies them to a buffer.
+BSTATUS CcWriteFileCopy(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	const void* Buffer,
 	size_t Size
 );
