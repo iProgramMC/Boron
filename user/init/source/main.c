@@ -4,6 +4,7 @@
 extern void RunTest1();
 extern void RunTest2();
 extern void RunTest3();
+extern void RunTest4();
 
 int _start()
 {
@@ -11,7 +12,8 @@ int _start()
 	
 	//RunTest1();
 	//RunTest2();
-	RunTest3();
+	//RunTest3();
+	RunTest4();
 	
 	OSExitThread();
 }
