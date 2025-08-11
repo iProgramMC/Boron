@@ -542,12 +542,9 @@ MMPFN MmAllocatePhysicalPage()
 
 MMPFN MiRemoveOneModifiedPfn()
 {
-	KIPL OldIpl;
-	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	ASSERT(MmPfnLock.Locked);
 	
 	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstModifiedPFN, &MiLastModifiedPFN);
-	
-	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
 #ifdef PMMDEBUG
 	DbgPrint("MiRemoveOneModifiedPfn() => %d (RA:%p)", currPFN, __builtin_return_address(0));

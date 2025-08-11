@@ -107,6 +107,7 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 				DbgPrint(
 					"MmModifiedPageWriterWorker ERROR: Cannot write PFN %d to backing store. "
 					"Failure status: %d (%s)",
+					Pfn,
 					Status,
 					RtlGetStatusString(Status)
 				);

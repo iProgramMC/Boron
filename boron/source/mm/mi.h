@@ -58,7 +58,7 @@ void MiTransformPageToStandbyPfn(MMPFN Pfn);
 // Reinserts a page into the modified page list.  This is used in case of an I/O failure.
 void MiReinsertIntoModifiedList(MMPFN Pfn);
 
-// Removes one page frame from the modified list.
+// Removes one page frame from the modified list.  The PFN lock must be locked.
 MMPFN MiRemoveOneModifiedPfn();
 
 // ===== Slab Allocator =====
