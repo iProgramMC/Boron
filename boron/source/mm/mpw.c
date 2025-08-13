@@ -73,6 +73,12 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 				continue;
 			}
 			
+			// Clear the modified flag, and increase the reference count of the page by one.
+			// This is so that in the event that the page is freed with MmFreePhysicalPage,
+			// the page won't be added back to the modified list.
+			Pfdbe->RefCount++;
+			Pfdbe->Modified = false;
+			
 			// The PFDBE is modified, start writing its contents to memory.  Then, transform the page
 			// into standby (if it wasn't faulted in afterwards), and move on to the next page.
 			MiUnlockPfdb(Ipl);
@@ -96,6 +102,9 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			Status = MiFlushModifiedPage(Pfn);
 			
 			Ipl = MiLockPfdb();
+			
+			// Remove the reference we added.
+			Pfdbe->RefCount--;
 			
 			if (FAILED(Status))
 			{

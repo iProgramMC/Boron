@@ -544,13 +544,18 @@ MMPFN MiRemoveOneModifiedPfn()
 {
 	ASSERT(MmPfnLock.Locked);
 	
-	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstModifiedPFN, &MiLastModifiedPFN);
+	MMPFN Pfn = MmpAllocateFromFreeList(&MiFirstModifiedPFN, &MiLastModifiedPFN);
+	if (Pfn == PFN_INVALID)
+		return Pfn;
+	
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	Pfdbe->IsInModifiedPageList = false;
 	
 #ifdef PMMDEBUG
-	DbgPrint("MiRemoveOneModifiedPfn() => %d (RA:%p)", currPFN, __builtin_return_address(0));
+	DbgPrint("MiRemoveOneModifiedPfn() => %d (RA:%p)", Pfn, __builtin_return_address(0));
 #endif
 	
-	return currPFN;
+	return Pfn;
 }
 
 void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
@@ -625,7 +630,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 			MmReclaimedPageCount++;
 #endif
 		
-		PageFrame->IsInModifiedPageList = 0;
+		PageFrame->IsInModifiedPageList = false;
 		if (PageFrame->FileCache._PrototypePte)
 		{
 			// This is part of a cache control block.  Was this written?
@@ -639,7 +644,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 				// when pressure builds up on the modified page list or when
 				// memory is running low.
 				MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, pfn);
-				PageFrame->IsInModifiedPageList = 1;
+				PageFrame->IsInModifiedPageList = true;
 				
 				// TEMPORARY TEMPORARY
 				// TODO: Only signal the modified page writer event when significant
@@ -716,7 +721,11 @@ void MiReinsertIntoModifiedList(MMPFN Pfn)
 		return;
 	
 	if (!Pfdbe->IsInModifiedPageList)
+	{
 		MmpAddPfnToList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfn);
+		Pfdbe->IsInModifiedPageList = true;
+		Pfdbe->Modified = true;
+	}
 }
 
 // Zeroes out a free PFN, takes it off the free PFN list and adds it to

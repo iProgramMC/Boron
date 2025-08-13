@@ -28,7 +28,14 @@ BSTATUS NvmePerformIoOperation(
 	size_t MdlSizeOverride
 )
 {
-	DbgPrint("NvmePerformIoOperation(%p, %llu, %zu, %zu)", Lba, BlockCount, PageOffsetInMdl, MdlSizeOverride);
+	DbgPrint(
+		"NvmePerformIoOperation%s(%p, %llu, %zu, %zu)",
+		IsWrite ? "WRITE" : "READ ",
+		Lba,
+		BlockCount,
+		PageOffsetInMdl,
+		MdlSizeOverride
+	);
 	BSTATUS Status = STATUS_SUCCESS;
 	QUEUE_ENTRY_PAIR Qep;
 	

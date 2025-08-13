@@ -2,7 +2,9 @@
 #include <string.h>
 #include "misc.h"
 
-static const char* FileName = "\\InitRoot\\ext2fs.sys";
+//static const char* FileName = "\\InitRoot\\ext2fs.sys";
+//static const char* FileName = "\\Devices\\Nvme0Disk1Part0";
+static const char* FileName = "Deliberately an invalid path here";
 
 void RunTest4()
 {
@@ -49,6 +51,8 @@ void RunTest4()
 	Address = AddressV;
 	*((uint32_t*)Address) = 0xCAFEBABE;
 	*((uint32_t*)&Address[PAGE_SIZE]) = 0xDEADBEEF;
+	
+	strcpy((char*)Address + PAGE_SIZE * 2, "Hello from Boron MPW");
 	
 	// Now unmap and close the file.
 	Status = OSFreeVirtualMemory(
