@@ -17,8 +17,10 @@ Author:
 
 #ifdef TARGET_AMD64
 #include <arch/amd64/ipl.h>
+#elif defined(TARGET_I386)
+#include <arch/i386/ipl.h>
 #else
-#error Hello
+#error "No IPL header defined."
 #endif
 
 #endif//BORON_ARCH_IPL_H

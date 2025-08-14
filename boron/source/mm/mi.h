@@ -91,6 +91,10 @@ typedef struct MISLAB_ITEM_tag
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
 	
+#ifdef IS_32_BIT
+	uint32_t Align;
+#endif
+	
 	char Data[0];
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
@@ -169,6 +173,10 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 // One PML4 entry can map up to 1<<39 (512GB) of memory.
 // Thus, our pool will be 512 GB in size.
 #define MI_POOL_LOG2_SIZE (39)
+
+#elif defined TARGET_I386
+
+#define MI_POOL_LOG2_SIZE (29) // 512MB
 
 #else
 
