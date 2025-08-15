@@ -22,6 +22,12 @@ Author:
 	UNUSED uint64_t FaultAddress = TrapFrame->cr2; \
 	UNUSED uint64_t FaultMode    = TrapFrame->ErrorCode; \
 	UNUSED int Vector = TrapFrame->IntNumber
+#elif defined TARGET_I386
+#define KI_EXCEPTION_HANDLER_INIT() \
+	UNUSED uint32_t FaultPC = TrapFrame->eip;      \
+	UNUSED uint32_t FaultAddress = TrapFrame->cr2; \
+	UNUSED uint32_t FaultMode    = TrapFrame->ErrorCode; \
+	UNUSED int Vector = TrapFrame->IntNumber
 #else
 #error Go implement KI_EXCEPTION_HANDLER_INIT!
 #endif
@@ -30,10 +36,10 @@ void KeOnUnknownInterrupt(PKREGISTERS TrapFrame)
 {
 	KI_EXCEPTION_HANDLER_INIT();
 	
-#ifdef TARGET_AMD64
+#if defined TARGET_AMD64 || defined TARGET_I386
 #define SPECIFIER "%02x"
 #else
-#define SPECIFIER "%08x"
+#define SPECIFIER "0x%x"
 #endif
 	DbgPrint("** Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
 	KeCrash("Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
@@ -116,6 +122,11 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 			
 			return;
 			
+		#elif defined TARGET_I386
+		
+			TrapFrame->eip = (uint32_t) MmProbeAddressSubEarlyReturn;
+			TrapFrame->eax = (uint32_t) STATUS_FAULT;
+		
 		#else
 			
 			#error Hey!

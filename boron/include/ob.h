@@ -140,6 +140,10 @@ struct _OBJECT_HEADER
 	// among other things, to ensure that non-object-manager-managed objects aren't accidentally
 	// used.
 	int Signature;
+	
+#ifdef IS_32_BIT
+	int Padding; // padding because we need the OBJECT_HEADER struct to be eight bytes aligned.
+#endif
 #endif
 	
 	// Object behavior flags.

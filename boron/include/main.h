@@ -61,6 +61,11 @@ Author:
 #endif
 
 // We're using C11
+#ifdef TARGET_I386
+// because Clang likes to complain about that.
+#pragma clang diagnostic ignored "-Wc2x-extensions"
+#endif
+
 #define static_assert _Static_assert
 
 void LogMsg(const char* msg, ...);

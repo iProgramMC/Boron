@@ -305,9 +305,15 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 		return (MIPOOL_SPACE_HANDLE) NULL;
 	}
 	
-	ASSERT(*PtePtr & MM_PTE_ISPOOLHDR);
+	// N.B.  This kind of relies on the notion that the address doesn't have
+	// the valid bit set.
+	uintptr_t PAddress = *PtePtr;
+#ifdef MM_PTE_ISPOOLHDR
+	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
+	PAddress &= ~MM_PTE_ISPOOLHDR;
+#endif
 	
-	MIPOOL_SPACE_HANDLE Handle = ((*PtePtr) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE;
+	MIPOOL_SPACE_HANDLE Handle = PAddress + MM_KERNEL_SPACE_BASE;
 	MmUnlockKernelSpace();
 	return Handle;
 }
