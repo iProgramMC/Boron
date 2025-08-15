@@ -121,7 +121,7 @@ typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount);
-typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, size_t NewLength);
+typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, uint64_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
 typedef BSTATUS(*IO_MAKE_DIR_METHOD)   (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
 typedef BSTATUS(*IO_UNLINK_METHOD)     (PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);

@@ -84,8 +84,9 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
 	
-	bool IsSeekable = IoIsSeekable(Fcb);
+	Iosb->BytesRead = 0;
 	
+	bool IsSeekable = IoIsSeekable(Fcb);
 	size_t ByteCount = Mdl->ByteCount;
 	
 	// Check for an overflow.
@@ -169,6 +170,15 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 	return Status;
 }
 
+// NOTE: Must have the FCB's rwlock acquired exclusive!
+static BSTATUS IopSetFileSize(PFCB Fcb, uint64_t NewFileSize)
+{
+	if (!Fcb->DispatchTable->Resize)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return Fcb->DispatchTable->Resize(Fcb, NewFileSize);
+}
+
 static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached)
 {
 	BSTATUS Status;
@@ -178,8 +188,9 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
 	
-	bool IsSeekable = IoIsSeekable(Fcb);
+	Iosb->BytesWritten = 0;
 	
+	bool IsSeekable = IoIsSeekable(Fcb);
 	size_t ByteCount = Mdl->ByteCount;
 	
 	// Check for an overflow.
@@ -188,16 +199,44 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	
 	// Check if we may perform cached reads.
 	if (!IsSeekable)
-	{
 		Cached = false;
+	
+	// Check if the file needs to be expanded at all.
+	//
+	// This check is not performed atomically at all.  Frankly, if a truncation of the file
+	// happened at this point, this shouldn't matter.  The data would be lost regardless of
+	// if the truncation happened a) in the middle of the write function, or b) after.
+	//
+	// If the truncation attempt happens in the middle of the write function, and we did
+	// exclusively lock the FCB to check this, then the truncation would be delayed to after
+	// this function succeeds.
+	uint64_t EndOffset = Offset + Mdl->ByteCount;
+	
+	if (IsSeekable && EndOffset > Fcb->FileLength)
+	{
+		// Expansion required.  Acquire the lock, expand, and then demote it to shared.
+		Status = IoLockFcbExclusive(Fcb);
+		
+		if (FAILED(Status))
+			return IOSB_STATUS(Iosb, Status);
+		
+		Status = IopSetFileSize(Fcb, EndOffset);
+		// TODO: Allow reporting of the status here.  It's possible this failed because
+		// the disk ran out of space, for example.
+		
+		IoDemoteToSharedFcb(Fcb);
 	}
 	else
 	{
-		// Seekable, so check for the file's length.
-		//
-		// N.B.  There is a possible race condition where, while the file is
-		// being expanded, this value might be stale.  However, I don't think
-		// that really matters here.
+		Status = IoLockFcbShared(Fcb);
+		
+		if (FAILED(Status))
+			return IOSB_STATUS(Iosb, Status);
+	}
+	
+	// Ensure that the offset and write size are within the (new) file length.
+	if (IsSeekable)
+	{
 		uint64_t FileSize = Fcb->FileLength;
 		
 		// Ensure a cap over the size of the file.
@@ -216,34 +255,22 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	
 	// If we may use caching, use the cache.
 	if (Cached)
-	{
-		Status = CcWriteFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
+	{	
+		Status = CcWriteFileMdl(FileObject, Offset, Mdl, 0, ByteCount);
 		if (SUCCEEDED(Status))
 			Iosb->BytesWritten = ByteCount;
 		
+		IoUnlockFcb(Fcb);
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
 	
+	// We don't lock the lock exclusively anymore.
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
-	
-	// As an optimization, if the file is opened in append only mode, and the operation is
-	// a write, then lock the FCB's rwlock exclusive, instead of locking it shared, then
-	// unlocking it, and then locking it exclusive.
-	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	if ((Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE) ||
-		(FileObject->Flags & FILE_FLAG_APPEND_ONLY))
-	{
-		Flags |= IO_RW_LOCKEDEXCLUSIVE;
-		Status = IoLockFcbExclusive(Fcb);
-	}
-	else
-	{
-		Status = IoLockFcbShared(Fcb);
-	}
 	
 	if (FAILED(Status))
 	{
+		IoUnlockFcb(Fcb);
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
