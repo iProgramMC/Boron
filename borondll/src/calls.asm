@@ -82,3 +82,4 @@ CALL 26, OSTerminateThread
 CALL 27, OSTouchFile
 CALL 28, OSWaitForMultipleObjects
 CALL 29, OSWaitForSingleObject
+CALLEX 30, OSWriteFile

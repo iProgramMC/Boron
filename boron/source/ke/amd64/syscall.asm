@@ -49,6 +49,7 @@ extern OSTerminateThread
 extern OSTouchFile
 extern OSWaitForMultipleObjects
 extern OSWaitForSingleObject
+extern OSWriteFile
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
@@ -83,6 +84,7 @@ KiSystemServiceTable:
 	dq OSTouchFile
 	dq OSWaitForMultipleObjects
 	dq OSWaitForSingleObject
+	dq OSWriteFile
 KiSystemServiceTableEnd:
 	nop
 

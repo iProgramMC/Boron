@@ -99,4 +99,4 @@ BSTATUS OSWaitForMultipleObjects(
 
 void OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
 
-//TODO: BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
+BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
