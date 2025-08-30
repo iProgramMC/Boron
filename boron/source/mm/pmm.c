@@ -431,6 +431,7 @@ static void MmpRemovePfnFromList(PMMPFN First, PMMPFN Last, MMPFN Current)
 
 void MiDetransitionPfn(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
 	
@@ -449,6 +450,8 @@ void MiDetransitionPfn(MMPFN Pfn)
 
 static void MmpAddPfnToList(PMMPFN First, PMMPFN Last, MMPFN Current)
 {
+	ASSERT(Current != PFN_INVALID);
+	
 	if (*First == PFN_INVALID)
 	{
 		*First = *Last = Current;
@@ -525,13 +528,20 @@ MMPFN MmAllocatePhysicalPage()
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
+	bool FromZero = true;
 	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
 	if (currPFN == PFN_INVALID)
+	{
+		FromZero = false;
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
-	if (currPFN == PFN_INVALID)
-		currPFN = MmpAllocateFromFreeList(&MiFirstStandbyPFN, &MiLastStandbyPFN);
+		if (currPFN == PFN_INVALID)
+			currPFN = MmpAllocateFromFreeList(&MiFirstStandbyPFN, &MiLastStandbyPFN);
+	}
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+	
+	if (!FromZero)
+		memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(currPFN)), 0, PAGE_SIZE);
 	
 #ifdef PMMDEBUG
 	DbgPrint("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
@@ -560,6 +570,8 @@ MMPFN MiRemoveOneModifiedPfn()
 
 void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 {
+	ASSERT(Pfn != PFN_INVALID);
+	
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
@@ -572,6 +584,8 @@ void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 
 void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t Offset)
 {
+	ASSERT(Pfn != PFN_INVALID);
+	
 	Offset /= PAGE_SIZE;
 	
 	KIPL OldIpl;
@@ -591,6 +605,8 @@ void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t
 
 void MmSetModifiedPfn(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
+	
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
@@ -608,6 +624,8 @@ extern KEVENT MmModifiedPageWriterEvent;
 
 void MmFreePhysicalPage(MMPFN pfn)
 {
+	ASSERT(pfn != PFN_INVALID);
+	
 	KIPL OldIpl;
 	
 #ifdef PMMDEBUG
@@ -673,6 +691,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 
 void MiTransformPageToStandbyPfn(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
@@ -713,6 +732,7 @@ void MiTransformPageToStandbyPfn(MMPFN Pfn)
 
 void MiReinsertIntoModifiedList(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
@@ -732,6 +752,7 @@ void MiReinsertIntoModifiedList(MMPFN Pfn)
 // the zero PFN list.
 static void MmpZeroOutPFN(MMPFN pfn)
 {
+	ASSERT(pfn != PFN_INVALID);
 	PMMPFDBE pPF = MmGetPageFrameFromPFN(pfn);
 	if (pPF->Type == PF_TYPE_ZEROED)
 		return;
@@ -755,6 +776,7 @@ static void MmpZeroOutPFN(MMPFN pfn)
 
 void MmZeroOutPFN(MMPFN pfn)
 {
+	ASSERT(pfn != PFN_INVALID);
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	MmpZeroOutPFN(pfn);
@@ -794,6 +816,7 @@ void MmFreePhysicalPageHHDM(void* page)
 
 void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	
 	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
@@ -811,6 +834,7 @@ void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn)
 
 void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	
 	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
@@ -819,6 +843,7 @@ void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn)
 
 void MmPageAddReference(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
@@ -829,6 +854,7 @@ void MmPageAddReference(MMPFN Pfn)
 
 int MiGetReferenceCountPfn(MMPFN Pfn)
 {
+	ASSERT(Pfn != PFN_INVALID);
 	ASSERT(MmPfnLock.Locked);
 	
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
