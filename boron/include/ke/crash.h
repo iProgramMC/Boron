@@ -19,6 +19,6 @@ Author:
 NO_RETURN void KeCrash(const char* message, ...);
 NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...);
 
-#ifdef IS_HAL
+#if defined(IS_HAL) || defined(KERNEL)
 NO_RETURN void KeCrashConclusion(const char* Message);
 #endif

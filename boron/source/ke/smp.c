@@ -156,6 +156,7 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 		}
 	}
 	
+	DbgPrintStackTrace(0);
 	KiCrashedEntry();
 }
 
