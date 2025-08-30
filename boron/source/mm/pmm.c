@@ -540,7 +540,7 @@ MMPFN MmAllocatePhysicalPage()
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
-	if (!FromZero)
+	if (!FromZero && currPFN != PFN_INVALID)
 		memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(currPFN)), 0, PAGE_SIZE);
 	
 #ifdef PMMDEBUG
