@@ -298,6 +298,9 @@ BSTATUS ObUnlinkObject(void* Object);
 // Inserts an object into the current process' handle table.
 BSTATUS ObInsertObject(void* Object, PHANDLE OutHandle, int OpenFlags);
 
+// Inserts an object into the handle table of a specified process.
+BSTATUS ObInsertObjectProcess(PEPROCESS Process, void* Object, PHANDLE OutHandle, int OpenFlags);
+
 // Opens an object by name.
 //
 // N.B. Specifying HANDLE_NONE to RootDirectory means that the lookup is absolute.

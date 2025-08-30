@@ -25,7 +25,7 @@ enum
 	// Handle may be inherited by child processes.
 	OB_OPEN_INHERIT   = (1 << 0),
 	// No other process may open this handle while the current process maintains a handle.
-	OB_OPEN_EXCLUSIVE = (1 << 1),
+	// Unimplemented: OB_OPEN_EXCLUSIVE = (1 << 1),
 	// If the final path component is a symbolic link, open the symbolic link object itself
 	// instead of its referenced object (the latter is the default behavior)
 	OB_OPEN_SYMLINK   = (1 << 2),

@@ -307,3 +307,33 @@ BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
 	MmFreePool(Memory);
 	return Status;
 }
+
+// Copies a handle from a process, to another process (it can be the same one).
+BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, PHANDLE OutNewHandle, int OpenFlags)
+{
+	BSTATUS Status;
+	PEPROCESS DestinationProcess;
+	void* Object;
+	
+	Status = ExReferenceObjectByHandle(DestinationProcessHandle, PsProcessObjectType, (void**) &DestinationProcess);
+	if (FAILED(Status))
+		goto Fail;
+	
+	Status = ExReferenceObjectByHandle(SourceHandle, NULL, &Object);
+	if (FAILED(Status))
+		goto Fail2;
+	
+	HANDLE OutHandle = HANDLE_NONE;
+	Status = ObInsertObjectProcess(DestinationProcess, Object, &OutHandle, OpenFlags);
+	if (FAILED(Status))
+		goto Fail3;
+	
+	Status = MmSafeCopy(OutNewHandle, &OutHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	
+Fail3:
+	ObDereferenceObject(Object);
+Fail2:
+	ObDereferenceObject(DestinationProcess);
+Fail:
+	return Status;
+}
