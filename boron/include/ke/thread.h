@@ -155,6 +155,14 @@ struct KTHREAD_tag
 	
 	uint64_t EnqueuedTime;
 #endif
+	
+	// When calling KeReleaseMutexWait, KeReleaseSemaphoreWait,
+	// KeSetEventWait, KeResetEventWait, or KePulseEventWait,
+	// these members are used to restore the IPL to the original
+	// IPL.
+	bool DidCallWaitFunction;
+	
+	KIPL OriginalIplWait;
 };
 
 // Creates an empty, uninitialized, thread object.

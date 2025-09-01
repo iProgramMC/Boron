@@ -38,4 +38,7 @@ int KeReadStateMutex(PKMUTEX Mutex);
 
 void KeReleaseMutex(PKMUTEX Mutex);
 
-// Locking a mutex is done by waiting on it.
+// Releases a mutex.  Unlike KeReleaseMutex, this leaves the dispatcher
+// lock locked, and as such, a Wait function (KeWaitForMultipleObjects)
+// must be called IMMEDIATELY after this function.
+void KeReleaseMutexBeforeWait(PKMUTEX Mutex);

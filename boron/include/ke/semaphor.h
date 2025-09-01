@@ -34,3 +34,7 @@ void KeInitializeSemaphore(PKSEMAPHORE Semaphore, int Count, int Limit);
 int KeReadStateSemaphore(PKSEMAPHORE Semaphore);
 
 void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment);
+
+// This function must IMMEDIATELY be followed by a Wait function
+// (e.g. KeWaitForSingleObject).  It leaves the dispatcher lock locked.
+void KeReleaseSemaphoreWait(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment);

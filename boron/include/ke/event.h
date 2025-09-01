@@ -44,3 +44,11 @@ void KePulseEvent(PKEVENT Event, KPRIORITY Increment);
 // Good thing that this API is only used in the rwlock implementation.
 PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event, KPRIORITY Increment);
 #endif
+
+// These APIs are used when the call IMMEDIATELY precedes a kernel Wait function call.
+// This ensures that the event setting and the wait are performed atomically.
+void KeSetEventWait(PKEVENT Event, KPRIORITY Increment);
+
+void KeResetEventWait(PKEVENT Event);
+
+void KePulseEventWait(PKEVENT Event, KPRIORITY Increment);

@@ -62,3 +62,10 @@ void KeReleaseSemaphore(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increme
 	KiReleaseSemaphore(Semaphore, Adjustment, Increment);
 	KiUnlockDispatcher(Ipl);
 }
+
+void KeReleaseSemaphoreWait(PKSEMAPHORE Semaphore, int Adjustment, KPRIORITY Increment)
+{
+	ASSERT_SEMAPHORE(Semaphore);
+	KiLockDispatcherWait();
+	KiReleaseSemaphore(Semaphore, Adjustment, Increment);
+}

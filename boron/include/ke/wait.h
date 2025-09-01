@@ -19,7 +19,7 @@ Author:
 // Wait for multiple objects at once.
 // Use a value of zero to poll the objects.
 // Use a value of TIMEOUT_INFINITE to specify that timeout isn't needed.
-int KeWaitForMultipleObjects(
+BSTATUS KeWaitForMultipleObjects(
 	int Count,
 	void* Objects[],
 	int WaitType,
@@ -29,4 +29,4 @@ int KeWaitForMultipleObjects(
 	KPROCESSOR_MODE WaitMode);
 
 // Wait for a single object.
-int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode);
+BSTATUS KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode);

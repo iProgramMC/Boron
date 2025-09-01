@@ -31,6 +31,16 @@ KIPL KiLockDispatcher()
 	return Ipl;
 }
 
+void KiLockDispatcherWait()
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&KiDispatcherLock, &Ipl);
+	
+	PKTHREAD Thread = KeGetCurrentThread();
+	Thread->DidCallWaitFunction = true;
+	Thread->OriginalIplWait = Ipl;
+}
+
 void KiUnlockDispatcher(KIPL Ipl)
 {
 	KeReleaseSpinLock(&KiDispatcherLock, Ipl);
@@ -208,7 +218,7 @@ static void KepWaitTimerExpiry(UNUSED PKDPC Dpc, void* Context, UNUSED void* SA1
 	KiUnlockDispatcher(Ipl);
 }
 
-int KeWaitForMultipleObjects(
+BSTATUS KeWaitForMultipleObjects(
 	int Count,
 	void* Objects[],
 	int WaitType,
@@ -237,11 +247,22 @@ int KeWaitForMultipleObjects(
 	if (KeGetIPL() > IPL_NORMAL && Thread->HoldingSpinlocks != 0)
 		KeCrash("KeWaitForMultipleObjects: Current thread holds %d spinlock(s), and is at IPL %d.", Thread->HoldingSpinlocks, KeGetIPL());
 #endif
+
+	KIPL Ipl;
+	
+	if (Thread->DidCallWaitFunction)
+	{
+		// The dispatcher lock was left locked by KeReleaseMutexWait, KeSetEventWait etc.
+		Ipl = Thread->OriginalIplWait;
+		Thread->DidCallWaitFunction = false;
+	}
+	else
+	{
+		Ipl = KiLockDispatcher();
+	}
 	
 	while (true)
 	{
-		KIPL Ipl = KiLockDispatcher();
-		
 		// Am I dead though?!
 		if (WaitMode == MODE_USER && Thread->PendingTermination)
 		{
@@ -373,15 +394,16 @@ int KeWaitForMultipleObjects(
 			break;
 		}
 		
-		// Request a wait again after a kernel APC.
+		// Re-try the wait again after a kernel APC.
+		Ipl = KiLockDispatcher();
 	}
 	
 	return Status;
 }
 
-int KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode)
+BSTATUS KeWaitForSingleObject(void* Object, bool Alertable, int TimeoutMS, KPROCESSOR_MODE WaitMode)
 {
-	int Status = KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL, WaitMode);
+	BSTATUS Status = KeWaitForMultipleObjects(1, &Object, WAIT_TYPE_ANY, Alertable, TimeoutMS, NULL, WaitMode);
 	
 	// Instead of returning wait range, like multiple objects would, return success.
 	if (Status == STATUS_WAIT(0))

@@ -68,3 +68,9 @@ void KeReleaseMutex(PKMUTEX Mutex)
 	
 	KiUnlockDispatcher(Ipl);
 }
+
+void KeReleaseMutexWait(PKMUTEX Mutex)
+{
+	KiLockDispatcherWait();
+	KiReleaseMutex(Mutex);
+}

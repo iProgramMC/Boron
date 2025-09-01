@@ -108,3 +108,25 @@ PKTHREAD KeSetEventAndGetWaiter(PKEVENT Event, KPRIORITY Increment)
 	
 	return Result;
 }
+
+// These APIs are used when the call IMMEDIATELY precedes a kernel Wait function call.
+// This ensures that the event setting and the wait are performed atomically.
+void KeSetEventWait(PKEVENT Event, KPRIORITY Increment)
+{
+	KiLockDispatcherWait();
+	KiSetEvent(Event, Increment);
+}
+
+void KeResetEventWait(PKEVENT Event)
+{
+	KiLockDispatcherWait();
+	KiResetEvent(Event);
+}
+
+void KePulseEventWait(PKEVENT Event, KPRIORITY Increment)
+{
+	KiLockDispatcherWait();
+	KiSetEvent(Event, Increment);
+	KiResetEvent(Event);
+}
+

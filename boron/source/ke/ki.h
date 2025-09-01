@@ -44,6 +44,8 @@ void KiDispatchTimerObjects(); // Called by the scheduler
 
 NO_DISCARD KIPL KiLockDispatcher();
 
+void KiLockDispatcherWait();
+
 void KiUnlockDispatcher(KIPL OldIpl);
 
 // Check if an object is signaled.
