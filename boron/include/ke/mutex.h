@@ -41,4 +41,4 @@ void KeReleaseMutex(PKMUTEX Mutex);
 // Releases a mutex.  Unlike KeReleaseMutex, this leaves the dispatcher
 // lock locked, and as such, a Wait function (KeWaitForMultipleObjects)
 // must be called IMMEDIATELY after this function.
-void KeReleaseMutexBeforeWait(PKMUTEX Mutex);
+void KeReleaseMutexWait(PKMUTEX Mutex);
