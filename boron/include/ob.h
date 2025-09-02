@@ -42,6 +42,12 @@ typedef void(*OBJ_CLOSE_FUNC) (void* Object, int HandleCount);
 // Lets the object know that it should tear down because the system will delete it.
 typedef void(*OBJ_DELETE_FUNC)(void* Object);
 
+// Lets the object specify a different object when a handle is being duplicated.
+//
+// If this function doesn't return NULL, it shall return a pointer to an object
+// with a reference count of at least one.
+typedef void*(*OBJ_DUPLICATE_FUNC)(void* Object, int OpenReason);
+
 //
 // Parse a path using this object.
 //
@@ -97,13 +103,14 @@ struct _OBJECT_TYPE_INFO
 	bool MaintainHandleCount;
 	
 	// Virtual function table
-	OBJ_OPEN_FUNC   Open;
-	OBJ_CLOSE_FUNC  Close;
-	OBJ_DELETE_FUNC Delete;
-	OBJ_PARSE_FUNC  Parse;
-	OBJ_SECURE_FUNC Secure;
+	OBJ_OPEN_FUNC      Open;
+	OBJ_CLOSE_FUNC     Close;
+	OBJ_DELETE_FUNC    Delete;
+	OBJ_PARSE_FUNC     Parse;
+	OBJ_SECURE_FUNC    Secure;
+	OBJ_DUPLICATE_FUNC Duplicate;
 #ifdef DEBUG
-	OBJ_DEBUG_FUNC  Debug;
+	OBJ_DEBUG_FUNC     Debug;
 #endif
 };
 

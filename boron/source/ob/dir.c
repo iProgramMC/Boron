@@ -466,6 +466,8 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 	NULL,
 	// Secure
 	NULL,
+	// Duplicate
+	NULL,
 #ifdef DEBUG
 	// Debug
 	ObpDebugDirectory,

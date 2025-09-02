@@ -146,6 +146,8 @@ OBJECT_TYPE_INFO ObpObjectTypeTypeInfo =
 	NULL,
 	// Secure
 	NULL,
+	// Duplicate
+	NULL,
 #ifdef DEBUG
 	// Debug
 	ObpDebugObjectType,

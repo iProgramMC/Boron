@@ -87,6 +87,8 @@ OBJECT_TYPE_INFO ObpSymbolicLinkTypeInfo =
 	ObpParseSymbolicLink,
 	// Secure
 	NULL,
+	// Duplicate
+	NULL,
 #ifdef DEBUG
 	// Debug
 	NULL,

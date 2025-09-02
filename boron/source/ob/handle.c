@@ -246,11 +246,31 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 		return NULL;
 	}
 	
-	// Reference the object and add 1 to its handle count if needed.
-	ObReferenceObjectByPointer(Object);
+	void* NewObject = Object;
 	
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	PNONPAGED_OBJECT_HEADER NPHeader = Header->NonPagedObjectHeader;
+	
+	// If this object has a duplicate function, call it.
+	OBJ_DUPLICATE_FUNC DuplicateMethod = NPHeader->ObjectType->TypeInfo.Duplicate;
+	if (DuplicateMethod)
+	{
+		NewObject = DuplicateMethod(Object, OpenReason);
+		
+		if (!NewObject)
+			NewObject = Object;
+	}
+	
+	if (NewObject == Object)
+	{
+		// Reference the object and add 1 to its handle count if needed.
+		ObReferenceObjectByPointer(Object);
+	}
+	else
+	{
+		// Update the pointer without changing the bits.
+		HandleItem.U.AddressBits = (uintptr_t) NewObject >> 3;
+	}
 	
 	bool MaintainHandleCount = NPHeader->ObjectType->TypeInfo.MaintainHandleCount;
 	int HandleCount = 0;
@@ -261,9 +281,9 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 	// Call the object type's Open method.
 	OBJ_OPEN_FUNC OpenMethod = NPHeader->ObjectType->TypeInfo.Open;
 	if (OpenMethod)
-		OpenMethod(Object, HandleCount, OpenReason);
+		OpenMethod(NewObject, HandleCount, OpenReason);
 	
-	return HandleItemV;
+	return HandleItem.Pointer;
 }
 
 BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable)
