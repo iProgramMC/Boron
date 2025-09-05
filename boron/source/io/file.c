@@ -94,6 +94,33 @@ void IopCloseFile(void* Object, int HandleCount)
 	}
 }
 
+void* IopDuplicateFile(void* Object, UNUSED int OpenReason)
+{
+	DbgPrint("IopDuplicateFile(%p)", Object);
+	PFILE_OBJECT File = Object;
+	
+	// Increase the FCB's reference count by one.
+	IoReferenceFcb(File->Fcb);
+	
+	// Create a new file object to which this reference is transferred.
+	PFILE_OBJECT NewFile = NULL;
+	BSTATUS Status = IoCreateFileObject(File->Fcb, &NewFile, File->Flags, File->OpenFlags);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint(
+			"ERROR: IopDuplicateFile failed with status %d (%s). The file object won't be duplicated. "
+			"This behavior might not be desirable later.",
+			Status,
+			RtlGetStatusString(Status)
+		);
+		
+		return NULL;
+	}
+	
+	return NewFile;
+}
+
 void IopDeleteFile(void* Object)
 {
 	PFILE_OBJECT File = Object;

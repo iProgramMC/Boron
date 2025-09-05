@@ -80,6 +80,7 @@ bool IopInitializeObjectTypes()
 	Info.Close = IopCloseFile;
 	Info.Parse = IopParseFile;
 	Info.Delete = IopDeleteFile;
+	Info.Duplicate = IopDuplicateFile;
 	Status = ObCreateObjectType("File", &Info, &IoFileType);
 	if (FAILED(Status))
 	{

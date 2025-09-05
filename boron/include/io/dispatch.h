@@ -86,6 +86,9 @@ typedef struct _FCB FCB, *PFCB;
 //   This does not erase the reference to the FCB, but the file object, when deleted, will also separately call
 //   IO_DEREFERENCE_METHOD.
 //
+// - IO_REFERENCE_METHOD is the method called when a reference to the FCB is added.  This should not be used with
+//   IO_LOOKUP_DIR_METHOD, as this one already adds a reference to the FCB.
+//
 // - IO_DEREFERENCE_METHOD is the method called when a reference to the FCB is deleted. For example, a file object being
 //   deleted will call this function on its FCB.
 //
@@ -111,6 +114,7 @@ typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJE
 //typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
 typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
 typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
+typedef void   (*IO_REFERENCE_METHOD)  (PFCB Fcb);
 typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
 typedef bool   (*IO_SEEKABLE_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
@@ -188,6 +192,7 @@ typedef struct _IO_DISPATCH_TABLE
 	//IO_DELETE_METHOD      Delete;
 	IO_CREATE_OBJ_METHOD  CreateObject;
 	IO_DELETE_OBJ_METHOD  DeleteObject;
+	IO_REFERENCE_METHOD   Reference;
 	IO_DEREFERENCE_METHOD Dereference;
 	IO_SEEKABLE_METHOD    Seekable;
 	IO_OPEN_METHOD        Open;

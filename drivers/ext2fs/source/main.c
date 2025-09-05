@@ -17,6 +17,7 @@ Author:
 IO_DISPATCH_TABLE Ext2DispatchTable =
 {
 	.CreateObject = Ext2CreateObject,
+	.Reference = Ext2ReferenceInode,
 	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
 	.Read = Ext2Read,

@@ -28,6 +28,7 @@ PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPa
 	ExInitializeRwLock(&Fcb->RwLock);
 	KeInitializeMutex(&Fcb->ViewCacheMutex, 0);
 	
+	memset(Fcb->Extension, 0, Fcb->ExtensionSize);
 	return Fcb;
 }
 
@@ -36,6 +37,14 @@ void IoFreeFcb(PFCB Fcb)
 	ExDeinitializeRwLock(&Fcb->RwLock);
 	MmTearDownCcb(&Fcb->PageCache);
 	MmFreePool(Fcb);
+}
+
+void IoReferenceFcb(PFCB Fcb)
+{
+	IO_REFERENCE_METHOD RefMethod = Fcb->DispatchTable->Dereference;
+	
+	if (RefMethod)
+		RefMethod(Fcb);
 }
 
 void IoDereferenceFcb(PFCB Fcb)

@@ -68,6 +68,8 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT, PFILE_OBJECT, POBJECT_DIRECTORY MountDir);
 
 void Ext2CreateObject(PFCB Fcb, PFILE_OBJECT FileObject);
 
+void Ext2ReferenceInode(PFCB Fcb);
+
 void Ext2DereferenceInode(PFCB Fcb);
 
 bool Ext2Seekable(PFCB Fcb);

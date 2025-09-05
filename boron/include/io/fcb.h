@@ -53,12 +53,20 @@ PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPa
 // Frees an FCB.
 void IoFreeFcb(PFCB Fcb);
 
+// References an FCB.
+//
+// This calls its Reference function.  The Boron executive does not store the
+// reference count of an FCB.
+//
+// The FCB's reference count is incremented when:
+// - This function is called
+// - LookupDir is called on a directory FCB, returning an FCB with a reference count biased by one
+void IoReferenceFcb(PFCB Fcb);
+
 // Dereferences an FCB.
 //
 // This calls its Dereference function.  The Boron executive does not store the
 // reference count of an FCB.
-//
-// (The FCB's reference count is increased every time IO_CREATE_OBJ_METHOD is called)
 void IoDereferenceFcb(PFCB Fcb);
 
 // TODO: Maybe the waits should be alertable?
