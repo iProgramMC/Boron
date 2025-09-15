@@ -27,3 +27,6 @@ void PerformDelay(int Ms, PKDPC Dpc);
 
 // Performs a hex dump of some memory.
 void DumpHex(void* DataV, size_t DataSize, bool LogScreen);
+
+// Keyboard key code translator for testing.  I8042 specific for now
+char TranslateKeyCode(char KeyCode);

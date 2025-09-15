@@ -77,6 +77,7 @@ enum
 	STATUS_UNALIGNED_OPERATION, // Unaligned operation was attempted.  Use IoGetOperationAlignment to find the alignment required to write to this device.
 	STATUS_NOT_THIS_FILE_SYSTEM,// This file system does not exist on this volume
 	STATUS_END_OF_FILE,         // The end of this file has been reached.
+	STATUS_BLOCKING_OPERATION,  // The operation would block the running thread, and the resource is marked non-blocking.
 	
 	// Memory manager error codes
 	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space
@@ -99,7 +100,15 @@ enum
 #define STATUS_WAIT(n) (STATUS_RANGE_WAIT + (n))
 #define STATUS_ABANDONED_WAIT(n) (STATUS_RANGE_ABANDONED_WAIT + (n))
 
-#define SUCCEEDED(x) ((x) == STATUS_SUCCESS)
+// Use FAILED(Status) and SUCCEEDED(Status) when checking for statuses
+// from system services unrelated to I/O.
 #define FAILED(x)    ((x) != STATUS_SUCCESS)
+#define SUCCEEDED(x) (!FAILED(x))
+
+// Use IOFAILED(Status) and IOSUCCEEDED(Status) when checking for statuses
+// from system services related to I/O, as they declare three status codes
+// successful instead of just STATUS_SUCCESS.
+#define IOFAILED(x)    ((x) != STATUS_SUCCESS && (x) != STATUS_END_OF_FILE && (x) != STATUS_BLOCKING_OPERATION)
+#define IOSUCCEEDED(x) (!IOFAILED(x))
 
 const char* RtlGetStatusString(int code);

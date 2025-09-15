@@ -10,34 +10,48 @@ Abstract:
 	is implemented using a circular ring buffer of variable
 	size.
 	
+	This implementation supports anonymous pipes and named
+	pipes.  Named pipes are implemented using a special object
+	type called NamedPipe which parses into a file object when
+	looked up.
+	
 Author:
 	iProgramInCpp - 1 September 2025
 ***/
 #include "iop.h"
+#include <ex/internal.h>
 
 // Priority increment given to writer and reader threads when an event happens
 #define PIPE_INCREMENT (3)
 
+// Default pipe size.
+#define DEFAULT_PIPE_SIZE (1024)
+
+// Maximum pipe size.
+#define MAX_PIPE_SIZE (32768)
+
 // A pipe is an FCB whose extension is this structure.
 typedef struct _PIPE
 {
+	size_t ReferenceCount;
+	bool   NonBlock;
 	KMUTEX Mutex;
 	KEVENT QueueEmptyEvent;
 	KEVENT QueueFullEvent;
 	size_t Head;
 	size_t Tail;
 	size_t BufferSize;
-	bool Terminated;
 	char Buffer[];
 }
 PIPE, *PPIPE;
 
-void IopInitializePipe(PPIPE Pipe, size_t BufferSize)
+void IopInitializePipe(PPIPE Pipe, size_t BufferSize, bool NonBlock)
 {
 	Pipe->BufferSize = BufferSize;
 	Pipe->Head = 0;
 	Pipe->Tail = 0;
-	Pipe->Terminated = false;
+	Pipe->ReferenceCount = 1;
+	Pipe->NonBlock = NonBlock;
 	KeInitializeMutex(&Pipe->Mutex, 0);
 	KeInitializeEvent(&Pipe->QueueEmptyEvent, EVENT_NOTIFICATION, false);
 	KeInitializeEvent(&Pipe->QueueFullEvent,  EVENT_NOTIFICATION, false);
@@ -61,27 +75,28 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 	if (FAILED(Status))
 		goto Finish;
 	
-	// Then, check if there is any data.
-	if (Pipe->Terminated)
-	{
-		Iosb->Status = STATUS_END_OF_FILE;
-		goto Finish;
-	}
-	
 	size_t ByteCount = MdlBuffer->ByteCount;
 	for (size_t i = 0; i < ByteCount; )
 	{
 		Iosb->BytesRead = i;
 		
-		if (Pipe->Terminated)
-		{
-			// Well, simply return that we read this many bytes, and that's it.
-			return STATUS_SUCCESS;
-		}
-		
 		if (Pipe->Head == Pipe->Tail)
 		{
+			// If the pipe has only one owner, return prematurely, otherwise a deadlock will ensue.
+			// NOTE: This will NOT work if file objects aren't duplicated!
+			if (Pipe->ReferenceCount == 1)
+			{
+				DbgPrint("PIPE: Declaring end of file because there is only one owner and there is no data left!");
+				Status = STATUS_END_OF_FILE;
+				goto FinishRelease;
+			}
+			
 			// No data, need to wait for more.
+			if (Pipe->NonBlock)
+			{
+				Iosb->Status = STATUS_BLOCKING_OPERATION;
+				goto FinishRelease;
+			}
 			
 			// NOTE: The following block is performed atomically, that is, there is no point in time
 			// where the mutex is unlocked but the wait isn't being performed, between these two lines.
@@ -148,8 +163,15 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 	}
 	
 	Status = STATUS_SUCCESS;
+	
+FinishRelease:
+	KeReleaseMutex(&Pipe->Mutex);
+	
 Finish:
 	Iosb->Status = Status;
+	
+	// Relock the rwlock because the caller expects us to do so.
+	IoLockFcbShared(Fcb);
 	return Status;
 }
 
@@ -171,23 +193,10 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 	if (FAILED(Status))
 		goto Finish;
 	
-	// Then, check if there is any data.
-	if (Pipe->Terminated)
-	{
-		Iosb->Status = STATUS_END_OF_FILE;
-		goto Finish;
-	}
-	
 	size_t ByteCount = MdlBuffer->ByteCount;
 	for (size_t i = 0; i < ByteCount; )
 	{
 		Iosb->BytesWritten = i;
-		
-		if (Pipe->Terminated)
-		{
-			// Well, simply return that we read this many bytes, and that's it.
-			return STATUS_SUCCESS;
-		}
 		
 		size_t FreeSpace;
 		if (Pipe->Head >= Pipe->Tail)
@@ -198,6 +207,20 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		if (FreeSpace == 0)
 		{
 			// No free space, so wait.
+			if (Pipe->ReferenceCount == 1)
+			{
+				DbgPrint("PIPE: Declaring end of file because there is only one owner and the pipe is full!");
+				Status = STATUS_END_OF_FILE;
+				goto FinishRelease;
+			}
+			
+			// Full of data, need to wait to send more.
+			if (Pipe->NonBlock)
+			{
+				Status = STATUS_BLOCKING_OPERATION;
+				goto FinishRelease;
+			}
+			
 			KeReleaseMutexWait(&Pipe->Mutex);
 			
 			Status = KeWaitForSingleObject(&Pipe->QueueFullEvent, true, TIMEOUT_INFINITE, KeGetPreviousMode());
@@ -251,14 +274,124 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 	}
 	
 	Status = STATUS_SUCCESS;
+	
+FinishRelease:
+	KeReleaseMutex(&Pipe->Mutex);
+	
 Finish:
 	Iosb->Status = Status;
+	
+	// Relock the rwlock because the caller expects us to do so.
+	IoLockFcbShared(Fcb);
 	return Status;
 }
 
-IO_DISPATCH_TABLE IopPipeDispatchTable = {
+void IopReferencePipe(PFCB Fcb)
+{
+	PPIPE Pipe = (PPIPE) Fcb->Extension;
+	
+	AtAddFetch(Pipe->ReferenceCount, 1);
+}
+
+void IopDereferencePipe(PFCB Fcb)
+{
+	PPIPE Pipe = (PPIPE) Fcb->Extension;
+	
+	if (AtAddFetch(Pipe->ReferenceCount, -1) == 0)
+	{
+		DbgPrint("IopDereferencePipe: Freeing pipe FCB");
+		IoFreeFcb(Fcb);
+	}
+}
+
+IO_DISPATCH_TABLE IopPipeDispatchTable =
+{
 	.Flags = 0,
-	//.Dereference = IopDereferencePipe,
+	.Reference = IopReferencePipe,
+	.Dereference = IopDereferencePipe,
 	.Read = IopReadPipe,
 	.Write = IopWritePipe,
 };
+
+BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+{
+	if (ObjectAttributes)
+	{
+		// Named pipes are currently not supported.  TODO
+		return STATUS_UNIMPLEMENTED;
+	}
+	
+	PFCB Fcb = IoAllocateFcb(&IopPipeDispatchTable, sizeof(PIPE) + BufferSize, false);
+	if (!Fcb)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	// Initialize the pipe with the specified buffer size, create its corresponding
+	// file object, and then insert it into the handle table.
+	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize, NonBlock);
+	
+	PFILE_OBJECT FileObject = NULL;
+	BSTATUS Status = IoCreateFileObject(Fcb, &FileObject, 0, 0);
+	if (FAILED(Status))
+	{
+		IoFreeFcb(Fcb);
+		return Status;
+	}
+	
+	Status = ObInsertObject(FileObject, OutHandle, 0);
+	if (FAILED(Status))
+	{
+		ObDereferenceObject(FileObject);
+		IoFreeFcb(Fcb);
+		return Status;
+	}
+	
+	ObDereferenceObject(FileObject);
+	return Status;
+}
+
+// See ExCreateObjectUserCall for an in-depth explanation on how this is structured.
+BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+{
+	BSTATUS Status = STATUS_SUCCESS;
+	bool CopyAttrs = false;
+	OBJECT_ATTRIBUTES AttributesCopy;
+	
+	if (BufferSize == 0)
+		BufferSize = DEFAULT_PIPE_SIZE;
+	
+	if (BufferSize < 64 || BufferSize > MAX_PIPE_SIZE)
+		return STATUS_INVALID_PARAMETER;
+	
+	// If needed, copy the attributes on the stack so that they're safe to use
+	// by IoCreatePipe.  This is because IoCreatePipe is kernel-mode only, so
+	// faults on user mode are unacceptable.
+	if (ObjectAttributes)
+	{
+		if (KeGetPreviousMode() == MODE_KERNEL)
+		{
+			AttributesCopy = *ObjectAttributes;
+		}
+		else
+		{
+			CopyAttrs = true;
+			Status = ExCopySafeObjectAttributes(&AttributesCopy, ObjectAttributes);
+			if (FAILED(Status))
+				return Status;
+		}
+	}
+	
+	HANDLE Handle;
+	Status = IoCreatePipe(&Handle, ObjectAttributes ? &AttributesCopy : NULL, BufferSize, NonBlock);
+	if (SUCCEEDED(Status))
+	{
+		Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
+		
+		if (FAILED(Status))
+			OSClose(Handle);
+	}
+	
+	if (CopyAttrs)
+		ExDisposeCopiedObjectAttributes(&AttributesCopy);
+	
+	return Status;
+}

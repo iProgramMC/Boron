@@ -15,7 +15,7 @@ Author:
 #include "exp.h"
 #include <ps.h>
 
-BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
+BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
 {
 	BSTATUS Status;
 	
@@ -40,7 +40,7 @@ BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRIBUTES UserAttrs)
+BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRIBUTES UserAttrs)
 {
 	BSTATUS Status;
 	
@@ -51,14 +51,14 @@ BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTR
 		return false;
 	
 	char* Name = NULL;
-	if (FAILED(Status = ExiDuplicateUserString(&Name, UserAttrs->ObjectName, OutNewAttrs->ObjectNameLength)))
+	if (FAILED(Status = ExDuplicateUserString(&Name, UserAttrs->ObjectName, OutNewAttrs->ObjectNameLength)))
 		return false;
 	
 	OutNewAttrs->ObjectName = Name;
 	return STATUS_SUCCESS;
 }
 
-void ExiDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes)
+void ExDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes)
 {
 	if (Attributes->ObjectName)
 		MmFreePool((char*)Attributes->ObjectName);
@@ -129,7 +129,7 @@ BSTATUS ExCreateObjectUserCall(
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
 		// a helper function to copy everything into kernel mode.
-		Status = ExiCopySafeObjectAttributes(&Attributes, ObjectAttributes);
+		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes);
 		if (FAILED(Status))
 			return Status;
 	}
@@ -211,7 +211,7 @@ Fail:
 		ObDereferenceObject(ParentDirectory);
 	
 	if (CopyAttrs)
-		ExiDisposeCopiedObjectAttributes(&Attributes);
+		ExDisposeCopiedObjectAttributes(&Attributes);
 	
 	return Status;
 }
@@ -230,7 +230,7 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
 		// a helper function to copy everything into kernel mode.
-		Status = ExiCopySafeObjectAttributes(&Attributes, ObjectAttributes);
+		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes);
 		if (FAILED(Status))
 			return Status;
 	}
@@ -271,7 +271,7 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	
 Fail:
 	if (CopyAttrs)
-		ExiDisposeCopiedObjectAttributes(&Attributes);
+		ExDisposeCopiedObjectAttributes(&Attributes);
 	
 	return Status;
 }

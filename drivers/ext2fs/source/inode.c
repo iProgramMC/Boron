@@ -127,12 +127,7 @@ void Ext2FreeInode(PFCB Fcb)
 void Ext2ReferenceInode(PFCB Fcb)
 {
 	PREP_EXT;
-	
-	uintptr_t Value = AtAddFetch(Ext->ReferenceCount, 1);
-	if (Value == 1)
-	{
-		// TODO: Freshly referenced, remove it off of the to-be-reclaimed list.
-	}
+	AtAddFetch(Ext->ReferenceCount, 1);
 }
 
 void Ext2CreateObject(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)

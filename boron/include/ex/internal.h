@@ -19,13 +19,13 @@ Author:
 #ifdef KERNEL
 
 // Safely duplicate a string from user space. Use MmFreePool to free the space allocated by the string.
-BSTATUS ExiDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength);
+BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength);
 
 // Safely copy an OBJECT_ATTRIBUTES instance.
-BSTATUS ExiCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttributes, POBJECT_ATTRIBUTES UserAttributes);
+BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttributes, POBJECT_ATTRIBUTES UserAttributes);
 
 // Dispose of a copied OBJECT_ATTRIBUTES instance.
-void ExiDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes);
+void ExDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes);
 
 // Create an object based on a user system service call.  This handles safety in all aspects, including
 // copying the object attributes to kernel pool, dereferencing the root directory, copying the handle into

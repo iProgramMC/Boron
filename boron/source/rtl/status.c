@@ -72,6 +72,7 @@ static const char* const RtlpStatusCodes[] =
 	"The requested operation requires a parameter to be aligned.",
 	"This file system does not exist on this volume.",
 	"The end of the file has been reached.",
+	"The operation would block the current thread, but the resource requested is non-blocking.",
 	
 	"Not enough virtual address space is available to complete the operation.",
 	"The virtual address requested is not located at the base of a reserved region.",

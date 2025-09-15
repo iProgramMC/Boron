@@ -32,6 +32,7 @@ typedef struct _FCB FCB, *PFCB;
 #include <io/cntrobj.h>
 #include <io/rdwr.h>
 #include <io/part.h>
+#include <io/pipe.h>
 
 // These aren't meant to be used directly. Instead, they're used
 // by the IoGetBuiltInData function. If the compile unit including
