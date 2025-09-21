@@ -52,7 +52,7 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 	
 	// First, check if the view already exists.
 #ifndef IS_64_BIT
-#error TODO: Should we just use 64-bit keys throughout? The RB trees currently have 32-bit keys.
+#warning TODO: Should we just use 64-bit keys throughout? The RB trees currently have 32-bit keys.
 #endif
 	
 	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Fcb->ViewCache, FileOffset & ~(VIEW_CACHE_SIZE - 1));

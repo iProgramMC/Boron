@@ -14,8 +14,10 @@ Author:
 ***/
 #pragma once
 
-#ifdef TARGET_AMD64
+#if defined TARGET_AMD64
 #define IS_64_BIT
+#elif defined TARGET_I386
+#define IS_32_BIT
 #else
 #error Add your platform here!
 #endif
