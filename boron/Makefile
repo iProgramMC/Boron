@@ -5,6 +5,11 @@ DEBUG ?= yes
 DEBUG2 ?= no
 DWARF_SYMBOLS ?= yes
 
+# Major and minor versions are incremented manually, but the build number
+# is incremented automatically upon a successful link.
+VER_MAJOR = 0
+VER_MINOR = 0
+
 # debug1: general debugging text, works all the time and keeps the
 #   kernel behaving how it should
 
@@ -101,7 +106,7 @@ LDFLAGS ?=
 # bad.
 #
 # TODO: fix above ^^^
-override CFLAGS +=          \
+CFLAGS +=                   \
 	-fno-omit-frame-pointer \
 	-std=c11                \
 	-ffreestanding          \
@@ -125,7 +130,7 @@ override CFLAGS +=          \
 	-I.
 
 # Internal C++ flags that should not be changed by the user.
-override CXXFLAGS +=        \
+CXXFLAGS +=                 \
 	-fno-omit-frame-pointer \
 	-std=c++17              \
 	-ffreestanding          \
@@ -150,13 +155,13 @@ override CXXFLAGS +=        \
 	-fno-rtti               \
 	-I.
 	
-override LDFLAGSBASE +=     \
+LDFLAGSBASE +=              \
 	-nostdlib               \
 	-m elf_x86_64           \
 	-z max-page-size=0x1000
 
 # Internal linker flags that should not be changed by the user.
-override LDFLAGS +=  \
+LDFLAGS +=           \
 	$(LDFLAGSBASE)   \
 	-T $(LINKER_FILE)
 
@@ -166,7 +171,7 @@ ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
 endif
 
 # Internal nasm flags that should not be changed by the user.
-override NASMFLAGS += \
+NASMFLAGS += \
 	-f elf64
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
@@ -189,6 +194,11 @@ SYMBOLS        = $(BUILD_DIR)/_symtab.$(TARGETL).o
 .PHONY: all
 all: kernel
 
+BUILD_NUMBER_FILE = $(SRC_DIR)/build_number
+VER_BUILD = $(shell cat $(BUILD_NUMBER_FILE))
+
+CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BUILD=$(VER_BUILD)
+
 # Link rules for the final kernel executable.
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
@@ -207,6 +217,13 @@ $(KERNEL2): $(KERNEL_PARTIAL)
 $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
 	@echo "[LD]\tPartially linking kernel"
 	@$(LD) -r $(OBJ) $(LDFLAGSBASE) -o $@
+
+$(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TARGETL).o, $(OBJ)) $(SRC_DIR)/ke/version.c
+	@echo "[CC]\tCompiling $(SRC_DIR)/ke/version.c"
+	@mkdir -p $(dir $@)
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $(SRC_DIR)/ke/version.c -o $@
+	@echo "[MK]\tIncrementing build number"
+	@echo $$(($(VER_BUILD) + 1)) > $(BUILD_NUMBER_FILE)
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
