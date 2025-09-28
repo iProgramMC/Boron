@@ -30,9 +30,3 @@ typedef struct
 	// TODO: need anything more?
 }
 PEB, *PPEB;
-
-typedef struct
-{
-	PPEB Peb;
-}
-TEB, *PTEB;

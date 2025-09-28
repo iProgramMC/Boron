@@ -211,3 +211,14 @@ void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
 	KiSetSuspendedThread(Thread, IsSuspended);
 	KiUnlockDispatcher(Ipl);
 }
+
+void* OSGetCurrentTeb()
+{
+	return KeGetCurrentThread()->TebPointer;
+}
+
+BSTATUS OSSetCurrentTeb(void* Ptr)
+{
+	KeGetCurrentThread()->TebPointer = Ptr;
+	return STATUS_SUCCESS;
+}

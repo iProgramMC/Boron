@@ -3,6 +3,7 @@
 #include <string.h>
 #include <rtl/assert.h>
 #include "dll.h"
+#include "pebteb.h"
 
 typedef int(*ELF_ENTRY_POINT2)();
 
@@ -460,8 +461,16 @@ void DLLEntryPoint(PPEB Peb)
 	
 	if (SUCCEEDED(Status))
 	{
-		DbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
-		Status = EntryPoint();
+		Status = OSDLLCreateTeb(Peb);
+		if (SUCCEEDED(Status))
+		{
+			DbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
+			Status = EntryPoint();
+		}
+		else
+		{
+			DbgPrint("OSDLL: Failed to create TEB! %d (%s)", Status, RtlGetStatusString(Status));
+		}
 	}
 	
 	DbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);

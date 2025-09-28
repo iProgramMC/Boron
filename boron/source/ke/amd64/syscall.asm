@@ -31,6 +31,7 @@ extern OSExitProcess
 extern OSExitThread
 extern OSFreeVirtualMemory
 extern OSGetAlignmentFile
+extern OSGetCurrentTeb
 extern OSGetLengthFile
 extern OSMapViewOfObject
 extern OSOpenEvent
@@ -43,6 +44,7 @@ extern OSQueryMutex
 extern OSReadFile
 extern OSReleaseMutex
 extern OSResetEvent
+extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetSuspendedThread
 extern OSSleep
@@ -67,6 +69,7 @@ KiSystemServiceTable:
 	dq OSExitThread
 	dq OSFreeVirtualMemory
 	dq OSGetAlignmentFile
+	dq OSGetCurrentTeb
 	dq OSGetLengthFile
 	dq OSMapViewOfObject
 	dq OSOpenEvent
@@ -79,6 +82,7 @@ KiSystemServiceTable:
 	dq OSReadFile
 	dq OSReleaseMutex
 	dq OSResetEvent
+	dq OSSetCurrentTeb
 	dq OSSetEvent
 	dq OSSetSuspendedThread
 	dq OSSleep

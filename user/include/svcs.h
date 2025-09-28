@@ -47,6 +47,8 @@ BSTATUS OSFreeVirtualMemory(
 
 BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut);
 
+void* OSGetCurrentTeb();
+
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);
 
 BSTATUS OSMapViewOfObject(
@@ -78,6 +80,8 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, vo
 BSTATUS OSReleaseMutex(HANDLE MutexHandle);
 
 BSTATUS OSResetEvent(HANDLE EventHandle);
+
+BSTATUS OSSetCurrentTeb(void* Ptr);
 
 BSTATUS OSSetEvent(HANDLE EventHandle);
 

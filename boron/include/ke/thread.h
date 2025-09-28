@@ -163,6 +163,9 @@ struct KTHREAD_tag
 	bool DidCallWaitFunction;
 	
 	KIPL OriginalIplWait;
+	
+	// User-space pointer to the TEB (thread environment block).
+	void* TebPointer;
 };
 
 // Creates an empty, uninitialized, thread object.
@@ -199,5 +202,11 @@ void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended);
 
 // Switch this thread into user mode.
 NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext);
+
+// Gets the current userspace TEB pointer.
+void* OSGetCurrentTeb();
+
+// Sets the current userspace TEB pointer.  The kernel will not attempt to use this pointer.
+BSTATUS OSSetCurrentTeb(void* Ptr);
 
 #endif//BORON_KE_THREAD_H
