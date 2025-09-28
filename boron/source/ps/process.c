@@ -95,6 +95,9 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	
 	MmInitializeVadList(&Process->VadList);
 	
+	// Set the exit code to 0.
+	Process->ExitCode = 0;
+	
 	// Initialize the heap with a default range.
 	MmInitializeHeap(&Process->Heap, sizeof(MMVAD), INITIAL_BEG_VA, (INITIAL_END_VA - INITIAL_BEG_VA) / PAGE_SIZE);
 	
@@ -245,9 +248,44 @@ Fail:
 }
 
 NO_RETURN
-void OSExitProcess()
+void OSExitProcess(int ExitCode)
 {
 	PEPROCESS Process = PsGetCurrentProcess();
+	Process->ExitCode = ExitCode;
 	KeTerminateOtherThreadsProcess(&Process->Pcb);
 	OSExitThread();
+}
+
+BSTATUS OSGetExitCodeProcess(HANDLE ProcessHandle, int* ExitCodeOut)
+{
+	BSTATUS Status;
+	void* ProcessV;
+	PEPROCESS Process;
+	int ExitCode;
+	
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &ProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	Process = ProcessV;
+	
+	if (!Process->Pcb.Header.Signaled)
+	{
+		Status = STATUS_STILL_RUNNING;
+	}
+	else
+	{
+		ExitCode = Process->ExitCode;
+		Status = MmSafeCopy(ExitCodeOut, &ExitCode, sizeof(int), KeGetPreviousMode(), true);
+	}
+	
+	ObDereferenceObject(ProcessV);
+	return Status;
+}
+
+BSTATUS OSSetExitCode(int ExitCode)
+{
+	PEPROCESS Process = PsGetCurrentProcess();
+	Process->ExitCode = ExitCode;
+	return STATUS_SUCCESS;
 }

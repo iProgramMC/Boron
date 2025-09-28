@@ -90,6 +90,9 @@ enum
 	STATUS_INVALID_EXECUTABLE,  // The executable file is invalid.
 	STATUS_INVALID_ARCHITECTURE,// The executable file is valid, but for a machine type other than the current machine.
 	
+	// Process error codes.
+	STATUS_STILL_RUNNING,       // The process is still running
+	
 	STATUS_MAX,
 	
 	// Wait for object(s) error ranges

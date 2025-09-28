@@ -129,10 +129,17 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		
 		Depth--;
 		StackFrame = StackFrame->Next;
+		
+		if ((uintptr_t)StackFrame <= MM_USER_SPACE_END)
+		{
+			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+			HalDisplayString(Buffer);
+			return;
+		}
 	}
 	
 	if (Depth == 0)
-		HalDisplayString("Warning, stack trace too deep, increase the depth in " __FILE__ " if you need it");
+		HalDisplayString("Warning, stack trace too deep, increase the depth in " __FILE__ " if you need it.\n");
 }
 
 #ifdef DEBUG

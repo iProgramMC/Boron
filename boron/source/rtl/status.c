@@ -82,6 +82,8 @@ static const char* const RtlpStatusCodes[] =
 	
 	"The executable file is invalid.",
 	"The executable file is valid, but for a machine type other than the current machine.",
+	
+	"The process is still running.",
 };
 
 const char* RtlGetStatusString(int code)

@@ -24,6 +24,9 @@ struct EPROCESS_tag
 	// The kernel side process.
 	KPROCESS Pcb;
 	
+	// The exit code of the process.
+	int ExitCode;
+	
 	// The Virtual Address Descriptor list of this process.
 	MMVAD_LIST VadList;
 	

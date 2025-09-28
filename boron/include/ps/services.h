@@ -16,4 +16,8 @@ Author:
 
 NO_RETURN void OSExitThread();
 
-NO_RETURN void OSExitProcess();
+NO_RETURN void OSExitProcess(int ExitCode);
+
+BSTATUS OSSetExitCode(int ExitCode);
+
+BSTATUS OSGetExitCodeProcess(HANDLE ProcessHandle, int* ExitCodeOut);
