@@ -1,20 +1,23 @@
 # Boron application root makefile
 
-# Add your applications to this list
-APPS := init.j libboron.j
+# TODO: Remove the ".j" suffix (stands for job).  But it conflicts with the dir names.
 
-# Establish a dependency hierarchy
-init.j: libboron.j
-#someapp.j: lib1.j lib2.j lib3.j
-
+# Add your libraries applications to this list.
+# They will be built in this order - make sure to put libraries and
+# applications their dependencies!
+APPS := \
+	libboron \
+	init \
+	test
 
 ### Do not modify below ###
 
 .PHONY: all
-all: $(APPS)
 
-%.j:
-	@$(MAKE) -C $(basename $@) $(MAKECMDGOALS)
+all:
+	@for app in $(APPS); do \
+		$(MAKE) -C $$app $(MAKECMDGOALS); \
+	done
 
 # Other goals you might want
 clean: all
