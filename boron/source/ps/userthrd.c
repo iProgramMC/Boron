@@ -75,6 +75,3 @@ void OSExitThread()
 	PsOnTerminateUserThread();
 	PsTerminateThread();
 }
-
-// TODO: Add OSExitProcess - exits the whole process.
-// It destroys every thread!

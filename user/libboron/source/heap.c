@@ -30,9 +30,7 @@ Author:
 
 #else
 
-// TODO: implement OSAbort() properly with OSExitProcess(). As of
-// right now (14 July 2025), threads cannot be forced to exit.
-#define ABORT() do { *((int*)0) = 0; } while (0)
+#define ABORT() RtlAbort()
 
 #endif
 

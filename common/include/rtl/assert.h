@@ -42,4 +42,8 @@ bool RtlAssert(const char* Condition, const char* File, int Line, const char* Me
 
 #endif
 
+#ifndef KERNEL
+void RtlAbort();
+#endif
+
 #endif//BORON_RTL_ASSERT_H

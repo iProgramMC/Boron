@@ -24,10 +24,7 @@ NO_RETURN
 void RtlAbort()
 {
 	DbgPrint("** ABORTED\n");
-	
-	// TODO:
-	//OSExitProcess();
-	OSExitThread();
+	OSExitProcess(-1);
 }
 
 #endif // !KERNEL

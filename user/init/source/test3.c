@@ -56,5 +56,5 @@ void RunTest3()
 	OSSleep(1500);
 	
 	DbgPrint("Now forcefully declaring the job done.");
-	OSExitProcess();
+	OSExitProcess(0);
 }

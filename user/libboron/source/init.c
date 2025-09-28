@@ -474,7 +474,5 @@ void DLLEntryPoint(PPEB Peb)
 	}
 	
 	DbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);
-	
-	// TODO: OSExitProcess()
-	OSExitThread();
+	OSExitProcess(Status);
 }
