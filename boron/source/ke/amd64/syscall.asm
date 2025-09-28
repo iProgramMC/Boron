@@ -23,6 +23,7 @@ extern OSAllocateVirtualMemory
 extern OSClose
 extern OSCreateEvent
 extern OSCreateMutex
+extern OSCreatePipe
 extern OSCreateProcess
 extern OSCreateThread
 extern OSDummy
@@ -58,6 +59,7 @@ KiSystemServiceTable:
 	dq OSClose
 	dq OSCreateEvent
 	dq OSCreateMutex
+	dq OSCreatePipe
 	dq OSCreateProcess
 	dq OSCreateThread
 	dq OSDummy
