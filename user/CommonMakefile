@@ -160,14 +160,12 @@ override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # Default target.
 .PHONY: all
-all: driver
+all: application
 
 # Link rules for the final driver executable.
 $(TARGET): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET)"
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
-	@mkdir -p $(INSTALL_DIR)/$(ARCHITECTUREL)
-	@cp -f $(TARGET) $(TARGET_INSTALL)
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
@@ -202,4 +200,8 @@ clean:
 	@echo "Cleaning"
 	@rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
 
-driver: $(TARGET)
+application: $(TARGET) install_application
+
+install_application:
+	@mkdir -p $(INSTALL_DIR)/$(ARCHITECTUREL)
+	@cp -f $(TARGET) $(TARGET_INSTALL)

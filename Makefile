@@ -26,9 +26,6 @@ DRIVERS_LIST = \
 	ext2fs     \
 	test
 
-APPS_LIST = \
-	init
-
 # The build directory
 BUILD_DIR = build/$(TARGETL)
 
@@ -45,14 +42,8 @@ ISO_DIR = $(BUILD_DIR)/iso_root
 IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).iso
 
 KERNEL_BUILD = boron/build
-SYSDLL_BUILD = borondll/build
-
 KERNEL_ELF = $(patsubst %.elf,%.$(TARGETL).elf,$(KERNEL_BUILD)/$(KERNEL_NAME))
-SYSDLL_ELF = $(patsubst %.so,%.$(TARGETL).so,$(SYSDLL_BUILD)/$(SYSDLL_NAME))
 
-APPS_TARGETS          = $(patsubst %,$(BUILD_DIR)/%.exe,$(APPS_LIST))
-APPS_DIRECTORIES      = $(patsubst %,$(USER_DIR)/%,$(APPS_LIST))
-APPS_BUILD_DIRS       = $(patsubst %,%/build,$(APPS_DIRECTORIES))
 DRIVERS_TARGETS       = $(patsubst %,$(BUILD_DIR)/%.sys,$(DRIVERS_LIST))
 DRIVERS_DIRECTORIES   = $(patsubst %,$(DRIVERS_DIR)/%,$(DRIVERS_LIST))
 DRIVERS_BUILD_DIRS    = $(patsubst %,%/build,$(DRIVERS_DIRECTORIES))
@@ -76,17 +67,19 @@ all: image
 .PHONY: clean
 clean:
 	@echo "Cleaning..."
-	rm -rf $(KERNEL_BUILD) $(SYSDLL_BUILD) $(BUILD_DIR) $(DRIVERS_TARGETS) $(DRIVERS_LOCAL_TARGETS) $(DRIVERS_BUILD_DIRS) $(APPS_BUILD_DIRS)
+	rm -rf $(KERNEL_BUILD) $(SYSDLL_BUILD) $(BUILD_DIR) $(DRIVERS_TARGETS) $(DRIVERS_LOCAL_TARGETS) $(DRIVERS_BUILD_DIRS)
+	
+	@echo "Cleaning user applications..."
+	$(MAKE) -C user clean
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel borondll drivers apps limine_config
+$(IMAGE_TARGET): kernel drivers apps limine_config
 	@echo "Building iso..."
 	@rm -rf $(ISO_DIR)
 	@mkdir -p $(ISO_DIR)
 	@cp $(KERNEL_ELF) $(ISO_DIR)/$(KERNEL_NAME)
-	@cp $(SYSDLL_ELF) $(ISO_DIR)/$(SYSDLL_NAME)
-	@cp $(DRIVERS_TARGETS) $(APPS_TARGETS) limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
+	@cp -r $(BUILD_DIR)/*.exe $(BUILD_DIR)/*.sys $(BUILD_DIR)/*.so limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
 	@xorriso -as mkisofs -b limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
 	@limine/limine-deploy $@ 2>/dev/null
 	@rm -rf $(ISO_DIR)
@@ -101,23 +94,16 @@ runw: image
 
 kernel: $(KERNEL_ELF)
 
-borondll: $(SYSDLL_ELF)
-
 drivers: $(DRIVERS_TARGETS)
 
-apps: $(APPS_TARGETS)
+apps:
+	$(MAKE) -C user
 
 $(KERNEL_ELF): FORCE
 	@mkdir -p $(BUILD_DIR)
 	@echo "[MK]\tMaking $(KERNEL_ELF)"
 	@$(MAKE) -C boron
 	@cp $(KERNEL_ELF) $(BUILD_DIR)/$(KERNEL_NAME)
-
-$(SYSDLL_ELF): FORCE
-	@mkdir -p $(BUILD_DIR)
-	@echo "[MK]\tMaking $(SYSDLL_ELF)"
-	@$(MAKE) -C borondll
-	@cp $(SYSDLL_ELF) $(BUILD_DIR)/$(SYSDLL_NAME)
 
 $(BUILD_DIR)/%.exe: FORCE
 	@mkdir -p $(BUILD_DIR)
