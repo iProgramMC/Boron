@@ -21,9 +21,19 @@ ARCHITECTURE = AMD64
 # This sucks.
 ARCHITECTUREL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(ARCHITECTURE)))))))))))))))))))))))))))
 
-# This is the name that our final appication executable will have.
+ifeq ($(IS_LIBRARY),yes)
+	SUFFIX = so
+else
+	SUFFIX = exe
+endif
+
+# Path to Boron install directory
+INSTALL_DIR = ../../build
+
+# This is the name that our final application executable will have.
 # Change as needed.
-override TARGET := $(BUILD_DIR)/$(APP_NAME).$(ARCHITECTUREL).exe
+override TARGET := $(BUILD_DIR)/$(APP_NAME).$(ARCHITECTUREL).$(SUFFIX)
+override TARGET_INSTALL := $(INSTALL_DIR)/$(ARCHITECTUREL)/$(APP_NAME).$(SUFFIX)
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -117,24 +127,35 @@ override CXXFLAGS +=        \
 override LDFLAGSBASE +=     \
 	-nostdlib               \
 	-m elf_x86_64           \
-	-z max-page-size=0x1000 \
-	-lboron                 \
-	-L../../build/$(ARCHITECTUREL)
+	-z max-page-size=0x1000
 
 # Internal linker flags that should not be changed by the user.
-override LDFLAGS +=  \
+LDFLAGS +=  \
 	$(LDFLAGSBASE)
 
 # Internal nasm flags that should not be changed by the user.
-override NASMFLAGS += \
+NASMFLAGS += \
 	-f elf64
 
+ifeq ($(IS_LIBRARY),yes)
+LDFLAGS +=                  \
+	-shared -fPIC           \
+	-Bsymbolic
+endif
+	
+ifeq ($(INCLUDE_LIBBORON),no)
+else
+LDFLAGS +=                  \
+	-lboron                 \
+	-L../../build/$(ARCHITECTUREL)
+endif
+
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
-override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
-override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
-override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
-override OBJ := $(patsubst %.o,%.$(ARCHITECTUREL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
+override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override OBJ         := $(patsubst %.o,%.$(ARCHITECTUREL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # Default target.
@@ -145,6 +166,8 @@ all: driver
 $(TARGET): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET)"
 	@$(LD) $(OBJ) $(LDFLAGS) -o $@
+	@mkdir -p $(INSTALL_DIR)/$(ARCHITECTUREL)
+	@cp -f $(TARGET) $(TARGET_INSTALL)
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
