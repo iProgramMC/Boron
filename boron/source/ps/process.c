@@ -197,51 +197,18 @@ BSTATUS OSCreateProcess(
 		true
 	);
 	
-	ObDereferenceObject(ParentProcessRef);
+	if (ParentProcessRef)
+		ObDereferenceObject(ParentProcessRef);
 	
 	if (FAILED(Status))
 		return Status;
 	
-	// Allocate the PEB of this new process.
 	PEPROCESS Process = Pic.Process;
-	PEPROCESS ProcessRestore = PsSetAttachedProcess(Process);
-	
-	// Allocate the PEB.
-	void* PebPtr = NULL;
-	size_t RgnSize = sizeof(PEB);
-	
-	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
-	
-	Status = OSAllocateVirtualMemory(
-		CURRENT_PROCESS_HANDLE,
-		&PebPtr,
-		&RgnSize,
-		MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE
-	);
-	
-	KeSetAddressMode(OldMode);
-	
-	if (FAILED(Status))
-		goto Fail;
-	
-	// Clear the PEB.  We can do this directly because we are
-	// attached to this process' address space.
-	memset(PebPtr, 0, RgnSize);
-	
-	// The UserProcessParameters member is filled in through an
-	// upcoming OSSetProcessEnvironmentData system call.
-	
-	//...
-	
-	// NOTE: Yes, you can do this twice.
-	PsSetAttachedProcess(ProcessRestore);
 	
 	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 		return Status;
 	
-Fail:
-	PsSetAttachedProcess(ProcessRestore);
 	ObDereferenceObject(Process);
 	OSClose(Handle);
 	return Status;
