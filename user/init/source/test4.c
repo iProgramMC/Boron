@@ -2,8 +2,8 @@
 #include <string.h>
 #include "misc.h"
 
-//static const char* FileName = "\\InitRoot\\ext2fs.sys";
-//static const char* FileName = "\\Devices\\Nvme0Disk1Part0";
+//static const char* FileName = "/InitRoot/ext2fs.sys";
+//static const char* FileName = "/Devices/Nvme0Disk1Part0";
 static const char* FileName = "Deliberately an invalid path here";
 
 void RunTest4()

@@ -16,7 +16,7 @@ Author:
 
 #include "handle.h"
 
-#define OB_PATH_SEPARATOR ('\\')
+#define OB_PATH_SEPARATOR ('/')
 #define OB_MAX_PATH_LENGTH (256)
 
 // Object open flags:

@@ -311,7 +311,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 		
 		StringCopySafe(DriverName, Dll->Name, Length);
 		
-		DbgPrint("Creating driver object at \\Drivers\\%s", DriverName);
+		DbgPrint("Creating driver object at /Drivers/%s", DriverName);
 		Status = ObCreateObject(
 			&ObjectPtr,
 			IoDriversDir,
@@ -323,7 +323,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 		);
 		
 		if (FAILED(Status))
-			KeCrash("Could not create driver object at \\Drivers\\%s: error %d", DriverName, Status);
+			KeCrash("Could not create driver object at /Drivers/%s: error %d", DriverName, Status);
 	}
 	
 	PDRIVER_OBJECT Driver = ObjectPtr;

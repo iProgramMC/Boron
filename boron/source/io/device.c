@@ -19,13 +19,13 @@ bool IopInitializeDevicesDir()
 	BSTATUS Status = ObCreateDirectoryObject(
 		&IoDevicesDir,
 		NULL,
-		"\\Devices",
+		"/Devices",
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
 	);
 	
 	if (FAILED(Status))
 	{
-		DbgPrint("IO: Failed to create \\Devices directory");
+		DbgPrint("IO: Failed to create /Devices directory");
 		return false;
 	}
 	

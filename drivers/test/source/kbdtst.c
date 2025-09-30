@@ -17,10 +17,10 @@ Author:
 
 //#define PERFORMANCE_TEST
 
-const char* const KeyboardDeviceName = "\\Devices\\I8042PrtKeyboard"; // <-- this is what the I8042prt driver calls the keyboard
+const char* const KeyboardDeviceName = "/Devices/I8042PrtKeyboard"; // <-- this is what the I8042prt driver calls the keyboard
 
 #ifdef PERFORMANCE_TEST
-void IopsPerformanceTest(HANDLE DeviceHandle)
+static void IopsPerformanceTest(HANDLE DeviceHandle)
 {
 	// Read from the device in a continuous fashion
 	BSTATUS Status;

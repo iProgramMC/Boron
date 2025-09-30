@@ -21,10 +21,10 @@ Author:
 
 //#define PERFORMANCE_TEST
 
-const char* const StorDeviceName = "\\Devices\\Nvme0Disk1"; // <-- this is what the NVMe driver calls the first nvme device
+const char* const StorDeviceName = "/Devices/Nvme0Disk1"; // <-- this is what the NVMe driver calls the first nvme device
 
 #ifdef PERFORMANCE_TEST
-void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t BufferSize)
+static void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t BufferSize)
 {
 	// Read from the device in a continuous fashion
 	BSTATUS Status;

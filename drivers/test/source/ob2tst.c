@@ -90,7 +90,7 @@ void PerformExObMutexTest()
 	PKTHREAD Threads[3];
 	
 	OBJECT_ATTRIBUTES Attributes;
-	Attributes.ObjectName    = "\\Test Mutex";
+	Attributes.ObjectName    = "/Test Mutex";
 	Attributes.RootDirectory = HANDLE_NONE;
 	Attributes.ObjectNameLength = strlen(Attributes.ObjectName);
 	
@@ -139,7 +139,7 @@ NO_RETURN void EtThread1Routine(UNUSED void* Context)
 void PerformExObEventTest()
 {
 	OBJECT_ATTRIBUTES Attributes;
-	Attributes.ObjectName    = "\\Test Event";
+	Attributes.ObjectName    = "/Test Event";
 	Attributes.RootDirectory = HANDLE_NONE;
 	Attributes.ObjectNameLength = strlen(Attributes.ObjectName);
 	

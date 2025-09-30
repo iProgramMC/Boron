@@ -21,10 +21,10 @@ Author:
 // TODO: make these changeable
 
 // path to libboron.so. temporary
-const char* PspBoronDllFileName = "\\InitRoot\\libboron.so";
+const char* PspBoronDllFileName = "/InitRoot/libboron.so";
 
 // path to init.exe and command line. temporary
-const char* PspInitialProcessFileName = "\\InitRoot\\init.exe";
+const char* PspInitialProcessFileName = "/InitRoot/init.exe";
 const char* PspInitialProcessCommandLine = "/?";
 
 // TODO THIS IS A PLACEHOLDER

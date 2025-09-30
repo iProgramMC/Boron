@@ -78,10 +78,10 @@ POBJECT_DIRECTORY LdriCreateInitialDir()
 	BSTATUS Status;
 	POBJECT_DIRECTORY RootDir;
 	
-	Status = ObCreateDirectoryObject(&RootDir, NULL, "\\InitRoot", OB_FLAG_PERMANENT);
+	Status = ObCreateDirectoryObject(&RootDir, NULL, "/InitRoot", OB_FLAG_PERMANENT);
 	if (FAILED(Status))
 	{
-		DbgPrint("Ldr: Failed to create \\InitRoot directory (%d)", Status);
+		DbgPrint("Ldr: Failed to create /InitRoot directory (%d)", Status);
 		return false;
 	}
 	

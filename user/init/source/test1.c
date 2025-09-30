@@ -76,5 +76,5 @@ void FileList(const char* Path, size_t StartOffset, size_t Size, size_t SizePrin
 
 void RunTest1()
 {
-	FileList("\\Mount\\Nvme0Disk1Part0\\ns\\initrd\\Game\\celeste.nes", 0xCB30, 4096, 512);
+	FileList("/Mount/Nvme0Disk1Part0/ns/initrd/Game/celeste.nes", 0xCB30, 4096, 512);
 }

@@ -58,7 +58,7 @@ BSTATUS ObCreateObjectType(
 	
 	while (*TypeNameTemp)
 	{
-		if (*TypeNameTemp == '\\')
+		if (*TypeNameTemp == '/')
 			return STATUS_NAME_INVALID;
 		
 		TypeNameTemp++;

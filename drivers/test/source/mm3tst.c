@@ -19,8 +19,8 @@ Author:
 #include <string.h>
 #include "utils.h"
 
-static const char FileToOpen[] = "\\Devices\\Nvme0Disk1";
-//static const char FileToOpen[] = "\\InitRoot\\test.sys";
+static const char FileToOpen[] = "/Devices/Nvme0Disk1";
+//static const char FileToOpen[] = "/InitRoot/test.sys";
 
 void PerformMm3Test_()
 {

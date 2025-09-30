@@ -117,28 +117,28 @@ static void AttemptFetchObjectTypes()
 	BSTATUS Status;
 	
 	void* Object = NULL;
-	Status = ObReferenceObjectByName("\\ObjectTypes\\Type", NULL, 0, NULL, &Object);
+	Status = ObReferenceObjectByName("/ObjectTypes/Type", NULL, 0, NULL, &Object);
 	if (FAILED(Status))
 	{
-		LogMsg("ERROR: Object test failed with error %d. Could not locate \\ObjectTypes\\Type", Status);
+		LogMsg("ERROR: Object test failed with error %d. Could not locate /ObjectTypes/Type", Status);
 		ASSERT(false);
 	}
 	
 	TstObjectTypeType = Object;
 	
-	Status = ObReferenceObjectByName("\\ObjectTypes\\SymbolicLink", NULL, 0, TstObjectTypeType, &Object);
+	Status = ObReferenceObjectByName("/ObjectTypes/SymbolicLink", NULL, 0, TstObjectTypeType, &Object);
 	if (FAILED(Status))
 	{
-		LogMsg("ERROR: Object test failed with error %d. Could not locate \\ObjectTypes\\SymbolicLink", Status);
+		LogMsg("ERROR: Object test failed with error %d. Could not locate /ObjectTypes/SymbolicLink", Status);
 		ASSERT(false);
 	}
 	
 	TstSymbolicLinkType = Object;
 	
-	Status = ObReferenceObjectByName("\\ObjectTypes\\SymbolicLink", NULL, 0, TstObjectTypeType, &Object);
+	Status = ObReferenceObjectByName("/ObjectTypes/SymbolicLink", NULL, 0, TstObjectTypeType, &Object);
 	if (FAILED(Status))
 	{
-		LogMsg("ERROR: Object test failed with error %d. Could not locate \\ObjectTypes\\DirectoryType", Status);
+		LogMsg("ERROR: Object test failed with error %d. Could not locate /ObjectTypes/DirectoryType", Status);
 		ASSERT(false);
 	}
 	
@@ -153,8 +153,8 @@ static void AttemptCreateSymLink()
 	void *Symlink = NULL;
 	Status = ObCreateSymbolicLinkObject(
 		&Symlink,
-		"\\ObjectTypes",
-		"\\ObjectTypes\\Test Link",
+		"/ObjectTypes",
+		"/ObjectTypes/Test Link",
 		OB_FLAG_KERNEL
 	);
 	
@@ -165,7 +165,7 @@ static void AttemptCreateSymLink()
 		return;
 	}
 	
-	const char* TestPath = "\\ObjectTypes\\Test Link\\Test Link\\Test Link\\Directory";
+	const char* TestPath = "/ObjectTypes/Test Link/Test Link/Test Link/Directory";
 	
 	// Try looking up a certain path:
 	void* Obj = NULL;
@@ -213,7 +213,7 @@ void AttemptCreateTestType()
 	
 	// Ok, now perform a global lookup, see if it works.
 	HANDLE Handle = HANDLE_NONE;
-	Status = ObOpenObjectByName("\\ObjectTypes\\TestObject", HANDLE_NONE, 0, TstObjectTypeType, &Handle);
+	Status = ObOpenObjectByName("/ObjectTypes/TestObject", HANDLE_NONE, 0, TstObjectTypeType, &Handle);
 	
 	if (FAILED(Status))
 		KeCrash("Failed to find 'TestObject' in object types directory with error %d", Status);
@@ -226,7 +226,7 @@ void AttemptCreateTestType()
 		KeCrash("Failed to reference object by handle %d, error %d", Handle, Status);
 	
 	if (Object != (void*) TstObjectType)
-		KeCrash("\\ObjectTypes\\TestObject returned something (%p) other than TstObjectType (%p)", Object, TstObjectType);
+		KeCrash("/ObjectTypes/TestObject returned something (%p) other than TstObjectType (%p)", Object, TstObjectType);
 	
 	// Now, dereference the object, and close the handle.
 	ObDereferenceObject(Object);

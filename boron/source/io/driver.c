@@ -19,13 +19,13 @@ bool IopInitializeDriversDir()
 	BSTATUS Status = ObCreateDirectoryObject(
 		&IoDriversDir,
 		NULL,
-		"\\Drivers",
+		"/Drivers",
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
 	);
 	
 	if (FAILED(Status))
 	{
-		DbgPrint("IO: Failed to create \\Drivers directory");
+		DbgPrint("IO: Failed to create /Drivers directory");
 		return false;
 	}
 	

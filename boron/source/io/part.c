@@ -14,7 +14,7 @@ Author:
 ***/
 #include "iop.h"
 
-static const char* const IopDefaultMountPath = "\\Mount";
+static const char* const IopDefaultMountPath = "/Mount";
 
 // The list of partitionable devices.
 static LIST_ENTRY IopPartitionableListHead;
@@ -163,7 +163,7 @@ void IoScanForFileSystems()
 	void* Objects[] = { &IopPartitionableListLock, &IopFileSystemListLock };
 	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
 	
-	// Create the "\\Mount" directory.
+	// Create the "/Mount" directory.
 	POBJECT_DIRECTORY MountDir;
 	BSTATUS Status = ObCreateDirectoryObject(
 		&MountDir,

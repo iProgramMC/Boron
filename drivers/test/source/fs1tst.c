@@ -21,8 +21,8 @@ Author:
 #include <string.h>
 #include "utils.h"
 
-//const char* RootDir = "\\Mount\\Nvme0Disk1Part0";
-//const char* SomeFile = "\\Mount\\Nvme0Disk1Part0\\gamma64.nse";
+//const char* RootDir = "/Mount/Nvme0Disk1Part0";
+//const char* SomeFile = "/Mount/Nvme0Disk1Part0/gamma64.nse";
 
 void DirectoryList(const char* Path)
 {
@@ -103,16 +103,16 @@ void PerformFs1Test()
 {
 	PerformDelay(1000, NULL);
 	
-	DirectoryList("\\Mount\\Nvme0Disk1Part0");
-	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 4096, 4096, 512);
+	DirectoryList("/Mount/Nvme0Disk1Part0");
+	FileList("/Mount/Nvme0Disk1Part0/gamma64.nse", 4096, 4096, 512);
 	
 	LogMsg("** Starting additional tests in 4 seconds...");
 	PerformDelay(4000, NULL);
-	DirectoryList("\\Mount\\Nvme0Disk1Part0\\d");
-	FileList("\\Mount\\Nvme0Disk1Part0\\gamma64.nse", 15681176 - 24, 4096, 512);
+	DirectoryList("/Mount/Nvme0Disk1Part0/d");
+	FileList("/Mount/Nvme0Disk1Part0/gamma64.nse", 15681176 - 24, 4096, 512);
 	
 	LogMsg("** Starting additional tests in 4 seconds...");
 	PerformDelay(4000, NULL);
-	DirectoryList("\\Mount\\Nvme0Disk1Part0\\ns\\initrd\\Game");
-	FileList("\\Mount\\Nvme0Disk1Part0\\ns\\initrd\\Game\\celeste.nes", 0xCB30, 4096, 512);
+	DirectoryList("/Mount/Nvme0Disk1Part0/ns/initrd/Game");
+	FileList("/Mount/Nvme0Disk1Part0/ns/initrd/Game/celeste.nes", 0xCB30, 4096, 512);
 }

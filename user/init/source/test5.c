@@ -3,7 +3,7 @@
 
 void RunTest5()
 {
-	const char* Path = "\\InitRoot\\test.exe";
+	const char* Path = "/InitRoot/test.exe";
 	
 	HANDLE Handle, ThreadHandle;
 	BSTATUS Status = OSCreateProcess(
