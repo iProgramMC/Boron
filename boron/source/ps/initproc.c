@@ -164,19 +164,20 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Error, first address %p > largest address %p", Func, FirstAddr, LargestAddr);
 	
 	uintptr_t Size = LargestAddr - FirstAddr;
-	Size = (Size + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
+	Size = (Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
 	// Now, the PEB will occupy however many pages, so we will need to cut those out too.
 	size_t PebSize = sizeof(PEB);
 	
 	// and the size of the command line and image name
-	PebSize += strlen(ImageName) + 1 + sizeof(uintptr_t);
-	PebSize += strlen(CommandLine) + 1 + sizeof(uintptr_t);
+	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
+	PebSize += strlen(CommandLine) + 8 + sizeof(uintptr_t);
 	
 	// Now round it up to a page size
 	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
-	BoronDllBase = MM_USER_SPACE_END + 1 - (PebSize + Size) * PAGE_SIZE;
+	// TODO: not sure why I have to subtract 0x1000
+	BoronDllBase = MM_USER_SPACE_END + 1 - PebSize - Size - 0x1000;
 	DbgPrint("BoronDllBase: %p", BoronDllBase);
 	
 	bool IsDynamicLoaded = false;
@@ -220,12 +221,15 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 				"%s: Failed to map ELF phdr in: %d (%s)\n"
 				"ProgramHeader->SizeInMemory: %zu\n"
 				"ProgramHeader->VirtualAddress: %p\n"
-				"ProgramHeader->Offset: %p", Func,
+				"ProgramHeader->Offset: %p\n"
+				"BaseAddress: %p\n",
+				Func,
 				Status,
 				RtlGetStatusString(Status),
 				ProgramHeader->SizeInMemory,
 				ProgramHeader->VirtualAddress,
-				ProgramHeader->Offset
+				ProgramHeader->Offset,
+				BaseAddress
 			);
 		}
 	}

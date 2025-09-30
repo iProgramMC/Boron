@@ -27,6 +27,8 @@ typedef struct
 	char*  CommandLine;
 	size_t CommandLineSize;
 	
+	// TODO: implement environment variables
+	
 	// TODO: need anything more?
 }
 PEB, *PPEB;

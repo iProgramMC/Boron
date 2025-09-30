@@ -14,7 +14,7 @@ BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, in
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
-BSTATUS OSCreateProcess(
+BSTATUS OSCreateProcessInternal(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ParentProcessHandle,
@@ -48,6 +48,8 @@ BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut);
 void* OSGetCurrentTeb();
 
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);
+
+BSTATUS OSGetMappedFileHandle(PHANDLE OutHandle, HANDLE ProcessHandle, uintptr_t Address);
 
 BSTATUS OSMapViewOfObject(
 	HANDLE ProcessHandle,
@@ -102,3 +104,5 @@ BSTATUS OSWaitForMultipleObjects(
 void OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
+
+BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* Source, size_t ByteCount);

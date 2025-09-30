@@ -136,3 +136,102 @@ BSTATUS MmMapViewOfObject(
 	
 	return STATUS_TYPE_MISMATCH;
 }
+
+// Allows the duplication of a file handle based on the address it is mapped at.
+BSTATUS OSGetMappedFileHandle(
+	PHANDLE OutHandle,
+	HANDLE ProcessHandle,
+	uintptr_t Address
+)
+{
+	void* TargetProcessV;
+	PEPROCESS TargetProcess;
+	BSTATUS Status;
+	
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	TargetProcess = TargetProcessV;
+	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
+	
+	PMMVAD_LIST VadList = MmLockVadList();
+	PMMVAD Vad = MmLookUpVadByAddress(VadList, Address);
+	
+	if (!Vad || !Vad->Flags.IsFile)
+	{
+		Status = STATUS_MEMORY_NOT_RESERVED;
+		MmUnlockVadList(VadList);
+		PsSetAttachedProcess(OldProcess);
+		goto ReturnEarly;
+	}
+	
+	void* FileObject = Vad->Mapped.FileObject;
+	ObReferenceObjectByPointer(FileObject);
+	
+	MmUnlockVadList(VadList);
+	PsSetAttachedProcess(OldProcess);
+	
+	// Open the file object as a handle.
+	HANDLE FileHandle = 0;
+	Status = ObInsertObject(FileObject, &FileHandle, 0);
+	ObDereferenceObject(FileObject);
+	
+	if (FAILED(Status))
+		goto ReturnEarly;
+	
+	// Finally, copy the handle.
+	Status = MmSafeCopy(OutHandle, &FileHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	if (FAILED(Status))
+		ObClose(FileHandle);
+	
+ReturnEarly:
+	ObDereferenceObject(TargetProcessV);
+	return Status;
+}
+
+BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* Source, size_t ByteCount)
+{
+	BSTATUS Status;
+	
+	// Reference the current process handle.
+	void* TargetProcessV;
+	PEPROCESS TargetProcess;
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	TargetProcess = TargetProcessV;
+	
+	// Allocate an MDL for the current process' source memory.
+	PMDL Mdl = MmAllocateMdl((uintptr_t) Source, ByteCount);
+	if (!Mdl)
+	{
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Fail0;
+	}
+	
+	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		goto Fail1;
+	
+	// Map this MDL into system memory.
+	void* SourceAddress = NULL;
+	Status = MmMapPinnedPagesMdl(Mdl, &SourceAddress);
+	if (FAILED(Status))
+		goto Fail2;
+	
+	// Now perform the copy.
+	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
+	Status = MmSafeCopy(TargetAddress, SourceAddress, ByteCount, KeGetPreviousMode(), true);
+	PsSetAttachedProcess(OldProcess);
+	
+	MmUnmapPagesMdl(Mdl);
+Fail2:
+	MmUnpinPagesMdl(Mdl);
+Fail1:
+	MmFreeMdl(Mdl);
+Fail0:
+	ObDereferenceObject(TargetProcess);
+	return Status;
+}

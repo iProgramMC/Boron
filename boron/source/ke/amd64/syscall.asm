@@ -34,6 +34,7 @@ extern OSGetAlignmentFile
 extern OSGetCurrentTeb
 extern OSGetExitCodeProcess
 extern OSGetLengthFile
+extern OSGetMappedFileHandle
 extern OSMapViewOfObject
 extern OSOpenEvent
 extern OSOpenFile
@@ -55,6 +56,7 @@ extern OSTouchFile
 extern OSWaitForMultipleObjects
 extern OSWaitForSingleObject
 extern OSWriteFile
+extern OSWriteVirtualMemory
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
@@ -74,6 +76,7 @@ KiSystemServiceTable:
 	dq OSGetCurrentTeb
 	dq OSGetExitCodeProcess
 	dq OSGetLengthFile
+	dq OSGetMappedFileHandle
 	dq OSMapViewOfObject
 	dq OSOpenEvent
 	dq OSOpenFile
@@ -95,6 +98,7 @@ KiSystemServiceTable:
 	dq OSWaitForMultipleObjects
 	dq OSWaitForSingleObject
 	dq OSWriteFile
+	dq OSWriteVirtualMemory
 KiSystemServiceTableEnd:
 	nop
 
