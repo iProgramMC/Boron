@@ -59,7 +59,7 @@ CALL 3, OSCreateMutex
 CALL 4, OSCreatePipe
 CALL 5, OSCreateProcessInternal
 CALL 6, OSCreateThread
-CALL 7, OSDummy
+CALL 7, OSDuplicateHandle
 CALL 8, OSExitProcess
 CALL 9, OSExitThread
 CALL 10, OSFreeVirtualMemory

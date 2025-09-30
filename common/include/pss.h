@@ -27,8 +27,17 @@ typedef struct
 	char*  CommandLine;
 	size_t CommandLineSize;
 	
+	// Standard I/O handles.
+	// Note that the initial process launched by libboron.so gets
+	// these as zeros.
+	HANDLE StandardIO[3];
+	
 	// TODO: implement environment variables
 	
 	// TODO: need anything more?
 }
 PEB, *PPEB;
+
+#define StandardInput  StandardIO[0]
+#define StandardOutput StandardID[1]
+#define StandardError  StandardID[2]

@@ -1,6 +1,7 @@
 #include <boron.h>
 #include <string.h>
 #include <rtl/elf.h>
+#include "pebteb.h"
 
 #ifdef IS_64_BIT
 #define USER_SPACE_END 0x0000800000000000
@@ -223,12 +224,14 @@ static BSTATUS OSDLLPreparePebForProcess(
 	size_t PebSize,
 	const char* ImageName,
 	const char* CommandLine,
-	void** PebPtrOut
+	void** PebPtrOut,
+	bool InheritHandles
 )
 {
 	BSTATUS Status;
 	
 	// Create the PEB
+	PPEB CurrentPeb = OSDLLGetCurrentPeb();
 	PPEB Peb = OSAllocate(PebSize);
 	if (!Peb)
 		return STATUS_INSUFFICIENT_MEMORY;
@@ -248,6 +251,26 @@ static BSTATUS OSDLLPreparePebForProcess(
 	strcpy(Peb->ImageName, ImageName);
 	strcpy(Peb->CommandLine, CommandLine);
 	
+	// Duplicate the standard input/output handles, unless InheritHandles is true, in which case just
+	// expect them to already be given to the process.
+	if (InheritHandles)
+	{
+		for (int i = 0; i < 3; i++)
+			Peb->StandardIO[i] = CurrentPeb->StandardIO[i];
+	}
+	else
+	{
+		for (int i = 0; i < 3; i++)
+		{
+			if (!CurrentPeb->StandardIO[i])
+				continue;
+			
+			Status = OSDuplicateHandle(CurrentPeb->StandardIO[i], ProcessHandle, &Peb->StandardIO[i], 0);
+			if (FAILED(Status))
+				goto Fail;
+		}
+	}
+	
 	// TODO: Copy the environment variables from our PEB into
 	// the PEB of the receiving process
 	
@@ -258,7 +281,9 @@ static BSTATUS OSDLLPreparePebForProcess(
 	if (FAILED(Status))
 		goto Fail;
 	
-	DbgPrint("PEB Pointer: %p,  Size: %zu,  RgnSize: %zu", PebPtr, PebSize, RegionSize);
+	// But actually update all the pointers to point to the correct place.
+	Peb->ImageName   = (char*)((uintptr_t)Peb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)Peb);
+	Peb->CommandLine = (char*)((uintptr_t)Peb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	Peb->PebFreeSize = RegionSize;
 	
 	// Now copy the PEB into the destination application.
@@ -336,7 +361,7 @@ BSTATUS OSCreateProcess(
 	if (FAILED(Status))
 		goto Fail;
 	
-	Status = OSDLLPreparePebForProcess(ProcessHandle, PebSize, ImageName, CommandLine, &PebPtr);
+	Status = OSDLLPreparePebForProcess(ProcessHandle, PebSize, ImageName, CommandLine, &PebPtr, InheritHandles);
 	if (FAILED(Status))
 		goto Fail;
 	

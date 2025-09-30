@@ -452,8 +452,9 @@ void DLLEntryPoint(PPEB Peb)
 	
 	DbgPrint("-- LibBoron.so init!");
 	DbgPrint("Peb: %p", Peb);
-	DbgPrint("Image Name: '%s'", Peb->ImageName);
-	DbgPrint("Command Line: '%s'", Peb->CommandLine);
+	DbgPrint("Free Size: %zu", Peb->PebFreeSize);
+	DbgPrint("Image Name: '%p'", Peb->ImageName);
+	DbgPrint("Command Line: '%p'", Peb->CommandLine);
 	
 	ELF_ENTRY_POINT2 EntryPoint = NULL;
 	Status = OSDLLRunImage(Peb, &EntryPoint);

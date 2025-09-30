@@ -30,7 +30,7 @@ BSTATUS OSCreateThread(
 	bool CreateSuspended
 );
 
-void OSDummy();
+BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, PHANDLE OutNewHandle, int OpenFlags);
 
 NO_RETURN void OSExitProcess(int ExitCode);
 
@@ -101,7 +101,7 @@ BSTATUS OSWaitForMultipleObjects(
 	int TimeoutMS
 );
 
-void OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
+BSTATUS OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
 

@@ -15,3 +15,4 @@
 // OSDLL features
 #include "heap.h"
 #include "csect.h"
+#include "proc.h"

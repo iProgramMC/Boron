@@ -26,7 +26,7 @@ extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
 extern OSCreateThread
-extern OSDummy
+extern OSDuplicateHandle
 extern OSExitProcess
 extern OSExitThread
 extern OSFreeVirtualMemory
@@ -68,7 +68,7 @@ KiSystemServiceTable:
 	dq OSCreatePipe
 	dq OSCreateProcess
 	dq OSCreateThread
-	dq OSDummy
+	dq OSDuplicateHandle
 	dq OSExitProcess
 	dq OSExitThread
 	dq OSFreeVirtualMemory

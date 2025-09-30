@@ -118,18 +118,18 @@ BSTATUS OSAllocateVirtualMemory(
 	
 	RegionSize = SizePages * PAGE_SIZE;
 	
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		PsSetAttachedProcess(ProcessRestore);
+		ObDereferenceObject(Process);
+	}
+	
 	if (SUCCEEDED(Status))
 	{
 		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
 		
 		if (SUCCEEDED(Status))
 			Status = MmSafeCopy(RegionSizeInOut, &RegionSize, sizeof(size_t), KeGetPreviousMode(), true);
-	}
-	
-	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
-	{
-		PsSetAttachedProcess(ProcessRestore);
-		ObDereferenceObject(Process);
 	}
 	
 	return Status;
@@ -289,14 +289,14 @@ BSTATUS OSMapViewOfObject(
 		Protection
 	);
 	
-	if (SUCCEEDED(Status))
-		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
-	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
+	
+	if (SUCCEEDED(Status))
+		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
 	
 	return Status;
 }
