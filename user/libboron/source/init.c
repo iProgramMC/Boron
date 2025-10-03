@@ -53,6 +53,24 @@ const char* OSDLLOffsetPathAway(const char* Name)
 	return Name;
 }
 
+HIDDEN
+BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName)
+{
+	// TODO: Scan the PATH environment variable for paths and load from there.
+	// Do not hardcode /InitRoot/%s.
+	char ImageName[IO_MAX_NAME];
+	snprintf(ImageName, sizeof ImageName, "/InitRoot/%s", FileName);
+	
+	OBJECT_ATTRIBUTES Attributes;
+	
+	Attributes.ObjectName = ImageName;
+	Attributes.ObjectNameLength = strlen(ImageName);
+	Attributes.OpenFlags = 0;
+	Attributes.RootDirectory = HANDLE_NONE;
+	
+	return OSOpenFile(Handle, &Attributes);
+}
+
 // TODO: If we need to implement loading libraries at runtime,
 // we should protect this with a critical section!
 HIDDEN
@@ -348,26 +366,15 @@ Fail:
 HIDDEN
 BSTATUS OSDLLLoadDynamicLibrary(const char* FileName)
 {
-	// TODO: Find a better way. Scan the PATH environment variable.
-	// For now, this'll work.
-	char ImageName[256];
-	snprintf(ImageName, sizeof ImageName, "/InitRoot/%s", FileName);
-	
 	BSTATUS Status;
 	HANDLE Handle;
-	OBJECT_ATTRIBUTES Attributes;
 	
-	Attributes.ObjectName = ImageName;
-	Attributes.ObjectNameLength = strlen(ImageName);
-	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = HANDLE_NONE;
-	
-	Status = OSOpenFile(&Handle, &Attributes);
+	Status = OSDLLOpenFileByName(&Handle, FileName);
 	if (FAILED(Status))
 	{
 		DbgPrint(
 			"OSDLL: Failed to open %s: %d (%s)",
-			ImageName,
+			FileName,
 			Status,
 			RtlGetStatusString(Status)
 		);
@@ -380,8 +387,6 @@ BSTATUS OSDLLLoadDynamicLibrary(const char* FileName)
 	if (FAILED(Status))
 		return Status;
 	
-	// mapped?
-	DbgPrint("OSDLL: Mapped %s. Entry Point: %p", FileName, EntryPoint);
 	return STATUS_SUCCESS;
 }
 
@@ -465,7 +470,6 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 			
 			if (strcmp(LoadedImage->Name, QueueItem->PathName) == 0)
 			{
-				DbgPrint("OSDLL: Already loaded library %s.", QueueItem->PathName);
 				NeedToLoad = false;
 				break;
 			}
@@ -547,7 +551,6 @@ uintptr_t OSDLLGetProcedureAddressInModule(PLOADED_IMAGE Image, const char* Proc
 			return Image->ImageBase + Symbol->Value;
 	}
 	
-	DbgPrint("OSDLL: Cannot find address of procedure %s in module %s.", ProcName, Image->Name);
 	return 0;
 }
 
