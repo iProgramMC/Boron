@@ -117,9 +117,16 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		return;
 	}
 	
+	// TODO: This might be broken and still access a user address. Debug this later
 	while (StackFrame && Depth > 0)
 	{
 		uintptr_t Address = StackFrame->IP;
+		if (Address <= MM_USER_SPACE_END)
+		{
+			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+			HalDisplayString(Buffer);
+			return;
+		}
 		
 		char SymbolName[64];
 		DbgResolveAddress(Address, SymbolName, sizeof SymbolName);

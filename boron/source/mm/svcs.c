@@ -65,7 +65,7 @@ BSTATUS OSAllocateVirtualMemory(
 		return STATUS_INVALID_PARAMETER;
 	
 	// One of these needs to be set.
-	if (~AllocationType & (MEM_COMMIT | MEM_RESERVE))
+	if (!(AllocationType & (MEM_COMMIT | MEM_RESERVE)))
 		return STATUS_INVALID_PARAMETER;
 	
 	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
@@ -83,6 +83,11 @@ BSTATUS OSAllocateVirtualMemory(
 	Status = MmSafeCopy(&RegionSize, RegionSizeInOut, sizeof(size_t), KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		return Status;
+	
+	// Remove the base address' offset inside a page and add it to the region size.
+	size_t VaOffset = (size_t)((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
+	BaseAddress = (void*)((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
+	RegionSize += VaOffset;
 	
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
@@ -117,6 +122,7 @@ BSTATUS OSAllocateVirtualMemory(
 	}
 	
 	RegionSize = SizePages * PAGE_SIZE;
+	BaseAddress = (void*)((uintptr_t)BaseAddress + VaOffset);
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{

@@ -30,13 +30,19 @@ BSTATUS MmMapViewOfFile(
 	if (!IoIsSeekable(FileObject->Fcb))
 		return STATUS_UNSUPPORTED_FUNCTION;
 	
-	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
-	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
 	
 	void* BaseAddress = *BaseAddressInOut;
+	
+	// Remove the base address' offset inside a page and add it to the region size.
+	size_t VaOffset = (size_t)((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
+	BaseAddress = (void*)((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
+	ViewSize += VaOffset;
+	
+	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
+	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
 	// Reserve the region, and then mark it as committed ourselves.
 	BSTATUS Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);

@@ -64,6 +64,7 @@ BSTATUS MmAllocateAddressRange(PMMHEAP Heap, uintptr_t Va, size_t SizePages, PMM
 	{
 	Conflict:
 		Status = STATUS_CONFLICTING_ADDRESSES;
+		MmDebugDumpHeap();
 		goto Exit;
 	}
 	
