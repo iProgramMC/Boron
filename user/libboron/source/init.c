@@ -82,33 +82,116 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 	uintptr_t ImageBase = 0;
 	
 	// TODO: Decide on an image base automatically for shared objects.
-	if (ElfHeader.Type != ELF_TYPE_EXECUTABLE)
+	if (ElfHeader.Type != ELF_TYPE_EXECUTABLE && ElfHeader.Type != ELF_TYPE_DYNAMIC)
 	{
-		DbgPrint("OSDLL: Cannot load anything other than ET_EXEC at the moment.");
+		DbgPrint("OSDLL: Cannot load anything other than ET_EXEC and ET_DYN at the moment.");
 		return STATUS_UNIMPLEMENTED;
 	}
 	
-	// Step 1.  Parse program headers.
-	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
+	uint8_t* ProgramHeaders = NULL;
+	ProgramHeaders = OSAllocate(ElfHeader.ProgramHeaderSize * ElfHeader.ProgramHeaderCount);
+	if (!ProgramHeaders)
 	{
-		Status = OSReadFile(
-			&Iosb,
-			Handle,
-			ElfHeader.ProgramHeadersOffset + ElfHeader.ProgramHeaderSize * i,
-			&ElfProgramHeader,
-			sizeof ElfProgramHeader,
+		DbgPrint("OSDLL: Failed to read ELF program headers, because we ran out of memory!");
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	Status = OSReadFile(
+		&Iosb,
+		Handle,
+		ElfHeader.ProgramHeadersOffset,
+		ProgramHeaders,
+		ElfHeader.ProgramHeaderCount * ElfHeader.ProgramHeaderSize,
+		0
+	);
+	if (FAILED(Status))
+	{
+		DbgPrint(
+			"OSDLL: Failed to read ELF program headers: %s (%d)",
+			RtlGetStatusString(Status),
+			Status
+		);
+		return Status;
+	}
+	
+	if (ElfHeader.Type == ELF_TYPE_DYNAMIC)
+	{
+		// Read the program headers and decide on the maximum address.
+		uintptr_t MaximumAddress = 0;
+		
+		for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
+		{
+			PELF_PROGRAM_HEADER Header = (void*)(ProgramHeaders + i * ElfHeader.ProgramHeaderSize);
+			
+			if (Header->Type != PROG_LOAD && Header->Type != PROG_DYNAMIC)
+				continue;
+			
+			uintptr_t AddressEnd = (Header->VirtualAddress + Header->SizeInMemory + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+			
+			if (MaximumAddress < AddressEnd)
+				MaximumAddress = AddressEnd;
+		}
+		
+		if (MaximumAddress == 0)
+		{
+			DbgPrint("OSDLL: Cannot load %s because it has no program headers or data.", Name);
+			Status = STATUS_INVALID_EXECUTABLE;
+			goto Fail;
+		}
+		
+		void* BaseAddress = NULL;
+		size_t RegionSize = (size_t) MaximumAddress;
+		Status = OSAllocateVirtualMemory(
+			CURRENT_PROCESS_HANDLE,
+			&BaseAddress,
+			&RegionSize,
+			MEM_RESERVE | MEM_TOP_DOWN,
 			0
 		);
 		
 		if (FAILED(Status))
 		{
 			DbgPrint(
-				"OSDLL: Failed to read ELF program header: %d (%s)",
-				Status,
-				RtlGetStatusString(Status)
+				"OSDLL: Cannot allocate space for %s: %s (%d)",
+				Name,
+				RtlGetStatusString(Status),
+				Status
 			);
-			return Status;
+			goto Fail;
 		}
+		
+		// Found it.
+		DbgPrint("OSDLL: %s's image base is %p", Name, BaseAddress);
+		ImageBase = (uintptr_t) BaseAddress;
+		
+		// TODO: Now, free the reserved memory.  But we may need to avoid a race condition
+		// where someone else wants to reserve memory there.
+		//
+		// TODO: If you get STATUS_CONFLICTING_ADDRESSES, unmap everything and allow
+		// ourselves to try again.
+		Status = OSFreeVirtualMemory(
+			CURRENT_PROCESS_HANDLE,
+			BaseAddress,
+			RegionSize,
+			MEM_RELEASE
+		);
+		
+		if (FAILED(Status))
+		{
+			DbgPrint(
+				"OSDLL: While loading %s, something that shouldn't fail failed: %s (%d)",
+				Name,
+				RtlGetStatusString(Status),
+				Status
+			);
+			goto Fail;
+		}
+	}
+	
+	// Step 1.  Parse program headers.
+	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
+	{
+		ElfProgramHeader = *((ELF_PROGRAM_HEADER*)(ProgramHeaders + i * ElfHeader.ProgramHeaderSize));
 		
 		if (ElfProgramHeader.SizeInMemory == 0)
 		{
@@ -143,7 +226,8 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 						"OSDLL: Don't support this program header where the offset within "
 						"the file does not have the same alignment as its virtual address!"
 					);
-					return STATUS_UNIMPLEMENTED;
+					Status = STATUS_UNIMPLEMENTED;
+					goto Fail;
 				}
 				
 				if (ElfProgramHeader.SizeInFile == 0)
@@ -153,7 +237,7 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 					// Make sure the represented range is aligned to page boundaries and covers
 					// the entire range.
 					size_t MapSize = ElfProgramHeader.SizeInMemory;
-					void* Address = (void*) (ElfProgramHeader.VirtualAddress & ~(PAGE_SIZE - 1));
+					void* Address = (void*) (ImageBase + (ElfProgramHeader.VirtualAddress & ~(PAGE_SIZE - 1)));
 					MapSize += ElfProgramHeader.VirtualAddress & (PAGE_SIZE - 1);
 					MapSize = (MapSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 					
@@ -178,13 +262,13 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 							Status,
 							RtlGetStatusString(Status)
 						);
-						return Status;
+						goto Fail;
 					}
 					
 					continue;
 				}
 				
-				void* Address = (void*) ElfProgramHeader.VirtualAddress;
+				void* Address = (void*)(ImageBase + ElfProgramHeader.VirtualAddress);
 				
 			#ifdef DEBUG
 				void* OldAddress = Address;
@@ -208,11 +292,12 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 				if (FAILED(Status))
 				{
 					DbgPrint(
-						"OSDLL: Failed to map initialized data in ELF: %d (%s)",
-						Status,
-						RtlGetStatusString(Status)
+						"OSDLL: Failed to map initialized data in ELF. Requested size: %zu: %s (%d)",
+						ElfProgramHeader.SizeInMemory,
+						RtlGetStatusString(Status),
+						Status
 					);
-					return Status;
+					goto Fail;
 				}
 				break;
 			}
@@ -245,11 +330,58 @@ BSTATUS OSDLLMapElfFile(HANDLE Handle, const char* Name, ELF_ENTRY_POINT2* OutEn
 		return STATUS_INVALID_EXECUTABLE;
 	}
 	
-	LoadedImage->DynamicTable = DynamicTable;	
+	LoadedImage->DynamicTable = DynamicTable;
+	LoadedImage->ImageBase = ImageBase;
 	InsertTailList(&OSDllsLoaded, &LoadedImage->ListEntry);
 	
 	*OutEntryPoint = (ELF_ENTRY_POINT2)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
 	
+	return STATUS_SUCCESS;
+	
+Fail:
+	if (ProgramHeaders)
+		OSFree(ProgramHeaders);
+	
+	return Status;
+}
+
+HIDDEN
+BSTATUS OSDLLLoadDynamicLibrary(const char* FileName)
+{
+	// TODO: Find a better way. Scan the PATH environment variable.
+	// For now, this'll work.
+	char ImageName[256];
+	snprintf(ImageName, sizeof ImageName, "/InitRoot/%s", FileName);
+	
+	BSTATUS Status;
+	HANDLE Handle;
+	OBJECT_ATTRIBUTES Attributes;
+	
+	Attributes.ObjectName = ImageName;
+	Attributes.ObjectNameLength = strlen(ImageName);
+	Attributes.OpenFlags = 0;
+	Attributes.RootDirectory = HANDLE_NONE;
+	
+	Status = OSOpenFile(&Handle, &Attributes);
+	if (FAILED(Status))
+	{
+		DbgPrint(
+			"OSDLL: Failed to open %s: %d (%s)",
+			ImageName,
+			Status,
+			RtlGetStatusString(Status)
+		);
+		return Status;
+	}
+	
+	ELF_ENTRY_POINT2 EntryPoint;
+	Status = OSDLLMapElfFile(Handle, FileName, &EntryPoint);
+	OSClose(Handle);
+	if (FAILED(Status))
+		return Status;
+	
+	// mapped?
+	DbgPrint("OSDLL: Mapped %s. Entry Point: %p", FileName, EntryPoint);
 	return STATUS_SUCCESS;
 }
 
@@ -314,7 +446,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 		);
 	}
 	
-	// TODO: Load the DLLs in the queue.
+	// Load the DLLs in the queue.
 	while (!IsListEmpty(&OSDllLoadQueue))
 	{
 		PLIST_ENTRY Entry = OSDllLoadQueue.Flink;
@@ -347,9 +479,16 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 			continue;
 		}
 		
-		// TODO: Load the library.
-		DbgPrint("OSDLL: Need library %s.", QueueItem->PathName);
+		DbgPrint("OSDLL: Loading library %s.", QueueItem->PathName);
+		Status = OSDLLLoadDynamicLibrary(QueueItem->PathName);
+		
+		if (FAILED(Status))
+			DbgPrint("OSDLL: Cannot load library %s: %s (%d)", QueueItem->PathName, RtlGetStatusString(Status), Status);
+		
 		OSFree(QueueItem);
+		
+		if (FAILED(Status))
+			return Status;
 	}
 	
 	// Start linking the executables to each other.
