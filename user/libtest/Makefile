@@ -1,9 +1,9 @@
 #              The Boron Operating System
 # Common makefile for all userland application targets
 
-APP_NAME  = test
+APP_NAME  = libtest
 # DEBUG  = yes
 # DEBUG2 = no
-LDFLAGS = -ltest
+IS_LIBRARY = yes
 
 include ../CommonMakefile

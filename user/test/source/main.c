@@ -1,7 +1,11 @@
 #include <boron.h>
 
+extern int TestFunction(); // libtest.so
+
 int _start()
 {
 	DbgPrint("Hello from test.exe!");
-	return 42;
+	int x = 100;
+	x += TestFunction();
+	return x;
 }

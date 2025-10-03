@@ -67,16 +67,20 @@ $(eval $(call DEFAULT_VAR,CXX,c++))
 $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
-CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+CFLAGS ?=
+CFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+CXXFLAGS ?=
+CXXFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
-CPPFLAGS ?= -I $(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+CPPFLAGS ?=
+CPPFLAGS += -I $(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+NASMFLAGS ?=
+NASMFLAGS += -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=

@@ -7,6 +7,7 @@
 # applications their dependencies!
 APPS := \
 	libboron \
+	libtest \
 	init \
 	test
 
