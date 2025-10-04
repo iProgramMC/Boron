@@ -156,7 +156,7 @@ static void HalpPciAddDevice(PPCI_DEVICE Device)
 				
 				default:
 				{
-					DbgPrint(
+					PciDbgPrint(
 						"PCI device %04x_%04x at %d.%d.%d has unrecognised capability %02x",
 						Device->Identifier.VendorId,
 						Device->Identifier.DeviceId,
@@ -216,7 +216,7 @@ static void HalpPciAddDevice(PPCI_DEVICE Device)
 
 void HalPciProbe()
 {
-	DbgPrint("Probing PCI devices...");
+	PciDbgPrint("Probing PCI devices...");
 	
 	// TODO: Better way to probe devices.
 	PCI_DEVICE Device;
@@ -256,7 +256,7 @@ void HalPciProbe()
 	{
 		PPCI_DEVICE Device = &HalpPciDevices[i];
 		
-		DbgPrint(
+		PciDbgPrint(
 			"DEVICE: Bus %02x, Slot %02x, Function %1x, Vendor ID: %04x, Device ID: %04x, Class: %02x, SubClass: %02x, ProgIF: %02x, Rev: %02x. Ints: %s",
 			Device->Address.Bus,
 			Device->Address.Slot,

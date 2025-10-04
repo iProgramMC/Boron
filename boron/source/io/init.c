@@ -15,6 +15,10 @@ Author:
 #include "iop.h"
 #include <string.h>
 
+#ifdef DEBUG2
+#define IO_INIT_DEBUG
+#endif
+
 POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType, IoControllerType;
 POBJECT_DIRECTORY IoDriversDir;
 POBJECT_DIRECTORY IoDevicesDir;
@@ -104,8 +108,8 @@ bool IoInitSystem()
 	if (!IopInitializeObjectTypes())
 		return false;
 	
-	// TEST: This is test code. Remove soon!
-#ifdef DEBUG
+#ifdef IO_INIT_DEBUG
+	// TEST: This is test code.
 	extern POBJECT_DIRECTORY ObpRootDirectory;
 	extern BSTATUS ObpDebugDirectory(void* DirP);
 	DbgPrint("Dumping root directory:");
@@ -118,8 +122,8 @@ bool IoInitSystem()
 	
 	IoScanForFileSystems();
 	
-	// TEST: This is test code. Remove soon!
-#ifdef DEBUG
+#ifdef IO_INIT_DEBUG
+	// TEST: This is test code.
 	extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
 	
 	DbgPrint("Dumping drivers directory:");

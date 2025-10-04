@@ -425,7 +425,7 @@ void HalInitApicUP()
 	KeRegisterInterrupt(HalpVectorSpurious,  HalpSpuriousHandler);
 	KeRegisterInterrupt(HalpVectorApicTimer, HalpApicTimerHandler);
 	
-	DbgPrint("HalpVectorApicTimer: %d", HalpVectorApicTimer);
+	AcpiDbgPrint("HalpVectorApicTimer: %d", HalpVectorApicTimer);
 }
 
 void HalInitApicMP()

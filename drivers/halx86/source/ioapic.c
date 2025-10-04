@@ -118,19 +118,19 @@ void HalInitIoApic()
 		switch (Header->EntryType)
 		{
 			case MADT_ENTRY_LAPIC:
-				DbgPrint("Madt: Found local APIC");
+				AcpiDbgPrint("Madt: Found local APIC");
 				HalpLApics[HalpLApicCount++] = (PMADT_LAPIC) Header;
 				break;
 			case MADT_ENTRY_IOAPIC:
-				DbgPrint("Madt: Found IO APIC");
+				AcpiDbgPrint("Madt: Found IO APIC");
 				HalpIoApics[HalpIoApicCount++] = (PMADT_IOAPIC) Header;
 				break;
 			case MADT_ENTRY_IOAPIC_ISO:
-				DbgPrint("Madt: Found IO APIC ISO");
+				AcpiDbgPrint("Madt: Found IO APIC ISO");
 				HalpIoApicIsos[HalpIoApicIsoCount++] = (PMADT_IOAPIC_ISO) Header;
 				break;
 			case MADT_ENTRY_LAPIC_NMI:
-				DbgPrint("Madt: Found local APIC NMI");
+				AcpiDbgPrint("Madt: Found local APIC NMI");
 				HalpLApicNmis[HalpLApicNmiCount++] = (PMADT_LAPIC_NMI) Header;
 				break;
 		}

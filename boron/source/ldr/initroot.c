@@ -174,8 +174,8 @@ bool LdrPrepareInitialRoot()
 	
 	DbgPrint("Dumping root directory:");
 	ObpDebugDirectory(ObpRootDirectory);
-	DbgPrint("Dumping bin directory:");
-	ObpDebugDirectory(BinDir);
+	DbgPrint("Dumping InitRoot directory:");
+	ObpDebugDirectory(RootDir);
 #endif
 	
 	return true;

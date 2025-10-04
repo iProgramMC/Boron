@@ -80,7 +80,7 @@ void AcpiInitPmt()
 	
 	if (Header->X_PMTimerBlock.AddressSpace == ACPI_ASP_PIO)
 	{
-		DbgPrint("ACPI timer available using port I/O");
+		AcpiDbgPrint("ACPI timer available using port I/O");
 		AcpipPmtUsePort = true;
 		AcpipPmtPortNum = Header->PMTimerBlock;
 		AcpipIsPmtAvailable = true;
@@ -162,7 +162,7 @@ void HalAcpiLocateImportantSdts()
 		char Signature[5];
 		Signature[4] = 0;
 		memcpy(Signature, Header->Signature, 4);
-		DbgPrint("ACPI: Found sdt with signature %s", Signature);
+		AcpiDbgPrint("ACPI: Found sdt with signature %s", Signature);
 	#endif
 		
 		// Check the signature of this SDT to see if we support it
@@ -197,9 +197,7 @@ void HalInitAcpi()
 	else
 		HalpRsdt = MmGetHHDMOffsetAddr(HalpRsdp->RsdtAddress);
 	
-#ifdef DEBUG
-	DbgPrint("ACPI: Revision %d, %susing XSDT, RSDT at %p", HalpRsdp->Revision, AcpiUsingXsdt() ? "" : "not ", HalpRsdt);
-#endif
+	AcpiDbgPrint("ACPI: Revision %d, %susing XSDT, RSDT at %p", HalpRsdp->Revision, AcpiUsingXsdt() ? "" : "not ", HalpRsdt);
 	
 	HalAcpiLocateImportantSdts();
 	

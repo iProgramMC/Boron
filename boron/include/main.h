@@ -68,7 +68,7 @@ void LogMsg(const char* msg, ...);
 #ifdef DEBUG
 void DbgPrint(const char* msg, ...);
 #else
-#define DbgPrint(...)
+#define DbgPrint(...) do { } while (0)
 #endif
 
 #define ARRAY_COUNT(x) (sizeof(x) / sizeof((x)[0]))

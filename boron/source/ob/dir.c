@@ -502,7 +502,7 @@ bool ObpInitializeRootDirectory()
 	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObDirectoryType, NULL)))    return false;
 	if (FAILED(ObLinkObject(ObpObjectTypesDirectory, ObSymbolicLinkType, NULL))) return false;
 	
-#ifdef DEBUG
+#ifdef DEBUG2
 	ObpDebugDirectory(ObpRootDirectory);
 	ObpDebugDirectory(ObpObjectTypesDirectory);
 #endif

@@ -34,6 +34,16 @@ Author:
 #define PCI_MAX_SLOT (32)
 #define PCI_MAX_FUNC (8)
 
+#ifdef DEBUG2
+#define PCIDEBUG
+#endif
+
+#ifdef PCIDEBUG
+#define PciDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define PciDbgPrint(...) do { } while (0)
+#endif
+
 void HalInitPci();
 
 uint32_t HalPciConfigReadDword(PPCI_ADDRESS Address, uint8_t Offset);

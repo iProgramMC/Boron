@@ -19,6 +19,12 @@ Author:
 #define PMMDEBUG
 #endif
 
+#ifdef PMMDEBUG
+#define PmmDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define PmmDbgPrint(...) do {} while (0)
+#endif
+
 extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
@@ -252,6 +258,7 @@ void MiInitPMM()
 	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
 	
 	// pass 0: print out all the entries for debugging
+#ifdef PMMDEBUG
 	for (uint64_t i = 0; i < pResponse->entry_count; i++)
 	{
 		// if the entry isn't usable, skip it
@@ -264,6 +271,7 @@ void MiInitPMM()
 		
 		DbgPrint("%p-%p (%d pages, %d)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE, pEntry->type);
 	}
+#endif
 	
 	// pass 1: mapping the pages themselves
 	int numAllocatedPages = 0;
@@ -296,7 +304,7 @@ void MiInitPMM()
 		}
 	}
 	
-	DbgPrint("Initializing the PFN database.", sizeof(MMPFDBE));
+	PmmDbgPrint("Initializing the PFN database.", sizeof(MMPFDBE));
 	// pass 2: Initting the PFN database
 	int lastPfnOfPrevBlock = PFN_INVALID;
 	

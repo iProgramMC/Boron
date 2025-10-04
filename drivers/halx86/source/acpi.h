@@ -253,4 +253,14 @@ uint32_t HalGetPmtCounter();
 
 void HalSetPmtCounter(uint32_t Value);
 
+#ifdef DEBUG2
+#define ACPIDEBUG
+#endif
+
+#ifdef ACPIDEBUG
+#define AcpiDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define AcpiDbgPrint(...) do { } while (0)
+#endif
+
 #endif//BORON_HA_ACPI_H
