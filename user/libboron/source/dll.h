@@ -2,6 +2,16 @@
 
 #include <rtl/elf.h>
 
+#ifdef DEBUG2
+#define LOADER_DEBUG
+#endif
+
+#ifdef LOADER_DEBUG
+#define LdrDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define LdrDbgPrint(...) do {} while (0)
+#endif
+
 typedef struct
 {
 	LIST_ENTRY ListEntry;

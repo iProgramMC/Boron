@@ -123,8 +123,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Could not map %s into memory: %d (%s)", Func, BoronDllPath, Status, RtlGetStatusString(Status));
 	
-	DbgPrint("Mapped entire file to %p", ElfMappingBase);
-	
 	PELF_HEADER PElfHeader = (PELF_HEADER) ElfMappingBase;
 	memcpy(&ElfHeader, PElfHeader, sizeof(ELF_HEADER));
 	
@@ -178,7 +176,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	// TODO: not sure why I have to subtract 0x1000
 	BoronDllBase = MM_USER_SPACE_END + 1 - PebSize - Size - 0x1000;
-	DbgPrint("BoronDllBase: %p", BoronDllBase);
 	
 	bool IsDynamicLoaded = false;
 	uintptr_t BoronDllBaseOld = BoronDllBase;
@@ -261,8 +258,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	Status = OSAllocateVirtualMemory(ProcessHandle, &PebPtr, &RegionSize, MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE);
 	if (FAILED(Status))
 		KeCrash("%s: Failed to allocate PEB: %d (%s)", Func, Status, RtlGetStatusString(Status));
-	
-	DbgPrint("PEB Pointer: %p,  Size: %zu,  RgnSize: %zu", PebPtr, PebSize, RegionSize);
 	
 	// Attach to this process so that we can write to the PEB.
 	PEPROCESS Process = NULL;

@@ -189,7 +189,7 @@ BSTATUS OSCreateProcess(
 	}
 	
 	// Now map the main image inside.
-	DbgPrint("OSCreateProcess: Mapping main image %s.", ImageName);
+	LdrDbgPrint("OSCreateProcess: Mapping main image %s.", ImageName);
 	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, true);
 	OSClose(FileHandle);
 	
@@ -209,7 +209,7 @@ BSTATUS OSCreateProcess(
 		HANDLE InterpreterFileHandle = HANDLE_NONE;
 		if (strcmp(Interpreter, "libboron.so") == 0)
 		{
-			DbgPrint("OSDLL: The executable demands libboron.so, so map that.", Interpreter);
+			LdrDbgPrint("OSDLL: The executable demands libboron.so, so map that.", Interpreter);
 			
 			// This is libboron.so, so no meaning in scanning for anything
 			// because we can just open ourselves.
@@ -217,13 +217,13 @@ BSTATUS OSCreateProcess(
 		}
 		else
 		{
-			DbgPrint("OSDLL: Opening interpreter %s.", Interpreter);
+			LdrDbgPrint("OSDLL: Opening interpreter %s.", Interpreter);
 			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter);
 		}
 		
 		//Status = OSDLLMapSelfIntoProcess(ProcessHandle, InterpreterFileHandle, PebSize, &EntryPoint);
 		
-		DbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
+		LdrDbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
 		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, false);
 		OSClose(InterpreterFileHandle);
 		
@@ -241,7 +241,7 @@ BSTATUS OSCreateProcess(
 	OSFree(Peb);
 	Peb = NULL;
 	
-	DbgPrint("OSDLL: Entry Point: %p", EntryPoint);
+	LdrDbgPrint("OSDLL: Entry Point: %p", EntryPoint);
 	Status = OSDLLCreateMainThread(ProcessHandle, OutMainThreadHandle, EntryPoint, PebPtr, CreateSuspended);
 	if (FAILED(Status))
 		goto Fail;
