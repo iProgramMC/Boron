@@ -14,8 +14,8 @@ Author:
 ***/
 #pragma once
 
-#include <main.h>
-#include <handle.h>
+#include "main.h"
+#include "handle.h"
 
 // This structure must be handled as logically opaque by user code.
 typedef struct

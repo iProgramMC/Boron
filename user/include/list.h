@@ -20,7 +20,7 @@ Author:
 #ifndef BORON_RTL_LIST_H
 #define BORON_RTL_LIST_H
 
-#include <main.h>
+#include "main.h"
 
 typedef struct _LIST_ENTRY LIST_ENTRY, *PLIST_ENTRY;
 

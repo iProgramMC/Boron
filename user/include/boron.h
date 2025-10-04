@@ -1,7 +1,7 @@
 #pragma once
 
-#include <main.h>
-#include <status.h>
+#include "main.h"
+#include "status.h"
 
 // Kernel features
 #include "kes.h"

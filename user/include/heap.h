@@ -13,8 +13,8 @@ Author:
 ***/
 #pragma once
 
-#include <list.h>
-#include <csect.h>
+#include "list.h"
+#include "csect.h"
 
 typedef struct
 {

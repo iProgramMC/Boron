@@ -26,7 +26,7 @@ Author:
 #define UNUSED        __attribute__((unused))
 #define ALWAYS_INLINE __attribute__((always_inline))
 #define NO_DISCARD    __attribute__((warn_unused_result))
-#include <status.h>
+#include "status.h"
 
 #define FORCE_INLINE ALWAYS_INLINE static inline
 #define BIT(x) (1ULL << (x))
@@ -82,7 +82,7 @@ void DbgPrint(const char* msg, ...);
 
 #define CONTAINING_RECORD(Pointer, Type, Field) ((Type*)((uintptr_t)(Pointer) - (uintptr_t)offsetof(Type, Field)))
 
-#include <list.h>
-#include <rtl/check64.h>
+#include "list.h"
+#include "rtl/check64.h"
 
 #endif//NS64_MAIN_H
