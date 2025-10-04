@@ -52,6 +52,8 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, ui
 	FileObject->Flags    = Flags;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
+	FileObject->DirectoryOffset  = 0;
+	FileObject->DirectoryVersion = 0;
 	FileObject->OpenFlags = OpenFlags;
 	
 	// Call the FCB's create object method, if it exists.

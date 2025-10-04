@@ -40,11 +40,42 @@ BSTATUS IoPerformModifiedPageWrite(
 
 #endif
 
-BSTATUS IoReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);
+BSTATUS IoReadFile(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached
+);
 
-BSTATUS IoWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const void* Buffer, size_t Size, uint64_t FileOffset, bool Cached);
+BSTATUS IoWriteFile(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	const void* Buffer,
+	size_t Size,
+	uint64_t FileOffset,
+	bool Cached
+);
 
-BSTATUS IoReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
+BSTATUS IoResetDirectoryReadHead(
+	PFILE_OBJECT FileObject
+);
+
+BSTATUS IoReadDirectoryEntries(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	size_t Count,
+	PIO_DIRECTORY_ENTRY DirectoryEntries
+);
+
+BSTATUS IoReadDirectoryEntry(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PIO_DIRECTORY_ENTRY DirectoryEntry
+);
+
+// ** SYSTEM SERVICES **
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
 
@@ -58,7 +89,6 @@ BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite);
 
 BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut);
 
-// TODO for OSWriteFile:
-//
-// If the file is opened with FILE_FLAG_APPEND_ONLY, then the size of the file after
-// the write is returned to OutSize.
+BSTATUS OSResetDirectoryReadHead(HANDLE FileHandle);
+
+BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t DirectoryEntryCount, PIO_DIRECTORY_ENTRY DirectoryEntries);

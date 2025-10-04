@@ -41,23 +41,29 @@ typedef struct _IO_STATUS_BLOCK
 		}
 		AlignmentInfo;
 		
+		// ReadDirectoryEntries
+		size_t EntriesRead;
+		
+		// Dummies to imitate the kernel mode structures below:
+		struct
+		{
+			uint64_t Dummy1;
+			uint64_t Dummy2;
+		}
+		Dummy;
+		
 		// ReadDir
+#ifdef IS_KERNEL_MODE
 		struct
 		{
 			uint64_t NextOffset;  // The next offset of the file.
 			
-#ifdef IS_KERNEL_MODE
 			// This value is used to check whether or not the directory
-			// file changed.  This is only used internally in kernel mode,
-			// in user mode this is ignored.
+			// file changed.
 			uint64_t Version;
-#else
-			uint64_t Dummy;
-#endif
 		}
 		ReadDir;
 		
-#ifdef IS_KERNEL_MODE
 		// ParseDir
 		struct
 		{

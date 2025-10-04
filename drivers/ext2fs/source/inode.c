@@ -475,6 +475,9 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 	// TODO: Check if this file was modified by comparing the Version
 	// with the FCB's version.  If it was, then we need to re-validate
 	// the current offset.
+	//
+	// Linux reads directory entries until the current offset is overtaken, probably
+	// to avoid looping situations.  We should do the same.
 	(void) Version;
 	
 	EXT2_DIRENT Dirent;
@@ -570,7 +573,7 @@ BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char*
 	else if (InitialFcb->FileType == FILE_TYPE_SYMBOLIC_LINK)
 	{
 		// TODO
-		ASSERT(!"Symlink Dereference Not Implemented");
+		ASSERT(!"Symlink Parse Not Implemented");
 		return IOSB_STATUS(Iosb, STATUS_UNIMPLEMENTED);
 	}
 	else

@@ -433,31 +433,6 @@ BSTATUS IoWriteFile(
 	return Status;
 }
 
-BSTATUS IoReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
-{
-	BSTATUS Status;
-	ASSERT(FileObject);
-	
-	PFCB Fcb = FileObject->Fcb;
-	ASSERT(Fcb);
-	ASSERT(Fcb->DispatchTable);
-	
-	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
-	Status = IoLockFcbShared(Fcb);
-	if (FAILED(Status))
-		return IOSB_STATUS(Iosb, Status);
-	
-	IO_READ_DIR_METHOD ReadDir = Dispatch->ReadDir;
-	if (ReadDir)
-		Status = ReadDir(Iosb, FileObject, Offset, Version, DirectoryEntry);
-	else
-		Status = IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-	
-	IoUnlockFcb(Fcb);
-	return Status;
-}
-
 // =========== User-facing API ===========
 
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
@@ -500,6 +475,8 @@ BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
 // - the MDL has a max size of like 4MB
 //
 // Perhaps it's a good idea to restrict IoReadFile/IoWriteFile to like 1MB, and have these issue multiple calls down below.
+
+// TODO: Reference the object by handle earlier, so that failure cases can be handled faster.
 
 BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, uintptr_t Buffer, size_t Length, uint32_t Flags, uint64_t* OutFileSize, int Operation)
 {

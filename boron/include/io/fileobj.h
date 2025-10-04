@@ -27,6 +27,9 @@ typedef struct _FILE_OBJECT
 	void* Context1;
 	void* Context2;
 	
+	uint64_t DirectoryOffset;
+	uint64_t DirectoryVersion;
+	
 	uint32_t Flags;
 	uint32_t OpenFlags;
 }

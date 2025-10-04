@@ -40,13 +40,13 @@ void DirectoryList(const char* Path)
 	Status = ObReferenceObjectByHandle(Handle, NULL, &ObjectV);
 	
 	PFILE_OBJECT File = (PFILE_OBJECT) ObjectV;
+	IoResetDirectoryReadHead(File);
 	
-	uint64_t Offset = 0, Version = 0;
 	IO_STATUS_BLOCK Iosb;
 	IO_DIRECTORY_ENTRY DirEnt;
 	while (true)
 	{
-		Status = IoReadDir(&Iosb, File, Offset, Version, &DirEnt);
+		Status = IoReadDirectoryEntry(&Iosb, File, &DirEnt);
 		if (Status == STATUS_END_OF_FILE)
 			break;
 		
@@ -54,8 +54,6 @@ void DirectoryList(const char* Path)
 			KeCrash("Fs1: Cannot read dir: %d (%s)", Status, RtlGetStatusString(Status));
 		
 		LogMsg("Inode: %12llu, Type: %8d, Name: %s", DirEnt.InodeNumber, DirEnt.Type, DirEnt.Name);
-		Offset  = Iosb.ReadDir.NextOffset;
-		Version = Iosb.ReadDir.Version;
 	}
 	
 	ObDereferenceObject(File);
