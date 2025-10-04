@@ -43,8 +43,10 @@ extern OSOutputDebugString
 extern OSPulseEvent
 extern OSQueryEvent
 extern OSQueryMutex
+extern OSReadDirectoryEntries
 extern OSReadFile
 extern OSReleaseMutex
+extern OSResetDirectoryReadHead
 extern OSResetEvent
 extern OSSetCurrentTeb
 extern OSSetEvent
@@ -85,8 +87,10 @@ KiSystemServiceTable:
 	dq OSPulseEvent
 	dq OSQueryEvent
 	dq OSQueryMutex
+	dq OSReadDirectoryEntries
 	dq OSReadFile
 	dq OSReleaseMutex
+	dq OSResetDirectoryReadHead
 	dq OSResetEvent
 	dq OSSetCurrentTeb
 	dq OSSetEvent
