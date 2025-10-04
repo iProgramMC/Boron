@@ -6,6 +6,8 @@ typedef struct _TEB
 {
 	PPEB Peb;
 	
+	HANDLE CurrentDirectory;
+	
 	// More to define here such as TLS
 }
 TEB, *PTEB;
@@ -21,3 +23,6 @@ PTEB OSDLLCreateTebObject(PPEB Peb);
 
 // Creates a TEB for the current thread.
 BSTATUS OSDLLCreateTeb(PPEB Peb);
+
+// Gets the working directory of the current thread.
+HANDLE OSDLLGetCurrentDirectory();

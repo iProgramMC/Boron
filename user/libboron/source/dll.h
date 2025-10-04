@@ -22,3 +22,20 @@ DLL_LOAD_QUEUE_ITEM, *PDLL_LOAD_QUEUE_ITEM;
 
 // Gets the image base of libboron.so.
 uintptr_t RtlGetImageBase();
+
+typedef int(*ELF_ENTRY_POINT2)();
+
+// Maps an ELF file into the target process' memory.
+HIDDEN
+BSTATUS OSDLLMapElfFile(
+	PPEB Peb,
+	HANDLE ProcessHandle,
+	HANDLE FileHandle,
+	const char* Name,
+	ELF_ENTRY_POINT2* OutEntryPoint,
+	bool IsMainExecutable
+);
+
+// Opens a file by name, scanning the PATH environment variable.
+HIDDEN
+BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName);

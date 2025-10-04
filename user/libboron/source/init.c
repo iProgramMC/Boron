@@ -5,8 +5,6 @@
 #include "dll.h"
 #include "pebteb.h"
 
-typedef int(*ELF_ENTRY_POINT2)();
-
 extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
 
 // Limitations of this ELF loader that I don't plan to solve:
@@ -56,12 +54,27 @@ const char* OSDLLOffsetPathAway(const char* Name)
 HIDDEN
 BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName)
 {
-	// TODO: Scan the PATH environment variable for paths and load from there.
-	// Do not hardcode /InitRoot/%s.
+	BSTATUS Status;
+	OBJECT_ATTRIBUTES Attributes;
+	
+	// Try the current directory first.
+	// TODO: For known system shared libraries, do this last.  Or not at all.
+	Attributes.ObjectName = FileName;
+	Attributes.ObjectNameLength = strlen(FileName);
+	Attributes.OpenFlags = 0;
+	Attributes.RootDirectory = OSDLLGetCurrentDirectory();
+	
+	Status = OSOpenFile(Handle, &Attributes);
+	if (SUCCEEDED(Status))
+		return Status;
+	
+	DbgPrint("OSDLL: OSDLLOpenFileByName cannot open %s from the current directory.  Trying to scan PATH.", FileName);
+	
 	char ImageName[IO_MAX_NAME];
 	snprintf(ImageName, sizeof ImageName, "/InitRoot/%s", FileName);
 	
-	OBJECT_ATTRIBUTES Attributes;
+	// TODO: Scan the PATH environment variable for paths and load from there.
+	// Do not hardcode /InitRoot/%s.
 	
 	Attributes.ObjectName = ImageName;
 	Attributes.ObjectNameLength = strlen(ImageName);
@@ -92,7 +105,7 @@ BSTATUS OSDLLMapElfFile(
 	uint8_t* ProgramHeaders = NULL;
 	uintptr_t ImageBase = 0;
 	bool NeedFreeProgramHeaders = false;
-	bool NeedReadElf = true;
+	bool NeedReadAndMapFile = true;
 	bool IsSeparateProcess = ProcessHandle != CURRENT_PROCESS_HANDLE;
 	
 	Name = OSDLLOffsetPathAway(Name);
@@ -108,7 +121,7 @@ BSTATUS OSDLLMapElfFile(
 		{
 			DbgPrint("OSDLL: Don't need to read and map %s, because it's already mapped.", Name);
 			
-			NeedReadElf = false;
+			NeedReadAndMapFile = false;
 			ImageBase = Peb->Loader.ImageBase;
 			ProgramHeaders = Peb->Loader.ProgramHeaders;
 			ElfHeader = *(ELF_HEADER*)(Peb->Loader.FileHeader);
@@ -123,7 +136,7 @@ BSTATUS OSDLLMapElfFile(
 		DbgPrint("OSDLL: %s is a dynamic library, so we need to read and map it.", Name);
 	}
 	
-	if (NeedReadElf)
+	if (NeedReadAndMapFile)
 	{
 		Status = OSReadFile(&Iosb, Handle, 0, &ElfHeader, sizeof ElfHeader, 0);
 		if (FAILED(Status))
@@ -266,6 +279,12 @@ BSTATUS OSDLLMapElfFile(
 			// a LOAD PHDR means that that segment must be mapped in from the source.
 			case PROG_LOAD:
 			{
+				if (IsMainExecutable && !NeedReadAndMapFile)
+				{
+					DbgPrint("OSDLL: Skipping load segment %d because main executable is already loaded.", i);
+					break;
+				}
+				
 				int Protection = 0;
 				int CowFlag = 0;
 				
@@ -426,13 +445,12 @@ BSTATUS OSDLLMapElfFile(
 	LoadedImage->ImageBase = ImageBase;
 	InsertTailList(&OSDllsLoaded, &LoadedImage->ListEntry);
 	
-	*OutEntryPoint = (ELF_ENTRY_POINT2)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
-	
-	return STATUS_SUCCESS;
-	
 EarlyExit:
 	if (ProgramHeaders && NeedFreeProgramHeaders)
 		OSFree(ProgramHeaders);
+	
+	if (SUCCEEDED(Status) && OutEntryPoint)
+		*OutEntryPoint = (ELF_ENTRY_POINT2)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
 	
 	return Status;
 }
@@ -492,15 +510,34 @@ HIDDEN
 BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 {
 	BSTATUS Status;
-	HANDLE Handle;
-	OBJECT_ATTRIBUTES Attributes;
+
+	Status = OSDLLCreateTeb(Peb);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to create TEB! %s (%d)", RtlGetStatusString(Status), Status);
+		return Status;
+	}
 	
-	Attributes.ObjectName = Peb->ImageName;
-	Attributes.ObjectNameLength = Peb->ImageNameSize;
-	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = HANDLE_NONE;
+	HANDLE FileHandle = HANDLE_NONE;
 	
-	Status = OSOpenFile(&Handle, &Attributes);
+	if (Peb->Loader.MappedExecutable)
+	{
+		// Executable is mapped already, so instead of looking it up via the path,
+		// obtain a handle to it via a known address.
+		Status = OSGetMappedFileHandle(&FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) Peb->Loader.FileHeader);
+	}
+	else
+	{
+		OBJECT_ATTRIBUTES Attributes;
+		
+		Attributes.ObjectName = Peb->ImageName;
+		Attributes.ObjectNameLength = Peb->ImageNameSize;
+		Attributes.OpenFlags = 0;
+		Attributes.RootDirectory = HANDLE_NONE;
+		
+		Status = OSOpenFile(&FileHandle, &Attributes);
+	}
+	
 	if (FAILED(Status))
 	{
 		DbgPrint(
@@ -512,8 +549,8 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 		return Status;
 	}
 	
-	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, Peb->ImageName, OutEntryPoint, true);
-	OSClose(Handle);
+	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, FileHandle, Peb->ImageName, OutEntryPoint, true);
+	OSClose(FileHandle);
 	
 	if (FAILED(Status))
 	{
@@ -678,16 +715,8 @@ void DLLEntryPoint(PPEB Peb)
 	
 	if (SUCCEEDED(Status))
 	{
-		Status = OSDLLCreateTeb(Peb);
-		if (SUCCEEDED(Status))
-		{
-			DbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
-			Status = EntryPoint();
-		}
-		else
-		{
-			DbgPrint("OSDLL: Failed to create TEB! %d (%s)", Status, RtlGetStatusString(Status));
-		}
+		DbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
+		Status = EntryPoint();
 	}
 	
 	DbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);

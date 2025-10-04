@@ -21,6 +21,14 @@ Author:
 
 #define KERNEL_IMAGE_BASE (0xFFFFFFFF80000000)
 
+#ifdef DEBUG
+
+// if you want stack traces from user mode (NOT recommended for
+// release because this is a vulnerability), do this:
+#define DISABLE_USER_MODE_PREVENTION
+
+#endif
+
 // Defined in misc.asm:
 uintptr_t KiGetRIP();
 uintptr_t KiGetRBP();
@@ -110,23 +118,27 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 	
 	HalDisplayString("\tAddress         \tName\n");
 	
+#ifndef DISABLE_USER_MODE_PREVENTION
 	if (Rbp <= MM_USER_SPACE_END)
 	{
 		snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
 		HalDisplayString(Buffer);
 		return;
 	}
+#endif
 	
 	// TODO: This might be broken and still access a user address. Debug this later
 	while (StackFrame && Depth > 0)
 	{
 		uintptr_t Address = StackFrame->IP;
+#ifndef DISABLE_USER_MODE_PREVENTION
 		if (Address <= MM_USER_SPACE_END)
 		{
 			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
 			HalDisplayString(Buffer);
 			return;
 		}
+#endif
 		
 		char SymbolName[64];
 		DbgResolveAddress(Address, SymbolName, sizeof SymbolName);
@@ -137,12 +149,14 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		Depth--;
 		StackFrame = StackFrame->Next;
 		
+#ifndef DISABLE_USER_MODE_PREVENTION
 		if ((uintptr_t)StackFrame <= MM_USER_SPACE_END)
 		{
 			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
 			HalDisplayString(Buffer);
 			return;
 		}
+#endif
 	}
 	
 	if (Depth == 0)

@@ -1,7 +1,9 @@
 #include <boron.h>
 #include <string.h>
 #include <rtl/elf.h>
+#include <rtl/assert.h>
 #include "pebteb.h"
+#include "dll.h"
 
 #ifdef IS_64_BIT
 #define USER_SPACE_END 0x0000800000000000
@@ -9,205 +11,10 @@
 #define USER_SPACE_END 0x80000000
 #endif
 
-static PELF_PROGRAM_HEADER OSDLLFindDynamicPhdr(
-	uint8_t* ProgramHeaders,
-	size_t ProgramHeaderSize,
-	size_t ProgramHeaderCount)
-{
-	for (size_t i = 0; i < ProgramHeaderCount; i++)
-	{
-		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ProgramHeaderSize);
-		
-		if (ProgramHeader->Type == PROG_DYNAMIC)
-			return ProgramHeader;
-	}
-	
-	return NULL;
-}
-
 static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 {
 	extern char _DYNAMIC[];
 	return OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
-}
-
-static BSTATUS OSDLLMapSelfIntoProcess(HANDLE ProcessHandle, HANDLE FileHandle, size_t PebSize, void** EntryPoint)
-{
-	const char* Func;
-	BSTATUS Status;
-	uint64_t FileSize = 0;
-	ELF_HEADER ElfHeader;
-	
-	Func = __func__;
-	
-	Status = OSGetLengthFile(FileHandle, &FileSize);
-	if (FAILED(Status))
-	{
-		DbgPrint("%s: Failed to get length of libboron: %d (%s)", Func, Status, RtlGetStatusString(Status));
-		return Status;
-	}
-	
-	// XXX: Arbitrary
-	if (FileSize > 0x800000)
-	{
-		DbgPrint("%s: libboron is just too big", Func);
-		return Status;
-	}
-	
-	// There is no need to complicate ourselves at all.  We will simply map the
-	// entire file once, then map each page individually where needed, and unmap
-	// the temporary mapping.
-	uint8_t* ElfMappingBase = NULL;
-	size_t RegionSize = FileSize;
-	
-	Status = OSMapViewOfObject(
-		CURRENT_PROCESS_HANDLE,
-		FileHandle,
-		(void**) &ElfMappingBase,
-		RegionSize,
-		0,
-		0,
-		PAGE_READ
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("%s: Could not map libboron into memory: %d (%s)", Func, Status, RtlGetStatusString(Status));
-		return Status;
-	}
-	
-	DbgPrint("Mapped entire file to %p", ElfMappingBase);
-	
-	PELF_HEADER PElfHeader = (PELF_HEADER) ElfMappingBase;
-	memcpy(&ElfHeader, PElfHeader, sizeof(ELF_HEADER));
-	
-	// TODO: Check if this is a valid ELF header.
-	
-	// Read program header information.
-	uint8_t* ProgramHeaders = ElfMappingBase + ElfHeader.ProgramHeadersOffset;
-	
-	uintptr_t BoronDllBase = 0;
-	
-	uintptr_t FirstAddr, LargestAddr;
-	FirstAddr = (uintptr_t) ~0ULL;
-	LargestAddr = 0;
-	
-	// Find the dynamic program header;
-	PELF_PROGRAM_HEADER DynamicPhdr = OSDLLFindDynamicPhdr(
-		ProgramHeaders,
-		ElfHeader.ProgramHeaderSize,
-		ElfHeader.ProgramHeaderCount
-	);
-	
-	if (!DynamicPhdr)
-	{
-		DbgPrint("%s: Error, cannot find dynamic program header in libboron.so", Func);
-		return STATUS_INVALID_EXECUTABLE;
-	}
-	
-	// Now map each of them in.
-	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
-	{
-		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ElfHeader.ProgramHeaderSize);
-		
-		if (FirstAddr > ProgramHeader->VirtualAddress)
-			FirstAddr = ProgramHeader->VirtualAddress;
-		if (LargestAddr < ProgramHeader->VirtualAddress + ProgramHeader->SizeInMemory)
-			LargestAddr = ProgramHeader->VirtualAddress + ProgramHeader->SizeInMemory;
-	}
-	
-	if (FirstAddr > LargestAddr)
-	{
-		DbgPrint("%s: Error, first address %p > largest address %p", Func, FirstAddr, LargestAddr);
-		return STATUS_INVALID_EXECUTABLE;
-	}
-	
-	uintptr_t Size = LargestAddr - FirstAddr;
-	Size = (Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	
-	BoronDllBase = USER_SPACE_END - PebSize - Size - 0x1000;
-	DbgPrint("BoronDllBase: %p", BoronDllBase);
-	
-	bool IsDynamicLoaded = false;
-	uintptr_t BoronDllBaseOld = BoronDllBase;
-	uintptr_t DynamicBaseAddress = BoronDllBase + DynamicPhdr->VirtualAddress;
-	
-	// Start mapping in the program headers.
-	for (int i = 0; i < ElfHeader.ProgramHeaderCount; i++)
-	{
-		PELF_PROGRAM_HEADER ProgramHeader = (void*) (ProgramHeaders + i * ElfHeader.ProgramHeaderSize);
-		
-		if (ProgramHeader->SizeInMemory == 0)
-			continue;
-		
-		if (ProgramHeader->Type != PROG_LOAD)
-			continue;
-		
-		void* BaseAddress = (void*)(BoronDllBase + ProgramHeader->VirtualAddress);
-		
-		if ((uintptr_t) BaseAddress <= (uintptr_t) DynamicBaseAddress &&
-			(uintptr_t) BaseAddress + ProgramHeader->SizeInMemory >= (uintptr_t) DynamicBaseAddress + DynamicPhdr->SizeInMemory)
-			IsDynamicLoaded = true;
-		
-		int Protection = 0, Flags = MEM_COW;
-		if (ProgramHeader->Flags & ELF_PHDR_EXEC)  Protection |= PAGE_EXECUTE;
-		if (ProgramHeader->Flags & ELF_PHDR_READ)  Protection |= PAGE_READ;
-		
-		BSTATUS Status = OSMapViewOfObject(
-			ProcessHandle,
-			FileHandle,
-			&BaseAddress,
-			ProgramHeader->SizeInMemory,
-			Flags,
-			ProgramHeader->Offset,
-			Protection
-		);
-
-		if (FAILED(Status))
-		{
-			DbgPrint(
-				"%s: Failed to map ELF phdr in: %d (%s)\n"
-				"ProgramHeader->SizeInMemory: %zu\n"
-				"ProgramHeader->VirtualAddress: %p\n"
-				"ProgramHeader->Offset: %p", Func,
-				Status,
-				RtlGetStatusString(Status),
-				ProgramHeader->SizeInMemory,
-				ProgramHeader->VirtualAddress,
-				ProgramHeader->Offset
-			);
-			return Status;
-		}
-	}
-	
-	// Program headers have been mapped.
-	BoronDllBase = BoronDllBaseOld;
-	
-	// This assumes that the dynamic table is entirely mapped.
-	if (!IsDynamicLoaded)
-	{
-		DbgPrint("%s: There is no LOAD segment that maps the DYNAMIC table.", Func);
-		return STATUS_INVALID_EXECUTABLE;
-	}
-	
-	// Make sure to unmap from the system address space.
-	Status = OSFreeVirtualMemory(
-		CURRENT_PROCESS_HANDLE,
-		ElfMappingBase,
-		RegionSize,
-		MEM_RELEASE
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("%s: Failed to free initial mapping of ELF: %d (%s)\n%p %zu", Func, Status, RtlGetStatusString(Status), ElfMappingBase, RegionSize);
-		return Status;
-	}
-	
-	ElfMappingBase = NULL;
-	*EntryPoint = (void*) (BoronDllBase + ElfHeader.EntryPoint);
-	
-	return STATUS_SUCCESS;
 }
 
 static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine)
@@ -219,19 +26,11 @@ static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLi
 	return PebSize;
 }
 
-static BSTATUS OSDLLPreparePebForProcess(
-	HANDLE ProcessHandle,
-	size_t PebSize,
-	const char* ImageName,
-	const char* CommandLine,
-	void** PebPtrOut,
-	bool InheritHandles
-)
+static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine)
 {
-	BSTATUS Status;
+	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine);
 	
 	// Create the PEB
-	PPEB CurrentPeb = OSDLLGetCurrentPeb();
 	PPEB Peb = OSAllocate(PebSize);
 	if (!Peb)
 		return STATUS_INSUFFICIENT_MEMORY;
@@ -251,8 +50,45 @@ static BSTATUS OSDLLPreparePebForProcess(
 	strcpy(Peb->ImageName, ImageName);
 	strcpy(Peb->CommandLine, CommandLine);
 	
+	*OutPeb = Peb;
+	*OutPebSize = PebSize;
+	return STATUS_SUCCESS;
+}
+
+static BSTATUS OSDLLPreparePebForProcess(
+	HANDLE ProcessHandle,
+	PPEB Peb,
+	size_t PebSize,
+	void** PebPtrOut,
+	bool InheritHandles
+)
+{
+	BSTATUS Status;
+	
+	// Allocate and copy the PEB into the executable's memory.
+	void* PebPtr = NULL;
+	size_t RegionSize = PebSize;
+	Status = OSAllocateVirtualMemory(
+		ProcessHandle,
+		&PebPtr,
+		&RegionSize,
+		MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN,
+		PAGE_READ | PAGE_WRITE
+	);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Cannot map PEB: %s (%d)", RtlGetStatusString(Status), Status);
+		return Status;
+	}
+	
+	// Update all the pointers to point to the correct place.
+	Peb->ImageName   = (char*)((uintptr_t)Peb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)Peb);
+	Peb->CommandLine = (char*)((uintptr_t)Peb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)Peb);
+	Peb->PebFreeSize = RegionSize;
+	
 	// Duplicate the standard input/output handles, unless InheritHandles is true, in which case just
 	// expect them to already be given to the process.
+	PPEB CurrentPeb = OSDLLGetCurrentPeb();
 	if (InheritHandles)
 	{
 		for (int i = 0; i < 3; i++)
@@ -267,37 +103,23 @@ static BSTATUS OSDLLPreparePebForProcess(
 			
 			Status = OSDuplicateHandle(CurrentPeb->StandardIO[i], ProcessHandle, &Peb->StandardIO[i], 0);
 			if (FAILED(Status))
-				goto Fail;
+				return Status;
 		}
 	}
 	
 	// TODO: Copy the environment variables from our PEB into
 	// the PEB of the receiving process
 	
-	// Allocate and copy the PEB into the executable's memory.
-	void* PebPtr = NULL;
-	size_t RegionSize = PebSize;
-	Status = OSAllocateVirtualMemory(ProcessHandle, &PebPtr, &RegionSize, MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN, PAGE_READ | PAGE_WRITE);
-	if (FAILED(Status))
-		goto Fail;
-	
-	// But actually update all the pointers to point to the correct place.
-	Peb->ImageName   = (char*)((uintptr_t)Peb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)Peb);
-	Peb->CommandLine = (char*)((uintptr_t)Peb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)Peb);
-	Peb->PebFreeSize = RegionSize;
 	
 	// Now copy the PEB into the destination application.
 	Status = OSWriteVirtualMemory(ProcessHandle, PebPtr, Peb, PebSize);
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to OSWriteVirtualMemory: %d (%s)", Status, RtlGetStatusString(Status));
-		goto Fail;
+		return Status;
 	}
 	
 	*PebPtrOut = PebPtr;
-	
-Fail:
-	OSFree(Peb);
 	return Status;
 }
 
@@ -331,7 +153,9 @@ BSTATUS OSCreateProcess(
 {
 	// Create the process
 	HANDLE ProcessHandle;
-	void *EntryPoint = NULL, *PebPtr = NULL;
+	HANDLE FileHandle;
+	void *PebPtr = NULL;
+	ELF_ENTRY_POINT2 EntryPoint = NULL;
 	
 	BSTATUS Status = OSCreateProcessInternal(
 		OutHandle,
@@ -344,27 +168,80 @@ BSTATUS OSCreateProcess(
 	
 	ProcessHandle = *OutHandle;
 	
-	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine);
-	
-	HANDLE FileHandle;
-	Status = OSDLLOpenSelf(&FileHandle);
+	// Create the PEB for this process.
+	PPEB Peb = NULL;
+	size_t PebSize = 0;
+	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine);
 	if (FAILED(Status))
 	{
 	Fail:
+		if (Peb) OSFree(Peb);
 		OSClose(ProcessHandle);
 		return Status;
 	}
 	
-	Status = OSDLLMapSelfIntoProcess(ProcessHandle, FileHandle, PebSize, &EntryPoint);
+	// Open the main image.
+	Status = OSDLLOpenFileByName(&FileHandle, ImageName);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to open %s. %s (%d)", ImageName, RtlGetStatusString(Status), Status);
+		goto Fail;
+	}
+	
+	// Now map the main image inside.
+	DbgPrint("OSCreateProcess: Mapping main image %s.", ImageName);
+	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, true);
 	OSClose(FileHandle);
 	
 	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to map the %s executable. %s (%d)", ImageName, RtlGetStatusString(Status), Status);
 		goto Fail;
+	}
 	
-	Status = OSDLLPreparePebForProcess(ProcessHandle, PebSize, ImageName, CommandLine, &PebPtr, InheritHandles);
+	ASSERT(Peb->Loader.MappedExecutable);
+	
+	if (Peb->Loader.Interpreter)
+	{
+		// There is an interpreter.
+		const char* Interpreter = Peb->Loader.Interpreter;
+		
+		HANDLE InterpreterFileHandle = HANDLE_NONE;
+		if (strcmp(Interpreter, "libboron.so") == 0)
+		{
+			DbgPrint("OSDLL: The executable demands libboron.so, so map that.", Interpreter);
+			
+			// This is libboron.so, so no meaning in scanning for anything
+			// because we can just open ourselves.
+			Status = OSDLLOpenSelf(&InterpreterFileHandle);
+		}
+		else
+		{
+			DbgPrint("OSDLL: Opening interpreter %s.", Interpreter);
+			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter);
+		}
+		
+		//Status = OSDLLMapSelfIntoProcess(ProcessHandle, InterpreterFileHandle, PebSize, &EntryPoint);
+		
+		DbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
+		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, false);
+		OSClose(InterpreterFileHandle);
+		
+		if (FAILED(Status))
+		{
+			DbgPrint("OSDLL: Failed to map the interpreter %s. %s (%d)", Interpreter, RtlGetStatusString(Status), Status);
+			goto Fail;
+		}
+	}
+	
+	Status = OSDLLPreparePebForProcess(ProcessHandle, Peb, PebSize, &PebPtr, InheritHandles);
 	if (FAILED(Status))
 		goto Fail;
 	
+	OSFree(Peb);
+	Peb = NULL;
+	
+	DbgPrint("OSDLL: Entry Point: %p", EntryPoint);
 	Status = OSDLLCreateMainThread(ProcessHandle, OutMainThreadHandle, EntryPoint, PebPtr, CreateSuspended);
 	if (FAILED(Status))
 		goto Fail;
