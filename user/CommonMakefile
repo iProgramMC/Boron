@@ -131,7 +131,8 @@ override CXXFLAGS +=        \
 override LDFLAGSBASE +=     \
 	-nostdlib               \
 	-m elf_x86_64           \
-	-z max-page-size=0x1000
+	-z max-page-size=0x1000 \
+	--dynamic-linker libboron.so
 
 # Internal linker flags that should not be changed by the user.
 LDFLAGS +=  \
