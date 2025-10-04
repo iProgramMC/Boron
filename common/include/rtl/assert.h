@@ -15,6 +15,10 @@ Author:
 #ifndef BORON_RTL_ASSERT_H
 #define BORON_RTL_ASSERT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // ASSERT: Asserts that a condition is true and crashes otherwise. On release, the condition is still
 //         emitted.
 //
@@ -44,6 +48,10 @@ bool RtlAssert(const char* Condition, const char* File, int Line, const char* Me
 
 #ifndef KERNEL
 void RtlAbort();
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #endif//BORON_RTL_ASSERT_H

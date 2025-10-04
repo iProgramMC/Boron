@@ -37,6 +37,10 @@ typedef struct ELF_DYNAMIC_INFO_tag
 }
 ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
 
 bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase);
@@ -50,3 +54,7 @@ void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo);
 void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
 
 uint32_t RtlElfHash(const char* Name);
+
+#ifdef __cplusplus
+}
+#endif

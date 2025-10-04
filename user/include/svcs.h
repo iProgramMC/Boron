@@ -1,5 +1,11 @@
 #pragma once
 
+// NOTE: Do not include bare! Always include "boron.h".
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 BSTATUS OSAllocateVirtualMemory(
 	HANDLE ProcessHandle,
 	void** BaseAddressInOut,
@@ -14,12 +20,16 @@ BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, in
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
+#ifdef IS_BORON_DLL
+
 BSTATUS OSCreateProcessInternal(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ParentProcessHandle,
 	bool InheritHandles
 );
+
+#endif
 
 BSTATUS OSCreateThread(
 	PHANDLE OutHandle,
@@ -110,3 +120,7 @@ BSTATUS OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
 
 BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* Source, size_t ByteCount);
+
+#ifdef __cplusplus
+}
+#endif

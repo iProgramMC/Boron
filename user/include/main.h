@@ -47,8 +47,17 @@ Author:
 #define CHECK_PAGED
 #endif
 
+
+#ifdef __cplusplus
+
+extern "C" {
+
+#else
+
 // We're using C11
 #define static_assert _Static_assert
+
+#endif
 
 void LogMsg(const char* msg, ...);
 
@@ -56,6 +65,10 @@ void LogMsg(const char* msg, ...);
 void DbgPrint(const char* msg, ...);
 #else
 #define DbgPrint(...)
+#endif
+
+#ifdef __cplusplus
+}
 #endif
 
 #define ARRAY_COUNT(x) (sizeof(x) / sizeof((x)[0]))

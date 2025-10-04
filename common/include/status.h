@@ -114,4 +114,12 @@ enum
 #define IOFAILED(x)    ((x) != STATUS_SUCCESS && (x) != STATUS_END_OF_FILE && (x) != STATUS_BLOCKING_OPERATION)
 #define IOSUCCEEDED(x) (!IOFAILED(x))
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 const char* RtlGetStatusString(int code);
+
+#ifdef __cplusplus
+}
+#endif

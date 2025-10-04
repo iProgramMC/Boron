@@ -30,6 +30,10 @@ typedef struct
 }
 OS_HEAP, *POS_HEAP;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Allocates a block on the heap.  Returns NULL if a block couldn't be allocated.
 void* OSAllocateHeap(POS_HEAP Heap, size_t Size);
 
@@ -53,3 +57,7 @@ void* OSAllocate(size_t Size);
 
 // Frees a block on the global heap.
 void OSFree(void* Memory);
+
+#ifdef __cplusplus
+}
+#endif

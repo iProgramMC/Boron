@@ -48,6 +48,10 @@ struct _RBTREE
 #define IsEmptyRbTree(Tree)    RB_EMPTY(&(Tree)->Head)
 #define InitializeRbTreeEntry(EntryP)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool InsertItemRbTree(PRBTREE Tree, PRBTREE_ENTRY Item);
 
 bool RemoveItemRbTree(PRBTREE Tree, PRBTREE_ENTRY Item);
@@ -71,3 +75,7 @@ void TraverseRbTree(
 	
 PRBTREE_ENTRY GetNextEntryRbTree(PRBTREE_ENTRY);
 PRBTREE_ENTRY GetPrevEntryRbTree(PRBTREE_ENTRY);
+
+#ifdef __cplusplus
+}
+#endif

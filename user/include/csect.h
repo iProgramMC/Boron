@@ -30,6 +30,10 @@ typedef struct
 }
 OS_CRITICAL_SECTION, *POS_CRITICAL_SECTION;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Initializes a critical section.
 BSTATUS OSInitializeCriticalSection(POS_CRITICAL_SECTION CriticalSection);
 
@@ -48,3 +52,7 @@ void OSEnterCriticalSection(POS_CRITICAL_SECTION CriticalSection);
 
 // Leaves a critical section.
 void OSLeaveCriticalSection(POS_CRITICAL_SECTION CriticalSection);
+
+#ifdef __cplusplus
+}
+#endif

@@ -22,6 +22,10 @@ Author:
 #define STB_SPRINTF_DECORATE        // don't decorate
 #include "_stb_sprintf.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void* memcpy(void* dst, const void* src, size_t n);
 void* memquadcpy(uint64_t* dst, const uint64_t* src, size_t n);
 void* memset(void* dst, int c, size_t n);
@@ -35,5 +39,9 @@ char* strncpy(char* d, const char* s, size_t sz);
 char* StringCopySafe(char* dst, const char* src, size_t szBuf);
 bool StringMatchesCaseInsensitive(const char* String1, const char* String2, size_t Length);
 bool StringContainsCaseInsensitive(const char* Haystack, const char* Needle);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif//NS64_STRING_H
