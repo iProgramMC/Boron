@@ -96,6 +96,8 @@ enum
 	PROG_DYNAMIC,
 	PROG_INTERP,
 	PROG_NOTE,
+	PROG_SHLIB, // unused
+	PROG_PHDR,
 };
 
 enum
