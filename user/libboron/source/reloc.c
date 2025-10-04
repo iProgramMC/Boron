@@ -32,6 +32,10 @@ extern HIDDEN void DLLEntryPoint();
 // needs to be relocated.
 //
 // This is the entry point of Libboron.so.
+//
+// Note: Entry points for libraries are NOT supposed to be called when
+// loading them as shared libraries.  Instead, the loader should use
+// .init_array.
 void RelocateSelf(PPEB Peb)
 {
 	size_t RelOffset = 0, RelSize = 0, RelaOffset = 0, RelaSize = 0, RelrOffset = 0, RelrSize = 0;

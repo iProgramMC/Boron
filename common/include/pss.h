@@ -22,7 +22,15 @@ Author:
 // usually the case for dynamically linked binaries.
 typedef struct
 {
-	bool MappedExecutable;
+	// Did the interpreter already run?
+	// This is used when libboron.so is not the primary interpreter
+	// (so that libboron.so's entry point can just exit)
+	bool RanInterpreter;
+	
+	// Is the main image already mapped?
+	bool MappedImage;
+	
+	// Information about the mapped image.
 	uintptr_t ImageBase;
 	void* FileHeader;
 	void* ProgramHeaders;
@@ -49,6 +57,11 @@ typedef struct
 	// Note that the initial process launched by libboron.so gets
 	// these as zeros.
 	HANDLE StandardIO[3];
+	
+	// Starting directory.
+	// This handle should be set to HANDLE_NONE by the interpreter
+	// once transferred to the main thread's TEB.
+	HANDLE StartingDirectory;
 	
 	// TODO: implement environment variables
 	

@@ -117,7 +117,7 @@ BSTATUS OSDLLMapElfFile(
 		//
 		// If it was mapped, then we're all good to proceed without
 		// loading it again.
-		if (Peb->Loader.MappedExecutable)
+		if (Peb->Loader.MappedImage)
 		{
 			DbgPrint("OSDLL: Don't need to read and map %s, because it's already mapped.", Name);
 			
@@ -259,7 +259,7 @@ BSTATUS OSDLLMapElfFile(
 	
 	if (IsMainExecutable)
 	{
-		Peb->Loader.MappedExecutable = true;
+		Peb->Loader.MappedImage = true;
 		Peb->Loader.ImageBase = ImageBase;
 	}
 	
@@ -510,7 +510,7 @@ HIDDEN
 BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 {
 	BSTATUS Status;
-
+	
 	Status = OSDLLCreateTeb(Peb);
 	if (FAILED(Status))
 	{
@@ -520,7 +520,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 	
 	HANDLE FileHandle = HANDLE_NONE;
 	
-	if (Peb->Loader.MappedExecutable)
+	if (Peb->Loader.MappedImage)
 	{
 		// Executable is mapped already, so instead of looking it up via the path,
 		// obtain a handle to it via a known address.

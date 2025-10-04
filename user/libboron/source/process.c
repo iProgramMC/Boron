@@ -199,7 +199,7 @@ BSTATUS OSCreateProcess(
 		goto Fail;
 	}
 	
-	ASSERT(Peb->Loader.MappedExecutable);
+	ASSERT(Peb->Loader.MappedImage);
 	
 	if (Peb->Loader.Interpreter)
 	{

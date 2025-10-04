@@ -26,6 +26,9 @@ PTEB OSDLLCreateTebObject(PPEB Peb)
 	// Initialize the TEB structure.
 	Teb->Peb = Peb;
 	
+	Teb->CurrentDirectory = Peb->StartingDirectory;
+	Peb->StartingDirectory = HANDLE_NONE;
+	
 	return Teb;
 }
 
