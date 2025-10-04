@@ -252,6 +252,7 @@ void HalPciProbe()
 	KIPL Ipl;
 	KeAcquireSpinLock(&HalpPciDeviceSpinLock, &Ipl);
 	
+#ifdef PCIDEBUG
 	for (size_t i = 0; i < HalpPciDeviceCount; i++)
 	{
 		PPCI_DEVICE Device = &HalpPciDevices[i];
@@ -270,6 +271,7 @@ void HalPciProbe()
 			Device->MsixData.Exists ? "MSI-X" : (Device->MsiData.Exists ? "MSI" : "No Interrupts")
 		);
 	}
+#endif
 	
 	KeReleaseSpinLock(&HalpPciDeviceSpinLock, Ipl);
 	

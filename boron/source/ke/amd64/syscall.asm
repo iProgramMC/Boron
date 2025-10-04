@@ -31,6 +31,7 @@ extern OSExitProcess
 extern OSExitThread
 extern OSFreeVirtualMemory
 extern OSGetAlignmentFile
+extern OSGetCurrentPeb
 extern OSGetCurrentTeb
 extern OSGetExitCodeProcess
 extern OSGetLengthFile
@@ -48,6 +49,7 @@ extern OSReadFile
 extern OSReleaseMutex
 extern OSResetDirectoryReadHead
 extern OSResetEvent
+extern OSSetCurrentPeb
 extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetExitCode
@@ -75,6 +77,7 @@ KiSystemServiceTable:
 	dq OSExitThread
 	dq OSFreeVirtualMemory
 	dq OSGetAlignmentFile
+	dq OSGetCurrentPeb
 	dq OSGetCurrentTeb
 	dq OSGetExitCodeProcess
 	dq OSGetLengthFile
@@ -92,6 +95,7 @@ KiSystemServiceTable:
 	dq OSReleaseMutex
 	dq OSResetDirectoryReadHead
 	dq OSResetEvent
+	dq OSSetCurrentPeb
 	dq OSSetCurrentTeb
 	dq OSSetEvent
 	dq OSSetExitCode

@@ -719,6 +719,10 @@ void KiSwitchToNextThread()
 	// When an interrupt or exception happens and the CPL is ring 3,
 	// this is fetched for a transition to ring 0.
 	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
+	
+	// Set the relevant MSRs.
+	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Thread->PebPointer);
+	KeSetMSR(MSR_FS_BASE,        (uint64_t) Thread->TebPointer);
 #endif
 	
 	if (OldThread == Thread)
