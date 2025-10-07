@@ -61,6 +61,12 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);
 
 BSTATUS OSGetMappedFileHandle(PHANDLE OutHandle, HANDLE ProcessHandle, uintptr_t Address);
 
+BSTATUS OSGetTickCount(uint64_t* TickCount);
+
+BSTATUS OSGetTickFrequency(uint64_t* TickFrequency);
+
+BSTATUS OSGetVersionNumber(int* VersionNumber);
+
 BSTATUS OSMapViewOfObject(
 	HANDLE ProcessHandle,
 	HANDLE MappedObject,
@@ -98,6 +104,8 @@ BSTATUS OSResetEvent(HANDLE EventHandle);
 BSTATUS OSSetCurrentTeb(void* Ptr);
 
 BSTATUS OSSetEvent(HANDLE EventHandle);
+
+BSTATUS OSSetPebProcess(HANDLE ProcessHandle, void* PebPtr);
 
 BSTATUS OSSetSuspendedThread(HANDLE ThreadHandle, bool IsSuspended);
 

@@ -285,7 +285,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	PPeb->CommandLineSize = strlen(CommandLine);
 	strcpy(AfterPeb, CommandLine);
 	
-	// Detach and dereference the process.
+	Process->Pcb.PebPointer = PPeb;
+	
 	PsSetAttachedProcess(OldAttached);
 	ObDereferenceObject(Process);
 	

@@ -164,10 +164,8 @@ struct KTHREAD_tag
 	
 	KIPL OriginalIplWait;
 	
-	// User-space pointer to the TEB (thread environment block)
-	// and PEB (process environment block).
+	// User-space pointer to the TEB (thread environment block).
 	void* TebPointer;
-	void* PebPointer;
 };
 
 // Creates an empty, uninitialized, thread object.

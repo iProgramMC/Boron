@@ -76,7 +76,6 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 #endif
 	
 	Thread->TebPointer = NULL;
-	Thread->PebPointer = NULL;
 }
 
 void KiSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
@@ -213,40 +212,4 @@ void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended)
 	KIPL Ipl = KiLockDispatcher();
 	KiSetSuspendedThread(Thread, IsSuspended);
 	KiUnlockDispatcher(Ipl);
-}
-
-void* OSGetCurrentTeb()
-{
-	return KeGetCurrentThread()->TebPointer;
-}
-
-void* OSGetCurrentPeb()
-{
-	return KeGetCurrentThread()->PebPointer;
-}
-
-// Sets the FS base for user mode.
-BSTATUS OSSetCurrentTeb(void* Ptr)
-{
-	KeGetCurrentThread()->TebPointer = Ptr;
-	
-#ifdef TARGET_AMD64
-	KeSetMSR(MSR_FS_BASE, (uint64_t) Ptr);
-#endif
-	
-	return STATUS_SUCCESS;
-}
-
-// Sets the GS base for user mode.
-BSTATUS OSSetCurrentPeb(void* Ptr)
-{
-	KeGetCurrentThread()->PebPointer = Ptr;
-	
-#ifdef TARGET_AMD64
-	// we assign the KERNELGSBASE MSR because that's what
-	// will be swapped to when a return to user mode happens
-	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Ptr);
-#endif
-	
-	return STATUS_SUCCESS;
 }

@@ -36,6 +36,9 @@ extern OSGetCurrentTeb
 extern OSGetExitCodeProcess
 extern OSGetLengthFile
 extern OSGetMappedFileHandle
+extern OSGetTickCount
+extern OSGetTickFrequency
+extern OSGetVersionNumber
 extern OSMapViewOfObject
 extern OSOpenEvent
 extern OSOpenFile
@@ -53,6 +56,7 @@ extern OSSetCurrentPeb
 extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetExitCode
+extern OSSetPebProcess
 extern OSSetSuspendedThread
 extern OSSleep
 extern OSTerminateThread
@@ -82,6 +86,9 @@ KiSystemServiceTable:
 	dq OSGetExitCodeProcess
 	dq OSGetLengthFile
 	dq OSGetMappedFileHandle
+	dq OSGetTickCount
+	dq OSGetTickFrequency
+	dq OSGetVersionNumber
 	dq OSMapViewOfObject
 	dq OSOpenEvent
 	dq OSOpenFile
@@ -99,6 +106,7 @@ KiSystemServiceTable:
 	dq OSSetCurrentTeb
 	dq OSSetEvent
 	dq OSSetExitCode
+	dq OSSetPebProcess
 	dq OSSetSuspendedThread
 	dq OSSleep
 	dq OSTerminateThread

@@ -38,6 +38,9 @@ struct KPROCESS_tag
 	
 	// Default thread affinity
 	KAFFINITY DefaultAffinity;
+	
+	// User-space pointer to the PEB (process environment block).
+	void* PebPointer;
 };
 
 // Allocate an uninitialized process instance.  Use when you want to detach the process.

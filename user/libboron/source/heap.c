@@ -330,7 +330,7 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 			CURRENT_PROCESS_HANDLE,
 			Header,
 			sizeof(OS_HEAP_HEADER) + Header->BlockSize,
-			MEM_DECOMMIT | MEM_RELEASE
+			MEM_RELEASE
 		);
 		
 		if (FAILED(Status))
@@ -413,9 +413,15 @@ void OSDeleteHeap(POS_HEAP Heap)
 
 // Global Heap
 static OS_HEAP OSDLLGlobalHeap;
+static bool OSDLLInitializedGlobalHeap;
 
+__attribute__((constructor))
 void OSDLLInitializeGlobalHeap()
 {
+	if (OSDLLInitializedGlobalHeap)
+		return;
+	
+	OSDLLInitializedGlobalHeap = true;
 	BSTATUS Status = OSInitializeHeap(&OSDLLGlobalHeap);
 	if (FAILED(Status))
 	{

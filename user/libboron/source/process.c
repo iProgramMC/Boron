@@ -111,11 +111,19 @@ static BSTATUS OSDLLPreparePebForProcess(
 	// the PEB of the receiving process
 	
 	
+	
+	Status = OSSetPebProcess(ProcessHandle, PebPtr);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to OSSetPebProcess: %s (%d)", RtlGetStatusString(Status), Status);
+		return Status;
+	}
+	
 	// Now copy the PEB into the destination application.
 	Status = OSWriteVirtualMemory(ProcessHandle, PebPtr, Peb, PebSize);
 	if (FAILED(Status))
 	{
-		DbgPrint("Failed to OSWriteVirtualMemory: %d (%s)", Status, RtlGetStatusString(Status));
+		DbgPrint("OSDLL: Failed to OSWriteVirtualMemory: %s (%d)", RtlGetStatusString(Status), Status);
 		return Status;
 	}
 	

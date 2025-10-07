@@ -46,22 +46,6 @@ PKPROCESS KeGetSystemProcess()
 	return &PsGetSystemProcess()->Pcb;
 }
 
-PKPROCESS KeAllocateProcess()
-{
-	PKPROCESS Process = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KPROCESS));
-	if (!Process)
-		return NULL;
-	
-	memset(Process, 0, sizeof *Process);
-	
-	return Process;
-}
-
-void KeDeallocateProcess(PKPROCESS Process)
-{
-	MmFreePool(Process);
-}
-
 void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity)
 {
 	KeInitializeDispatchHeader(&Process->Header, DISPATCH_PROCESS);
@@ -75,6 +59,8 @@ void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffi
 	Process->DefaultPriority = BasePriority;
 	
 	Process->DefaultAffinity = BaseAffinity;
+	
+	Process->PebPointer = NULL;
 }
 
 PKPROCESS KeSetAttachedProcess(PKPROCESS Process)

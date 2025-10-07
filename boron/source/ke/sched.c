@@ -721,7 +721,7 @@ void KiSwitchToNextThread()
 	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
 	
 	// Set the relevant MSRs.
-	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Thread->PebPointer);
+	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uint64_t) Thread->TebPointer);
 #endif
 	
