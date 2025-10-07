@@ -321,7 +321,7 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	Status = NvmeIdentify(ContExtension, NamespaceList, CNS_NAMESPACELIST, 0);
 	if (FAILED(Status))
-		KeCrash("Stornvme TODO handle failure to enumerate namespace list nicely. Status %d", Status);
+		KeCrash("Stornvme TODO handle failure to enumerate namespace list nicely. %s (%d)", RtlGetStatusString(Status), Status);
 	
 	// Determine how many pairs to use.
 	size_t IoMin = Device->MsixData.TableSize;

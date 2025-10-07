@@ -106,6 +106,12 @@ static void DbgResolveAddress(uintptr_t Address, char *SymbolName, size_t Buffer
 	}
 }
 
+void DbgPrintDouble(const char* String)
+{
+	DbgPrintString(String);
+	HalDisplayString(String);
+}
+
 void DbgPrintStackTrace(uintptr_t Rbp)
 {
 	if (Rbp == 0)
@@ -116,13 +122,13 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 	int Depth = 30;
 	char Buffer[128];
 	
-	HalDisplayString("\tAddress         \tName\n");
+	DbgPrintDouble("\tAddress         \tName\n");
 	
 #ifndef DISABLE_USER_MODE_PREVENTION
 	if (Rbp <= MM_USER_SPACE_END)
 	{
 		snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
-		HalDisplayString(Buffer);
+		DbgPrintDouble(Buffer);
 		return;
 	}
 #endif
@@ -135,7 +141,7 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		if (Address <= MM_USER_SPACE_END)
 		{
 			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
-			HalDisplayString(Buffer);
+			DbgPrintDouble(Buffer);
 			return;
 		}
 #endif
@@ -144,7 +150,7 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		DbgResolveAddress(Address, SymbolName, sizeof SymbolName);
 		
 		snprintf(Buffer, sizeof(Buffer), "\t%p\t%s\n", (void*) Address, SymbolName);
-		HalDisplayString(Buffer);
+		DbgPrintDouble(Buffer);
 		
 		Depth--;
 		StackFrame = StackFrame->Next;
@@ -153,14 +159,14 @@ void DbgPrintStackTrace(uintptr_t Rbp)
 		if ((uintptr_t)StackFrame <= MM_USER_SPACE_END)
 		{
 			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
-			HalDisplayString(Buffer);
+			DbgPrintDouble(Buffer);
 			return;
 		}
 #endif
 	}
 	
 	if (Depth == 0)
-		HalDisplayString("Warning, stack trace too deep, increase the depth in " __FILE__ " if you need it.\n");
+		DbgPrintDouble("Warning, stack trace too deep, increase the depth in " __FILE__ " if you need it.\n");
 }
 
 #ifdef DEBUG
