@@ -16,6 +16,25 @@ Author:
 
 #include <main.h>
 
+// The internal view cache's size.
+#ifdef IS_64_BIT
+
+// 16 MB on 64-bit.
+#define VIEW_CACHE_SIZE (16 * 1024 * 1024)
+
+// A maximum of 128 GB (8K * 16M) can be allocated to system space views.
+#define VIEW_CACHE_MAX_COUNT (8192)
+
+#else
+
+// 128 KB on 32-bit.
+#define VIEW_CACHE_SIZE (128 * 1024)
+
+// A maximum of 128 MB (1K * 128K) can be allocated to system space views.
+#define VIEW_CACHE_MAX_COUNT (1024)
+
+#endif
+
 typedef struct _MMVAD_ENTRY MMVAD, *PMMVAD;
 typedef struct _FCB FCB, *PFCB;
 typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;

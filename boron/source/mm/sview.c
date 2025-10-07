@@ -66,7 +66,7 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	Vad->Flags.IsFile = 1;
 	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
-	Vad->ViewCacheEntry.Key = Vad->SectionOffset;
+	Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
 	
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
 	
