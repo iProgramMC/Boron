@@ -21,6 +21,7 @@ SYSDLL_NAME = libboron.so
 
 DRIVERS_LIST = \
 	halx86     \
+	framebuf   \
 	i8042prt   \
 	stornvme   \
 	ext2fs     \

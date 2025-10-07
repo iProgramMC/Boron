@@ -340,7 +340,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 	BSTATUS Result = Dll->EntryPoint(Driver);
 	if (Result != 0)
 		// XXX: Maybe should be an error instead?
-		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init", Dll->Name, Result);
+		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init (%s)", Dll->Name, Result, RtlGetStatusString(Result));
 }
 
 INIT

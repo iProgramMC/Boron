@@ -82,6 +82,10 @@ void MmFreePhysicalPageHHDM(void* Page);
 // Gets the total amount of free pages.
 size_t MmGetTotalFreePages();
 
+// Registers a range of memory as MMIO.  This means that user applications
+// will be able to map this memory in directly, however, the pages will
+// never behave like regular memory.
+void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Size);
 
 // TODO: Not sure where to place this.  Do we really need a new file?
 void MmInitializeModifiedPageWriter(void);

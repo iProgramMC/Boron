@@ -286,11 +286,11 @@ void MiInitPMM()
 		// make a copy since we might tamper with this
 		struct limine_memmap_entry entry = *pEntry;
 		
-		int pfnStart = MmPhysPageToPFN(entry.base);
-		int pfnEnd   = MmPhysPageToPFN(entry.base + entry.length);
+		MMPFN pfnStart = MmPhysPageToPFN(entry.base);
+		MMPFN pfnEnd   = MmPhysPageToPFN(entry.base + entry.length);
 		
 		uint64_t lastAllocatedPage = 0;
-		for (int pfn = pfnStart; pfn < pfnEnd; pfn++)
+		for (MMPFN pfn = pfnStart; pfn < pfnEnd; pfn++)
 		{
 			uint64_t currPage = (MM_PFNDB_BASE + sizeof(MMPFDBE) * pfn) & ~(PAGE_SIZE - 1);
 			if (lastAllocatedPage == currPage) // check is probably useless
@@ -394,6 +394,51 @@ void MiInitPMM()
 	MmTotalAvailablePages = TotalPageCount;
 	
 	DbgPrint("MiInitPMM: %zu Kb Available Memory", MmTotalAvailablePages * PAGE_SIZE / 1024);
+}
+
+void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
+{
+	Length += Base & (PAGE_SIZE - 1);
+	Base   &= ~(PAGE_SIZE - 1);
+	Length &= ~(PAGE_SIZE - 1);
+	
+	MMPFN PfnStart = MmPhysPageToPFN(Base);
+	MMPFN PfnEnd   = MmPhysPageToPFN(Base + Length);
+	
+	// NOTE: I don't think we need the PFDB locked here.
+	//
+	// Nobody should access this region of PFDB before we
+	// finish initializing.
+	
+	uintptr_t lastAllocatedPage = 0;
+	for (MMPFN Pfn = PfnStart; Pfn < PfnEnd; Pfn++)
+	{
+		uintptr_t currPage = (MM_PFNDB_BASE + sizeof(MMPFDBE) * Pfn) & ~(PAGE_SIZE - 1);
+		if (lastAllocatedPage != currPage)
+		{
+			if (!MmCheckPteLocation(currPage, true))
+				KeCrash("MmRegisterMMIOAsMemory: could not ensure PTE location %p exists", currPage);
+			
+			PMMPTE Pte = MmGetPteLocation(currPage);
+			if (!(*Pte & MM_PTE_PRESENT))
+			{
+				// allocate it
+				MMPFN PfnAlloc = MmAllocatePhysicalPage();
+				
+				*Pte = ((uintptr_t)PfnAlloc * PAGE_SIZE) | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | MM_PTE_ISFROMPMM;
+				
+				KeInvalidatePage((void*) currPage);
+			}
+			
+			lastAllocatedPage = currPage;
+		}
+		
+		PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+		memset(Pfdbe, 0, sizeof *Pfdbe);
+		
+		Pfdbe->Type = PF_TYPE_MMIO;
+		Pfdbe->RefCount = 1;
+	}
 }
 
 // This is split into two parts to allow for use in a function other than MmpRemovePfnFromList
@@ -654,6 +699,9 @@ void MmFreePhysicalPage(MMPFN pfn)
 #ifdef DEBUG
 		if (PageFrame->Type == PF_TYPE_RECLAIM)
 			MmReclaimedPageCount++;
+		
+		if (PageFrame->Type == PF_TYPE_MMIO)
+			KeCrash("MmFreePhysicalPage: attempted to free an MMIO page (PFN %d)", pfn);
 #endif
 		
 		PageFrame->IsInModifiedPageList = false;
