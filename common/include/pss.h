@@ -50,6 +50,8 @@ typedef struct
 	size_t ImageNameSize;
 	char*  CommandLine;
 	size_t CommandLineSize;
+	char*  Environment;
+	size_t EnvironmentSize;
 	
 	LOADER_INFORMATION Loader;
 	
@@ -70,5 +72,5 @@ typedef struct
 PEB, *PPEB;
 
 #define StandardInput  StandardIO[0]
-#define StandardOutput StandardID[1]
-#define StandardError  StandardID[2]
+#define StandardOutput StandardIO[1]
+#define StandardError  StandardIO[2]

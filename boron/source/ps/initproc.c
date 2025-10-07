@@ -25,7 +25,13 @@ const char* PspBoronDllFileName = "/InitRoot/libboron.so";
 
 // path to init.exe and command line. temporary
 const char* PspInitialProcessFileName = "/InitRoot/init.exe";
-const char* PspInitialProcessCommandLine = "/?";
+const char* PspInitialProcessCommandLine = "";
+
+// environment. temporary.
+const char* PspInitialProcessEnvironment =
+	"PATH=/Mount/Nvme0Disk1Part0:/InitRoot:/\0"
+	"SOMETHING=Something here\0"
+	"\0";
 
 // TODO THIS IS A PLACEHOLDER
 #include <limreq.h>
@@ -33,6 +39,20 @@ const char* PspInitialProcessCommandLine = "/?";
 bool PsShouldStartInitialProcess()
 {
 	return !StringContainsCaseInsensitive(KeGetBootCommandLine(), "/noinit");
+}
+
+// Unlike strlen(), this counts the amount of characters in an environment
+// variable description.  Environment variables are separated with "\0" and
+// the final environment variable finishes with two "\0" characters.
+static size_t PspEnvironmentLength(const char* Environ)
+{
+	size_t Length = 2;
+	while (Environ[0] != '\0' && Environ[1] != '\0') {
+		Environ++;
+		Length++;
+	}
+	
+	return Length;
 }
 
 // TODO: Share a lot of this code with Ldr.
@@ -68,6 +88,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	const char* ImageName = PspInitialProcessFileName;
 	const char* CommandLine = PspInitialProcessCommandLine;
+	const char* Environment = PspInitialProcessEnvironment;
 	
 	Func = __func__;
 	
@@ -170,6 +191,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	// and the size of the command line and image name
 	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
 	PebSize += strlen(CommandLine) + 8 + sizeof(uintptr_t);
+	PebSize += PspEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
 	
 	// Now round it up to a page size
 	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -285,6 +307,17 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	PPeb->CommandLineSize = strlen(CommandLine);
 	strcpy(AfterPeb, CommandLine);
 	
+	AfterPeb += PPeb->CommandLineSize + 1;
+	
+	// Align to a uintptr_t boundary.
+	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
+	
+	// Copy the environment.
+	PPeb->Environment = AfterPeb;
+	PPeb->EnvironmentSize = PspEnvironmentLength(Environment);
+	memcpy(PPeb->Environment, Environment, PPeb->EnvironmentSize);
+	
+	// Assign the PEB to this process, detach, and dereference the process object.
 	Process->Pcb.PebPointer = PPeb;
 	
 	PsSetAttachedProcess(OldAttached);

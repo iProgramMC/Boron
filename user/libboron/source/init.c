@@ -703,10 +703,11 @@ void DLLEntryPoint(PPEB Peb)
 	BSTATUS Status;
 	
 	LdrDbgPrint("OSDLL: DLLEntryPoint!");
-	LdrDbgPrint("OSDLL: Peb: %p", Peb);
-	LdrDbgPrint("OSDLL: Free Size: %zu", Peb->PebFreeSize);
-	LdrDbgPrint("OSDLL: Image Name: '%p'", Peb->ImageName);
-	LdrDbgPrint("OSDLL: Command Line: '%p'", Peb->CommandLine);
+	LdrDbgPrint("OSDLL: Peb:          %p",   Peb);
+	LdrDbgPrint("OSDLL: Free Size:    %zu",  Peb->PebFreeSize);
+	LdrDbgPrint("OSDLL: Image Name:   '%s'", Peb->ImageName);
+	LdrDbgPrint("OSDLL: Command Line: '%s'", Peb->CommandLine ? Peb->CommandLine : "(none)");
+	LdrDbgPrint("OSDLL: Environment:  '%s'", Peb->Environment ? Peb->Environment : "(none)");
 	
 	ELF_ENTRY_POINT2 EntryPoint = NULL;
 	Status = OSDLLRunImage(Peb, &EntryPoint);

@@ -11,7 +11,8 @@ BSTATUS OSCreateProcess(
 	bool InheritHandles,
 	bool CreateSuspended,
 	const char* ImageName,
-	const char* CommandLine
+	const char* CommandLine,
+	const char* Environment
 );
 
 #ifdef __cplusplus

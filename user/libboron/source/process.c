@@ -17,18 +17,33 @@ static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 	return OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
 }
 
-static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine)
+// Unlike strlen(), this counts the amount of characters in an environment
+// variable description.  Environment variables are separated with "\0" and
+// the final environment variable finishes with two "\0" characters.
+static size_t OSDLLEnvironmentLength(const char* Environ)
+{
+	size_t Length = 2;
+	while (Environ[0] != '\0' && Environ[1] != '\0') {
+		Environ++;
+		Length++;
+	}
+	
+	return Length;
+}
+
+static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine, const char* Environment)
 {
 	size_t PebSize = sizeof(PEB);
 	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
 	PebSize += strlen(CommandLine) + 8 + sizeof(uintptr_t);
+	PebSize += OSDLLEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
 	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);	
 	return PebSize;
 }
 
-static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine)
+static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine, const char* Environment)
 {
-	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine);
+	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine, Environment);
 	
 	// Create the PEB
 	PPEB Peb = OSAllocate(PebSize);
@@ -46,9 +61,15 @@ static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const 
 	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
 	Peb->CommandLine = AfterPeb;
 	Peb->CommandLineSize = strlen(CommandLine);
+	AfterPeb += Peb->CommandLineSize + 1;
+	
+	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
+	Peb->Environment = AfterPeb;
+	Peb->EnvironmentSize = OSDLLEnvironmentLength(Environment);
 	
 	strcpy(Peb->ImageName, ImageName);
 	strcpy(Peb->CommandLine, CommandLine);
+	memcpy(Peb->Environment, Environment, Peb->EnvironmentSize);
 	
 	*OutPeb = Peb;
 	*OutPebSize = PebSize;
@@ -84,6 +105,7 @@ static BSTATUS OSDLLPreparePebForProcess(
 	// Update all the pointers to point to the correct place.
 	Peb->ImageName   = (char*)((uintptr_t)Peb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	Peb->CommandLine = (char*)((uintptr_t)Peb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)Peb);
+	Peb->Environment = (char*)((uintptr_t)Peb->Environment + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	Peb->PebFreeSize = RegionSize;
 	
 	// Duplicate the standard input/output handles, unless InheritHandles is true, in which case just
@@ -106,11 +128,6 @@ static BSTATUS OSDLLPreparePebForProcess(
 				return Status;
 		}
 	}
-	
-	// TODO: Copy the environment variables from our PEB into
-	// the PEB of the receiving process
-	
-	
 	
 	Status = OSSetPebProcess(ProcessHandle, PebPtr);
 	if (FAILED(Status))
@@ -156,7 +173,8 @@ BSTATUS OSCreateProcess(
 	bool InheritHandles,
 	bool CreateSuspended,
 	const char* ImageName,
-	const char* CommandLine
+	const char* CommandLine,
+	const char* Environment
 )
 {
 	// Create the process
@@ -176,10 +194,14 @@ BSTATUS OSCreateProcess(
 	
 	ProcessHandle = *OutHandle;
 	
+	// If the environment wasn't specified, copy the one from our process.
+	if (!Environment)
+		Environment = OSDLLGetCurrentPeb()->Environment;
+	
 	// Create the PEB for this process.
 	PPEB Peb = NULL;
 	size_t PebSize = 0;
-	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine);
+	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine, Environment);
 	if (FAILED(Status))
 	{
 	Fail:

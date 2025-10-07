@@ -13,7 +13,8 @@ void RunTest5()
 		true,
 		false,
 		Path,
-		""
+		"",
+		NULL
 	);
 	CHECK_STATUS(5);
 	
