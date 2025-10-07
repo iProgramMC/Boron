@@ -280,7 +280,9 @@ void MiInitPMM()
 		// if the entry isn't usable, skip it
 		struct limine_memmap_entry *pEntry = pResponse->entries[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE && pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE)
+		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
+			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
+			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
 			continue;
 		
 		// make a copy since we might tamper with this
