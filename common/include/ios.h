@@ -14,6 +14,8 @@ Author:
 ***/
 #pragma once
 
+#include "ioctl.h"
+
 typedef struct _FCB FCB, *PFCB;
 
 // TODO: I think we should actually phase out the status code from here.

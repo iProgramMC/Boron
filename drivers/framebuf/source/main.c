@@ -111,9 +111,48 @@ BSTATUS FramebufferBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb)
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }
 
+BSTATUS FramebufferIoControl(
+	PFCB Fcb,
+	int IoControlCode,
+	const void* InBuffer,
+	size_t InBufferSize,
+	void* OutBuffer,
+	size_t OutBufferSize
+)
+{
+	PREP_EXT;
+	
+	switch (IoControlCode)
+	{
+		case IOCTL_FRAMEBUFFER_GET_INFO:
+		{
+			// no data taken in
+			if (InBufferSize != 0)
+				return STATUS_INVALID_PARAMETER;
+			
+			// this many bytes put out
+			if (OutBufferSize != sizeof(IOCTL_FRAMEBUFFER_INFO))
+				return STATUS_INVALID_PARAMETER;
+			
+			(void) InBuffer;
+			
+			PIOCTL_FRAMEBUFFER_INFO FbInfo = OutBuffer;
+			FbInfo->Width  = Ext->Width;
+			FbInfo->Height = Ext->Height;
+			FbInfo->Pitch  = Ext->Pitch;
+			FbInfo->Bpp    = (short) Ext->Bpp;
+			
+			return STATUS_SUCCESS;
+		}
+	}
+	
+	return STATUS_UNSUPPORTED_FUNCTION;
+}
+
 IO_DISPATCH_TABLE FramebufferDispatchTable = {
 	.Read = FramebufferRead,
 	.Write = FramebufferWrite,
+	.IoControl = FramebufferIoControl,
 	.Seekable = FramebufferSeekable,
 	.BackingMemory = FramebufferBackingMemory,
 	.Flags = 0,

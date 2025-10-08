@@ -20,11 +20,25 @@ void RunTest6()
 		return;
 	}
 	
-	const int PITCH = 2048;
-	const int HEIGHT = 800;
+	DbgPrint("Calling OSDeviceIoControl");
+	IOCTL_FRAMEBUFFER_INFO Info;
+	Status = OSDeviceIoControl(
+		Handle,
+		IOCTL_FRAMEBUFFER_GET_INFO,
+		NULL,
+		0,
+		&Info,
+		sizeof Info
+	);
+	if (FAILED(Status))
+	{
+		DbgPrint("Test6: Failed to get framebuffer info from %s. %s", Path, RtlGetStatusString(Status));
+		OSClose(Handle);
+		return;
+	}
 	
 	void* BaseAddress = NULL;
-	size_t Size = PITCH * HEIGHT * 4;
+	size_t Size = Info.Pitch * Info.Height;
 	Status = OSMapViewOfObject(
 		CURRENT_PROCESS_HANDLE,
 		Handle,
@@ -41,10 +55,29 @@ void RunTest6()
 		OSClose(Handle);
 		return;
 	}
+
+	uint32_t RowStart = 0;
 	
-	uint32_t* Address = BaseAddress;
-	for (int i = 0; i < 1024 * 768; i++)
+	uint32_t Thr1 = Info.Height * 1 / 5;
+	uint32_t Thr2 = Info.Height * 2 / 5;
+	uint32_t Thr3 = Info.Height * 3 / 5;
+	uint32_t Thr4 = Info.Height * 4 / 5;
+	
+	for (uint32_t i = 0; i < Info.Height; i++)
 	{
-		*(Address++) = 0x12345678;
+		uint32_t* Row = (uint32_t*)((uint8_t*)BaseAddress + RowStart);
+		
+		for (uint32_t j = 0; j < Info.Width; j++)
+		{
+			uint32_t Color = 0xFFFFFF;
+			if (i < Thr1 || i > Thr4)
+				Color = 0x00FFFF;
+			else if (i < Thr2 || i > Thr3)
+				Color = 0xDF9AFF;
+			
+			Row[j] = Color;
+		}
+		
+		RowStart += Info.Pitch;
 	}
 }

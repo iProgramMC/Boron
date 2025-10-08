@@ -75,6 +75,15 @@ BSTATUS IoReadDirectoryEntry(
 	PIO_DIRECTORY_ENTRY DirectoryEntry
 );
 
+BSTATUS IoDeviceIoControl(
+	PFILE_OBJECT FileObject,
+	int IoControlCode,
+	void* InBuffer,
+	size_t InBufferSize,
+	void* OutBuffer,
+	size_t OutBufferSize
+);
+
 // ** SYSTEM SERVICES **
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
@@ -92,3 +101,5 @@ BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut);
 BSTATUS OSResetDirectoryReadHead(HANDLE FileHandle);
 
 BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t DirectoryEntryCount, PIO_DIRECTORY_ENTRY DirectoryEntries);
+
+BSTATUS OSDeviceIoControl(HANDLE FileHandle, int IoControlCode, void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);

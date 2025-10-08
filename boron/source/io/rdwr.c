@@ -433,6 +433,24 @@ BSTATUS IoWriteFile(
 	return Status;
 }
 
+BSTATUS IoDeviceIoControl(
+	PFILE_OBJECT FileObject,
+	int IoControlCode,
+	void* InBuffer,
+	size_t InBufferSize,
+	void* OutBuffer,
+	size_t OutBufferSize
+)
+{
+	PFCB Fcb = FileObject->Fcb;
+	IO_IO_CONTROL_METHOD IoControl = Fcb->DispatchTable->IoControl;
+	
+	if (!IoControl)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
+}
+
 // =========== User-facing API ===========
 
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
@@ -564,4 +582,75 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
 	ObDereferenceObject(FileObject);
 	
 	return MmSafeCopy(OutLength, &Length, sizeof(uint64_t), KeGetPreviousMode(), true);
+}
+
+BSTATUS OSDeviceIoControl(
+	HANDLE FileHandle,
+	int IoControlCode,
+	void* InBuffer,
+	size_t InBufferSize,
+	void* OutBuffer,
+	size_t OutBufferSize
+)
+{
+	BSTATUS Status;
+	void* FileObjectV;
+	
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	uint8_t *InBufferCopy = NULL, *OutBufferCopy = NULL;
+	
+	if ((InBufferSize && !InBuffer) || (OutBufferSize && !OutBuffer))
+		return STATUS_INVALID_PARAMETER;
+	
+	if (InBufferSize)
+	{
+		InBufferCopy = MmAllocatePool(POOL_PAGED, InBufferSize);
+		if (!InBufferCopy)
+		{
+			Status = STATUS_INSUFFICIENT_MEMORY;
+			goto EarlyExit;
+		}
+		
+		Status = MmSafeCopy(InBufferCopy, InBuffer, InBufferSize, KeGetPreviousMode(), false);
+		if (FAILED(Status))
+			goto EarlyExit;
+	}
+	
+	if (OutBufferSize)
+	{
+		OutBufferCopy = MmAllocatePool(POOL_PAGED, InBufferSize);
+		if (!OutBufferCopy)
+		{
+			Status = STATUS_INSUFFICIENT_MEMORY;
+			goto EarlyExit;
+		}
+	}
+	
+	// Do the actual I/O call now.
+	Status = IoDeviceIoControl(
+		FileObject,
+		IoControlCode,
+		InBufferCopy,
+		InBufferSize,
+		OutBufferCopy,
+		OutBufferSize
+	);
+	if (FAILED(Status))
+		goto EarlyExit;
+	
+	if (OutBufferSize)
+		Status = MmSafeCopy(OutBuffer, OutBufferCopy, OutBufferSize, KeGetPreviousMode(), true);
+	
+EarlyExit:
+	if (InBufferCopy)
+		MmFreePool(InBufferCopy);
+	if (OutBufferCopy)
+		MmFreePool(OutBufferCopy);
+	ObDereferenceObject(FileObject);
+	return Status;
 }

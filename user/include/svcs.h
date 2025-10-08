@@ -40,6 +40,15 @@ BSTATUS OSCreateThread(
 	bool CreateSuspended
 );
 
+BSTATUS OSDeviceIoControl(
+	HANDLE FileHandle,
+	int IoControlCode,
+	void* InBuffer,
+	size_t InBufferSize,
+	void* OutBuffer,
+	size_t OutBufferSize
+);
+
 BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, PHANDLE OutNewHandle, int OpenFlags);
 
 NO_RETURN void OSExitProcess(int ExitCode);
