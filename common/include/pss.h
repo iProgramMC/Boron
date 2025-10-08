@@ -71,6 +71,13 @@ typedef struct
 }
 PEB, *PPEB;
 
-#define StandardInput  StandardIO[0]
-#define StandardOutput StandardIO[1]
-#define StandardError  StandardIO[2]
+enum
+{
+	FILE_STANDARD_INPUT,
+	FILE_STANDARD_OUTPUT,
+	FILE_STANDARD_ERROR
+};
+
+#define StandardInput  StandardIO[FILE_STANDARD_INPUT]
+#define StandardOutput StandardIO[FILE_STANDARD_OUTPUT]
+#define StandardError  StandardIO[FILE_STANDARD_ERROR]
