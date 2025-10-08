@@ -112,43 +112,90 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	}
 	else
 	{
-		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
-		PCCB PageCache = &FileObject->Fcb->PageCache;
-		
 		MMPFN Pfn = PFN_INVALID;
+		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
+		PCCB_ENTRY PCcbEntry = NULL;
 		
-		MmLockCcb(PageCache);
+		// First, check if the BackingMemory call is supported.
+		IO_STATUS_BLOCK Iosb;
+		PFCB Fcb = FileObject->Fcb;
+		IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
+		PCCB PageCache = &Fcb->PageCache;
 		
-		PCCB_ENTRY PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, false);
-		if (PCcbEntry && AtLoad(PCcbEntry->Long))
+		if (BackingMemory)
 		{
-			// Lock the physical memory lock because the page we're looking for
-			// might have been freed.
-			//
-			// This is, as far as I know, the only way.  Sure, if the CCB entry
-			// doesn't exist and it is zero, then you are able to skip over the
-			// PFN lock at no extra cost (you'd just be reloading the same page
-			// twice potentially)
-			KIPL Ipl = MiLockPfdb();
-			
-			// After this, the CCB entry cannot be changed.  This is because
-			// when a page is reclaimed the PFDB lock is held.
-			CCB_ENTRY CcbEntry;
-			if (PCcbEntry)
-				CcbEntry = *PCcbEntry;
-			
-			if (CcbEntry.Long)
+			Status = BackingMemory(&Iosb, Fcb);
+			if (FAILED(Status))
 			{
-				// We managed to find the PFN in one piece.  Add a reference to it as we
-				// will just map it directly.
-				Pfn = CcbEntry.Pfn;
-				MiPageAddReferenceWithPfdbLocked(Pfn);
+				DbgPrint(
+					"%s: BackingMemory call on FCB %p failed with status %s (%d)",
+					__func__,
+					Fcb,
+					RtlGetStatusString(Status),
+					Status
+				);
+				goto Exit;
 			}
 			
-			MiUnlockPfdb(Ipl);
+			// The backing memory is an address range in physical memory.
+			if (FileOffset >= Iosb.BackingMemory.Length)
+			{
+				DbgPrint(
+					"%s: Could not access file offset %zu into mapped range because it's outside of "
+					"its range of %zu bytes",
+					__func__,
+					FileOffset,
+					Iosb.BackingMemory.Length
+				);
+				
+				// NOTE: Would call it STATUS_IN_PAGE_ERROR.  However, currently we have no support
+				// for status codes with additional information, and actual I/O errors would behave
+				// similarly to this.
+				Status = STATUS_HARDWARE_IO_ERROR;
+				goto Exit;
+			}
+			
+			uintptr_t Address = Iosb.BackingMemory.Start + FileOffset;
+			
+			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
+			// with the page frame database! (via MmRegisterMMIOAsMemory)
+			Pfn = MmPhysPageToPFN(Address);
 		}
-		
-		MmUnlockCcb(PageCache);
+		else
+		{
+			MmLockCcb(PageCache);
+			
+			PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, false);
+			if (PCcbEntry && AtLoad(PCcbEntry->Long))
+			{
+				// Lock the physical memory lock because the page we're looking for
+				// might have been freed.
+				//
+				// This is, as far as I know, the only way.  Sure, if the CCB entry
+				// doesn't exist and it is zero, then you are able to skip over the
+				// PFN lock at no extra cost (you'd just be reloading the same page
+				// twice potentially)
+				KIPL Ipl = MiLockPfdb();
+				
+				// After this, the CCB entry cannot be changed.  This is because
+				// when a page is reclaimed the PFDB lock is held.
+				CCB_ENTRY CcbEntry;
+				if (PCcbEntry)
+					CcbEntry = *PCcbEntry;
+				
+				if (CcbEntry.Long)
+				{
+					// We managed to find the PFN in one piece.  Add a reference to it as we
+					// will just map it directly.
+					Pfn = CcbEntry.Pfn;
+					MiPageAddReferenceWithPfdbLocked(Pfn);
+				}
+				
+				MiUnlockPfdb(Ipl);
+			}
+			
+			MmUnlockCcb(PageCache);
+		}
 		
 		// Did we find the PFN already?
 		if (Pfn != PFN_INVALID)
@@ -169,7 +216,10 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			
 			*PtePtr = NewPte;
 			
-			MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
+			if (!BackingMemory)
+			{
+				MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
+			}
 			
 			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
 			Status = STATUS_SUCCESS;
@@ -179,6 +229,9 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		// No, we didn't find the PFN already.
 		MmUnlockSpace(SpaceUnlockIpl, Va);
 		SpaceUnlockIpl = -1;
+		
+		// BackingMemory should've already handled this if it existed
+		ASSERT(!BackingMemory);
 		
 		// First, ensure the CCB entry can be there.
 		MmLockCcb(PageCache);
@@ -208,7 +261,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		MDL_ONEPAGE Mdl;
 		MmInitializeSinglePageMdl(&Mdl, Pfn, MDL_FLAG_WRITE);
 		
-		IO_STATUS_BLOCK Iosb;
 		Status = IoPerformPagingRead(
 			&Iosb,
 			FileObject,
@@ -221,12 +273,16 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		if (FAILED(Status))
 		{
 			// Ran out of memory trying to read this file.
-			// Let the MM know we need more memory.
 			DbgPrint("%s: cannot answer page fault because I/O failed with code %d", __func__, Status);
 			MmFreePhysicalPage(Pfn);
 			MmUnlockCcb(PageCache);
+			
 			if (Status == STATUS_INSUFFICIENT_MEMORY)
+			{
+				// Let the MM know we need more memory.
 				Status = STATUS_REFAULT_SLEEP;
+			}
+			
 			goto Exit;
 		}
 		

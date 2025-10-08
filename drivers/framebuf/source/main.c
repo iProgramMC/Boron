@@ -185,28 +185,13 @@ BSTATUS CreateFrameBufferObject(int Index)
 	// Draw a testing pattern if this isn't the primary framebuffer
 	if (Index != 0 && FbBpp == 32)
 	{
-		uint32_t RowStart = 0;
-		
-		uint32_t Thr1 = FbHeight * 1 / 5;
-		uint32_t Thr2 = FbHeight * 2 / 5;
-		uint32_t Thr3 = FbHeight * 3 / 5;
-		uint32_t Thr4 = FbHeight * 4 / 5;
-		
+		size_t RowStart = 0;
 		for (uint32_t i = 0; i < FbHeight; i++)
 		{
 			uint32_t* Row = MmGetHHDMOffsetAddr(FbAddress + RowStart);
 			
 			for (uint32_t j = 0; j < FbWidth; j++)
-			{
-				uint32_t Color = 0xFFFFFF;
-				if (i < Thr1 || i > Thr4)
-					Color = 0x00FFFF;
-				else if (i < Thr2 || i > Thr3)
-					Color = 0xDF9AFF;
-				
-				Row[j] = Color;
-			}
-			
+				Row[j] = ((i + j) & 1) ? 0xFFFFFF : 0x000000;
 			
 			RowStart += FbPitch;
 		}
