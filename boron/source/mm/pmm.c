@@ -691,7 +691,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 	
 	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(pfn);
 	
-	ASSERT(PageFrame->Type == PF_TYPE_USED || PageFrame->Type == PF_TYPE_RECLAIM);
+	ASSERT(PageFrame->Type == PF_TYPE_USED || PageFrame->Type == PF_TYPE_RECLAIM || PageFrame->Type == PF_TYPE_MMIO);
 	
 	int RefCount = --PageFrame->RefCount;
 	ASSERT(RefCount >= 0);
@@ -901,6 +901,10 @@ void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn)
 
 void MmPageAddReference(MMPFN Pfn)
 {
+#ifdef PMMDEBUG
+	DbgPrint("MmPageAddReference    () => %d (RA:%p)", Pfn, __builtin_return_address(0));
+#endif
+	
 	ASSERT(Pfn != PFN_INVALID);
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);

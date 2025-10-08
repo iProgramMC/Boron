@@ -20,7 +20,6 @@ void RunTest6()
 		return;
 	}
 	
-	DbgPrint("Calling OSDeviceIoControl");
 	IOCTL_FRAMEBUFFER_INFO Info;
 	Status = OSDeviceIoControl(
 		Handle,
@@ -80,4 +79,20 @@ void RunTest6()
 		
 		RowStart += Info.Pitch;
 	}
+	
+	Status = OSFreeVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		BaseAddress,
+		Size,
+		MEM_RELEASE
+	);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Test6: Failed to unmap %s. %s", Path, RtlGetStatusString(Status));
+		OSClose(Handle);
+		return;
+	}
+	
+	OSClose(Handle);
 }

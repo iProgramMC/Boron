@@ -160,6 +160,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
 			// with the page frame database! (via MmRegisterMMIOAsMemory)
 			Pfn = MmPhysPageToPFN(Address);
+			MmPageAddReference(Pfn);
 		}
 		else
 		{
@@ -580,7 +581,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	
 	MiUnlockPfdb(Ipl);
 	
-	DbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
+	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;
 }
