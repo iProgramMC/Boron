@@ -192,6 +192,14 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
 	
+	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
+	
+	// Check if we even support writing in the first place.
+	if (!Dispatch->Write)
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	
+	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
+	
 	Iosb->BytesWritten = 0;
 	
 	bool IsSeekable = IoIsSeekable(Fcb);
@@ -205,6 +213,31 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	if (!IsSeekable)
 		Cached = false;
 	
+	uint64_t EndOffset = Offset + Mdl->ByteCount;
+	
+	// If we need to append, then lock exclusively unconditionally.
+	// Then make the offset the file's length.
+	if (Flags & IO_RW_APPEND)
+	{
+		Status = IoLockFcbExclusive(Fcb);
+		
+		if (FAILED(Status))
+			return IOSB_STATUS(Iosb, Status);
+		
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
+		
+		Offset = Fcb->FileLength;
+	}
+	// If the capability flags demand an exclusive lock.
+	else if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
+	{
+		Status = IoLockFcbExclusive(Fcb);
+		
+		if (FAILED(Status))
+			return IOSB_STATUS(Iosb, Status);
+		
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
+	}
 	// Check if the file needs to be expanded at all.
 	//
 	// This check is not performed atomically at all.  Frankly, if a truncation of the file
@@ -214,21 +247,20 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	// If the truncation attempt happens in the middle of the write function, and we did
 	// exclusively lock the FCB to check this, then the truncation would be delayed to after
 	// this function succeeds.
-	uint64_t EndOffset = Offset + Mdl->ByteCount;
-	
-	if (IsSeekable && EndOffset > Fcb->FileLength)
+	else if (IsSeekable && EndOffset > Fcb->FileLength)
 	{
-		// Expansion required.  Acquire the lock, expand, and then demote it to shared.
+		// Expansion required.  Acquire the lock, and expand.
 		Status = IoLockFcbExclusive(Fcb);
 		
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
 		
 		Status = IopSetFileSize(Fcb, EndOffset);
+		
 		// TODO: Allow reporting of the status here.  It's possible this failed because
 		// the disk ran out of space, for example.
 		
-		IoDemoteToSharedFcb(Fcb);
+		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
 	else
 	{
@@ -249,6 +281,7 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		{
 			// Trying to read way out of the bounds of the file, so just return zero.
 			Iosb->BytesRead = 0;
+			IoUnlockFcb(Fcb);
 			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 		}
 		
@@ -273,9 +306,6 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
-	// We don't lock the lock exclusively anymore.
-	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
 	
 	if (FAILED(Status))
 	{

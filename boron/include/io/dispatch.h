@@ -139,19 +139,6 @@ typedef BSTATUS(*IO_TOUCH_METHOD)      (PFCB Fcb, bool IsWrite);
 typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
 typedef size_t (*IO_ALIGN_INFO_METHOD) (PFCB Fcb);
 
-// Flags for IO_READ_METHOD and IO_WRITE_METHOD:
-
-// The operation may not block.  If a situation arises where this operation would block, it is immediately ended.
-#define IO_RW_NONBLOCK         (1 << 0)
-
-// The FCB's rwlock is locked exclusively.  If there's a need for the current thread to own the rwlock exclusively,
-// and this isn't checked, then the routine must release the lock and re-acquire it exclusive.
-#define IO_RW_LOCKEDEXCLUSIVE  (1 << 1)
-
-// This is paging I/O.  This means memory might be very scarce or downright not available, so memory allocations
-// should be avoided.  This may make memory operations slower, but this is a worthy sacrifice considering the situation.
-#define IO_RW_PAGING           (1 << 2)
-
 enum
 {
 	// If this flag is set, the FCB's rwlock will function like a mutex and will
