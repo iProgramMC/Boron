@@ -402,7 +402,7 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 {
 	Length += Base & (PAGE_SIZE - 1);
 	Base   &= ~(PAGE_SIZE - 1);
-	Length &= ~(PAGE_SIZE - 1);
+	Length  = (Length + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
 	MMPFN PfnStart = MmPhysPageToPFN(Base);
 	MMPFN PfnEnd   = MmPhysPageToPFN(Base + Length);
