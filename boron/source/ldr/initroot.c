@@ -82,7 +82,7 @@ POBJECT_DIRECTORY LdriCreateInitialDir()
 	if (FAILED(Status))
 	{
 		DbgPrint("Ldr: Failed to create /InitRoot directory (%d)", Status);
-		return false;
+		return NULL;
 	}
 	
 	return RootDir;

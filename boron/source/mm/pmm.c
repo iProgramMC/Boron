@@ -28,6 +28,7 @@ Author:
 //extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
 //extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
+// Free page statistics
 size_t MmTotalAvailablePages;
 size_t MmTotalFreePages;
 
@@ -35,12 +36,15 @@ size_t MmTotalFreePages;
 size_t MmReclaimedPageCount;
 #endif
 
-uintptr_t MmHHDMBase;
-
 size_t MmGetTotalFreePages()
 {
 	return MmTotalFreePages;
 }
+
+// HHDM
+#ifdef IS_64_BIT
+
+uintptr_t MmHHDMBase;
 
 uint8_t* MmGetHHDMBase()
 {
@@ -56,6 +60,56 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
 {
 	return (uintptr_t) addr - (uintptr_t) MmGetHHDMBase();
 }
+
+#else // IS_64_BIT
+
+#ifdef CONFIG_SMP
+#error TODO: Add spinlocks or per-core separation!
+#endif
+
+uintptr_t MmHHDMWindowBase;
+
+static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
+{
+	PMMPTE Ptes = (PMMPTE)(MI_PML1_LOCATION);
+	
+	PhysAddr &= MI_FASTMAP_MASK;
+	MmHHDMWindowBase = PhysAddr;
+	
+	for (size_t i = 0; i < 8 * 1024 * 1024; i += 4096)
+	{
+		uintptr_t Address = MI_FASTMAP_START + i;
+		
+		MMADDRESS_CONVERT Convert;
+		Convert.Long = Address;
+		
+		Ptes[Convert.Level2Index * 1024 + Convert.Level1Index] = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | (PhysAddr + i);
+		KeInvalidatePage((void*)Address);
+	}
+}
+
+void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
+{
+	if ((PhysAddr & MI_FASTMAP_MASK) != MmHHDMWindowBase)
+		MiUpdateHHDMWindowBase(PhysAddr);
+	
+	return (void*)(MI_FASTMAP_START + (PhysAddr & ~MI_FASTMAP_MASK));
+}
+
+uintptr_t MmGetHHDMOffsetFromAddr(void* Addr)
+{
+	uintptr_t AddrInt = (uintptr_t) Addr;
+	
+	if ((AddrInt & MI_FASTMAP_MASK) != MmHHDMWindowBase)
+	{
+		DbgPrint("MmGetHHDMOffsetFromAddr: Address %p isn't in the currently selected window!", Addr);
+		return 0xFFFFFFFF;
+	}
+
+	return MmHHDMWindowBase + (AddrInt & ~MI_FASTMAP_MASK);
+}
+
+#endif // IS_64_BIT
 
 // Allocates a page from the memmap for eternity during init.  Used to prepare the PFN database.
 // Also used in the initial DLL loader.
@@ -174,6 +228,45 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	}
 	
 	return true;
+#elif defined TARGET_I386
+	(void)pageTable; // unused
+	
+	MMADDRESS_CONVERT Convert;
+	Convert.Long = address;
+	
+	PMMPTE Level1, Level2;
+	
+	Level2 = (PMMPTE)MI_PML2_LOCATION;
+	Level1 = (PMMPTE)(MI_PML1_LOCATION + 4096 * Convert.Level2Index);
+	
+	if (~Level2[Convert.Level2Index] & MM_PTE_PRESENT)
+	{
+		uintptr_t Addr = MiAllocatePageFromMemMap();
+		
+		if (!Addr)
+		{
+			// TODO: Allow rollback
+			return false;
+		}
+		
+		Level2[Convert.Level2Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	}
+	
+	if (~Level1[Convert.Level1Index] & MM_PTE_PRESENT)
+	{
+		uintptr_t Addr = MiAllocatePageFromMemMap();
+		
+		if (!Addr)
+		{
+			// TODO: Allow rollback
+			return false;
+		}
+		
+		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
+		Level1[Convert.Level1Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	}
+	
+	return true;
 #else
 	#error "Implement this for your platform!"
 #endif
@@ -247,7 +340,9 @@ void MiInitPMM()
 		DbgPrint("WARNING: The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLoaderParameterBlock.HhdmBase);
 #endif
 	
+#ifdef IS_64_BIT
 	MmHHDMBase = KeLoaderParameterBlock.HhdmBase;
+#endif
 	
 	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
 	

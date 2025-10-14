@@ -268,7 +268,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 					MmFreePhysicalPage(PfnsAllocated[i]);
 				}
 				
-				return false;
+				return NULL;
 			}
 			
 			PtesModified [NumPfnsAllocated] = EntryPointer;

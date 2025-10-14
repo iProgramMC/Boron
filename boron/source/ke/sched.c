@@ -812,7 +812,7 @@ void KeReadyThread(PKTHREAD Thread)
 
 NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 {
-	KIPL Ipl = KiLockDispatcher();
+	UNUSED KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = KeGetCurrentThread();
 	
@@ -828,7 +828,7 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	
 	// Unlock the dispatcher and request an end to current quantum.
 	KiUnlockDispatcher(IPL_DPC);
-	KiHandleQuantumEnd(Ipl);
+	KiHandleQuantumEnd();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

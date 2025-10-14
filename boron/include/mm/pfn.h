@@ -95,7 +95,9 @@ typedef struct
 			uint32_t _Fcb;
 			
 			uint32_t _OffsetLower;
-		};
+		}
+		PACKED
+		FileCache;
 	};
 #endif
 }

@@ -84,6 +84,13 @@ ifeq ($(TARGETL), amd64)
 	BASM ?= nasm
 	
 	# Compiler and linker flags
+	#
+	# NOTE 7.7.2024 -- No-reorder-functions was added because a certain functions
+	# was generating an "unlikely" section, which was placed at different addresses
+	# in kernel.elf and kernel2.elf, screwing up the symbol table...  That's pretty
+	# bad.
+	#
+	# TODO: fix above ^^^
 	ARCH_CFLAGS =       \
 		-m64            \
 		-march=x86-64   \
@@ -93,7 +100,8 @@ ifeq ($(TARGETL), amd64)
 		-mno-sse        \
 		-mno-sse2       \
 		-mno-red-zone   \
-		-mcmodel=kernel
+		-mcmodel=kernel \
+		-fno-reorder-functions
 		
 	ARCH_LDFLAGS = \
 		-m elf_x86_64 \
@@ -101,6 +109,8 @@ ifeq ($(TARGETL), amd64)
 	
 	ARCH_ASFLAGS = \
 		-f elf64
+	
+	SMP = yes
 	
 else ifeq ($(TARGETL), i386)
 	# Compiler Toolchain
@@ -123,8 +133,14 @@ else ifeq ($(TARGETL), i386)
 	ARCH_ASFLAGS = \
 		-f elf32
 	
+	SMP = no
+	
 else
 	$(error You cannot build for this architecture right now.)
+endif
+
+ifeq ($(SMP), yes)
+	ARCH_CFLAGS += -DCONFIG_SMP
 endif
 
 # User controllable CFLAGS.
@@ -143,32 +159,15 @@ NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDKI_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
-#
-# NOTE 7.7.2024 -- No-reorder-functions was added because a certain functions
-# was generating an "unlikely" section, which was placed at different addresses
-# in kernel.elf and kernel2.elf, screwing up the symbol table...  That's pretty
-# bad.
-#
-# TODO: fix above ^^^
 CFLAGS +=                   \
 	-fno-omit-frame-pointer \
-	-std=c11                \
+	-std=c2x                \
 	-ffreestanding          \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fno-pie                \
 	-fno-pic                \
-	-fno-reorder-functions  \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
-	-mcmodel=kernel         \
 	-MMD                    \
 	-MP                     \
 	-I.                     \

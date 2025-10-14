@@ -91,6 +91,10 @@ typedef struct MISLAB_ITEM_tag
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
 	
+#if IS_32_BIT
+	int Dummy; // alignment
+#endif
+	
 	char Data[0];
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
@@ -163,18 +167,6 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 #define MI_HUGE_MEMORY_CHECK (0x4D454755484E5242)
 
 // ===== Pool Allocator =====
-
-#ifdef TARGET_AMD64
-
-// One PML4 entry can map up to 1<<39 (512GB) of memory.
-// Thus, our pool will be 512 GB in size.
-#define MI_POOL_LOG2_SIZE (39)
-
-#else
-
-#error "Define the pool size for your platform!"
-
-#endif
 
 typedef struct MIPOOL_ENTRY_tag
 {
@@ -250,6 +242,11 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap);
 
 // Get the top of the area managed by the pool allocator.
 uintptr_t MiGetTopOfPoolManagedArea();
+
+#ifdef TARGET_I386
+// Get the top of the second area managed by the pool allocator.
+uintptr_t MiGetTopOfSecondPoolManagedArea();
+#endif
 
 // Gets the PTE's location in the recursive PTE.
 PMMPTE MmGetPteLocation(uintptr_t Address);

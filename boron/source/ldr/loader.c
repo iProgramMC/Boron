@@ -13,13 +13,21 @@ Author:
 ***/
 #include "ldri.h"
 
-static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
-
 // TODO: Perhaps we could define it from the command line? Something like /HAL=<halfile>
 #ifdef TARGET_AMD64
+
+static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
 static const char* LdrpHalPath = "halx86.sys";
+
+#elif defined TARGET_I386
+
+static uintptr_t LdrpCurrentBase = 0xC0800000;
+static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
+
 #else
-#error Define your HAL path here.
+	
+#error Define your loader base and HAL path here.
+
 #endif
 
 INIT

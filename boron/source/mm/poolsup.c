@@ -32,6 +32,26 @@ static LIST_ENTRY MmpPoolList;
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
+#ifdef TARGET_AMD64
+
+// One PML4 entry can map up to 1<<39 (512GB) of memory.
+// Thus, our pool will be 512 GB in size.
+#define MI_POOL_LOG2_SIZE (39)
+
+#elif defined TARGET_I386
+
+// There will actually be two arenas of pool space:
+// 0x80000000 - 0xC0000000 and 0xD0000000 - 0xF0000000
+#define MI_POOL_LOG2_SIZE (30)
+
+#define MI_POOL_LOG2_SIZE_2ND (29)
+
+#else
+
+#error "Define the pool size for your platform!"
+
+#endif
+
 INIT
 void MiInitPool()
 {
@@ -43,6 +63,18 @@ void MiInitPool()
 	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE - 12);
 	Entry->Address = MiGetTopOfPoolManagedArea();
 	InsertTailList(&MmpPoolList, &Entry->ListEntry);
+
+#ifdef TARGET_I386
+
+	// TODO: Will other 32-bit platforms look similar?
+	Entry = MiCreatePoolEntry();
+	Entry->Flags = 0;
+	Entry->Tag   = MI_EMPTY_TAG;
+	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE_2ND - 12);
+	Entry->Address = MiGetTopOfSecondPoolManagedArea();
+	InsertTailList(&MmpPoolList, &Entry->ListEntry);
+	
+#endif
 }
 
 MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
@@ -305,9 +337,13 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 		return (MIPOOL_SPACE_HANDLE) NULL;
 	}
 	
-	ASSERT(*PtePtr & MM_PTE_ISPOOLHDR);
+	// N.B.  This kind of relies on the notion that the address doesn't have
+	// the valid bit set.
+	uintptr_t PAddress = *PtePtr;
+	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
+	PAddress &= ~MM_PTE_ISPOOLHDR;
 	
-	MIPOOL_SPACE_HANDLE Handle = ((*PtePtr) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE;
+	MIPOOL_SPACE_HANDLE Handle = PAddress + MM_KERNEL_SPACE_BASE;
 	MmUnlockKernelSpace();
 	return Handle;
 }
