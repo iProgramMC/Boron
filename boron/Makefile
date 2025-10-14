@@ -104,12 +104,12 @@ ifeq ($(TARGETL), amd64)
 		-fno-reorder-functions
 		
 	ARCH_LDFLAGS = \
-		-m elf_x86_64 \
 		-z max-page-size=0x1000
 	
 	ARCH_ASFLAGS = \
 		-f elf64
 	
+	LINK_ARCH = elf_x86_64
 	SMP = yes
 	
 else ifeq ($(TARGETL), i386)
@@ -133,6 +133,7 @@ else ifeq ($(TARGETL), i386)
 	ARCH_ASFLAGS = \
 		-f elf32
 	
+	LINK_ARCH = elf_i386
 	SMP = no
 	
 else
@@ -193,6 +194,7 @@ CXXFLAGS +=                 \
 	
 LDFLAGSBASE +=              \
 	-nostdlib               \
+	-m $(LINK_ARCH)         \
 	$(ARCH_LDFLAGS)
 
 # Internal linker flags that should not be changed by the user.
@@ -238,7 +240,7 @@ CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BU
 # Link rules for the final kernel executable.
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
-	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
+	$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
@@ -247,12 +249,12 @@ $(SYMBOLS): $(KERNEL2)
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
 	@echo "[LD]\tLinking kernel to extract symbols"
-	@$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
+	$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
 
 # Link rules for the amalgam object file.
 $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
 	@echo "[LD]\tPartially linking kernel"
-	@$(BLD) -r $(OBJ) $(LDFLAGSBASE) -o $@
+	@$(BLD) -m $(LINK_ARCH) -r $(OBJ) $(LDFLAGSBASE) -o $@
 
 $(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TARGETL).o, $(OBJ)) $(SRC_DIR)/ke/version.c
 	@echo "[CC]\tCompiling $(SRC_DIR)/ke/version.c"
