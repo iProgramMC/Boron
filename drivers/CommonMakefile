@@ -126,7 +126,7 @@ all: driver
 # Link rules for the final driver executable.
 $(TARGET_DRIVER): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET_DRIVER)"
-	$(BLD) $(OBJ) $(LDFLAGS) -o $@
+	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
