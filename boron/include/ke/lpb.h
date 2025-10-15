@@ -118,7 +118,13 @@ typedef struct
 }
 LOADER_PARAMETER_BLOCK, *PLOADER_PARAMETER_BLOCK;
 
+PLOADER_PARAMETER_BLOCK KeGetLoaderParameterBlock();
+
+#ifdef KERNEL
 extern LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
+#else
+#define KeLoaderParameterBlock (*KeGetLoaderParameterBlock())
+#endif
 
 void KeJumpstartAp(uint32_t ProcessorIndex);
 

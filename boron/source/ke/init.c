@@ -24,6 +24,7 @@ NO_RETURN INIT
 void KiSystemStartup(void)
 {
 	DbgInit();
+	KiInitLoaderParameterBlock();
 	MiInitPMM();
 	MmInitAllocators();
 	KeSchedulerInitUP();

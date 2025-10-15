@@ -36,6 +36,11 @@ int KeGetProcessorCount()
 	return KeProcessorCount;
 }
 
+PLOADER_PARAMETER_BLOCK KeGetLoaderParameterBlock()
+{
+	return &KeLoaderParameterBlock;
+}
+
 const char* KeGetBootCommandLine()
 {
 	return KeLoaderParameterBlock.CommandLine;

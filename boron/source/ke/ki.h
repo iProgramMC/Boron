@@ -19,6 +19,9 @@ Author:
 #include <string.h>
 
 // TODO: This needs heavy cleanup.
+
+void KiInitLoaderParameterBlock();
+
 NO_RETURN void KiCPUBootstrap(PLOADER_AP LoaderAp);
 
 // ===== Tests =====
