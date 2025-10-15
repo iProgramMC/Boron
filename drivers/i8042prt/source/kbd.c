@@ -182,7 +182,7 @@ void KbdInitialize(int Vector, KIPL Ipl)
 BSTATUS KbdRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
-	UNUSED uintptr_t Offset,
+	UNUSED uint64_t Offset,
 	PMDL Mdl,
 	uint32_t Flags
 )
