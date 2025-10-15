@@ -17,9 +17,9 @@ Author:
 #include "mboot.h"
 
 extern uint32_t KiMultibootSignature;
-extern multiboot_info_t* KiMultibootPointer;
+extern multiboot_info_t* KiMultibootInfo;
 
-#define P2V(address) ((void*)(MI_IDENTMAP_START + address))
+#define P2V(address) ((void*)(MI_IDENTMAP_START + (uintptr_t)(address)))
 
 LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
 
@@ -62,24 +62,226 @@ static void* KiEarlyAllocateMemoryFromMemMap(size_t Size)
 INIT
 static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
 {
-	// TODO
-	(void) StartAddress;
-	(void) Size;
+	DbgPrint("KiRemoveAreaFromMemMap(0x%p, 0x%x)", StartAddress, Size);
+	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
+	
+	// Ensure the start address and size greedily cover page boundaries.
+	Size += StartAddress & (PAGE_SIZE - 1);
+	StartAddress &= ~(PAGE_SIZE - 1);
+	Size = (Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	
+	uintptr_t Start = StartAddress;
+	uintptr_t End   = StartAddress + Size;
+	
+	for (size_t i = 0; i < Lpb->MemoryRegionCount; i++)
+	{
+		PLOADER_MEMORY_REGION OtherRegion = &KiMemoryRegions[i];
+		if (OtherRegion->Type != LOADER_MEM_FREE)
+			continue;
+		
+		uintptr_t OrStart = OtherRegion->Base;
+		uintptr_t OrEnd   = OtherRegion->Base + OtherRegion->Size;
+		
+		if (OrEnd <= Start || End <= OrStart)
+		{
+			// Not overlapping
+			continue;
+		}
+		
+		if (Start <= OrStart && OrEnd <= End)
+		{
+			// region completely swallowed, so nuke it
+			OtherRegion->Type = LOADER_MEM_RESERVED;
+			continue;
+		}
+		
+		if (OrStart <= Start && End <= OrEnd)
+		{
+			// The region we are trying to erase is completely within
+			// this memory region.
+			
+			// We need to create two memory regions:
+			// OrStart -- Start - End -- OrEnd
+			
+			// First, check the trivial cases
+			if (OrStart == Start)
+			{
+				// just set the start to the end
+				OtherRegion->Base = End;
+				OtherRegion->Size = OrEnd - End;
+			}
+			else if (OrEnd == End)
+			{
+				// just set the end to the start
+				OtherRegion->Size = Start - OrStart;
+			}
+			else
+			{
+				// need to create a separate region
+				OtherRegion->Size = Start - OrStart;
+				
+				if (Lpb->MemoryRegionCount >= MAX_MEMORY_REGIONS)
+					continue;
+				
+				DbgPrint("ADDING");
+				PLOADER_MEMORY_REGION NewRegion = &KiMemoryRegions[Lpb->MemoryRegionCount++];
+				NewRegion->Type = LOADER_MEM_FREE;
+				NewRegion->Base = End;
+				NewRegion->Size = OrEnd - End;
+			}
+			
+			continue;
+		}
+		
+		if (OrStart < End && End < OrEnd && Start < OrStart)
+			OrStart = End;
+		
+		if (Start < OrEnd && OrEnd < End && OrStart < Start)
+			OrEnd = Start;
+		
+		if (OrEnd < OrStart)
+		{
+			OtherRegion->Type = LOADER_MEM_RESERVED;
+			continue;
+		}
+		
+		OtherRegion->Base = OrStart;
+		OtherRegion->Size = OrEnd - OrStart;
+	}
 }
 
+INIT
+static void KiInitializeMemoryRegions()
+{
+	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
+	multiboot_memory_map_t
+		*Mmap = P2V(KiMultibootInfo->mmap_addr),
+		*MmapStart = Mmap,
+		*MmapEnd = (void*)((uintptr_t)Mmap + KiMultibootInfo->mmap_length);
+	
+	// First, find all the available entries, and insert them.  During this loop,
+	// any overlapping regions are resized/merged/erased.
+	size_t Index = 0;
+	for (; Mmap < MmapEnd; Mmap = (void*)((uintptr_t)Mmap + Mmap->size + sizeof(Mmap->size)))
+	{
+		if (Mmap->type != MULTIBOOT_MEMORY_AVAILABLE)
+			continue;
+		
+		DbgPrint("Mmap->addr = %p,  Mmap->len = %p", (void*)(unsigned)Mmap->addr, Mmap->len);
+		
+		// ignore ranges that start into 64-bit memory
+		if (Mmap->addr > 0x100000000)
+			continue;
+		
+		// cap ranges that start into 64-bit memory
+		if (Mmap->addr + Mmap->len > 0x100000000)
+			Mmap->len = 0x100000000 - Mmap->addr;
+		
+		PLOADER_MEMORY_REGION MemoryRegion = &KiMemoryRegions[Index];
+		MemoryRegion->Base = Mmap->addr;
+		MemoryRegion->Size = Mmap->len;
+		
+		// Ensure the address and length are page size aligned.
+		uint32_t Bias = PAGE_SIZE - (MemoryRegion->Base & (PAGE_SIZE - 1));
+		if (Bias != PAGE_SIZE)
+		{
+			MemoryRegion->Size -= Bias;
+			MemoryRegion->Base += Bias; // addr is now aligned
+		}
+		
+		MemoryRegion->Size = MemoryRegion->Size & ~(PAGE_SIZE - 1);
+		if (MemoryRegion->Size == 0)
+			continue;
+		
+		MemoryRegion->Type = LOADER_MEM_FREE;
+		
+		// Ensure this range doesn't overlap with anything else.
+		uintptr_t Start = MemoryRegion->Base;
+		uintptr_t End   = MemoryRegion->Base + MemoryRegion->Size;
+		
+		for (size_t i = 0; i < Index; i++)
+		{
+			PLOADER_MEMORY_REGION OtherRegion = &KiMemoryRegions[i];
+			
+			uintptr_t OrStart = OtherRegion->Base;
+			uintptr_t OrEnd   = OtherRegion->Base + OtherRegion->Size;
+			
+			if (OrStart <= Start && End <= OrEnd)
+			{
+				// new region completely inside old, discard.
+				Start = End = 0;
+				break;
+			}
+			
+			if (Start <= OrStart && OrEnd <= End)
+			{
+				// the new segment completely swallows the old one.
+				OtherRegion->Base = Start;
+				OtherRegion->Size = End - Start;
+				Start = End = 0;
+				break;
+			}
+			
+			if (OrStart < End && Start <= OrStart && End <= OrEnd)
+				End = OrStart;
+			
+			if (Start < OrEnd && OrStart <= Start && OrEnd <= End)
+				Start = OrEnd;
+		}
+		
+		MemoryRegion->Base = Start;
+		
+		if (End < Start)
+			MemoryRegion->Size = 0;
+		else
+			MemoryRegion->Size = End - Start;
+		
+		if (MemoryRegion->Size != 0)
+			Index++;
+		else
+			MemoryRegion->Type = LOADER_MEM_RESERVED;
+		
+		if (Index >= MAX_MEMORY_REGIONS)
+		{
+			DbgPrint(
+				"BOOT WARNING: The bootloader provided %zu bytes of entries, but we have a maximum of %d "
+				"entries, and as such, some of the memory will be invisible to the OS.",
+				KiMultibootInfo->mmap_length,
+				MAX_MEMORY_REGIONS
+			);
+		}
+	}
+	
+	Lpb->MemoryRegionCount = Index;
+	Lpb->MemoryRegions = KiMemoryRegions;
+	
+	Mmap = MmapStart;
+	for (; Mmap < MmapEnd; Mmap = (void*)((uintptr_t)Mmap + Mmap->size + sizeof(Mmap->size)))
+	{
+		if (Mmap->type == MULTIBOOT_MEMORY_AVAILABLE)
+			continue;
+		
+		KiRemoveAreaFromMemMap(Mmap->addr, Mmap->len);
+	}
+}
+
+extern char KiKernelEnd[];
 
 INIT
 void KiInitLoaderParameterBlock()
 {
 	// Initialize the base identity mapping.
 	MiInitializeBaseIdentityMapping();
-	
 	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
+	
+	KiMultibootInfo = P2V(KiMultibootInfo);
 	
 	if (KiMultibootSignature != MULTIBOOT_BOOTLOADER_MAGIC)
 		KeCrashBeforeSMPInit("KiMultibootSignature is not %08x, it's %08x!", MULTIBOOT_BOOTLOADER_MAGIC, KiMultibootSignature);
 	
 	// Initialize the memory regions.
+	KiInitializeMemoryRegions();
+	KiRemoveAreaFromMemMap(0, (size_t) KiKernelEnd);
 	
 	// Initialize the kernel module.
 	

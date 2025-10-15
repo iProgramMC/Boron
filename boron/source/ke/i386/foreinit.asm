@@ -54,7 +54,7 @@ KiBeforeSystemStartup:
 	
 	; store the provided multiboot data
 	mov [V2P(KiMultibootSignature)], eax
-	mov [V2P(KiMultibootPointer)],   ebx
+	mov [V2P(KiMultibootInfo)],      ebx
 	
 	; first address to map is 0x00000000. map 2048 pages
 	xor esi, esi
@@ -109,7 +109,7 @@ KiBeforeSystemStartupHigherHalf:
 	mov cr3, ecx
 	
 	; setup the initial stack
-	mov esp, KiInitialStack
+	mov esp, KiInitialStack + 4096
 	
 	; GDT will be set up later
 	
@@ -123,12 +123,12 @@ KiBeforeSystemStartupHigherHalf:
 section .bss
 
 global KiMultibootSignature
-global KiMultibootPointer
+global KiMultibootInfo
 global KiBootstrapPageDirectory
 global KiBootstrapPageTables
 
 KiMultibootSignature:		resd 1
-KiMultibootPointer:			resd 1
+KiMultibootInfo:			resd 1
 
 alignb 4096
 KiInitialStack:				resb 4096

@@ -94,6 +94,8 @@ SECTIONS
 		PROVIDE(PsSystemProcess = PspSystemProcessObject + 64);
 	} :data
 	
+	KiKernelEnd = . - 0xC0000000;
+	
 	/* Discard .note.* and .eh_frame since they may cause issues on some hosts. */
 	/DISCARD/ : {
 		*(.eh_frame)
