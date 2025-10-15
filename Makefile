@@ -19,6 +19,7 @@ TARGETL ?= $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F
 KERNEL_NAME = kernel.elf
 SYSDLL_NAME = libboron.so
 
+ifeq ($(TARGET),AMD64)
 DRIVERS_LIST = \
 	halx86     \
 	framebuf   \
@@ -26,6 +27,12 @@ DRIVERS_LIST = \
 	stornvme   \
 	ext2fs     \
 	test
+else ifeq ($(TARGET),I386)
+DRIVERS_LIST = \
+	i8042prt   \
+	ext2fs     \
+	test
+endif
 
 # The build directory
 BUILD_DIR = build/$(TARGETL)
@@ -76,7 +83,9 @@ clean:
 image: limine $(IMAGE_TARGET)
 
 ifeq ($(TARGET),AMD64)
-include tools/build_iso_limine_amd64.mk
+include tools/build_iso_limine.mk
+else ifeq ($(TARGET),I386)
+include tools/build_iso_limine.mk
 endif
 
 run: image
