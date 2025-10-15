@@ -122,7 +122,7 @@ void DbgPrintStackTrace(uintptr_t Ebp)
 	int Depth = 30;
 	char Buffer[128];
 	
-	DbgPrintDouble("\tAddress         \tName\n");
+	DbgPrintDouble("\tAddress \tName\n");
 	
 #ifndef DISABLE_USER_MODE_PREVENTION
 	if (Rbp <= MM_USER_SPACE_END)

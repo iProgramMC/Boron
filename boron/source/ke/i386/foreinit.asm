@@ -122,6 +122,8 @@ section .bss
 
 KiMultibootSignature:		resd 1
 KiMultibootPointer:			resd 1
+
+alignb 4096
 KiInitialStack:				resb 4096
 KiBootstrapPageDirectory:	resb 4096
 KiBootstrapPageTables:		resb 8192
