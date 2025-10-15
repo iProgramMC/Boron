@@ -107,6 +107,7 @@ void LdrInit()
 INIT
 static void LdrpReclaimFile(PLOADER_MODULE File)
 {
+#ifdef IS_64_BIT
 	if ((uintptr_t)File->Address < (uintptr_t)MmGetHHDMBase() ||
 		(uintptr_t)File->Address >= MM_PFNDB_BASE)
 	{
@@ -120,6 +121,9 @@ static void LdrpReclaimFile(PLOADER_MODULE File)
 		MmFreePhysicalPage(Pfn);
 		Address += PAGE_SIZE;
 	}
+#else
+	(void) File;
+#endif
 }
 
 // NOTE: For now, selectively reclaim certain pages.  At some point, we'll reclaim everything, and scrap this function

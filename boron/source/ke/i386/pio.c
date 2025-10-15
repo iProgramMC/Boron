@@ -1,15 +1,15 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ke/amd64/pio.c
+	ke/i386/pio.c
 	
 Abstract:
 	This module implements x86 specific Port I/O functions.
 	
 Author:
-	iProgramInCpp - 7 September 2023
+	iProgramInCpp - 14 October 2025
 ***/
 #include <arch.h>
 

@@ -75,70 +75,7 @@ else
 	DEFINES += -O3
 endif
 
-# Determine the build tools used automatically.
-ifeq ($(TARGETL), amd64)
-	# Compiler Toolchain
-	BCC  ?= gcc
-	BCXX ?= g++
-	BLD  ?= ld
-	BASM ?= nasm
-	
-	# Compiler and linker flags
-	#
-	# NOTE 7.7.2024 -- No-reorder-functions was added because a certain functions
-	# was generating an "unlikely" section, which was placed at different addresses
-	# in kernel.elf and kernel2.elf, screwing up the symbol table...  That's pretty
-	# bad.
-	#
-	# TODO: fix above ^^^
-	ARCH_CFLAGS =       \
-		-m64            \
-		-march=x86-64   \
-		-mabi=sysv      \
-		-mno-80387      \
-		-mno-mmx        \
-		-mno-sse        \
-		-mno-sse2       \
-		-mno-red-zone   \
-		-mcmodel=kernel \
-		-fno-reorder-functions
-		
-	ARCH_LDFLAGS = \
-		-z max-page-size=0x1000
-	
-	ARCH_ASFLAGS = \
-		-f elf64
-	
-	LINK_ARCH = elf_x86_64
-	SMP = yes
-	
-else ifeq ($(TARGETL), i386)
-	# Compiler Toolchain
-	BCC  ?= clang
-	BCXX ?= clang++
-	BLD  ?= ld
-	BASM ?= nasm
-	
-	# Compiler and linker flags
-	ARCH_CFLAGS =        \
-		-target i686-elf \
-		-mno-80387       \
-		-mno-mmx         \
-		-mno-sse         \
-		-mno-sse2
-		
-	ARCH_LDFLAGS = \
-		-z max-page-size=0x1000
-	
-	ARCH_ASFLAGS = \
-		-f elf32
-	
-	LINK_ARCH = elf_i386
-	SMP = no
-	
-else
-	$(error You cannot build for this architecture right now.)
-endif
+include ../tools/toolchain.mk
 
 ifeq ($(SMP), yes)
 	ARCH_CFLAGS += -DCONFIG_SMP
@@ -208,8 +145,7 @@ ifeq ($(shell $(LD) --help 2>&1 | grep 'no-pie' >/dev/null 2>&1; echo $$?),0)
 endif
 
 # Internal nasm flags that should not be changed by the user.
-NASMFLAGS += \
-	-f elf64
+NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 EXCLUDE_WRONG_ARCH = '(' '(' -path 'source/ke/$(TARGETL)/*' ')' -o '(' -path 'source/mm/$(TARGETL)/*' ')' -o '(' -not -path 'source/ke/*/*' -not -path 'source/mm/*/*' ')' ')'
@@ -240,16 +176,16 @@ CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BU
 # Link rules for the final kernel executable.
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
-	$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
+	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py > $(BUILD_DIR)/_symtab.$(TARGETL).asm
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
 	@$(BASM) $(NASMFLAGS) $(BUILD_DIR)/_symtab.$(TARGETL).asm -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
 	@echo "[LD]\tLinking kernel to extract symbols"
-	$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
+	@$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
 
 # Link rules for the amalgam object file.
 $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)

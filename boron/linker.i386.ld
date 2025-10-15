@@ -13,6 +13,8 @@ ENTRY (KiBeforeSystemStartup)
 /* MMU permissions */
 PHDRS
 {
+	intext	PT_LOAD    FLAGS((1 << 0) | (1 << 2)) ; /* Execute + Read */
+	indata	PT_LOAD    FLAGS((1 << 1) | (1 << 2)) ; /* Write + Read */
 	text	PT_LOAD    FLAGS((1 << 0) | (1 << 2)) ; /* Execute + Read */
 	rodata  PT_LOAD    FLAGS((1 << 2)) ;            /* Read only */
 	data	PT_LOAD    FLAGS((1 << 1) | (1 << 2)) ; /* Write + Read */
@@ -30,50 +32,47 @@ SECTIONS
 	.ipldata :
 	{
 		*(.ipldata .ipldata.*)
-	} :text
+	} :indata
 
 	.ipltext :
 	{
 		*(.ipltext .ipltext.*)
-	} :text
+	} :intext
 	
 	. += 0xC0000000;
 	
-	KiTextInitStart = .;
 	.text.init ALIGN (4K) : AT (ADDR (.text.init) - 0xC0000000)
 	{
-		*(.text.init)
 	} :text
-	KiTextInitEnd = .;
 	
-	KiTextPageStart = .;
 	.text.page ALIGN (4K) : AT (ADDR (.text.page) - 0xC0000000)
 	{
-		*(.text.page)
 	} :text
-	KiTextPageEnd = .;
 	
 	.text ALIGN (4K) : AT (ADDR (.text) - 0xC0000000)
 	{
+		KiTextInitStart = .;
+		*(.text.init)
+		KiTextInitEnd = .;
+		. = ALIGN(CONSTANT(MAXPAGESIZE));
+		
+		KiTextPageStart = .;
+		*(.text.page)
+		KiTextPageEnd = .;
+		. = ALIGN(CONSTANT(MAXPAGESIZE));
+		
 		*(.text .text.*)
 	} :text
 	
-	.init_array ALIGN (4K) : AT (ADDR (.init_array) - 0xC0000000)
-	{
-		g_init_array_start = .;
-		*(.init_array .init_array.*)
-		g_init_array_end = .;
-	} :rodata
-	
-	.fini_array ALIGN (4K) : AT (ADDR (.fini_array) - 0xC0000000)
-	{
-		g_fini_array_start = .;
-		*(.fini_array .fini_array.*)
-		g_fini_array_end = .;
-	} :rodata
-	
 	.rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000)
 	{
+		KiInitArrayStart = .;
+		*(.init_array .init_array.*)
+		KiInitArrayEnd = .;
+		KiFiniArrayStart = .;
+		*(.fini_array .fini_array.*)
+		KiFiniArrayEnd = .;
+		
 		*(.rodata .rodata.*)
 		PROVIDE(KiSymbolTable = .);
 		PROVIDE(KiSymbolTableEnd = .);
@@ -84,7 +83,6 @@ SECTIONS
 	.data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000)
 	{
 		/* place the end right where data starts to get that nice page alignment :) */
-		l_code_and_rodata_end = .;
 		*(.data .data.*)
 	} :data
 	
