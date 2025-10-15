@@ -336,4 +336,15 @@ void MiReleaseVad(PMMVAD Vad);
 // uncommitted and certain code paths are skipped.
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
 
+// ===== Memory Initialization =====
+#ifdef IS_32_BIT
+void MiInitializeBaseIdentityMapping();
+#endif
+
+// ===== Hardware Specific =====
+
+#if defined TARGET_I386 || defined TARGET_AMD64
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + (((Address) & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+#endif
+
 #endif//NS64_MI_H

@@ -71,25 +71,29 @@ uintptr_t MmHHDMWindowBase;
 
 static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 {
+	const int PtesPerLevel = PAGE_SIZE / sizeof(MMPTE);
 	PMMPTE Ptes = (PMMPTE)(MI_PML1_LOCATION);
 	
 	PhysAddr &= MI_FASTMAP_MASK;
 	MmHHDMWindowBase = PhysAddr;
 	
-	for (size_t i = 0; i < 8 * 1024 * 1024; i += 4096)
+	for (size_t i = 0; i < MI_FASTMAP_SIZE; i += PAGE_SIZE)
 	{
 		uintptr_t Address = MI_FASTMAP_START + i;
 		
 		MMADDRESS_CONVERT Convert;
 		Convert.Long = Address;
 		
-		Ptes[Convert.Level2Index * 1024 + Convert.Level1Index] = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | (PhysAddr + i);
+		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | (PhysAddr + i);
 		KeInvalidatePage((void*)Address);
 	}
 }
 
 void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
 {
+	if (PhysAddr < MI_IDENTMAP_SIZE)
+		return (void*)(MI_IDENTMAP_START + PhysAddr);
+	
 	if ((PhysAddr & MI_FASTMAP_MASK) != MmHHDMWindowBase)
 		MiUpdateHHDMWindowBase(PhysAddr);
 	
@@ -99,6 +103,8 @@ void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
 uintptr_t MmGetHHDMOffsetFromAddr(void* Addr)
 {
 	uintptr_t AddrInt = (uintptr_t) Addr;
+	if (AddrInt >= MI_IDENTMAP_START && AddrInt < MI_IDENTMAP_START + MI_IDENTMAP_SIZE)
+		return AddrInt - MI_IDENTMAP_START;
 	
 	if ((AddrInt & MI_FASTMAP_MASK) != MmHHDMWindowBase)
 	{

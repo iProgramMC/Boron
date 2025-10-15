@@ -45,12 +45,17 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MI_PML1_LOC_END  ((uint64_t)0x100000000U)
 #define MI_PML_ADDRMASK  ((uintptr_t)0xFFFFF000U)
 
-// MmGetHHDMOffsetAddr and other HHDM-related calls aren't implemented
-// using an HHDM on 32-bit.  Instead, they're implemented via 8MB windows
-// that get spawned in everytime MmGetHHDMOffsetAddr is called with a
-// different 8MB region.
-#define MI_FASTMAP_START ((uintptr_t)0xC0800000U)
-#define MI_FASTMAP_MASK  ((uintptr_t)0xFF800000U)
+// MmGetHHDMOffsetAddr and other HHDM-related calls are implemented two-fold:
+//
+// - The first 256 MB of RAM are mapped in an offset identity mapping
+//
+// - The rest of the address space is accessible via a 16 MB window fast mapping.
+#define MI_IDENTMAP_START ((uintptr_t) 0xC0000000)
+#define MI_IDENTMAP_SIZE  ((uintptr_t) 0x10000000)
+
+#define MI_FASTMAP_START ((uintptr_t) 0xD0000000)
+#define MI_FASTMAP_MASK  ((uintptr_t) 0xFF000000)
+#define MI_FASTMAP_SIZE  (16 * 1024 * 1024)
 
 typedef union
 {

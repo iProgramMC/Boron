@@ -1,25 +1,23 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	mm/amd64/pt.c
+	mm/i386/pt.c
 	
 Abstract:
 	This module implements page table management for
-	the AMD64 platform.
+	the i386 platform.
 	
 Author:
-	iProgramInCpp - 8 September 2023
+	iProgramInCpp - 15 October 2025
 ***/
 
 #include <main.h>
 #include <string.h>
-#include <mm.h>
 #include <ke.h>
 #include <arch/i386.h>
-
-#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+#include "../mi.h"
 
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {

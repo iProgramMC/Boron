@@ -28,7 +28,7 @@ section .ipldata
 	
 	; Header
 	dd 0x1BADB002         ; Signature
-	dd 7                  ; Flags:
+	dd 7                  ; Flags: MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_VIDEO_MODE
 	dd - (0x1BADB002 + 7) ; Check Sum
 	
 	; A.out Kludge - blank because we're an ELF
@@ -72,11 +72,13 @@ KiBeforeSystemStartup:
 	add edi, 4
 	loop .LoopFill
 	
-	; map the two page tables to both 0x00000000 and 0xC0000000
+	; map the two page tables to both 0x00000000 and 0xC0000000, as well
+	; as the page directory itself into the 1023rd entry
 	mov dword [V2P(KiBootstrapPageDirectory) +   0 * 4], V2P(KiBootstrapPageTables +    0) + 0x03
 	mov dword [V2P(KiBootstrapPageDirectory) +   1 * 4], V2P(KiBootstrapPageTables + 4096) + 0x03
 	mov dword [V2P(KiBootstrapPageDirectory) + 768 * 4], V2P(KiBootstrapPageTables +    0) + 0x03
 	mov dword [V2P(KiBootstrapPageDirectory) + 769 * 4], V2P(KiBootstrapPageTables + 4096) + 0x03
+	mov dword [V2P(KiBootstrapPageDirectory) +1023 * 4], V2P(KiBootstrapPageDirectory)     + 0x03
 	
 	; set CR3 to the physical address of the page directory
 	mov ecx, V2P(KiBootstrapPageDirectory)
@@ -120,10 +122,15 @@ KiBeforeSystemStartupHigherHalf:
 
 section .bss
 
+global KiMultibootSignature
+global KiMultibootPointer
+global KiBootstrapPageDirectory
+global KiBootstrapPageTables
+
 KiMultibootSignature:		resd 1
 KiMultibootPointer:			resd 1
 
 alignb 4096
 KiInitialStack:				resb 4096
 KiBootstrapPageDirectory:	resb 4096
-KiBootstrapPageTables:		resb 8192
+KiBootstrapPageTables:		resb 64 * 4096
