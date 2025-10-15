@@ -84,17 +84,11 @@ image: limine $(IMAGE_TARGET)
 
 ifeq ($(TARGET),AMD64)
 include tools/build_iso_limine.mk
+include tools/run_rule_amd64.mk
 else ifeq ($(TARGET),I386)
 include tools/build_iso_limine.mk
+include tools/run_rule_i386.mk
 endif
-
-run: image
-	@echo "Running..."
-	@./run-unix.sh
-
-runw: image
-	@echo "Invoking WSL to run the OS..."
-	@./run.sh
 
 kernel: $(KERNEL_ELF)
 
