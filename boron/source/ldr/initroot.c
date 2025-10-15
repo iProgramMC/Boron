@@ -21,7 +21,7 @@ Author:
 
 typedef struct
 {
-	PLIMINE_FILE File;
+	PLOADER_MODULE File;
 }
 INIT_ROOT_FCB_EXT, *PINIT_ROOT_FCB_EXT;
 
@@ -41,8 +41,8 @@ BSTATUS LdrInitRootRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL M
 	
 	size_t Length = MdlBuffer->ByteCount;
 	uint64_t OffsetEnd = Offset + Length;
-	if (OffsetEnd > Ext->File->size)
-		OffsetEnd = Ext->File->size;
+	if (OffsetEnd > Ext->File->Size)
+		OffsetEnd = Ext->File->Size;
 	
 	if (Offset >= OffsetEnd)
 	{
@@ -57,7 +57,7 @@ BSTATUS LdrInitRootRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL M
 		return IOSB_STATUS(Iosb, Status);
 	
 	// Perform the read.
-	memcpy(Buffer, Ext->File->address + Offset, Length);
+	memcpy(Buffer, Ext->File->Address + Offset, Length);
 	Iosb->BytesRead = OffsetEnd - Offset;
 	
 	// Clean up after ourselves.
@@ -88,7 +88,7 @@ POBJECT_DIRECTORY LdriCreateInitialDir()
 	return RootDir;
 }
 
-bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
+bool LdriAddFile(POBJECT_DIRECTORY Directory, PLOADER_MODULE File)
 {
 	// Create the FCB associated with this object.
 	PFILE_OBJECT FileObject;
@@ -99,17 +99,18 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 	Fcb = IoAllocateFcb(LdrpInitRootDevice.DispatchTable, sizeof(INIT_ROOT_FCB_EXT), true);
 	if (!Fcb)
 	{
-		DbgPrint("Ldr: Could not create FCB for file %s - out of memory", File->path);
+		DbgPrint("Ldr: Could not create FCB for file %s - out of memory", File->Path);
 		return false;
 	}
 	
 	// Limine does pass page aligned addresses so this shouldn't be a problem.
-	ASSERT(((uintptr_t)File->address & (PAGE_SIZE - 1)) == 0);
+	// TODO: This may be a problem with Multiboot.
+	ASSERT(((uintptr_t)File->Address & (PAGE_SIZE - 1)) == 0);
 	
 	Ext = (PINIT_ROOT_FCB_EXT) Fcb->Extension;
 	Ext->File = File;
 	
-	Fcb->FileLength = File->size;
+	Fcb->FileLength = File->Size;
 	Fcb->FileType = FILE_TYPE_FILE;
 	
 	// Now create the file object.
@@ -117,7 +118,7 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 		(void**) &FileObject,
 		Directory,
 		IoFileType,
-		File->path,
+		File->Path,
 		OB_FLAG_PERMANENT,
 		NULL,
 		sizeof(FILE_OBJECT)
@@ -125,7 +126,7 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLIMINE_FILE File)
 	
 	if (FAILED(Status))
 	{
-		DbgPrint("Ldr: Could not create file object for file %s - error %d", File->path, Status);
+		DbgPrint("Ldr: Could not create file object for file %s - error %d", File->Path, Status);
 		return false;
 	}
 	
@@ -157,11 +158,11 @@ bool LdrPrepareInitialRoot()
 	D->ExtensionSize = 0;
 	
 	// Now that the Bin directory is loaded, put everything inside.
-	struct limine_module_response* Response = KeLimineModuleRequest.response;
+	PLOADER_MODULE_INFO ModuleInfo = &KeLoaderParameterBlock.ModuleInfo;
 	
-	for (uint64_t i = 0; i < Response->module_count; i++)
+	for (uint64_t i = 0; i < ModuleInfo->Count; i++)
 	{
-		PLIMINE_FILE File = Response->modules[i];
+		PLOADER_MODULE File = &ModuleInfo->List[i];
 		if (!LdriAddFile(RootDir, File))
 			return false;
 	}

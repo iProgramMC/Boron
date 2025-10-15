@@ -16,16 +16,15 @@ Author:
 #define NS64_LDR_H
 
 #include <main.h>
+#include <ke.h>
 #include <io.h>
-
-typedef struct limine_file LIMINE_FILE, *PLIMINE_FILE;
 
 typedef int(*PDLL_ENTRY_POINT)(PDRIVER_OBJECT DriverObject);
 
 typedef struct
 {
 	const char*      Name; // should be == LimineFile->path
-	PLIMINE_FILE     LimineFile;
+	PLOADER_MODULE   LoaderModule;
 	uintptr_t        ImageBase;
 	size_t           ImageSize;
 	PDLL_ENTRY_POINT EntryPoint;

@@ -25,8 +25,8 @@ Author:
 #define PmmDbgPrint(...) do {} while (0)
 #endif
 
-extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
-extern volatile struct limine_memmap_request KeLimineMemMapRequest;
+//extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
+//extern volatile struct limine_memmap_request KeLimineMemMapRequest;
 
 size_t MmTotalAvailablePages;
 size_t MmTotalFreePages;
@@ -62,28 +62,29 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
 INIT
 uintptr_t MiAllocatePageFromMemMap()
 {
-	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
+	PLOADER_MEMORY_REGION MemoryRegions = KeLoaderParameterBlock.MemoryRegions;
+	size_t MemoryRegionCount = KeLoaderParameterBlock.MemoryRegionCount;
 	
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	for (size_t i = 0; i < MemoryRegionCount; i++)
 	{
 		// if the entry isn't usable, skip it
-		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		PLOADER_MEMORY_REGION Entry = &MemoryRegions[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+		if (Entry->Type != LOADER_MEM_FREE)
 			continue;
 		
 		// Note! Usable entries in limine are guaranteed to be aligned to
 		// page size, and not overlap any other entries. So we are good
 		
 		// if it's got no pages, also skip it..
-		if (pEntry->length == 0)
+		if (Entry->Size == 0)
 			continue;
 		
-		uintptr_t curr_addr = pEntry->base;
-		pEntry->base   += PAGE_SIZE;
-		pEntry->length -= PAGE_SIZE;
+		uintptr_t CurrAddr = Entry->Base;
+		Entry->Base += PAGE_SIZE;
+		Entry->Size -= PAGE_SIZE;
 		
-		return curr_addr;
+		return CurrAddr;
 	}
 	
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
@@ -95,28 +96,29 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 {
 	size_t Size = SizeInPages * PAGE_SIZE;
 	
-	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
+	PLOADER_MEMORY_REGION MemoryRegions = KeLoaderParameterBlock.MemoryRegions;
+	size_t MemoryRegionCount = KeLoaderParameterBlock.MemoryRegionCount;
 	
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	for (uint64_t i = 0; i < MemoryRegionCount; i++)
 	{
 		// if the entry isn't usable, skip it
-		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		PLOADER_MEMORY_REGION Entry = &MemoryRegions[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE)
+		if (Entry->Type != LOADER_MEM_FREE)
 			continue;
 		
 		// Note! Usable entries in limine are guaranteed to be aligned to
 		// page size, and not overlap any other entries. So we are good
 		
 		// if it's got no pages, also skip it..
-		if (pEntry->length < Size)
+		if (Entry->Size < Size)
 			continue;
 		
-		uintptr_t curr_addr = pEntry->base;
-		pEntry->base   += Size;
-		pEntry->length -= Size;
+		uintptr_t CurrAddr = Entry->Base;
+		Entry->Base += Size;
+		Entry->Size -= Size;
 		
-		return curr_addr;
+		return CurrAddr;
 	}
 	
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
@@ -238,58 +240,52 @@ void MiUnlockPfdb(KIPL Ipl)
 INIT
 void MiInitPMM()
 {
-	if (!KeLimineMemMapRequest.response || !KeLimineHhdmRequest.response)
-	{
-		KeCrashBeforeSMPInit("Error, no memory map was provided");
-	}
-	
+#ifdef IS_64_BIT
 	// with 4-level paging, limine seems to be hardcoded at this address, so we're probably good. Although
 	// the protocol does NOT specify that, and it does seem to be affected by KASLR...
-	if (KeLimineHhdmRequest.response->offset != 0xFFFF800000000000)
-	{
-		KeCrashBeforeSMPInit("The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLimineHhdmRequest.response->offset);
-	}
+	if (KeLoaderParameterBlock.HhdmBase != 0xFFFF800000000000)
+		DbgPrint("WARNING: The HHDM isn't at 0xFFFF 8000 0000 0000, things may go wrong! (It's actually at %p)", (void*) KeLoaderParameterBlock.HhdmBase);
+#endif
 	
-	MmHHDMBase = KeLimineHhdmRequest.response->offset;
+	MmHHDMBase = KeLoaderParameterBlock.HhdmBase;
 	
 	uintptr_t currPageTablePhys = KeGetCurrentPageTable();
 	
 	// allocate the entries in the page frame number database
-	struct limine_memmap_response* pResponse = KeLimineMemMapRequest.response;
+	PLOADER_MEMORY_REGION MemoryRegions = KeLoaderParameterBlock.MemoryRegions;
+	size_t MemoryRegionCount = KeLoaderParameterBlock.MemoryRegionCount;
 	
 	// pass 0: print out all the entries for debugging
 #ifdef PMMDEBUG
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	for (uint64_t i = 0; i < MemoryRegionCount; i++)
 	{
-		// if the entry isn't usable, skip it
-		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		PLOADER_MEMORY_REGION Entry = &MemoryRegions[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
-			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
-			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
+		if (Entry->Type != LOADER_MEM_FREE &&
+			Entry->Type != LOADER_MEM_LOADER_RECLAIMABLE &&
+			Entry->Type != LOADER_MEM_LOADED_PROGRAM)
 			continue;
 		
-		DbgPrint("%p-%p (%d pages, %d)", pEntry->base, pEntry->base + pEntry->length, pEntry->length / PAGE_SIZE, pEntry->type);
+		DbgPrint("%p-%p (%d pages, %d)", Entry->Base, Entry->Base + Entry->Size, Entry->Size / PAGE_SIZE, Entry->Type);
 	}
 #endif
 	
 	// pass 1: mapping the pages themselves
 	int numAllocatedPages = 0;
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	for (uint64_t i = 0; i < MemoryRegionCount; i++)
 	{
-		// if the entry isn't usable, skip it
-		struct limine_memmap_entry *pEntry = pResponse->entries[i];
+		PLOADER_MEMORY_REGION pEntry = &MemoryRegions[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
-			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
-			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
+		if (pEntry->Type != LOADER_MEM_FREE &&
+			pEntry->Type != LOADER_MEM_LOADER_RECLAIMABLE &&
+			pEntry->Type != LOADER_MEM_LOADED_PROGRAM)
 			continue;
 		
 		// make a copy since we might tamper with this
-		struct limine_memmap_entry entry = *pEntry;
+		LOADER_MEMORY_REGION Entry = *pEntry;
 		
-		MMPFN pfnStart = MmPhysPageToPFN(entry.base);
-		MMPFN pfnEnd   = MmPhysPageToPFN(entry.base + entry.length);
+		MMPFN pfnStart = MmPhysPageToPFN(Entry.Base);
+		MMPFN pfnEnd   = MmPhysPageToPFN(Entry.Base + Entry.Size);
 		
 		uint64_t lastAllocatedPage = 0;
 		for (MMPFN pfn = pfnStart; pfn < pfnEnd; pfn++)
@@ -312,21 +308,20 @@ void MiInitPMM()
 	
 	int TotalPageCount = 0, FreePageCount = 0, ReclaimPageCount = 0;
 	
-	for (uint64_t i = 0; i < pResponse->entry_count; i++)
+	for (uint64_t i = 0; i < MemoryRegionCount; i++)
 	{
-		// if the entry isn't usable, skip it
-		struct limine_memmap_entry* pEntry = pResponse->entries[i];
+		PLOADER_MEMORY_REGION Entry = &MemoryRegions[i];
 		
-		if (pEntry->type != LIMINE_MEMMAP_USABLE &&
-			pEntry->type != LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE &&
-			pEntry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES)
+		if (Entry->Type != LOADER_MEM_FREE &&
+			Entry->Type != LOADER_MEM_LOADER_RECLAIMABLE &&
+			Entry->Type != LOADER_MEM_LOADED_PROGRAM)
 			continue;
 		
-		for (uint64_t j = 0; j < pEntry->length; j += PAGE_SIZE)
+		for (uint64_t j = 0; j < Entry->Size; j += PAGE_SIZE)
 		{
-			bool isUsed = pEntry->type != LIMINE_MEMMAP_USABLE;
+			bool isUsed = Entry->Type != LIMINE_MEMMAP_USABLE;
 			
-			int currPFN = MmPhysPageToPFN(pEntry->base + j);
+			int currPFN = MmPhysPageToPFN(Entry->Base + j);
 			
 			TotalPageCount++;
 			
@@ -368,7 +363,7 @@ void MiInitPMM()
 					pPF->PrevFrame = currPFN - 1;
 				}
 				
-				if (j + PAGE_SIZE >= pEntry->length)
+				if (j + PAGE_SIZE >= Entry->Size)
 				{
 					pPF->NextFrame = PFN_INVALID; // it's going to be updated by the next block if there's one
 				}

@@ -44,52 +44,46 @@ static bool LdriEndsWith(const char* String, const char* EndsWith)
 
 // Fix up the path - i.e. get just the file name, not the entire path.
 INIT
-static void LdriFixUpPath(PLIMINE_FILE File)
+static void LdriFixUpPath(PLOADER_MODULE File)
 {
-	size_t PathLength = strlen(File->path);
-	char* PathPtr = File->path;
+	size_t PathLength = strlen(File->Path);
+	char* PathPtr = File->Path;
 	
 	for (size_t i = PathLength - 1; i < PathLength; i--)
 	{
-		if (File->path[i] == '/')
+		if (File->Path[i] == '/')
 		{
-			PathPtr = &File->path[i + 1];
+			PathPtr = &File->Path[i + 1];
 			break;
 		}
 	}
 	
-	File->path = PathPtr;
+	File->Path = PathPtr;
 }
 
 INIT
-static void LdriLoadFile(PLIMINE_FILE File)
+static void LdriLoadFile(PLOADER_MODULE File)
 {
-	if (LdriEndsWith(File->path, ".sys"))
+	if (LdriEndsWith(File->Path, ".sys"))
 		LdriLoadDll(File);
 }
 
-static PLIMINE_FILE HalFile = NULL;
+static PLOADER_MODULE HalFile = NULL;
 
 // Initializes the DLL loader and loads the boot modules.
 INIT
 void LdrInit()
 {
-	struct limine_module_response* Response = KeLimineModuleRequest.response;
-	if (!Response)
-	{
-		KeCrashBeforeSMPInit("No response to the module request from limine?!");
-		return;
-	}
-
-	DbgPrint("Loaded Modules: %d", Response->module_count);
+	PLOADER_MODULE_INFO ModuleInfo = &KeLoaderParameterBlock.ModuleInfo;
+	DbgPrint("Loaded Modules: %zu", ModuleInfo->Count);
 	
 	// note: we want to load the HAL first
-	for (uint64_t i = 0; i < Response->module_count; i++)
+	for (size_t i = 0; i < ModuleInfo->Count; i++)
 	{
-		PLIMINE_FILE File = Response->modules[i];
+		PLOADER_MODULE File = &ModuleInfo->List[i];
 		LdriFixUpPath(File);
 		
-		if (strcmp(File->path, LdrpHalPath) == 0)
+		if (strcmp(File->Path, LdrpHalPath) == 0)
 			HalFile = File;
 	}
 	
@@ -103,16 +97,16 @@ void LdrInit()
 }
 
 INIT
-static void LdrpReclaimFile(PLIMINE_FILE File)
+static void LdrpReclaimFile(PLOADER_MODULE File)
 {
-	if ((uintptr_t)File->address < (uintptr_t)MmGetHHDMBase() ||
-		(uintptr_t)File->address >= MM_PFNDB_BASE)
+	if ((uintptr_t)File->Address < (uintptr_t)MmGetHHDMBase() ||
+		(uintptr_t)File->Address >= MM_PFNDB_BASE)
 	{
-		DbgPrint("Warning: file %s can't be reclaimed as it's not part of the HHDM", File->path);
+		DbgPrint("Warning: file %s can't be reclaimed as it's not part of the HHDM", File->Path);
 	}
 	
-	uintptr_t Address = (uintptr_t)File->address;
-	for (size_t j = 0; j < File->size; j += PAGE_SIZE)
+	uintptr_t Address = (uintptr_t)File->Address;
+	for (size_t j = 0; j < File->Size; j += PAGE_SIZE)
 	{
 		int Pfn = MmPhysPageToPFN(MmGetHHDMOffsetFromAddr((void*)Address));
 		MmFreePhysicalPage(Pfn);
@@ -124,17 +118,16 @@ static void LdrpReclaimFile(PLIMINE_FILE File)
 INIT
 static void LdrpReclaimKernelFile()
 {
-	LdrpReclaimFile(KeLimineKernelFileRequest.response->kernel_file);
+	LdrpReclaimFile(&KeLoaderParameterBlock.ModuleInfo.Kernel);
 }
 
 INIT
 void LdrInitAfterHal()
 {
-	struct limine_module_response* Response = KeLimineModuleRequest.response;
-	
-	for (uint64_t i = 0; i < Response->module_count; i++)
+	PLOADER_MODULE_INFO ModuleInfo = &KeLoaderParameterBlock.ModuleInfo;
+	for (uint64_t i = 0; i < ModuleInfo->Count; i++)
 	{
-		PLIMINE_FILE File = Response->modules[i];
+		PLOADER_MODULE File = &ModuleInfo->List[i];
 		if (File == HalFile) continue;
 		
 		LdriLoadFile(File);

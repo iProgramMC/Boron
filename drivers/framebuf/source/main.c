@@ -160,11 +160,7 @@ IO_DISPATCH_TABLE FramebufferDispatchTable = {
 
 int GetFrameBufferCount()
 {
-#ifdef TARGET_AMD64
-	return (int) KeLimineFramebufferRequest.response->framebuffer_count;
-#else
-	#error TODO: Specify how you plan to get frame buffer information
-#endif
+	return KeLoaderParameterBlock.FramebufferCount;
 }
 
 BSTATUS CreateFrameBufferObject(int Index)
@@ -176,17 +172,12 @@ BSTATUS CreateFrameBufferObject(int Index)
 	char Name[32];
 	snprintf(Name, sizeof Name, "FrameBuffer%d", Index);
 	
-#ifdef TARGET_AMD64
-	struct limine_framebuffer* pFramebuffer = KeLimineFramebufferRequest.response->framebuffers[Index];
-	
-	FbAddress = MmGetHHDMOffsetFromAddr(pFramebuffer->address);
-	FbWidth  = pFramebuffer->width;
-	FbHeight = pFramebuffer->height;
-	FbPitch  = pFramebuffer->pitch;
-	FbBpp    = pFramebuffer->bpp;
-#else
-	#error TODO: Specify how you plan to get frame buffer information
-#endif
+	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[Index];
+	FbAddress = MmGetHHDMOffsetFromAddr(Framebuffer->Address);
+	FbWidth  = Framebuffer->Width;
+	FbHeight = Framebuffer->Height;
+	FbPitch  = Framebuffer->Pitch;
+	FbBpp    = Framebuffer->BitDepth;
 	
 	PDEVICE_OBJECT Device;
 	size_t FbSize = FbPitch * FbHeight;

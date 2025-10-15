@@ -17,7 +17,6 @@ Author:
 #include <ldr.h>
 #include <hal.h>
 #include <string.h>
-#include <limreq.h>
 
 #define KERNEL_IMAGE_BASE (0xFFFFFFFF80000000)
 

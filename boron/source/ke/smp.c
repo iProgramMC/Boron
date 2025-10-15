@@ -17,7 +17,6 @@ Author:
 #include <hal.h>
 #include <arch.h>
 #include <string.h>
-#include <limreq.h>
 #include <ldr.h>
 #include <ob.h>
 #include "ki.h"
@@ -37,6 +36,11 @@ int KeGetProcessorCount()
 	return KeProcessorCount;
 }
 
+const char* KeGetBootCommandLine()
+{
+	return KeLoaderParameterBlock.CommandLine;
+}
+
 uint32_t KeGetBootstrapLapicId()
 {
 	return KeBootstrapLapicId;
@@ -54,9 +58,9 @@ void MmSwitchKernelSpaceLock();
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
 NO_RETURN INIT
-void KiCPUBootstrap(struct limine_smp_info* pInfo)
+void KiCPUBootstrap(PLOADER_AP LoaderAp)
 {
-	PKPRCB Prcb = (PKPRCB)pInfo->extra_argument;
+	PKPRCB Prcb = LoaderAp->ExtraArgument;
 	KeSetCPUPointer(Prcb);
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
@@ -101,11 +105,6 @@ KPRCB* KeGetCurrentPRCB()
 	return KeGetCPUPointer();
 }
 
-static NO_RETURN void KiCrashedEntry()
-{
-	KeStopCurrentCPU();
-}
-
 extern KSPIN_LOCK KiPrintLock;
 extern KSPIN_LOCK KiDebugPrintLock;
 
@@ -122,12 +121,10 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 		KeCrash("called KeCrashBeforeSMPInit after SMP init?! (message: %s, RA: %p)", message, __builtin_return_address(0));
 	}
 	
-	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
-	
 	// format the message
 	va_list va;
 	va_start(va, message);
-	char buffer[1024]; // may be a beefier message than a garden variety LogMsg
+	static char buffer[2048]; // may be a beefier message than a garden variety LogMsg
 	buffer[sizeof buffer - 3] = 0;
 	int chars = vsnprintf(buffer, sizeof buffer - 3, message, va);
 	strcpy(buffer + chars, "\n");
@@ -147,17 +144,12 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 		HalDisplayString(buffer);
 	}
 	
-	if (pSMP)
-	{
-		for (uint64_t i = 0; i < pSMP->cpu_count; i++)
-		{
-			struct limine_smp_info* pInfo = pSMP->cpus[i];
-			AtStore(pInfo->goto_address, &KiCrashedEntry);
-		}
-	}
+	PLOADER_MP_INFO MpInfo = &KeLoaderParameterBlock.Multiprocessor;
+	for (uint64_t i = 0; i < MpInfo->Count; i++)
+		KeMarkCrashedAp(i);
 	
 	DbgPrintStackTrace(0);
-	KiCrashedEntry();
+	KeStopCurrentCPU();
 }
 
 void PsInitSystemProcess();
@@ -165,62 +157,53 @@ void PsInitSystemProcess();
 NO_RETURN INIT
 void KeInitSMP()
 {
-	struct limine_smp_response* pSMP = KeLimineSmpRequest.response;
-	struct limine_smp_info* pBSPInfo = NULL;
+	PLOADER_MP_INFO MpInfo = &KeLoaderParameterBlock.Multiprocessor;
+	PLOADER_AP BspAp = NULL;
 	
-	if (!pSMP)
-	{
-		KeCrashBeforeSMPInit("Error, a response to the SMP request wasn't provided");
-	}
-	
-	KeBootstrapLapicId = pSMP->bsp_lapic_id;
+	KeBootstrapLapicId = MpInfo->BootstrapHardwareId;
 	
 	// TODO, restore to 512. Affinity is a bit mask, and there's no uint512_t. Use a bitmap instead later if you care.
 	const uint64_t ProcessorLimit = 64;
 	
-	if (pSMP->cpu_count > ProcessorLimit)
-	{
-		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", pSMP->cpu_count, ProcessorLimit);
-	}
+	if (MpInfo->Count > ProcessorLimit)
+		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", MpInfo->Count, ProcessorLimit);
 	
 	int cpuListPFN = MmAllocatePhysicalPage();
 	if (cpuListPFN == PFN_INVALID)
 		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
 	
 	KeProcessorList  = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuListPFN));
-	KeProcessorCount = pSMP->cpu_count;
+	KeProcessorCount = MpInfo->Count;
 	
 	// Initialize all the CPUs in series.
-	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+	for (uint64_t i = 0; i < MpInfo->Count; i++)
 	{
-		bool bIsBSP = pSMP->bsp_lapic_id == pSMP->cpus[i]->lapic_id;
+		PLOADER_AP LoaderAp = &MpInfo->List[i];
+		bool bIsBSP = KeBootstrapLapicId == LoaderAp->HardwareId;
 		
 		// Allocate space for the CPU struct.
-		int cpuPFN = MmAllocatePhysicalPage();
-		if (cpuPFN == PFN_INVALID)
+		int PrcbPfn = MmAllocatePhysicalPage();
+		if (PrcbPfn == PFN_INVALID)
 		{
 			KeCrashBeforeSMPInit("Error, can't initialize CPUs, we don't have enough memory");
 		}
 		
-		KPRCB* prcb = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuPFN));
-		memset(prcb, 0, sizeof * prcb);
-		
-		struct limine_smp_info* pInfo = pSMP->cpus[i];
+		PKPRCB Prcb = MmGetHHDMOffsetAddr(MmPFNToPhysPage(PrcbPfn));
+		memset(Prcb, 0, sizeof *Prcb);
 		
 		// initialize the struct
-		prcb->Id          = i;
-		prcb->LapicId     = pInfo->lapic_id;
-		prcb->IsBootstrap = bIsBSP;
-		prcb->SmpInfo     = pInfo;
-		prcb->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
-		InitializeListHead(&prcb->DpcQueue.List);
+		Prcb->Id          = i;
+		Prcb->LapicId     = LoaderAp->HardwareId;
+		Prcb->IsBootstrap = bIsBSP;
+		Prcb->LoaderAp    = LoaderAp;
+		Prcb->Ipl         = IPL_NOINTS;  // run it at the highest IPL for now. We'll lower it later
+		InitializeListHead(&Prcb->DpcQueue.List);
 		
-		pInfo->extra_argument = (uint64_t)prcb;
-		
-		KeProcessorList[i] = prcb;
+		LoaderAp->ExtraArgument = Prcb;
+		KeProcessorList[i] = Prcb;
 		
 		if (bIsBSP)
-			pBSPInfo = pInfo;
+			BspAp = LoaderAp;
 	}
 	
 	// After the below point, KeCrashBeforeSMPInit can't be used, and KeCrash proper doesn't
@@ -232,15 +215,13 @@ void KeInitSMP()
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), October 2025 - v%d.%d.%d", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber));
-	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", pSMP->cpu_count, MmTotalAvailablePages * PAGE_SIZE / 1024);
+	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
-	for (uint64_t i = 0; i < pSMP->cpu_count; i++)
+	for (uint64_t i = 0; i < MpInfo->Count; i++)
 	{
-		struct limine_smp_info* pInfo = pSMP->cpus[i];
-		
 		// Launch the CPU! We won't actually go there immediately if we are the bootstrap processor.
-		AtStore(pInfo->goto_address, &KiCPUBootstrap);
+		KeJumpstartAp(i);
 	}
 	
-	KiCPUBootstrap(pBSPInfo);
+	KiCPUBootstrap(BspAp);
 }

@@ -183,14 +183,14 @@ void HalAcpiLocateImportantSdts()
 
 void HalInitAcpi()
 {
-	if (!KeLimineRsdpRequest.response || !KeLimineRsdpRequest.response->address)
+	if (!KeLoaderParameterBlock.RsdpAddress)
 	{
 		LogMsg("Warning, ACPI is not supported on this machine.");
 		// note: ACPI is necessary for setting up the IOAPIC, I guess we can do without it but uh
 		return;
 	}
 	
-	HalpRsdp = KeLimineRsdpRequest.response->address;
+	HalpRsdp = KeLoaderParameterBlock.RsdpAddress;
 	
 	if (AcpiUsingXsdt())
 		HalpRsdt = MmGetHHDMOffsetAddr(HalpRsdp->XsdtAddress);

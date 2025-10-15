@@ -56,7 +56,10 @@ bool HalpIsSerialAvailable;
 
 void HalInitTerminal()
 {
-	struct limine_framebuffer* pFramebuffer = KeLimineFramebufferRequest.response->framebuffers[0];
+	if (KeLoaderParameterBlock.FramebufferCount == 0)
+		KeCrashBeforeSMPInit("HAL: No framebuffers found");
+	
+	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
 	uint32_t defaultFG = 0x00ffffff;
 	
@@ -66,8 +69,8 @@ void HalInitTerminal()
 	const int charWidth = 8, charHeight = 16;
 	int charScale = 1;
 	
-	int termBufWidth  = pFramebuffer->width  / charWidth  / charScale;
-	int termBufHeight = pFramebuffer->height / charHeight / charScale;
+	int termBufWidth  = Framebuffer->Width  / charWidth  / charScale;
+	int termBufHeight = Framebuffer->Height / charHeight / charScale;
 	
 	const int usagePerChar     = 52; // I calculated it
 	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
@@ -77,7 +80,7 @@ void HalInitTerminal()
 	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
 	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes", pFramebuffer->width, pFramebuffer->height, sizePages * PAGE_SIZE);
+	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes", Framebuffer->Width, Framebuffer->Height, sizePages * PAGE_SIZE);
 	
 	HalpTerminalMemory       = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, POOL_TAG("Term"));
 	HalpTerminalMemoryHead   = 0;
@@ -86,13 +89,13 @@ void HalInitTerminal()
 	HalpTerminalContext = flanterm_fb_init(
 		&HalpTerminalMemAlloc,
 		&HalpTerminalFree,
-		(uint32_t*) pFramebuffer->address,
-		pFramebuffer->width,
-		pFramebuffer->height,
-		pFramebuffer->pitch,
-		8, 16,      // red mask size and shift
-		8, 8,       // green mask size and shift
-		8, 0,       // blue mask size and shift
+		(uint32_t*) Framebuffer->Address,
+		Framebuffer->Width,
+		Framebuffer->Height,
+		Framebuffer->Pitch,
+		Framebuffer->RedMaskSize, Framebuffer->RedMaskShift,     // red mask size and shift
+		Framebuffer->GreenMaskSize, Framebuffer->GreenMaskShift, // green mask size and shift
+		Framebuffer->BlueMaskSize, Framebuffer->BlueMaskShift,   // blue mask size and shift
 		NULL,       // canvas
 		NULL,       // ansi colors
 		NULL,       // ansi bright colors

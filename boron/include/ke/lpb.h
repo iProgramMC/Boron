@@ -13,6 +13,14 @@ LOADER_MODULE, *PLOADER_MODULE;
 
 typedef struct
 {
+	LOADER_MODULE Kernel;
+	PLOADER_MODULE List;
+	size_t Count;
+}
+LOADER_MODULE_INFO, *PLOADER_MODULE_INFO;
+
+typedef struct
+{
 	const char* Name;
 	const char* Version;
 }
@@ -25,8 +33,14 @@ typedef struct
 	uint32_t Width;
 	uint32_t Height;
 	uint8_t  BitDepth;
+	uint8_t  RedMaskSize;
+	uint8_t  RedMaskShift;
+	uint8_t  GreenMaskSize;
+	uint8_t  GreenMaskShift;
+	uint8_t  BlueMaskSize;
+	uint8_t  BlueMaskShift;
 }
-LOADER_FRAMEBUFFER_INFO, PLOADER_FRAMEBUFFER_INFO;
+LOADER_FRAMEBUFFER, *PLOADER_FRAMEBUFFER;
 
 // Application Processor
 typedef struct
@@ -76,9 +90,10 @@ typedef struct
 	PLOADER_MEMORY_REGION MemoryRegions;
 	size_t MemoryRegionCount;
 	
-	LOADER_MODULE KernelModule;
-	PLOADER_MODULE Modules;
-	size_t ModuleCount;
+	PLOADER_FRAMEBUFFER Framebuffers;
+	size_t FramebufferCount;
+	
+	LOADER_MODULE_INFO ModuleInfo;
 	
 	LOADER_MP_INFO Multiprocessor;
 	
@@ -102,3 +117,11 @@ typedef struct
 #endif
 }
 LOADER_PARAMETER_BLOCK, *PLOADER_PARAMETER_BLOCK;
+
+extern LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
+
+void KeJumpstartAp(uint32_t ProcessorIndex);
+
+void KeMarkCrashedAp(uint32_t ProcessorIndex);
+
+const char* KeGetBootCommandLine();

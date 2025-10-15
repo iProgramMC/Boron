@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
 	ke/amd64/boot.c
@@ -14,6 +14,7 @@ Author:
 ***/
 #include <ke.h>
 #include <_limine.h>
+#include "../ki.h"
 
 #if LIMINE_API_REVISION >= 3
 	#define STRING_OR_CMDLINE string
@@ -131,6 +132,26 @@ static void KiConvertLimineApToLoaderAp(PLOADER_AP LoaderAp, struct limine_smp_i
 	LoaderAp->TrampolineJumpAddress = LimineAp->goto_address;
 }
 
+INIT
+static void KiConvertLimineFramebufferToLoaderFramebuffer(
+	PLOADER_FRAMEBUFFER LoaderFb,
+	struct limine_framebuffer* LimineFb)
+{
+	LoaderFb->Address  = LimineFb->address;
+	LoaderFb->Pitch    = LimineFb->pitch;
+	LoaderFb->Width    = LimineFb->width;
+	LoaderFb->Height   = LimineFb->height;
+	LoaderFb->BitDepth = LimineFb->bpp;
+	LoaderFb->RedMaskSize    = LimineFb->red_mask_size;
+	LoaderFb->RedMaskShift   = LimineFb->red_mask_shift;
+	LoaderFb->GreenMaskSize  = LimineFb->green_mask_size;
+	LoaderFb->GreenMaskShift = LimineFb->green_mask_shift;
+	LoaderFb->BlueMaskSize   = LimineFb->blue_mask_size;
+	LoaderFb->BlueMaskShift  = LimineFb->blue_mask_shift;
+	
+	// TODO: transfer other details if needed.
+}
+
 // Allocate a contiguous area of memory from the memory map.
 INIT
 static void* KiLimineAllocateMemoryFromMemMap(size_t Size)
@@ -212,14 +233,14 @@ void KiInitLoaderParameterBlock()
 	Lpb->HhdmBase = MmHHDMBase = KeLimineHhdmRequest.response->offset;
 	
 	// Initialize the kernel module.
-	KiConvertLimineFileToLoaderModule(&Lpb->KernelModule, KeLimineKernelFileRequest.response->kernel_file);
+	KiConvertLimineFileToLoaderModule(&Lpb->ModuleInfo.Kernel, KeLimineKernelFileRequest.response->kernel_file);
 	
 	// Initialize the other modules.
-	Lpb->ModuleCount = KeLimineModuleRequest.response->module_count;
-	Lpb->Modules = KiLimineAllocateMemoryFromMemMap(Lpb->ModuleCount * sizeof(LOADER_MODULE));
+	Lpb->ModuleInfo.Count = KeLimineModuleRequest.response->module_count;
+	Lpb->ModuleInfo.List = KiLimineAllocateMemoryFromMemMap(Lpb->ModuleInfo.Count * sizeof(LOADER_MODULE));
 	
-	for (size_t i = 0; i < Lpb->ModuleCount; i++)
-		KiConvertLimineFileToLoaderModule(&Lpb->Modules[i], KeLimineModuleRequest.response->modules[i]);
+	for (size_t i = 0; i < Lpb->ModuleInfo.Count; i++)
+		KiConvertLimineFileToLoaderModule(&Lpb->ModuleInfo.List[i], KeLimineModuleRequest.response->modules[i]);
 	
 	// Initialize the CPUs.
 	Lpb->Multiprocessor.BootstrapHardwareId = KeLimineSmpRequest.response->bsp_lapic_id;
@@ -228,6 +249,13 @@ void KiInitLoaderParameterBlock()
 	
 	for (size_t i = 0; i < Lpb->Multiprocessor.Count; i++)
 		KiConvertLimineApToLoaderAp(&Lpb->Multiprocessor.List[i], KeLimineSmpRequest.response->cpus[i]);
+	
+	// Initialize the frame buffers.
+	Lpb->FramebufferCount = KeLimineFramebufferRequest.response->framebuffer_count;
+	Lpb->Framebuffers = KiLimineAllocateMemoryFromMemMap(Lpb->FramebufferCount * sizeof(LOADER_FRAMEBUFFER));
+	
+	for (size_t i = 0; i < Lpb->FramebufferCount; i++)
+		KiConvertLimineFramebufferToLoaderFramebuffer(&Lpb->Framebuffers[i], KeLimineFramebufferRequest.response->framebuffers[i]);
 	
 	// Initialize the bootloader's information as well as the command line.
 	Lpb->CommandLine        = KeLimineKernelFileRequest.response->kernel_file->STRING_OR_CMDLINE;
@@ -238,3 +266,31 @@ void KiInitLoaderParameterBlock()
 	Lpb->RsdpAddress = KeLimineRsdpRequest.response->address;
 }
 
+NO_RETURN INIT
+void KiApBootstrapEarly(struct limine_smp_info* SmpInfo)
+{
+	PLOADER_AP LoaderAp = &KeLoaderParameterBlock.Multiprocessor.List[SmpInfo->extra_argument];
+	KiCPUBootstrap(LoaderAp);
+}
+
+INIT
+void KeJumpstartAp(uint32_t ProcessorIndex)
+{
+	struct limine_smp_info* SmpInfo = KeLimineSmpRequest.response->cpus[ProcessorIndex];
+	
+	SmpInfo->extra_argument = ProcessorIndex;
+	AtStore(SmpInfo->goto_address, &KiApBootstrapEarly);
+}
+
+NO_RETURN INIT
+void KiApBootstrapCrashed(UNUSED struct limine_smp_info* Unused)
+{
+	KeStopCurrentCPU();
+}
+
+INIT
+void KeMarkCrashedAp(uint32_t ProcessorIndex)
+{
+	struct limine_smp_info* SmpInfo = KeLimineSmpRequest.response->cpus[ProcessorIndex];
+	AtStore(SmpInfo->goto_address, &KiApBootstrapCrashed);
+}

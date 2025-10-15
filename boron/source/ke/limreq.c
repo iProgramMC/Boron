@@ -13,6 +13,8 @@ Author:
 ***/
 #include <stddef.h>
 #include <_limine.h>
+
+#if 0
 #include <limreq.h>
 
 // NOTE: Requesting the kernel file for two reasons:
@@ -48,3 +50,4 @@ const char* KeGetBootCommandLine()
 	
 	return cmdLine;
 }
+#endif

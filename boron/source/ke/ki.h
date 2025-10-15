@@ -19,6 +19,7 @@ Author:
 #include <string.h>
 
 // TODO: This needs heavy cleanup.
+NO_RETURN void KiCPUBootstrap(PLOADER_AP LoaderAp);
 
 // ===== Tests =====
 void KiPerformTests();

@@ -36,7 +36,7 @@ static DRIVER_OBJECT LdrpHalReservedDriverObject;
 
 // Note! BaseOffset - The offset at which the ELF was loaded.  It's equal to VirtualAddr - AddressOfLowestPHDR
 INIT
-static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, uintptr_t BaseVirtAddr)
+static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr, uintptr_t BaseVirtAddr)
 {
 	if (Phdr->SizeInMemory == 0)
 		return;
@@ -113,18 +113,18 @@ static void LdriMapInProgramHeader(PLIMINE_FILE File, PELF_PROGRAM_HEADER Phdr, 
 	
 	// Copy in the data.
 	memcpy((void*)(BaseVirtAddr + Offset),
-	       (void*)((uintptr_t) File->address + Phdr->Offset),
+	       (void*)((uintptr_t) File->Address + Phdr->Offset),
 	       Phdr->SizeInFile);
 }
 
 INIT
-static void LdrpGetLimits(PLIMINE_FILE File, uintptr_t* BaseAddr, uintptr_t* LargestAddr)
+static void LdrpGetLimits(PLOADER_MODULE File, uintptr_t* BaseAddr, uintptr_t* LargestAddr)
 {
 	*BaseAddr = ~0U;
 	*LargestAddr = 0;
 	
-	PELF_HEADER Header = (PELF_HEADER) File->address;
-	uintptr_t Offset = (uintptr_t) File->address + Header->ProgramHeadersOffset;
+	PELF_HEADER Header = (PELF_HEADER) File->Address;
+	uintptr_t Offset = (uintptr_t) File->Address + Header->ProgramHeadersOffset;
 	
 	for (int i = 0; i < Header->ProgramHeaderCount; i++)
 	{
@@ -139,13 +139,13 @@ static void LdrpGetLimits(PLIMINE_FILE File, uintptr_t* BaseAddr, uintptr_t* Lar
 }
 
 INIT
-static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *LoadBase, size_t *LoadSize)
+static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLOADER_MODULE File, uintptr_t *LoadBase, size_t *LoadSize)
 {
-	PELF_HEADER Header = (PELF_HEADER) File->address;
+	PELF_HEADER Header = (PELF_HEADER) File->Address;
 	
 	PELF_PROGRAM_HEADER Dynamic = NULL; // needed later
 	
-	uintptr_t Offset = (uintptr_t) File->address + Header->ProgramHeadersOffset;
+	uintptr_t Offset = (uintptr_t) File->Address + Header->ProgramHeadersOffset;
 	
 	// Scan the program headers to determine the size of our memory region.
 	uintptr_t BaseAddr, LargestAddr;
@@ -186,23 +186,23 @@ static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLIMINE_FILE File, uintptr_t *
 }
 
 INIT
-void LdriLoadDll(PLIMINE_FILE File)
+void LdriLoadDll(PLOADER_MODULE File)
 {
 	if (KeLoadedDLLCount >= (int) ARRAY_COUNT(KeLoadedDLLs))
 	{
-		DbgPrint("Loaded too many DLLs! Refusing to load more... (%s was ignored)", File->path);
+		DbgPrint("Loaded too many DLLs! Refusing to load more... (%s was ignored)", File->Path);
 		return;
 	}
 	
 	PLOADED_DLL LoadedDLL = &KeLoadedDLLs[KeLoadedDLLCount++];
 	
-	LoadedDLL->LimineFile = File;
-	LoadedDLL->Name       = File->path;
+	LoadedDLL->LoaderModule = File;
+	LoadedDLL->Name         = File->Path;
 	
-	PELF_HEADER Header = (PELF_HEADER) File->address;
+	PELF_HEADER Header = (PELF_HEADER) File->Address;
 	
 	if (Header->Type != ELF_TYPE_DYNAMIC)
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: Error, module is not actually a DLL", File->path);
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: Error, module is not actually a DLL", File->Path);
 	
 	// Load the program headers into memory.
 	uintptr_t LoadBase;
@@ -213,32 +213,32 @@ void LdriLoadDll(PLIMINE_FILE File)
 	LoadedDLL->ImageSize = LoadSize;
 	
 	if (!Dynamic)
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: No dynamic table?", File->path);
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: No dynamic table?", File->Path);
 	
 	ELF_DYNAMIC_INFO DynInfo;
-	PELF_DYNAMIC_ITEM DynTable = (PELF_DYNAMIC_ITEM) (File->address + Dynamic->Offset);
+	PELF_DYNAMIC_ITEM DynTable = (PELF_DYNAMIC_ITEM) (File->Address + Dynamic->Offset);
 	if (!RtlParseDynamicTable(DynTable, &DynInfo, LoadBase))
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to parse dynamic table", File->path);
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to parse dynamic table", File->Path);
 	
 	if (!RtlPerformRelocations(&DynInfo, LoadBase))
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->path);
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->Path);
 	
-	RtlFindSymbolTable(File->address, &DynInfo);
+	RtlFindSymbolTable(File->Address, &DynInfo);
 	RtlRelocateRelrEntries(&DynInfo, LoadBase);
 	
-	if (!RtlLinkPlt(&DynInfo, LoadBase, File->path))
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->path);
+	if (!RtlLinkPlt(&DynInfo, LoadBase, File->Path))
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->Path);
 	
 	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);
 	
 	if (!LoadedDLL->EntryPoint)
-		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->path);
+		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->Path);
 	
 	LoadedDLL->StringTable     = DynInfo.StringTable;
 	LoadedDLL->SymbolTable     = DynInfo.SymbolTable;
 	LoadedDLL->SymbolTableSize = DynInfo.SymbolTableSize;
 	
-	DbgPrint("Module %s was loaded at base %p", File->path, LoadBase);
+	DbgPrint("Module %s was loaded at base %p", File->Path, LoadBase);
 }
 
 const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Address, uintptr_t* BaseAddress)

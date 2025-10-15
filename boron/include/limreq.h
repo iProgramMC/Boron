@@ -12,6 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 28 August 2023
 ***/
+#if 0
 #ifndef BORON_LIMREQ_H
 #define BORON_LIMREQ_H
 
@@ -58,3 +59,4 @@ volatile void* KeLimineGetRequest(int RequestId);
 const char* KeGetBootCommandLine();
 
 #endif//BORON_LIMREQ_H
+#endif//0

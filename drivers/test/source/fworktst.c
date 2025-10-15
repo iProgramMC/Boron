@@ -118,13 +118,13 @@ void FillScreen(uint32_t Color)
 // Initializes the graphics backend.
 void Init()
 {
-	struct limine_framebuffer *FrameBuffer = KeLimineFramebufferRequest.response->framebuffers[0];
+	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	
-	PixBuff   = FrameBuffer->address;
-	PixWidth  = FrameBuffer->width;
-	PixHeight = FrameBuffer->height;
-	PixPitch  = FrameBuffer->pitch;
-	PixBPP    = FrameBuffer->bpp;
+	PixBuff   = Framebuffer->Address;
+	PixWidth  = Framebuffer->Width;
+	PixHeight = Framebuffer->Height;
+	PixPitch  = Framebuffer->Pitch;
+	PixBPP    = Framebuffer->BitDepth;
 }
 
 // ####### UTILITY LIBRARY #######

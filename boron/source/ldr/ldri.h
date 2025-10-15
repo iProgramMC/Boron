@@ -19,10 +19,9 @@ Author:
 #include <mm.h>
 #include <ldr.h>
 #include <string.h>
-#include <limreq.h>
 #include <elf.h>
 
-void LdriLoadDll(PLIMINE_FILE File);
+void LdriLoadDll(PLOADER_MODULE File);
 
 uintptr_t LdrAllocateRange(size_t Size);
 

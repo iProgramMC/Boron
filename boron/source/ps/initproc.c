@@ -33,9 +33,6 @@ const char* PspInitialProcessEnvironment =
 	"SOMETHING=Something here\0"
 	"\0";
 
-// TODO THIS IS A PLACEHOLDER
-#include <limreq.h>
-
 bool PsShouldStartInitialProcess()
 {
 	return !StringContainsCaseInsensitive(KeGetBootCommandLine(), "/noinit");

@@ -23,6 +23,7 @@ Author:
 #include <ke/ipl.h>
 #include <ke/dpc.h>
 #include <ke/sched.h>
+#include <ke/lpb.h>
 
 NO_RETURN void KeStopCurrentCPU(void); // stops the current CPU
 
@@ -50,13 +51,17 @@ typedef struct KPRCB_tag
 	int Id;
 	
 	// the APIC ID of the processor
-	uint32_t LapicId;
+	union
+	{
+		uint32_t HardwareId;
+		uint32_t LapicId;
+	};
 	
 	// are we the bootstrap processor?
 	bool IsBootstrap;
 	
 	// the SMP info we're given
-	struct limine_smp_info* SmpInfo;
+	PLOADER_AP LoaderAp;
 	
 	// the current IPL that we are running at
 	KIPL Ipl;
