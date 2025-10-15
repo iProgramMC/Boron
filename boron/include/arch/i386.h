@@ -14,6 +14,12 @@ Author:
 ***/
 #pragma once
 
+#ifndef TARGET_I386
+#error "Don't include this if you aren't building for i386!"
+#endif
+
+#include <arch/ipl.h>
+
 // Model specific registers
 uint64_t KeGetMSR(uint32_t msr);
 void KeSetMSR(uint32_t msr, uint64_t value);
@@ -58,6 +64,8 @@ typedef union
 	uintptr_t Long;
 }
 MMADDRESS_CONVERT;
+
+#endif // KERNEL
 
 #define MM_KERNEL_SPACE_BASE (0x80000000U)
 #define MM_USER_SPACE_END    (0x7FFFFFFFU)
@@ -164,8 +172,6 @@ struct KREGISTERS_tag
 	uint32_t Esp;
 	uint32_t Ss;
 };
-
-#include <arch/ipl.h>
 
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
@@ -291,5 +297,3 @@ KARCH_DATA, *PKARCH_DATA;
 #define MSI_LEVELASSERT    (1 << 14)
 
 #include <arch.h>
-
-#endif

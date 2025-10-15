@@ -24,9 +24,8 @@ ifeq ($(TARGETL), amd64)
 		-mno-sse        \
 		-mno-sse2       \
 		-mno-red-zone   \
-		-mcmodel=kernel \
 		-fno-reorder-functions
-		
+	
 	ARCH_LDFLAGS = \
 		-z max-page-size=0x1000
 	
@@ -35,6 +34,10 @@ ifeq ($(TARGETL), amd64)
 	
 	LINK_ARCH = elf_x86_64
 	SMP = yes
+	
+	ifeq ($(IS_KERNEL), yes)
+		ARCH_CFLAGS += -mcmodel=kernel
+	endif
 	
 else ifeq ($(TARGETL), i386)
 	# Compiler Toolchain
@@ -52,8 +55,8 @@ else ifeq ($(TARGETL), i386)
 		-mno-sse2
 		
 	ARCH_LDFLAGS = \
-		-z max-page-size=0x1000 \
-		-L.                     \
+		-z max-page-size=0x1000  \
+		-L$(DDK_DIR)/../../boron \
 		-lgcc-i686
 	
 	ARCH_ASFLAGS = \

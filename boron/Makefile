@@ -32,7 +32,7 @@ TARGETL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,
 BUILD_DIR = build
 SRC_DIR = source
 INC_DIR = include
-DDKI_DIR = ../common/include
+DDK_DIR = ../common/include
 SCRIPTS_DIR = scripts
 LINKER_FILE = linker.$(TARGETL).ld
 ISO_DIR=$(BUILD_DIR)/iso_root
@@ -75,6 +75,7 @@ else
 	DEFINES += -O3
 endif
 
+IS_KERNEL = yes
 include ../tools/toolchain.mk
 
 ifeq ($(SMP), yes)
@@ -88,10 +89,10 @@ CFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL -DIS_KERNEL_MODE $(DEF
 CXXFLAGS ?= -pipe -Wall -Wextra -DTARGET_$(TARGET) -DKERNEL -DIS_KERNEL_MODE $(DEFINES)
 
 # User controllable preprocessor flags.
-CPPFLAGS ?= -I $(INC_DIR) -I $(DDKI_DIR)
+CPPFLAGS ?= -I $(INC_DIR) -I $(DDK_DIR)
 
 # User controllable nasm flags.
-NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDKI_DIR)
+NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I$(DDK_DIR)
 
 # User controllable linker flags. We set none by default.
 LDFLAGS ?=

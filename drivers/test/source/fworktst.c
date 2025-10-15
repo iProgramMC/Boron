@@ -131,13 +131,13 @@ void Init()
 
 uint64_t ReadTsc()
 {
-	uint64_t low, high;
+	uintptr_t low, high;
 	
 	// note: The rdtsc instruction is specified to zero out the top 32 bits of rax and rdx.
 	ASM("rdtsc":"=a"(low), "=d"(high));
 	
 	// So something like this is fine.
-	return high << 32 | low;
+	return ((uint64_t)high << 32) | low;
 }
 
 unsigned RandTscBased()

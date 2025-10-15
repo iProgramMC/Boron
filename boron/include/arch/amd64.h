@@ -5,6 +5,8 @@
 #error "Don't include this if you aren't building for amd64!"
 #endif
 
+#include <arch/ipl.h>
+
 // Model specific registers
 uint64_t KeGetMSR(uint32_t msr);
 void KeSetMSR(uint32_t msr, uint64_t value);
@@ -52,7 +54,7 @@ typedef union
 }
 MMADDRESS_CONVERT;
 
-#endif
+#endif // KERNEL
 
 // Note! Most of these are going to be present everywhere we'll port to.
 
@@ -171,8 +173,6 @@ struct KREGISTERS_tag
 	uint64_t rsp;
 	uint64_t ss;
 };
-
-#include <arch/ipl.h>
 
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)

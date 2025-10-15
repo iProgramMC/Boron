@@ -68,28 +68,21 @@ NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
-override CFLAGS +=          \
+CFLAGS +=                   \
 	-fno-omit-frame-pointer \
-	-std=c11                \
+	-std=c2x                \
 	-ffreestanding          \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fPIC                   \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
 	-MMD                    \
 	-MP                     \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 
 # Internal C++ flags that should not be changed by the user.
-override CXXFLAGS +=        \
+CXXFLAGS +=                 \
 	-fno-omit-frame-pointer \
 	-std=c++17              \
 	-ffreestanding          \
@@ -97,33 +90,26 @@ override CXXFLAGS +=        \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fPIC                   \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
+	-fno-reorder-functions  \
 	-MMD                    \
 	-MP                     \
 	-fno-exceptions         \
 	-fno-rtti               \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 	
-override LDFLAGSBASE +=     \
+LDFLAGSBASE +=              \
 	-nostdlib -shared       \
 	-e $(DRIVER_ENTRY)      \
-	-m elf_x86_64           \
-	-z max-page-size=0x1000
+	-m $(LINK_ARCH)         \
+	$(ARCH_LDFLAGS)
 
 # Internal linker flags that should not be changed by the user.
-override LDFLAGS +=  \
+LDFLAGS +=  \
 	$(LDFLAGSBASE)
 
 # Internal nasm flags that should not be changed by the user.
-override NASMFLAGS += \
-	-f elf64
+NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
@@ -140,7 +126,7 @@ all: driver
 # Link rules for the final driver executable.
 $(TARGET_DRIVER): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET_DRIVER)"
-	@$(LD) $(OBJ) $(LDFLAGS) -o $@
+	$(BLD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
@@ -149,25 +135,25 @@ $(TARGET_DRIVER): $(OBJ)
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp
 	@echo "[CXX]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(BCXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Compilation rules for *.S files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.S
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.asm (nasm) files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.asm
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@nasm $(NASMFLAGS) $< -o $@
+	@$(BASM) $(NASMFLAGS) $< -o $@
 
 # Remove object files and the final executable.
 .PHONY: clean
