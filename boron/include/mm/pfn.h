@@ -99,6 +99,8 @@ typedef struct
 		PACKED
 		FileCache;
 	};
+	
+	uint32_t Dummy; // to make this a power of 2
 #endif
 }
 PACKED
