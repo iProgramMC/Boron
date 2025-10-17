@@ -317,7 +317,6 @@ void KiInitLoaderParameterBlock()
 			Mod->Path = P2V(Module->cmdline);
 			
 			KiRemoveAreaFromMemMap(Module->mod_start, Module->mod_end - Module->mod_start);
-			
 			Module++;
 		}
 	}

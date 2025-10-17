@@ -173,7 +173,13 @@ BSTATUS CreateFrameBufferObject(int Index)
 	snprintf(Name, sizeof Name, "FrameBuffer%d", Index);
 	
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[Index];
+
+#ifdef IS_64_BIT
 	FbAddress = MmGetHHDMOffsetFromAddr(Framebuffer->Address);
+#else
+	FbAddress = (uintptr_t) Framebuffer->Address;
+#endif
+
 	FbWidth  = Framebuffer->Width;
 	FbHeight = Framebuffer->Height;
 	FbPitch  = Framebuffer->Pitch;
