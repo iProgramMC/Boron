@@ -159,7 +159,7 @@ KiThreadEntryPoint:
 	
 	; ebx saved because KiUnlockDispatcher is SysV compliant
 	; eax still pushed-- will be used as the argument
-	jmp  edi
+	call edi
 
 ; Used for the init phase of the scheduler, before a thread is scheduled in.
 global KiSwitchThreadStackForever
