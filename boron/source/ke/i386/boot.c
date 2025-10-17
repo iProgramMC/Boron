@@ -331,7 +331,7 @@ void KiInitLoaderParameterBlock()
 	// Initialize the CPUs.
 	Lpb->Multiprocessor.Count = 1;
 	Lpb->Multiprocessor.List = &KiLoaderAp;
-	Lpb->Multiprocessor.BootstrapHardwareId = 1;
+	Lpb->Multiprocessor.BootstrapHardwareId = 0;
 	
 	KiLoaderAp.ProcessorId = 0;
 	KiLoaderAp.HardwareId = 0;
@@ -359,12 +359,41 @@ void KiInitLoaderParameterBlock()
 		Fb->Width    = KiMultibootInfo->framebuffer_width;
 		Fb->Height   = KiMultibootInfo->framebuffer_height;
 		Fb->BitDepth = KiMultibootInfo->framebuffer_bpp;
+		
+		// @BROKEN: Limine <v11.x (so, basically, every Limine version up to 17/10/2025, as
+		// v11.x isn't released yet), places color information starting at offset 110 within
+		// the multiboot_info_t struct.  However, GRUB places it at the offset mentioned in
+		// the specification's own struct definition.
+		//
+		// Which one's wrong? Theoretically, the specification conflicts itself. In practice,
+		// the canonical implementation of the multiboot protocol (GRUB) defines the struct
+		// in the way the C definition of struct multiboot_info (in the specification) does.
+		// As such, there is no way to win. Sorry.
+		
 		Fb->RedMaskSize     = KiMultibootInfo->u2.framebuffer_red_mask_size;
 		Fb->RedMaskShift    = KiMultibootInfo->u2.framebuffer_red_field_position;
 		Fb->GreenMaskSize   = KiMultibootInfo->u2.framebuffer_green_mask_size;
 		Fb->GreenMaskShift  = KiMultibootInfo->u2.framebuffer_green_field_position;
 		Fb->BlueMaskSize    = KiMultibootInfo->u2.framebuffer_blue_mask_size;
 		Fb->BlueMaskShift   = KiMultibootInfo->u2.framebuffer_blue_field_position;
+		
+		// Quirk detection: If the values make no sense, believe this is Limine v10.x (or
+		// earlier) loading us.
+		if (Fb->RedMaskShift == Fb->GreenMaskShift ||
+			Fb->RedMaskShift == Fb->BlueMaskShift ||
+			Fb->GreenMaskShift == Fb->BlueMaskShift ||
+			!Fb->RedMaskSize ||
+			!Fb->GreenMaskSize ||
+			!Fb->BlueMaskShift)
+		{
+			DbgPrint("Limine v10.x (or earlier) booted us, so correcting color information");
+			Fb->RedMaskSize     = KiMultibootInfo->framebuffer_colorinfo_b;
+			Fb->RedMaskShift    = KiMultibootInfo->framebuffer_colorinfo_a;
+			Fb->GreenMaskSize   = KiMultibootInfo->u2.framebuffer_red_mask_size;
+			Fb->GreenMaskShift  = KiMultibootInfo->u2.framebuffer_red_field_position;
+			Fb->BlueMaskSize    = KiMultibootInfo->u2.framebuffer_green_mask_size;
+			Fb->BlueMaskShift   = KiMultibootInfo->u2.framebuffer_green_field_position;
+		}
 	}
 	else
 	{

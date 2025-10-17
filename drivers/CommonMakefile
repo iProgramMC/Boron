@@ -53,10 +53,10 @@ endif
 include ../../tools/toolchain.mk
 
 # User controllable CFLAGS.
-CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
+CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
+CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
@@ -112,10 +112,10 @@ LDFLAGS +=  \
 NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
-override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
-override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
-override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override CFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES  := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
 override OBJ := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 

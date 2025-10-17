@@ -68,11 +68,11 @@ $(eval $(call DEFAULT_VAR,LD,ld))
 
 # User controllable CFLAGS.
 CFLAGS ?=
-CFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+CFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
 CXXFLAGS ?=
-CXXFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+CXXFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?=

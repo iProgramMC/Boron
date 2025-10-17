@@ -203,18 +203,31 @@ struct multiboot_info
 	MultibootUInt32 framebuffer_height;
 	MultibootUInt8 framebuffer_bpp;
 	MultibootUInt8 framebuffer_type;
+	
+	// @BROKEN:  The Multiboot specification mentions that the color_info
+	// struct should begin at offset 110, which is not divisible by 4.
+	//
+	// However, the specification's *own definition*, as well as GRUB's,
+	// places all of these fields in a union that will inevitably get
+	// 4 byte alignment due to the framebuffer_palette_addr member.
+	//
+	// Meanwhile, Limine respects the *offset* of 110, and places color
+	// information there.  So, we'll have to do some quirk detection.
+	MultibootUInt8 framebuffer_colorinfo_a;
+	MultibootUInt8 framebuffer_colorinfo_b;
+	
 	union {
 		struct {
 			MultibootUInt32 framebuffer_palette_addr;
 			MultibootUInt16 framebuffer_palette_num_colors;
 		};
 		struct {
-			MultibootUInt8 framebuffer_red_field_position   ;
-			MultibootUInt8 framebuffer_red_mask_size        ;
-			MultibootUInt8 framebuffer_green_field_position ;
-			MultibootUInt8 framebuffer_green_mask_size      ;
-			MultibootUInt8 framebuffer_blue_field_position  ;
-			MultibootUInt8 framebuffer_blue_mask_size       ;
+			MultibootUInt8 framebuffer_red_field_position;
+			MultibootUInt8 framebuffer_red_mask_size;
+			MultibootUInt8 framebuffer_green_field_position;
+			MultibootUInt8 framebuffer_green_mask_size;
+			MultibootUInt8 framebuffer_blue_field_position;
+			MultibootUInt8 framebuffer_blue_mask_size;
 		};
 	} u2;
 };

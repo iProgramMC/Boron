@@ -45,6 +45,8 @@ static const HAL_VFTABLE HalpVfTable =
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
 {
+	HalInitPic();
+	HalInitTerminal();
 }
 
 // Initialize the HAL separately for each processor.
