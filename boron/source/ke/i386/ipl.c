@@ -16,10 +16,9 @@ Author:
 
 void KeOnUpdateIPL(KIPL NewIpl, KIPL OldIpl)
 {
-	// TODO: lazy IPL - only program the interrupt controller if needed
-	
-	if (NewIpl == OldIpl)
-		return;
-	
-	// TODO: placeholder method here
+	// Well, there's nothing here, since this is useless.
+	// The beautiful code is in traps.c, dealing with hardware
+	// interrupts.
+	(void) NewIpl;
+	(void) OldIpl;
 }

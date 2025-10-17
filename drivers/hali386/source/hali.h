@@ -7,8 +7,6 @@
 #define PIT_TICK_FREQUENCY   (1193182)
 #define PIT_CHANNEL_0_PORT   (0x40)
 
-#define PIC_INTERRUPT_BASE   (0x20)
-
 #define PIC1_COMMAND         (0x20)
 #define PIC1_DATA            (0x21)
 #define PIC2_COMMAND         (0xA0)
@@ -42,6 +40,10 @@ HAL_API uint64_t HalGetIntTimerDeltaTicks();
 HAL_API void HalInitPic();
 
 HAL_API void HalEndOfInterrupt(int InterruptNumber);
+
+HAL_API void HalRegisterInterrupt(uint8_t Vector, KIPL Ipl);
+
+HAL_API void HalDeregisterInterrupt(uint8_t Vector, KIPL Ipl);
 
 
 

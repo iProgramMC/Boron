@@ -14,6 +14,10 @@ Author:
 #include <ke.h>
 #include "hali.h"
 
+uint16_t KiIplTable[] = {
+	
+};
+
 void KePortWriteByteWait(uint16_t Port, uint8_t Data)
 {
 	KePortWriteByte(Port, Data);
@@ -31,6 +35,20 @@ HAL_API void HalEndOfInterrupt(int InterruptNumber)
 		KePortWriteByte(PIC2_COMMAND, PIC_CMD_EOI);
 	
 	KePortWriteByte(PIC1_COMMAND, PIC_CMD_EOI);
+}
+
+HAL_API void HalRegisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	// TODO
+	(void) Vector;
+	(void) Ipl;
+}
+
+HAL_API void HalDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	// TODO
+	(void) Vector;
+	(void) Ipl;
 }
 
 HAL_API void HalInitPic()

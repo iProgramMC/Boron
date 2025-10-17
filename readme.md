@@ -3,7 +3,7 @@
 Boron is a 64-bit operating system designed with SMP in mind. It borrows heavily from Windows NT,
 but does not aim to be a total clone.
 
-Note! Boron is currently not even in a minimally usable state. Don't expect it to do anything.
+NOTE: Boron is currently not even in a minimally usable state. Don't expect it to do anything.
 
 This project is licensed under the three clause BSD license, **except the following**:
 - Flanterm (drivers/halx86/source/flanterm): https://github.com/mintsuki/flanterm - Licensed under the 2 clause BSD license
@@ -20,6 +20,21 @@ Currently this uses Limine v7.x.
 * It's new (as far as I can tell)
 * The chemical element with the same name has the atomic number of 5. Coincidentally this is also my 5th
   operating system project. (three of them flopped, and the other one that didn't is [NanoShell](https://github.com/iProgramMC/NanoShellOS))
+
+### Supported platforms
+
+Currently, Boron supports running on:
+- x86_64
+- x86 (32-bit)
+
+Note: The supporting code for 32-bit x86 is called `i386`, but there is a long way to actually running on the original 80386.)
+
+### Planned ports
+
+Boron is planned to be ported to:
+- PowerPC (32-bit)
+- ARMv6 (32-bit)
+- AArch64 (64-bit)
 
 ## Building
 In a terminal, run the following commands:
@@ -41,6 +56,8 @@ Currently, the OS's source is structured into the following:
 * `boron/` - The OS kernel itself. See [the Boron kernel's structure](boron/structure.md) for more details.
 
 * `drivers/` - The actual drivers themselves.
+
+* `user/` - Boron's native userspace distribution lives here.
 
 Kernel DLL exports will use the prefix `OS`. I know this isn't the chemical symbol for boron (that being B),
 but it is what it is.
@@ -78,7 +95,7 @@ all present related to it.
 	* [x] Reclamation of pages occupied by initialization code
 	* [x] Capture of physical regions for extended use
 	* [x] Mapping and unmapping anonymous memory
-	* [ ] File backed memory
+	* [x] File backed memory
 	* [ ] Swap file support
 	* [ ] Swap out page tables
 	* [ ] Swap out kernel code
@@ -100,7 +117,7 @@ all present related to it.
 * [x] Dynamic linked library loader (`Ldr`)
 	* [x] HAL separate from kernel
 	* [x] Load additional kernel side modules
-	* [ ] Map the Boron system service DLL (BoronDLL.dll)
+	* [x] Map the Boron system service DLL (libboron.so)
 
 * [ ] File system manager
 	* [ ] ...
@@ -111,10 +128,10 @@ all present related to it.
 * [ ] Security subsystem (later)
 	* [ ] ...
 
-* [ ] Boron DLL / Librarian / System service handler
-	* [ ] Load fixed modules
-	* [ ] Load relocatable modules
-	* [ ] Link modules with each other by resolving undefined dependencies
+* [x] Boron DLL / Librarian / System service handler
+	* [x] Load fixed modules
+	* [x] Load relocatable modules
+	* [x] Link modules with each other by resolving undefined dependencies
 
 * [ ] User space
 	* [ ] Command line shell

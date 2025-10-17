@@ -79,7 +79,9 @@ void KeInitializeInterrupt(
 	KIPL InterruptIpl,
 	bool SharedVector)
 {
-	ASSERT((Vector >> 4) == InterruptIpl && "The interrupt vector must match its IPL on AMD64.");
+	if (Vector < PIC_INTERRUPT_BASE && Vector >= PIC_INTERRUPT_BASE + 16)
+		DbgPrint("WARNING: KeInitializeInterrupt -- interrupt vector %d may not be called", Vector);
+	
 	ASSERT(InterruptIpl > IPL_DPC   && "The caller may not override this IPL");
 	ASSERT(InterruptIpl < IPL_CLOCK && "The caller may not override this IPL");
 	
@@ -115,6 +117,10 @@ bool KeConnectInterrupt(PKINTERRUPT Interrupt)
 			return false;
 		}
 	}
+	else
+	{
+		HalPicRegisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
+	}
 	
 	// Connect the interrupt now.
 	InsertTailList(&InterruptList->List, &Interrupt->Entry);
@@ -142,6 +148,9 @@ void KeDisconnectInterrupt(PKINTERRUPT Interrupt)
 	// Disconnect the interrupt now.
 	RemoveEntryList(&Interrupt->Entry);
 	Interrupt->Connected = false;
+	
+	if (IsListEmpty(&InterruptList->List))
+		HalPicDeregisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
 	
 	KeReleaseSpinLock(&InterruptList->Lock, IplUnused);
 	KeLowerIPL(Ipl);
