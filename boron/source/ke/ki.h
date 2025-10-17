@@ -111,8 +111,4 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 
 bool KiCancelTimer(PKTIMER Timer);
 
-#ifdef TARGET_I386
-extern bool KiTimerSuppression;
-#endif
-
 #endif//BORON_KE_KI_H

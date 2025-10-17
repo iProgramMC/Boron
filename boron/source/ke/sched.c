@@ -275,9 +275,6 @@ NO_RETURN void KeSchedulerCommit()
 	// the quantum-end interrupt.
 	KIPL Ipl = KeRaiseIPL(IPL_DPC);
 	KiSetPendingQuantumEnd();
-#ifdef TARGET_I386
-	KiTimerSuppression = false;
-#endif
 	KeLowerIPL(Ipl);
 	
 	// Wait for the waves to pick us up...
@@ -769,6 +766,9 @@ void KiHandleQuantumEnd()
 
 void KeTimerTick()
 {
+	if (!KeGetCurrentThread())
+		return;
+	
 	// Check if the current thread's quantum has expired. If it has, set
 	// the PENDING_YIELD pending event and issue a software interrupt.
 	

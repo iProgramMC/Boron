@@ -25,8 +25,6 @@ extern void*       KiTrapCallList[]; // trap.asm
 
 extern void KiCallSoftwareInterrupt(int Vector); // trap.asm
 
-bool KiTimerSuppression = true; // set to false in ../sched.c
-
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
 enum KGATE_TYPE
@@ -122,13 +120,6 @@ int KiTryEnterHardwareInterrupt(int IntNum)
 	// Check if this is a lower priority interrupt than our current IPL.
 	if (NewIpl != -1)
 	{
-		// HACK: Suppress timer interrupts until system is booted.
-		if (IntNum == PIC_INTERRUPT_BASE && KiTimerSuppression)
-		{
-			HalEndOfInterrupt(IntNum);
-			return -1;
-		}
-		
 		// If this is a hardware interrupt and it's lower in our priority, then defer it.
 		if (OldIpl >= NewIpl && IntNum >= 0x20)
 		{
