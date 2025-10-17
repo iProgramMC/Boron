@@ -120,7 +120,17 @@ void Init()
 {
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	
+#ifdef IS_32_BIT
+	PixBuff = MmMapIoSpace(
+		(uintptr_t)Framebuffer->Address,
+		Framebuffer->Pitch * Framebuffer->Height,
+		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		POOL_TAG("FWFB")
+	);
+#else
 	PixBuff   = Framebuffer->Address;
+#endif
+
 	PixWidth  = Framebuffer->Width;
 	PixHeight = Framebuffer->Height;
 	PixPitch  = Framebuffer->Pitch;
