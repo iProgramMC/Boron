@@ -183,11 +183,13 @@ void KiExitHardwareInterrupt(PKREGISTERS Registers)
 	
 	// Check if the current thread is terminated and we are about to
 	// return to user mode.
-	if (KeGetCurrentThread()->PendingTermination &&
+	PKTHREAD CurrentThread = KeGetCurrentThread();
+	if (CurrentThread &&
+		CurrentThread->PendingTermination &&
 		Registers->OldIpl == IPL_NORMAL &&
 		Registers->Cs == SEG_RING_3_CODE)
 	{
-		KiTerminateUserModeThread(KeGetCurrentThread()->IncrementTerminated);
+		KiTerminateUserModeThread(CurrentThread->IncrementTerminated);
 	}
 	
 	// Note: safe to call here because KiDispatchSoftwareInterrupts
