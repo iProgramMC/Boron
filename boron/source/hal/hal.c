@@ -27,9 +27,9 @@ void HalSetVftable(const HAL_VFTABLE* Table)
 	HalpVftable = *Table;
 }
 
-void HalEndOfInterrupt()
+void HalEndOfInterrupt(int InterruptNumber)
 {
-	HalpVftable.EndOfInterrupt();
+	HalpVftable.EndOfInterrupt(InterruptNumber);
 }
 
 void HalRequestInterruptInTicks(uint64_t Ticks)

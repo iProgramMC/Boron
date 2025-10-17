@@ -90,8 +90,8 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	PMMPTE NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMappingResult), OldPageMappingAccess;
 	//PMMPTE OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
 	
-	// copy the kernel's 256 entries, and zero out the first 256
-	for (int i = 0; i < 256; i++)
+	// copy the kernel's 512 entries, and zero out the first 512
+	for (int i = 0; i < 512; i++)
 	{
 		NewPageMappingAccess[i] = 0;
 	}
@@ -99,7 +99,7 @@ HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
 	// Lock the kernel space's lock to not get any surprises.
 	MmLockKernelSpaceShared();
 	
-	for (int i = 256; i < 512; i++)
+	for (int i = 512; i < 1024; i++)
 	{
 		//NewPageMappingAccess[i] = OldPageMappingAccess[i];
 		

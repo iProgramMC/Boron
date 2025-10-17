@@ -29,6 +29,7 @@ DRIVERS_LIST = \
 	test
 else ifeq ($(TARGET),I386)
 DRIVERS_LIST = \
+	hali386    \
 	i8042prt   \
 	ext2fs     \
 	test

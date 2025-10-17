@@ -54,7 +54,7 @@ static PKREGISTERS KiInterruptDispatch(PKREGISTERS Regs)
 	KeReleaseSpinLock(&InterruptList->Lock, Ipl);
 	
 	// Acknowledge the interrupt.
-	HalEndOfInterrupt();
+	HalEndOfInterrupt(Regs->IntNumber);
 	
 	// No change in registers.
 	return Regs;

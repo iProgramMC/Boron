@@ -21,7 +21,7 @@ Author:
 #define HAL_VFTABLE_LOADED (1 << 0)
 
 // Function pointer definitions
-typedef void(*PFHAL_END_OF_INTERRUPT)(void);
+typedef void(*PFHAL_END_OF_INTERRUPT)(int InterruptNumber);
 typedef void(*PFHAL_REQUEST_INTERRUPT_IN_TICKS)(uint64_t Ticks);
 typedef void(*PFHAL_REQUEST_IPI)(uint32_t LapicId, uint32_t Flags, int Vector);
 typedef void(*PFHAL_INIT_SYSTEM_UP)(void);
@@ -36,11 +36,11 @@ typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
 
 #ifdef TARGET_AMD64
-
 typedef void(*PFHAL_IOAPIC_SET_IRQ_REDIRECT)(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+#endif
 
+#if defined TARGET_AMD64 || defined TARGET_I386
 #include "pci.h"
-
 #endif
 
 typedef struct
@@ -63,6 +63,8 @@ typedef struct
 	
 #ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;
+#endif
+#if defined TARGET_AMD64 || defined TARGET_I386
 	PFHAL_PCI_ENUMERATE PciEnumerate;
 	PFHAL_PCI_CONFIG_READ_DWORD PciConfigReadDword;
 	PFHAL_PCI_CONFIG_READ_WORD PciConfigReadWord;

@@ -62,7 +62,6 @@ static void* KiEarlyAllocateMemoryFromMemMap(size_t Size)
 INIT
 static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
 {
-	DbgPrint("KiRemoveAreaFromMemMap(0x%p, 0x%x)", StartAddress, Size);
 	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
 	
 	// Ensure the start address and size greedily cover page boundaries.
@@ -123,7 +122,6 @@ static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
 				if (Lpb->MemoryRegionCount >= MAX_MEMORY_REGIONS)
 					continue;
 				
-				DbgPrint("ADDING");
 				PLOADER_MEMORY_REGION NewRegion = &KiMemoryRegions[Lpb->MemoryRegionCount++];
 				NewRegion->Type = LOADER_MEM_FREE;
 				NewRegion->Base = End;
@@ -153,6 +151,9 @@ static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
 INIT
 static void KiInitializeMemoryRegions()
 {
+	if (~KiMultibootInfo->flags & MULTIBOOT_INFO_MEM_MAP)
+		KeCrashBeforeSMPInit("ERROR: There is no memory map specified!");
+	
 	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
 	multiboot_memory_map_t
 		*Mmap = P2V(KiMultibootInfo->mmap_addr),
@@ -166,8 +167,6 @@ static void KiInitializeMemoryRegions()
 	{
 		if (Mmap->type != MULTIBOOT_MEMORY_AVAILABLE)
 			continue;
-		
-		DbgPrint("Mmap->addr = %p,  Mmap->len = %p", (void*)(unsigned)Mmap->addr, Mmap->len);
 		
 		// ignore ranges that start into 64-bit memory
 		if (Mmap->addr > 0x100000000)
@@ -267,6 +266,10 @@ static void KiInitializeMemoryRegions()
 
 extern char KiKernelEnd[];
 
+static LOADER_AP KiLoaderAp;
+static LOADER_FRAMEBUFFER KiLoaderFramebuffer;
+static void* KiLoaderApDummy;
+
 INIT
 void KiInitLoaderParameterBlock()
 {
@@ -281,17 +284,106 @@ void KiInitLoaderParameterBlock()
 	
 	// Initialize the memory regions.
 	KiInitializeMemoryRegions();
-	KiRemoveAreaFromMemMap(0, (size_t) KiKernelEnd);
+	KiRemoveAreaFromMemMap(0x100000, (size_t) KiKernelEnd - 0x100000);
 	
 	// Initialize the kernel module.
+	Lpb->ModuleInfo.Kernel.Path   = "kernel.elf";
+	Lpb->ModuleInfo.Kernel.String = P2V(KiMultibootInfo->cmdline);
+	Lpb->ModuleInfo.Kernel.Address = (void*) 0xC0100000; // TODO: is the whole kernel (+ELF stuff) loaded here??
+	Lpb->ModuleInfo.Kernel.Size    = (size_t) KiKernelEnd - 0x100000;
 	
 	// Initialize the other modules.
+	if (KiMultibootInfo->flags & MULTIBOOT_INFO_MODS)
+	{
+		Lpb->ModuleInfo.Count = KiMultibootInfo->mods_count;
+		Lpb->ModuleInfo.List  = KiEarlyAllocateMemoryFromMemMap(Lpb->ModuleInfo.Count * sizeof(LOADER_MODULE));
+		
+		// QUIRK: Multiboot1 does *not* give you the name of modules!
+		// So their name has to be specified through the commandline.
+		// Wow, that sucks. Also Multiboot2 doesn't either.
+		multiboot_module_t* Module = P2V(KiMultibootInfo->mods_addr);
+		KiRemoveAreaFromMemMap(KiMultibootInfo->mods_addr, Lpb->ModuleInfo.Count * sizeof(multiboot_module_t));
+
+		for (size_t i = 0; i < Lpb->ModuleInfo.Count; i++)
+		{
+			PLOADER_MODULE Mod = &Lpb->ModuleInfo.List[i];
+			Mod->Address = P2V(Module->mod_start);
+			Mod->Size    = Module->mod_end - Module->mod_start;
+			Mod->String  = "";
+			
+			if (Module->cmdline == 0)
+				KeCrashBeforeSMPInit("ERROR: Cannot load module table.  This module has no name.");
+			
+			Mod->Path = P2V(Module->cmdline);
+			
+			KiRemoveAreaFromMemMap(Module->mod_start, Module->mod_end - Module->mod_start);
+			
+			Module++;
+		}
+	}
+	else
+	{
+		DbgPrint("Booted without modules, the system WILL NOT boot!");
+		Lpb->ModuleInfo.Count = 0;
+		Lpb->ModuleInfo.List = NULL;
+	}
 	
 	// Initialize the CPUs.
+	Lpb->Multiprocessor.Count = 1;
+	Lpb->Multiprocessor.List = &KiLoaderAp;
+	Lpb->Multiprocessor.BootstrapHardwareId = 1;
+	
+	KiLoaderAp.ProcessorId = 0;
+	KiLoaderAp.HardwareId = 0;
+	KiLoaderAp.TrampolineJumpAddress = &KiLoaderApDummy;
+	KiLoaderAp.ExtraArgument = NULL;
 	
 	// Initialize the frame buffers.
+	if (KiMultibootInfo->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
+	{
+		Lpb->FramebufferCount = 1;
+		Lpb->Framebuffers = &KiLoaderFramebuffer;
+		
+		PLOADER_FRAMEBUFFER Fb = &KiLoaderFramebuffer;
+		if (KiMultibootInfo->framebuffer_addr > 0x100000000)
+		{
+			KeCrash(
+				"KiMultibootInfo->framebuffer_addr is %08x%08x, which is larger than 32-bit!",
+				(uint32_t)KiMultibootInfo->framebuffer_addr,
+				(uint32_t)(KiMultibootInfo->framebuffer_addr >> 32)
+			);
+		}
+		
+		Fb->Address  = (void*) (uint32_t) KiMultibootInfo->framebuffer_addr;
+		Fb->Pitch    = KiMultibootInfo->framebuffer_pitch;
+		Fb->Width    = KiMultibootInfo->framebuffer_width;
+		Fb->Height   = KiMultibootInfo->framebuffer_height;
+		Fb->BitDepth = KiMultibootInfo->framebuffer_bpp;
+		Fb->RedMaskSize     = KiMultibootInfo->u2.framebuffer_red_mask_size;
+		Fb->RedMaskShift    = KiMultibootInfo->u2.framebuffer_red_field_position;
+		Fb->GreenMaskSize   = KiMultibootInfo->u2.framebuffer_green_mask_size;
+		Fb->GreenMaskShift  = KiMultibootInfo->u2.framebuffer_green_field_position;
+		Fb->BlueMaskSize    = KiMultibootInfo->u2.framebuffer_blue_mask_size;
+		Fb->BlueMaskShift   = KiMultibootInfo->u2.framebuffer_blue_field_position;
+	}
+	else
+	{
+		DbgPrint("Booted without a framebuffer, things might go wrong!");
+		Lpb->FramebufferCount = 0;
+		Lpb->Framebuffers = NULL;
+	}
 	
 	// Initialize the bootloader's information as well as the command line.
+	Lpb->CommandLine = P2V(KiMultibootInfo->cmdline);
 	
-	
+	if (KiMultibootInfo->flags & MULTIBOOT_INFO_BOOT_LOADER_NAME)
+	{
+		Lpb->LoaderInfo.Name    = P2V(KiMultibootInfo->boot_loader_name);
+		Lpb->LoaderInfo.Version = "v1.0";
+	}
+	else
+	{
+		Lpb->LoaderInfo.Name    = "Generic Multiboot1 compliant bootloader";
+		Lpb->LoaderInfo.Version = "v1.0";
+	}
 }

@@ -148,6 +148,7 @@ static void KiConvertLimineFramebufferToLoaderFramebuffer(
 	LoaderFb->GreenMaskShift = LimineFb->green_mask_shift;
 	LoaderFb->BlueMaskSize   = LimineFb->blue_mask_size;
 	LoaderFb->BlueMaskShift  = LimineFb->blue_mask_shift;
+	LoaderFb->IsPhysicalAddress = false;
 	
 	// TODO: transfer other details if needed.
 }

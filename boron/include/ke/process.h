@@ -53,7 +53,7 @@ PKPROCESS KeGetSystemProcess();
 void KeDeallocateProcess(PKPROCESS Process);
 
 // Initialize the process.
-void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity);
+BSTATUS KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity);
 
 // Attach to or detach from a process, on behalf of the current thread.
 //

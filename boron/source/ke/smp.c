@@ -162,6 +162,12 @@ void PsInitSystemProcess();
 NO_RETURN INIT
 void KeInitSMP()
 {
+#ifdef CONFIG_SMP
+	#define UNI_OR_MULTI "Multi"
+#else
+	#define UNI_OR_MULTI "Uni"
+#endif
+	
 	PLOADER_MP_INFO MpInfo = &KeLoaderParameterBlock.Multiprocessor;
 	PLOADER_AP BspAp = NULL;
 	
@@ -220,7 +226,7 @@ void KeInitSMP()
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), October 2025 - v%d.%d.%d", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber));
-	LogMsg("%u System Processors [%u Kb System Memory] MultiProcessor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024);
+	LogMsg("%u System Processors [%u Kb System Memory] %sProcessor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024, UNI_OR_MULTI);
 	
 	for (uint64_t i = 0; i < MpInfo->Count; i++)
 	{

@@ -142,6 +142,6 @@ PKREGISTERS KiHandleTlbShootdownIpi(PKREGISTERS Regs)
 	
 	KeReleaseSpinLock(&Prcb->TlbsLock, IPL_NOINTS);
 	
-	HalEndOfInterrupt();
+	HalEndOfInterrupt((int) Regs->IntNumber);
 	return Regs;
 }

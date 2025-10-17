@@ -83,15 +83,15 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	Process->Pcb.PageMap = 0;
 	
 	// Initialize the kernel side process.
-	KeInitializeProcess(
+	Status = KeInitializeProcess(
 		&Process->Pcb,
 		PRIORITY_NORMAL,
 		AFFINITY_ALL
 	);
 	
 	// If the initial page map couldn't be created, throw an out of memory error.
-	if (!Process->Pcb.PageMap)
-		return STATUS_INSUFFICIENT_MEMORY;
+	if (FAILED(Status))
+		return Status;
 	
 	MmInitializeVadList(&Process->VadList);
 	

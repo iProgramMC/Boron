@@ -67,11 +67,14 @@ void PsInitSystemProcess()
 	PspSystemProcessNpHeader.NormalHeader = Hdr;
 	
 	// Initialize the kernel side process.
-	KeInitializeProcess(
+	BSTATUS Status = KeInitializeProcess(
 		&PsSystemProcess.Pcb,
 		PRIORITY_NORMAL,
 		AFFINITY_ALL
 	);
+	
+	if (FAILED(Status))
+		KeCrashBeforeSMPInit("KeInitializeProcess failed!");
 	
 	// Use the new page mapping.
 	KeSetCurrentPageTable(PsSystemProcess.Pcb.PageMap);

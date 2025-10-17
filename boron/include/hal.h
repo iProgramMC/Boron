@@ -16,7 +16,7 @@
 bool HalWasInitted();
 
 // HAL API. See hal/init.h
-void HalEndOfInterrupt();
+void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();

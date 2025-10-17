@@ -66,6 +66,7 @@ static void* KiCPUPointer;
 
 void KeSetCPUPointer(void* pGS)
 {
+	DbgPrint("KeSetCPUPointer: %p", pGS);
 	KiCPUPointer = pGS;
 }
 

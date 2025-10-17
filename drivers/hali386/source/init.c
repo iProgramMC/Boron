@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
 	ha/init.c
@@ -10,30 +10,11 @@ Abstract:
 	(UP-init and MP-init)
 	
 Author:
-	iProgramInCpp - 23 September 2023
+	iProgramInCpp - 16 October 2025
 ***/
-#include "hali.h"
 #include <ke.h>
-#include <ex.h>
-#include "acpi.h"
-#include "apic.h"
-#include "hpet.h"
-#include "ioapic.h"
+#include "hali.h"
 #include "pci.h"
-
-void HalEndOfInterrupt(int InterruptNumber);
-void HalRequestInterruptInTicks(uint64_t Ticks);
-void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
-void HalInitSystemUP();
-void HalInitSystemMP();
-void HalDisplayString(const char* Message);
-void HalCrashSystem(const char* Message) NO_RETURN;
-bool HalUseOneShotIntTimer();
-void HalProcessorCrashed() NO_RETURN;
-uint64_t HalGetIntTimerFrequency();
-uint64_t HalGetTickCount();
-uint64_t HalGetTickFrequency();
-uint64_t HalGetIntTimerDeltaTicks();
 
 static const HAL_VFTABLE HalpVfTable =
 {
@@ -50,7 +31,6 @@ static const HAL_VFTABLE HalpVfTable =
 	.GetTickCount = HalGetTickCount,
 	.GetTickFrequency = HalGetTickFrequency,
 	.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
-	.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect,
 	.PciEnumerate = HalPciEnumerate,
 	.PciConfigReadDword = HalPciConfigReadDword,
 	.PciConfigReadWord = HalPciConfigReadWord,
@@ -62,30 +42,15 @@ static const HAL_VFTABLE HalpVfTable =
 	.Flags = HAL_VFTABLE_LOADED,
 };
 
-PKHALCB KeGetCurrentHalCB()
-{
-	return KeGetCurrentPRCB()->HalData;
-}
-
 // Initialize the HAL on the BSP, for all processors.
-void HalInitSystemUP()
+HAL_API void HalInitSystemUP()
 {
-	HalInitTerminal();
-	HalInitApicUP();
-	HalInitAcpi();
-	HalInitIoApic();
-	HpetInitialize();
-	HalInitPci();
 }
 
 // Initialize the HAL separately for each processor.
 // This function is run on ALL processors.
-void HalInitSystemMP()
+HAL_API void HalInitSystemMP()
 {
-	KeGetCurrentPRCB()->HalData = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KHALCB));
-	
-	HalInitApicMP();
-	HalCalibrateApic();
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
@@ -98,4 +63,3 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	// And return, that's all we need.
 	return STATUS_SUCCESS;
 }
-
