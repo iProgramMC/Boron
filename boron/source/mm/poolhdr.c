@@ -17,17 +17,28 @@ Author:
 
 typedef struct
 {
+	// UPDATE MmpAllocateFromPoolEntrySlab if changing these.
+
+#ifdef IS_64_BIT
+	#define POOL_ENTRY_COUNT 84
 	// Size of a MIPOOL_ENTRY is 48.
-	// UPDATE MmpAllocateFromPoolEntrySlab if changing this.
-	MIPOOL_ENTRY Entries[84];
+	// Size of additional data is 32 bytes. (2xPtr=16 + 2xU64=16)
+	// Note: Free space is 32 bytes
+#else
+	#define POOL_ENTRY_COUNT 127
+	// Size of a MIPOOL_ENTRY is 32
+	// Size of additional data is 24 bytes (2xPtr=8 + 2xU64=16)
+	// Note: Free space is 16 bytes
+#endif
+
+	MIPOOL_ENTRY Entries[POOL_ENTRY_COUNT];
 	LIST_ENTRY ListEntry;
 	uint64_t Bitmap[2];
-	
-	// Note - Free space: 32 bytes
 }
 MIPOOL_ENTRY_SLAB, *PMIPOOL_ENTRY_SLAB;
 
 static_assert(sizeof(MIPOOL_ENTRY_SLAB) <= PAGE_SIZE);
+static_assert((sizeof(MIPOOL_ENTRY) & 0x7) == 0);
 
 static LIST_ENTRY MmpPoolSlabList;
 static KSPIN_LOCK MmpPoolSlabListLock;
@@ -47,10 +58,10 @@ PMIPOOL_ENTRY MmpAllocateFromPoolEntrySlab(PMIPOOL_ENTRY_SLAB Slab)
 		}
 	}
 	
-	const uint64_t FirstTwentyBitsSet = (1ULL << 20) - 1;
+	const uint64_t FirstTwentyBitsSet = (1ULL << (POOL_ENTRY_COUNT - 64)) - 1;
 	if ((Slab->Bitmap[1] & FirstTwentyBitsSet) != FirstTwentyBitsSet)
 	{
-		for (int i = 0, j = 64; i < 20; i++, j++)
+		for (int i = 0, j = 64; i < POOL_ENTRY_COUNT - 64; i++, j++)
 		{
 			if (~Slab->Bitmap[1] & (1ULL << i))
 			{

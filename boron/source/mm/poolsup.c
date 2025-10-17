@@ -14,6 +14,59 @@ Author:
 ***/
 #include "mi.h"
 
+#ifdef IS_32_BIT
+
+// the structure of the pool header PTE if this is set is as follows:
+//
+// [Bits 31..12] 1 [Bits 11..10] 0 [Bits 9..3] 0
+//
+// - Bit 8 is cleared because MM_DPTE_COMMITTED shouldn't conflict
+//   with this scheme.
+//
+// - Bit 0 is cleared because MM_PTE_PRESENT conflicts
+//
+// - Bit 11 is set because that's MM_PTE_ISPOOLHDR
+
+typedef union
+{
+	MMPTE Pte;
+	
+	struct
+	{
+		uintptr_t Present   : 1; // MUST be zero
+		uintptr_t B3to9     : 7;
+		uintptr_t Committed : 1; // MUST be zero
+		uintptr_t B10to11   : 2;
+		uintptr_t IsPoolHdr : 1; // MUST be ONE
+		uintptr_t B12to31   : 20;
+	}
+	PACKED;
+}
+MMPTE_POOLHEADER;
+
+static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
+static_assert(MM_DPTE_COMMITTED == (1 << 8));
+static_assert(MM_PTE_ISPOOLHDR == (1 << 11));
+
+MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
+{
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = 0;
+	
+	PteHeader.B3to9 = (Handle >> 3) & 0x1FF;
+	PteHeader.B10to11 = (Handle >> 10) & 0x3;
+	PteHeader.B12to31 = (Handle >> 12);
+	PteHeader.IsPoolHdr = true;
+
+	return PteHeader.Pte;
+}
+
+#else
+
+#define MiCalculatePoolHeaderPte(Handle) (((Handle) - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR)
+
+#endif
+
 //
 // TODO: This could be improved, however, it's probably OK for now.
 //
@@ -219,7 +272,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	
 	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, false);
 	ASSERT(PtePtr);
-	ASSERT(*PtePtr == ((Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR));
+	ASSERT(*PtePtr == MiCalculatePoolHeaderPte(Handle));
 	*PtePtr = 0;
 	
 	MmUnlockKernelSpace();
@@ -263,7 +316,8 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	ASSERT(*PtePtr == 0);
 	ASSERT((Handle & MM_PTE_PRESENT) == 0);
 	
-	*PtePtr = (Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR;
+	*PtePtr = MiCalculatePoolHeaderPte(Handle);
+
 	MmUnlockKernelSpace();
 	
 	*OutputAddress = (void*) ((uintptr_t) OutputAddressSub + PAGE_SIZE);
@@ -341,9 +395,21 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	// the valid bit set.
 	uintptr_t PAddress = *PtePtr;
 	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
-	PAddress &= ~MM_PTE_ISPOOLHDR;
 	
-	MIPOOL_SPACE_HANDLE Handle = PAddress + MM_KERNEL_SPACE_BASE;
+#ifdef IS_32_BIT
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = PAddress;
+	
+	PAddress =
+		PteHeader.B12to31 << 12 |
+		PteHeader.B10to11 << 10 |
+		PteHeader.B3to9 << 3;
+#else
+	PAddress &= ~MM_PTE_ISPOOLHDR;
+	PAddress += MM_KERNEL_SPACE_BASE;
+#endif
+	
+	MIPOOL_SPACE_HANDLE Handle = PAddress;
 	MmUnlockKernelSpace();
 	return Handle;
 }

@@ -176,6 +176,9 @@ typedef struct MIPOOL_ENTRY_tag
 	uintptr_t  UserData;                    // Qword 3
 	uintptr_t  Address;                     // Qword 4
 	size_t     Size;                        // Qword 5, size is in pages.
+#ifdef IS_32_BIT
+	int        Dummy;
+#endif
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
 

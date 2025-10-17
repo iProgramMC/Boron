@@ -113,11 +113,12 @@ MMADDRESS_CONVERT;
 // (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
 
 #define MM_DPTE_DECOMMITTED  (1 << 3)
+#define MM_DPTE_WASPRESENT   (1 << 7)
 #define MM_DPTE_COMMITTED    (1 << 8)
 #define MM_DPTE_BACKEDBYFILE (1 << 9)
 #define MM_DPTE_SWAPPED      (1 << 10)
-#define MM_DPTE_WASPRESENT   (1 << 30)
-#define MM_PTE_ISPOOLHDR     (1 << 31) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
+
+#define MM_PTE_ISPOOLHDR     (1 << 11) // see src/mm/poolsup.c for an explanation
 
 // Page fault reasons
 #define MM_FAULT_PROTECTION (1 << 0) // 0: Page wasn't marked present; 1: Page protection violation (e.g. writing to a readonly page)
