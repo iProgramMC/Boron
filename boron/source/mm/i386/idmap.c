@@ -28,7 +28,7 @@ void MiInitializeBaseIdentityMapping()
 		PMMPTE Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
 		PMMPTE Level1 = (PMMPTE) MI_PTE_LOC(Address);
 		
-		*Level2 = V2P(&KiBootstrapPageTables[(Address >> 22) * PAGE_SIZE])
+		*Level2 = V2P(&KiBootstrapPageTables[(i >> 22) * PAGE_SIZE])
 			| MM_PTE_READWRITE
 			| MM_PTE_PRESENT;
 		

@@ -55,7 +55,7 @@ static size_t MmpSlabItemDetermineLength(int ItemSize)
 		return PAGE_SIZE;
 	
 	// Allow at least 4 items to fit.
-	return (ItemSize * 4 + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
+	return (ItemSize * 4 + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
 
 static bool MmpRequiresRbTreeEntry(int ItemSize)
@@ -130,7 +130,7 @@ int MmGetSmallestSlabSizeThatFitsSize(size_t Size)
 
 void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 {
-	int EntriesPerItem     = (Item->Length - sizeof(Item)) / EntrySize;
+	int EntriesPerItem     = (Item->Length - sizeof(*Item)) / EntrySize;
 	int BitmapWrdsToCheck  = (EntriesPerItem + 63) / 64;
 	int LastBitmapBitCount = EntriesPerItem % 64;
 	

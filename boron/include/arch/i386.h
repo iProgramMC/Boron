@@ -38,7 +38,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MI_GLOBAL_AREA_START     (512)
 #define MI_GLOBAL_AREA_START_2ND (832)
 
-#define MI_RECURSIVE_PAGING_START (511)
+#define MI_RECURSIVE_PAGING_START (1023)
 
 #define MI_PML2_LOCATION ((uintptr_t)0xFFFFF000U)
 #define MI_PML1_LOCATION ((uintptr_t)0xFFC00000U)
