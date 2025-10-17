@@ -23,9 +23,9 @@ global KiTrapCallList
 
 section .text
 
-; int KiEnterHardwareInterrupt(int IntNo);
-extern KiEnterHardwareInterrupt
-; void KiExitHardwareInterrupt(int OldIpl);
+; int KiTryEnterHardwareInterrupt(int IntNum);
+extern KiTryEnterHardwareInterrupt
+; void KiExitHardwareInterrupt(PKREGISTERS Registers);
 extern KiExitHardwareInterrupt
 
 ; Return Value:
@@ -50,75 +50,70 @@ KeRestoreInterrupts:
 .ret:
 	ret                  ; done
 
-; Push the entire state except EAX, EBX, ECX ,and EDX
-%macro PUSH_STATE 0
-	push esi
-	push edi
-	mov  eax, cr2
-	push eax
-%endmacro
-
-; Pop the entire state except EAX, EBX, ECX, and EDX
-%macro POP_STATE 0
-	add  esp, 4    ; the space occupied by the cr2 register
-	pop  edi
-	pop  esi
-%endmacro
-
 global KiTrapCommon
 KiTrapCommon:
 	push  eax
-	push  ebx
 	push  ecx
 	push  edx
-	lea   ebx, [esp + 16]                  ; Get the pointer to the value after rbx and rax on the stack
-	lea   ecx, [esp + 24]                  ; Get the pointer to the EIP from the interrupt frame.
-	lea   edx, [esp + 28]                  ; Get the pointer to the CS from the interrupt frame.
-	mov   eax, [edx]                       ; Load the CS.
+	
+	; Check if we can enter the interrupt handler, based on the
+	; current interrupt number.  This interrupt number has an
+	; IPL associated with it; if it's lower than the current one,
+	; this function returns -1.
+	mov   eax, [esp + 12]
 	push  eax
-	; Note that LEA doesn't actually perform any memory accesses, all it
-	; does it load the address of certain things into a register. We then
-	; defer actually loading those until after DS was changed.
-	PUSH_STATE                             ; Push the state, except for the old ipl
-	mov   ebx, [ebx]                       ; Retrieve the interrupt number and RIP from interrupt frame. These were deferred
-	mov   ecx, [ecx]                       ; so that we wouldn't attempt to access the kernel stack using the user's data segment.
-	mov   edx, [edx]                       ; Load CS, to determine the previous mode when entering a hardware interrupt
-	push  ecx                              ; Enter a stack frame so that stack printing doesn't skip over anything
+	call  KiTryEnterHardwareInterrupt
+	add   esp, 4
+	
+	cmp   eax, 0                           ; If it returned -1, it means we're not allowed to enter yet.
+	jl   .returnEarly
+	
+	; Push the old IPL.
+	push  eax
+	
+	; Get the pointer to the IP, because we want to construct a
+	; fake stack frame that includes it.
+	mov   ecx, [esp + 24]
+	push  ecx
 	push  ebp
 	mov   ebp, esp
-	cld                                    ; Clear direction flag, will be restored by iretq
-	movsx edi, byte [KiTrapIplList + ebx]  ; Get the IPL for the respective interrupt vector
+	
+	; Push the rest of the state.
+	push  ebx
+	push  esi
 	push  edi
-	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
-	add   esp, 4
-	push  eax                              ; Push the old IPL that we obtained from the function
-	mov   edi, esp                         ; Retrieve the PKREGISTERS to call the trap handler
-	push  edi
-	call  [KiTrapCallList + 8 * ebx]       ; Call the trap handler. It returns the new RSP.
-	; add esp, 4 skipped because redundant
-	mov   esp, eax                         ; Use the new PKREGISTERS instance as what to pull
-	mov   edi, eax                         ; Get the pointer to the register context
-	push  edi
-	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
-	add   esp, 4
-	pop   edi                              ; Pop the old IPL because we don't need it any more
-	pop   ebp                              ; Leave the stack frame
-	pop   ecx                              ; Skip over the RIP duplicate that we pushed
-	POP_STATE                              ; Pop the state
-	pop   eax                              ; Pop the RAX register - it has the old value of CS which we can check
-	pop   edx                              ; Pop the EDX register
-	pop   ecx                              ; Pop the ECX register
-	pop   ebx                              ; Pop the EBX register
-	pop   eax                              ; Pop the EAX register
-	add   esp, 8                           ; Pop the interrupt number and the error code
+	mov   eax, cr2
+	push  eax
+	
+	; Then, find the current interrupt number again and run it.
+	; The interrupt handler will, if it returns, return the pointer
+	; to the new stack, so we'll load that instead of restoring state
+	; like usual.
+	
+	; Note: this 40 is carefully counted!
+	mov   ecx, [esp + 40]
+	push  esp
+	call  [KiTrapCallList + ecx * 4]
+	mov   eax, esp
+	
+	; Exit the hardware interrupt now.
+	push  esp
+	call  KiExitHardwareInterrupt
+	
+	; Pop the state and return.
+	add   esp, 8 ; pop the argument we pushed for KiExitHardwareInterrupt + the CR2
+	pop   edi
+	pop   esi
+	pop   ebx
+	pop   ebp
+	add   esp, 8 ; pop SFRA + old IPL
+	
+.returnEarly:
+	pop   edx
+	pop   ecx
+	pop   eax
+	add   esp, 8 ; pop IntNum + ErrorCode
 	iretd
-
-%macro CLEAR_REGS 0
-	xor ebx, ebx
-	xor ecx, ecx
-	xor edx, edx
-	xor esi, esi
-%endmacro
 
 global KeDescendIntoUserMode
 KeDescendIntoUserMode:
@@ -134,16 +129,30 @@ KeDescendIntoUserMode:
 	push dword 0x202               ; push RFLAGS
 	push dword SEG_RING_3_CODE | 3 ; push CS
 	push edi                       ; push RIP
+	mov edi, edx
 	
 	; clear all the registers
 	xor eax, eax
 	xor ebp, ebp
-	mov edi, edx
-	CLEAR_REGS
+	xor ebx, ebx
+	xor ecx, ecx
+	xor edx, edx
+	xor esi, esi
 	
 	; finally, swap gs and return to user mode.
 	cli
 	iretd
+
+global KiCallSoftwareInterrupt
+KiCallSoftwareInterrupt:
+	mov eax, [esp + 4]
+	mov ecx, [esp]
+	pushfd                         ; push eflags
+	push dword SEG_RING_0_CODE     ; push cs
+	push ecx                       ; push eip - return value
+	cli                            ; ensure interrupts are disabled
+	jmp [KiTrapCallList + eax * 4] ; jump to the specific trap
+	; note: the function will return directly to the return address
 
 section .bss
 global KiTrapIplList

@@ -284,13 +284,13 @@ void KiInitLoaderParameterBlock()
 	
 	// Initialize the memory regions.
 	KiInitializeMemoryRegions();
-	KiRemoveAreaFromMemMap(0x100000, (size_t) KiKernelEnd - 0x100000);
+	KiRemoveAreaFromMemMap(0x100000, (size_t) KiKernelEnd - 0xC0100000);
 	
 	// Initialize the kernel module.
 	Lpb->ModuleInfo.Kernel.Path   = "kernel.elf";
 	Lpb->ModuleInfo.Kernel.String = P2V(KiMultibootInfo->cmdline);
 	Lpb->ModuleInfo.Kernel.Address = (void*) 0xC0100000; // TODO: is the whole kernel (+ELF stuff) loaded here??
-	Lpb->ModuleInfo.Kernel.Size    = (size_t) KiKernelEnd - 0x100000;
+	Lpb->ModuleInfo.Kernel.Size    = (size_t) KiKernelEnd - 0xC0100000;
 	
 	// Initialize the other modules.
 	if (KiMultibootInfo->flags & MULTIBOOT_INFO_MODS)

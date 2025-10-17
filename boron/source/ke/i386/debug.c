@@ -20,6 +20,7 @@ Author:
 #include <limreq.h>
 
 #define KERNEL_IMAGE_BASE (0xC0100000)
+extern char KiKernelEnd[];
 
 #ifdef DEBUG
 
@@ -57,7 +58,7 @@ static void DbgResolveAddress(uintptr_t Address, char *SymbolName, size_t Buffer
 	
 	uintptr_t BaseAddress = 0;
 	// Determine where that address came from.
-	if (Address >= KERNEL_IMAGE_BASE)
+	if ((uintptr_t) KiKernelEnd > Address && Address >= KERNEL_IMAGE_BASE)
 	{
 		// Easy, it's in the kernel.
 		// Determine the symbol's name

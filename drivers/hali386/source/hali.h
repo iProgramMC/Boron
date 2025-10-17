@@ -6,6 +6,7 @@
 
 #define PIT_TICK_FREQUENCY   (1193182)
 #define PIT_CHANNEL_0_PORT   (0x40)
+#define PIT_COMMAND_PORT     (0x43)
 
 #define PIC1_COMMAND         (0x20)
 #define PIC1_DATA            (0x21)
@@ -21,6 +22,13 @@
 #define PIC_ICW3_SUB_CONFIG  (2)      // the sub PIC cascades at IRQ 2
 #define PIC_ICW4_8086_MODE   (1 << 0)
 
+#define PIT_CMD_CHANNEL_0      (0 << 6)
+#define PIT_CMD_ACCESS_2_BYTES (3 << 4)
+#define PIT_CMD_RATE_GENERATOR (2 << 1)
+
+// ====== Port Utils ======
+void KePortWriteByteWait(uint16_t Port, uint8_t Data);
+
 // ====== Timer ======
 void HalUpdatePitClock();
 
@@ -35,6 +43,8 @@ HAL_API uint64_t HalGetIntTimerFrequency();
 HAL_API void HalRequestInterruptInTicks(uint64_t ticks);
 
 HAL_API uint64_t HalGetIntTimerDeltaTicks();
+
+void HalInitTimer();
 
 // ====== Interrupt Controller ======
 HAL_API void HalInitPic();

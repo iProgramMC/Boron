@@ -55,6 +55,7 @@ HAL_API void HalInitSystemUP()
 // This function is run on ALL processors.
 HAL_API void HalInitSystemMP()
 {
+	HalInitTimer();
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)

@@ -15,8 +15,24 @@ Author:
 #include "hali.h"
 
 uint16_t KiIplTable[] = {
-	
+	0xFFFF, // IPL_NORMAL
+	0xFFFF, // IPL_1
+	0xFFFF, // IPL_2
+	0xFFFF, // IPL_APC
+	0xFFFF, // IPL_DPC
+	0xFFFF, // IPL_DEVICES0
+	0xFFFF, // IPL_DEVICES1
+	0xFFFF, // IPL_DEVICES2
+	0xFFFF, // IPL_DEVICES3
+	0xFFFF, // IPL_DEVICES4
+	0xFFFF, // IPL_DEVICES5
+	0xFFFF, // IPL_DEVICES6
+	0xFFFF, // IPL_DEVICES7
+	0xFFFF, // IPL_DEVICES8
+	0xFFFF, // IPL_CLOCK
+	0xFFFF, // IPL_NOINTS
 };
+static_assert(ARRAY_COUNT(KiIplTable) == IPL_COUNT);
 
 void KePortWriteByteWait(uint16_t Port, uint8_t Data)
 {
@@ -37,18 +53,43 @@ HAL_API void HalEndOfInterrupt(int InterruptNumber)
 	KePortWriteByte(PIC1_COMMAND, PIC_CMD_EOI);
 }
 
-HAL_API void HalRegisterInterrupt(uint8_t Vector, KIPL Ipl)
+HAL_API void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl)
 {
-	// TODO
-	(void) Vector;
-	(void) Ipl;
+	if (Vector < PIC_INTERRUPT_BASE || Vector >= PIC_INTERRUPT_BASE + 16)
+	{
+		DbgPrint("HalRegisterInterrupt: Dropping vector %zu", Vector);
+		return;
+	}
+	
+	bool Restore = KeDisableInterrupts();
+	
+	Vector -= PIC_INTERRUPT_BASE;
+	for (KIPL i = 0; i < Ipl; i++)
+		KiIplTable[i] &= ~(1 << Vector);
+	
+	KeRestoreInterrupts(Restore);
+	
+	// TODO: just unmask everything for now.  Should we even use the other masks?
+	KePortWriteByteWait(PIC1_DATA, KiIplTable[0] & 0xFF);
+	KePortWriteByteWait(PIC2_DATA, KiIplTable[0] >> 8);
 }
 
-HAL_API void HalDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
+// NOTE: There are no more uses of this interrupt once this function is called. I hope.
+HAL_API void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
 {
-	// TODO
-	(void) Vector;
-	(void) Ipl;
+	if (Vector < PIC_INTERRUPT_BASE || Vector >= PIC_INTERRUPT_BASE + 16)
+	{
+		DbgPrint("HalRegisterInterrupt: Dropping vector %zu", Vector);
+		return;
+	}
+	
+	bool Restore = KeDisableInterrupts();
+	
+	Vector -= PIC_INTERRUPT_BASE;
+	for (KIPL i = 0; i < Ipl; i++)
+		KiIplTable[i] |= 1 << Vector;
+	
+	KeRestoreInterrupts(Restore);
 }
 
 HAL_API void HalInitPic()

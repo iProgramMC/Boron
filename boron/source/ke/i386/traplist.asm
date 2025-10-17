@@ -16,7 +16,7 @@
 bits 32
 section .text
 
-; NOTE: This uses 5120 bytes of data. Is that bad? I don't know.
+; NOTE: This uses however many bytes of data. Is that bad? I don't know.
 
 ; Arguments:
 ; 0 - Interrupt number in hexadecimal

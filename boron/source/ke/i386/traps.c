@@ -19,6 +19,12 @@ Author:
 #include <except.h>
 #include "../../ke/ki.h"
 
+extern void* const KiTrapList[];     // traplist.asm
+extern int8_t      KiTrapIplList[];  // trap.asm
+extern void*       KiTrapCallList[]; // trap.asm
+
+extern void KiCallSoftwareInterrupt(int Vector); // trap.asm
+
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
 enum KGATE_TYPE
@@ -99,7 +105,7 @@ static void KiLoadInterruptVector(PKIDT Idt, int Vector, KiInterruptVector Handl
 	Entry->Present = true;
 }
 
-int KiEnterHardwareInterrupt(int NewIpl)
+int KiTryEnterHardwareInterrupt(int IntNum)
 {
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	
@@ -108,16 +114,32 @@ int KiEnterHardwareInterrupt(int NewIpl)
 	// grab old IPL
 	int OldIpl = (int) *IplPtr;
 	
-	// set new IPL, if not marked as "don't override"
+	// figure out the new IPL
+	int NewIpl = KiTrapIplList[IntNum];
+	
+	// Check if this is a lower priority interrupt than our current IPL.
 	if (NewIpl != -1)
 	{
+		if (OldIpl >= NewIpl)
+		{
+			DbgPrint("Deferring int %d for later.", IntNum);
+			
+			// Trying to get interrupted by a masked interrupt? No problem, enqueue
+			// this interrupt onto our queue and simply return.
+			if (Prcb->ArchData.InterruptQueuePlace >= KE_MAX_QUEUED_INTERRUPTS)
+			{
+				DbgPrint(
+					"ERROR: Interrupt overflow.  More than %d interrupts enqueued "
+					"at once.  This interrupt will be dropped."
+				);
+				return -1;
+			}
+			
+			Prcb->ArchData.InterruptQueue[Prcb->ArchData.InterruptQueuePlace++] = IntNum;
+			return -1;
+		}
+		
 		*IplPtr = NewIpl; // specific to Amd64
-		
-		if (OldIpl > NewIpl)
-			// uh oh!
-			KeCrash("KiEnterHardwareInterrupt: Old IPL of %d was higher than current IPL of %d.", OldIpl, NewIpl);
-		
-		KeOnUpdateIPL(NewIpl, OldIpl);
 	}
 	
 	// now that we've setup the hardware interrupt stuff, enable interrupts.
@@ -131,14 +153,18 @@ int KiEnterHardwareInterrupt(int NewIpl)
 void KiExitHardwareInterrupt(PKREGISTERS Registers)
 {
 	DISABLE_INTERRUPTS();
-	
-	int OldIpl = Registers->OldIpl;
-	
 	PKPRCB Prcb = KeGetCurrentPRCB();
-	
-	KIPL PrevIpl = Prcb->Ipl;
+	int OldIpl = Registers->OldIpl;
 	Prcb->Ipl = OldIpl;
-	KeOnUpdateIPL(OldIpl, PrevIpl);
+	
+	// Check if there are any interrupts we still need to de-queue.
+	// Note that we don't scan using a for loop, because this could change.
+	while (Prcb->ArchData.InterruptQueuePlace != 0)
+	{
+		int Vector = Prcb->ArchData.InterruptQueue[--Prcb->ArchData.InterruptQueuePlace];
+		DbgPrint("Calling enqueued software interrupt %d", Vector);
+		KiCallSoftwareInterrupt(Vector);
+	}
 	
 	// Check if the current thread is terminated and we are about to
 	// return to user mode.
@@ -189,12 +215,7 @@ PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
 	return Regs;
 }
 
-extern void* const KiTrapList[];     // traplist.asm
-extern int8_t      KiTrapIplList[];  // trap.asm
-extern void*       KiTrapCallList[]; // trap.asm
-static KSPIN_LOCK  KiTrapLock;
-
-static int KepIplVectors[IPL_COUNT];
+static KSPIN_LOCK KiTrapLock;
 
 // Run on the BSP only.
 void KiSetupIdt()
@@ -210,11 +231,6 @@ void KiSetupIdt()
 		KiTrapCallList[i] = KiTrapUnknownHandler;
 	}
 	
-	for (int i = 0; i < IPL_COUNT; i++)
-	{
-		KepIplVectors[i] = i * 0x10;
-	}
-	
 	KeRegisterInterrupt(INTV_DBL_FAULT,  KiHandleDoubleFault);
 	KeRegisterInterrupt(INTV_PROT_FAULT, KiHandleProtectionFault);
 	KeRegisterInterrupt(INTV_PAGE_FAULT, KiHandlePageFault);
@@ -225,6 +241,7 @@ void KiSetupIdt()
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
 {
+	DbgPrint("Setting trap handler to %p", Handler);
 	KIPL Ipl;
 	KeAcquireSpinLock(&KiTrapLock, &Ipl);
 	KiTrapCallList[Vector] = Handler;
@@ -234,4 +251,8 @@ void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
 void KeSetInterruptIPL(int Vector, KIPL Ipl)
 {
 	KiTrapIplList[Vector] = Ipl;
+}
+
+void KeOnUpdateIPL(UNUSED KIPL OldIpl, UNUSED KIPL NewIpl)
+{
 }

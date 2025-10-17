@@ -149,19 +149,14 @@ typedef uint32_t MMPTE, *PMMPTE;
 #define MSR_IA32_EFER_LMA (1 << 10) // Long Mode active
 #define MSR_IA32_EFER_NXE (1 << 11) // No Execute enable
 
+// Registers pushed by KiTrapCommon. Pushed in reverse order from how they're laid out.
 struct KREGISTERS_tag
 {
-	// Old IPL
-	uint32_t OldIpl;
-	
+	uint32_t Cr2, Edi, Esi, Ebx;
 	uint32_t Ebp;
 	uint32_t Sfra; // stack frame return address
-	
-	// Registers pushed by KiTrapCommon. Pushed in reverse order from how they're laid out.
-	uint32_t Cr2;
-	uint32_t Edi, Esi;
-	uint32_t CsDupl;
-	uint32_t Edx, Ecx, Ebx, Eax;
+	uint32_t OldIpl;
+	uint32_t Edx, Ecx, Eax;
 	
 	// Registers pushed by each trap handler
 	uint32_t IntNumber;
@@ -284,10 +279,15 @@ typedef struct
 }
 KGDT;
 
+#define KE_MAX_QUEUED_INTERRUPTS 32
+
 typedef struct
 {
 	KGDT Gdt;
 	KTSS Tss;
+	
+	uint8_t InterruptQueue[KE_MAX_QUEUED_INTERRUPTS];
+	uint8_t InterruptQueuePlace;
 }
 KARCH_DATA, *PKARCH_DATA;
 

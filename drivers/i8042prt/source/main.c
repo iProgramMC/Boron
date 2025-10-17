@@ -21,6 +21,8 @@ Author:
 
 PDRIVER_OBJECT I8042DriverObject;
 
+#ifdef TARGET_AMD64
+
 int AllocateVector(PKIPL Ipl, KIPL Default)
 {
 	int Vector = -1;
@@ -31,6 +33,8 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 	
 	return Vector;
 }
+
+#endif
 
 BSTATUS InitializeDevice()
 {
@@ -82,12 +86,12 @@ BSTATUS InitializeDevice()
 #elif defined TARGET_I386
 
 	const KIPL IplKbd = IPL_DEVICES0;
-	const int VectorKbd = PIC_INTERRUPT_BASE;
+	const int VectorKbd = SYSTEM_IRQ(1);
 	
 	bool Restore = KeDisableInterrupts();
 
 #else
-#error If you're using the i8042prt driver for another architecture, please define the interrupt method for it.
+#error "If you're using the i8042prt driver for another architecture, please define the interrupt method for it."
 #endif
 	
 	// Initialize the keyboard.
