@@ -39,7 +39,8 @@ HAL_API uint64_t HalGetTickCount()
 	High = KePortReadByte(PIT_CHANNEL_0_PORT);
 	
 	uint16_t Timer = TIMER_RELOAD_VALUE - (Low | (High << 8));
-	return PitTicksPassed + Timer;
+	uint64_t Value = PitTicksPassed + Timer;
+	return Value;
 }
 
 HAL_API uint64_t HalGetIntTimerFrequency()
@@ -64,17 +65,10 @@ HAL_API uint64_t HalGetIntTimerDeltaTicks()
 
 PKREGISTERS HalTimerTick(PKREGISTERS Regs)
 {
-	DbgPrint("Tick!");
-	bool Restore = KeDisableInterrupts();
-	
 	PitTicksPassed += TIMER_RELOAD_VALUE;
-	KePortWriteByte(PIT_CHANNEL_0_PORT, TIMER_RELOAD_VALUE & 0xFF);
-	KePortWriteByte(PIT_CHANNEL_0_PORT, TIMER_RELOAD_VALUE >> 8);
-	
-	KeRestoreInterrupts(Restore);
 	
 	KeTimerTick();
-	
+
 	HalEndOfInterrupt((int) Regs->IntNumber);
 	return Regs;
 }
@@ -92,4 +86,5 @@ void HalInitTimer()
 	KePortWriteByteWait(PIT_CHANNEL_0_PORT, TIMER_RELOAD_VALUE >> 8);
 	
 	KeRestoreInterrupts(Restore);
+	PitInitialized = true;
 }

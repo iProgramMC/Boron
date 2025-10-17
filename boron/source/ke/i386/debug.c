@@ -19,6 +19,10 @@ Author:
 #include <string.h>
 #include <limreq.h>
 
+#ifdef DEBUG2
+#define DONT_LOCK
+#endif
+
 #define KERNEL_IMAGE_BASE (0xC0100000)
 extern char KiKernelEnd[];
 
@@ -278,10 +282,16 @@ KSPIN_LOCK KiDebugPrintLock;
 
 void DbgPrintStringLocked(const char* str)
 {
+#ifndef DONT_LOCK
 	KIPL OldIpl;
 	KeAcquireSpinLock(&KiDebugPrintLock, &OldIpl);
+#endif
+
 	DbgPrintString(str);
+	
+#ifndef DONT_LOCK
 	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
+#endif
 }
 
 #endif

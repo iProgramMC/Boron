@@ -123,7 +123,6 @@ KiSwitchThreadStack:
 	
 	; push System V ABI callee saved registers
 	pushfd
-	push ebp
 	push ebx
 	push esi
 	push edi
@@ -139,11 +138,11 @@ KiPopEverythingAndReturn:
 	pop  edi
 	pop  esi
 	pop  ebx
-	pop  ebp
 	xor  eax, eax
 	
 	; Pop EFLAGS and return
 	popfd
+	pop ebp
 	ret
 
 ; Arguments:

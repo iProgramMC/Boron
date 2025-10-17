@@ -26,8 +26,8 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	
 	// KiPopEverythingAndReturn pops these
 	*(--StackPointer) = (uint32_t) KiThreadEntryPoint; // Set return address
-	*(--StackPointer) = 0x200; // Set IF when entering the thread
 	*(--StackPointer) = 0; // Set EBP
+	*(--StackPointer) = 0x200; // Set IF when entering the thread
 	*(--StackPointer) = 0; // Set EBX
 	*(--StackPointer) = (uint32_t) Thread->StartContext; // Set ESI
 	*(--StackPointer) = (uint32_t) Thread->StartRoutine; // Set EDI

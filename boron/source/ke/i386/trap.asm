@@ -94,7 +94,7 @@ KiTrapCommon:
 	mov   ecx, [esp + 40]
 	push  esp
 	call  [KiTrapCallList + ecx * 4]
-	mov   eax, esp
+	mov   esp, eax
 	
 	; Exit the hardware interrupt now.
 	push  esp
@@ -113,6 +113,7 @@ KiTrapCommon:
 	pop   ecx
 	pop   eax
 	add   esp, 8 ; pop IntNum + ErrorCode
+KeIretdBreakpoint:
 	iretd
 
 global KeDescendIntoUserMode

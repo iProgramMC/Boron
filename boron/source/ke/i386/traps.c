@@ -25,6 +25,8 @@ extern void*       KiTrapCallList[]; // trap.asm
 
 extern void KiCallSoftwareInterrupt(int Vector); // trap.asm
 
+bool KiTimerSuppression = true; // set to false in ../sched.c
+
 // The trap gate isn't likely to be used as it doesn't turn off
 // interrupts when entering the interrupt handler.
 enum KGATE_TYPE
@@ -120,17 +122,29 @@ int KiTryEnterHardwareInterrupt(int IntNum)
 	// Check if this is a lower priority interrupt than our current IPL.
 	if (NewIpl != -1)
 	{
-		if (OldIpl >= NewIpl)
+		// HACK: Suppress timer interrupts until system is booted.
+		if (IntNum == PIC_INTERRUPT_BASE && KiTimerSuppression)
 		{
-			DbgPrint("Deferring int %d for later.", IntNum);
+			HalEndOfInterrupt(IntNum);
+			return -1;
+		}
+		
+		// If this is a hardware interrupt and it's lower in our priority, then defer it.
+		if (OldIpl >= NewIpl && IntNum >= 0x20)
+		{
+			DbgPrint("Deferring int %d for later.  TriedIpl: %d  CurrIpl: %d", IntNum, NewIpl, OldIpl);
 			
+			if (IntNum == PIC_INTERRUPT_BASE)
+				KeCrash("Timer tick triggered twice??");
+		
 			// Trying to get interrupted by a masked interrupt? No problem, enqueue
 			// this interrupt onto our queue and simply return.
 			if (Prcb->ArchData.InterruptQueuePlace >= KE_MAX_QUEUED_INTERRUPTS)
 			{
 				DbgPrint(
-					"ERROR: Interrupt overflow.  More than %d interrupts enqueued "
-					"at once.  This interrupt will be dropped."
+					"ERROR: Got interrupt %d. More than %d interrupts enqueued "
+					"at once, so this interrupt will be dropped.",
+					KE_MAX_QUEUED_INTERRUPTS
 				);
 				return -1;
 			}
@@ -145,7 +159,8 @@ int KiTryEnterHardwareInterrupt(int IntNum)
 	// now that we've setup the hardware interrupt stuff, enable interrupts.
 	// we couldn't have done that before because the CPU would think that we're
 	// in a low IPL thing meanwhile we're not..
-	ENABLE_INTERRUPTS();
+	if (NewIpl != -1 && NewIpl < IPL_CLOCK)
+		ENABLE_INTERRUPTS();
 	
 	return OldIpl;
 }
