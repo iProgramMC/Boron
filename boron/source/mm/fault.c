@@ -315,7 +315,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		// If the CCB entry is zero, then it'll be populated with the
 		// new CCB entry.  Otherwise, there's something already there
 		// and we have simply wasted our time and we need to refault.
-		uint64_t Expected = 0;
+		MMPTE Expected = 0;
 		if (AtCompareExchange(&PCcbEntry->Long, &Expected, CcbEntryNew.Long))
 		{
 			// Compare-exchange successful.  Note: we are surrendering

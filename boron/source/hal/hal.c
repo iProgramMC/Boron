@@ -27,9 +27,9 @@ void HalSetVftable(const HAL_VFTABLE* Table)
 	HalpVftable = *Table;
 }
 
-void HalEndOfInterrupt()
+void HalEndOfInterrupt(int InterruptNumber)
 {
-	HalpVftable.EndOfInterrupt();
+	HalpVftable.EndOfInterrupt(InterruptNumber);
 }
 
 void HalRequestInterruptInTicks(uint64_t Ticks)
@@ -98,10 +98,29 @@ uint64_t HalGetIntTimerDeltaTicks()
 }
 
 #ifdef TARGET_AMD64
+
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status)
 {
 	return HalpVftable.IoApicSetIrqRedirect(Vector, Irq, LapicId, Status);
 }
+
+#endif // TARGET_AMD64
+
+#ifdef TARGET_I386
+
+void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	HalpVftable.PicDeregisterInterrupt(Vector, Ipl);
+}
+
+void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	HalpVftable.PicDeregisterInterrupt(Vector, Ipl);
+}
+
+#endif // TARGET_I386
+
+#if defined TARGET_AMD64 || defined TARGET_I386
 
 BSTATUS
 HalPciEnumerate(

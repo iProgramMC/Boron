@@ -3,7 +3,7 @@
 ;    Copyright (C) 2023 iProgramInCpp
 ; 
 ; Module name:
-;    ke/amd64/trap.asm
+;    ke/amd64/misc.asm
 ; 	
 ; Abstract:
 ;    This module implements certain utility functions for

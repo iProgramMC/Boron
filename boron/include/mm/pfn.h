@@ -95,8 +95,12 @@ typedef struct
 			uint32_t _Fcb;
 			
 			uint32_t _OffsetLower;
-		};
+		}
+		PACKED
+		FileCache;
 	};
+	
+	uint32_t Dummy; // to make this a power of 2
 #endif
 }
 PACKED

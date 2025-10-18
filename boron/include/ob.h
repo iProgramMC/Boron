@@ -147,6 +147,11 @@ struct _OBJECT_HEADER
 	// among other things, to ensure that non-object-manager-managed objects aren't accidentally
 	// used.
 	int Signature;
+
+#ifdef IS_32_BIT
+	// This dummy is present to make sure the object header's struct size is aligned to 8 bytes.
+	int Dummy;
+#endif
 #endif
 	
 	// Object behavior flags.

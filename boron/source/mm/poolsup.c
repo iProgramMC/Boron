@@ -14,6 +14,78 @@ Author:
 ***/
 #include "mi.h"
 
+#ifdef IS_32_BIT
+
+// the structure of the pool header PTE if this is set is as follows:
+//
+// [Bits 31..12] 1 [Bits 11..10] 0 [Bits 9..3] 0
+//
+// - Bit 8 is cleared because MM_DPTE_COMMITTED shouldn't conflict
+//   with this scheme.
+//
+// - Bit 0 is cleared because MM_PTE_PRESENT conflicts
+//
+// - Bit 11 is set because that's MM_PTE_ISPOOLHDR
+
+typedef union
+{
+	MMPTE Pte;
+	
+	struct
+	{
+		uintptr_t Present   : 1; // MUST be zero
+		uintptr_t B3to9     : 7;
+		uintptr_t Committed : 1; // MUST be zero
+		uintptr_t B10to11   : 2;
+		uintptr_t IsPoolHdr : 1; // MUST be ONE
+		uintptr_t B12to31   : 20;
+	}
+	PACKED;
+}
+MMPTE_POOLHEADER;
+
+static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
+static_assert(MM_DPTE_COMMITTED == (1 << 8));
+static_assert(MM_PTE_ISPOOLHDR == (1 << 11));
+
+MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
+{
+	ASSERT(!(Handle & 0x7));
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = 0;
+	
+	PteHeader.B3to9 = (Handle >> 3) & 0x7F;
+	PteHeader.B10to11 = (Handle >> 10) & 0x3;
+	PteHeader.B12to31 = (Handle >> 12);
+	PteHeader.IsPoolHdr = true;
+
+	return PteHeader.Pte;
+}
+
+FORCE_INLINE
+uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
+{
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = Pte;
+	
+	ASSERT(!PteHeader.Present);
+	ASSERT(!PteHeader.Committed);
+	ASSERT(PteHeader.IsPoolHdr);
+	
+	return
+		PteHeader.B3to9 << 3 |
+		PteHeader.B10to11 << 10 |
+		PteHeader.B12to31 << 12;
+}
+
+#else
+
+#define MiCalculatePoolHeaderPte(Handle) (((uintptr_t)(Handle) - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR)
+
+#define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
+
+#endif
+
 //
 // TODO: This could be improved, however, it's probably OK for now.
 //
@@ -32,6 +104,26 @@ static LIST_ENTRY MmpPoolList;
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
+#ifdef TARGET_AMD64
+
+// One PML4 entry can map up to 1<<39 (512GB) of memory.
+// Thus, our pool will be 512 GB in size.
+#define MI_POOL_LOG2_SIZE (39)
+
+#elif defined TARGET_I386
+
+// There will actually be two arenas of pool space:
+// 0x80000000 - 0xC0000000 and 0xD0000000 - 0xF0000000
+#define MI_POOL_LOG2_SIZE (30)
+
+#define MI_POOL_LOG2_SIZE_2ND (29)
+
+#else
+
+#error "Define the pool size for your platform!"
+
+#endif
+
 INIT
 void MiInitPool()
 {
@@ -43,6 +135,18 @@ void MiInitPool()
 	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE - 12);
 	Entry->Address = MiGetTopOfPoolManagedArea();
 	InsertTailList(&MmpPoolList, &Entry->ListEntry);
+
+#ifdef TARGET_I386
+
+	// TODO: Will other 32-bit platforms look similar?
+	Entry = MiCreatePoolEntry();
+	Entry->Flags = 0;
+	Entry->Tag   = MI_EMPTY_TAG;
+	Entry->Size  = 1ULL << (MI_POOL_LOG2_SIZE_2ND - 12);
+	Entry->Address = MiGetTopOfSecondPoolManagedArea();
+	InsertTailList(&MmpPoolList, &Entry->ListEntry);
+	
+#endif
 }
 
 MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
@@ -64,14 +168,15 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	// This entry manages the area directly after the PoolEntry does.
 	PMIPOOL_ENTRY NewEntry = MiCreatePoolEntry();
 	
-	// TODO: Debug the firework test driver. When removing this, it doesn't throw up a nice
-	// page fault, but rather hits some weird code which sets the stack pointer to 0x000000017FFFFFFF
-	// and triple faults the kernel.
 	if (!NewEntry)
 		return 0;
 	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
+	ASSERT(NewEntry);
+	ASSERT(PoolEntry);
+	ASSERT(PoolEntry->ListEntry.Flink);
+	ASSERT(PoolEntry->ListEntry.Blink);
 	InsertHeadList(&PoolEntry->ListEntry, &NewEntry->ListEntry);
 	
 	// Assign the other properties
@@ -106,6 +211,11 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 	
 	while (CurrentEntry != &MmpPoolList)
 	{
+#ifdef DEBUG
+		if (CurrentEntry == NULL)
+			KeCrash("HUH?!?  CurrentEntry is NULL");
+#endif
+		
 		// Skip allocated entries.
 		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
 		
@@ -121,6 +231,11 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 			KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 			return Handle;
 		}
+		
+#ifdef DEBUG
+		if (CurrentEntry->Flink == NULL)
+			KeCrash("HUH?!?  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
+#endif
 		
 		CurrentEntry = CurrentEntry->Flink;
 	}
@@ -150,7 +265,11 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 		Entry->Size += Flink->Size;
 		
 		// remove the 'flink' entry
-		RemoveHeadList(&Entry->ListEntry);
+		RemoveEntryList(&Flink->ListEntry);
+		ASSERT(Entry->ListEntry.Flink != NULL);
+		ASSERT(Entry->ListEntry.Blink != NULL);
+		ASSERT(Flink->ListEntry.Flink == NULL);
+		ASSERT(Flink->ListEntry.Blink == NULL);
 		
 		MiDeletePoolEntry(Flink);
 	}
@@ -163,6 +282,9 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
+	ASSERT(!(Handle & 0x7));
+	ASSERT(Handle >= MM_KERNEL_SPACE_BASE);
+	ASSERT(MiReconstructPoolHandleFromPte(MiCalculatePoolHeaderPte(Handle)) == Handle);
 	
 	if (~Entry->Flags & MI_POOL_ENTRY_ALLOCATED)
 	{
@@ -173,7 +295,8 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	Entry->Tag    = MI_EMPTY_TAG;
 	
 	MmpTryConnectEntryWithItsFlink(Entry);
-	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
+	if (Entry->ListEntry.Blink != &MmpPoolList)
+		MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
 	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 }
@@ -187,7 +310,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	
 	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, false);
 	ASSERT(PtePtr);
-	ASSERT(*PtePtr == ((Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR));
+	ASSERT(*PtePtr == MiCalculatePoolHeaderPte(Handle));
 	*PtePtr = 0;
 	
 	MmUnlockKernelSpace();
@@ -231,7 +354,8 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	ASSERT(*PtePtr == 0);
 	ASSERT((Handle & MM_PTE_PRESENT) == 0);
 	
-	*PtePtr = (Handle - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR;
+	*PtePtr = MiCalculatePoolHeaderPte(Handle);
+
 	MmUnlockKernelSpace();
 	
 	*OutputAddress = (void*) ((uintptr_t) OutputAddressSub + PAGE_SIZE);
@@ -305,9 +429,12 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 		return (MIPOOL_SPACE_HANDLE) NULL;
 	}
 	
-	ASSERT(*PtePtr & MM_PTE_ISPOOLHDR);
-	
-	MIPOOL_SPACE_HANDLE Handle = ((*PtePtr) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE;
+	// N.B.  This kind of relies on the notion that the address doesn't have
+	// the valid bit set.
+	uintptr_t PAddress = *PtePtr;
+	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
+	PAddress = MiReconstructPoolHandleFromPte(PAddress);
+	MIPOOL_SPACE_HANDLE Handle = PAddress;
 	MmUnlockKernelSpace();
 	return Handle;
 }

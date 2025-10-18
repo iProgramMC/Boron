@@ -25,7 +25,7 @@ void PerformPipeTest()
 	IO_STATUS_BLOCK Iosb;
 	
 	// memcpy from the start of the HHDM to get some data going
-	memcpy(SomeData, (void*) 0xFFFF800000000000, sizeof SomeData);
+	memcpy(SomeData, (void*) MmGetHHDMOffsetAddr(0), sizeof SomeData);
 	
 	const size_t BufferSize = 4096;
 	

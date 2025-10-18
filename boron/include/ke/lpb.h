@@ -32,6 +32,7 @@ typedef struct
 	uint32_t Pitch;    // width of a single row in bytes
 	uint32_t Width;
 	uint32_t Height;
+	bool     IsPhysicalAddress;
 	uint8_t  BitDepth;
 	uint8_t  RedMaskSize;
 	uint8_t  RedMaskShift;

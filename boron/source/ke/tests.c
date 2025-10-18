@@ -15,6 +15,9 @@ Author:
 #include "../mm/mi.h" // horrible for now
 #include <ex.h>
 
+// These tests are actually unused and they're only vestigial. - 14/10/2025
+#if 0
+
 static void KepTestAllMemory(void* Memory, size_t Size)
 {
 	uint8_t* MemBytes = Memory;
@@ -204,3 +207,5 @@ void KiPerformTests()
 	KiPerformPageMapTest();
 	LogMsg("CPU %d finished all tests", KeGetCurrentPRCB()->LapicId);
 }
+
+#endif

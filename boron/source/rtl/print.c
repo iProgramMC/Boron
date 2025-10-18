@@ -18,6 +18,10 @@ Author:
 #include <main.h>
 #include <string.h>
 
+#ifdef DEBUG2
+#define DONT_LOCK
+#endif
+
 #ifdef KERNEL
 #include <ke.h>
 #include <hal.h>
@@ -65,13 +69,13 @@ void DbgPrint(const char* msg, ...)
 #ifdef KERNEL
 	// This one goes to the debug log.
 	// Debug2 turns off the spin locks associated with the debug prints.
-#ifndef DEBUG2
+#ifndef DONT_LOCK
 	KIPL OldIpl;
 	KeAcquireSpinLock(&KiDebugPrintLock, &OldIpl);
 #endif
 
 	HalPrintStringDebug(buffer);
-#ifndef DEBUG2
+#ifndef DONT_LOCK
 	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
 #endif
 

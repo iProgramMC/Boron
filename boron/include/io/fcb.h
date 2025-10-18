@@ -38,6 +38,7 @@ typedef struct _FCB
 	uint32_t Flags;
 	
 	// Valid only for files and block devices.  Otherwise it's zero.
+	__attribute__((aligned(8)))
 	uint64_t FileLength;
 	
 	// FSD specific extension.  When the FCB is initialized, the

@@ -435,7 +435,7 @@ void HalInitApicMP()
 }
 
 
-HAL_API void HalEndOfInterrupt()
+HAL_API void HalEndOfInterrupt(UNUSED int InterruptNumber)
 {
 	ApicEndOfInterrupt();
 }

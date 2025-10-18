@@ -28,7 +28,7 @@ static void ApcNormalRoutine(UNUSED void* Context, UNUSED void* SystemArgument1,
 	KeSetEvent(&Event, 1);
 }
 
-static NO_RETURN void ApcTestRoutine()
+static NO_RETURN void ApcTestRoutine(UNUSED void* Parameter)
 {
 	LogMsg("Hello from ApcTestRoutine! My thread ptr is %p", KeGetCurrentThread());
 	

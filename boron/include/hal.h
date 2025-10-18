@@ -16,7 +16,7 @@
 bool HalWasInitted();
 
 // HAL API. See hal/init.h
-void HalEndOfInterrupt();
+void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();
@@ -28,7 +28,13 @@ uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
+#ifdef TARGET_AMD64
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+#endif
+#ifdef TARGET_I386
+void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl);
+void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl);
+#endif
 
 #ifdef IS_HAL
 void HalSetVftable(const HAL_VFTABLE* Table);

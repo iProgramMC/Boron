@@ -120,7 +120,17 @@ void Init()
 {
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	
+#ifdef IS_32_BIT
+	PixBuff = MmMapIoSpace(
+		(uintptr_t)Framebuffer->Address,
+		Framebuffer->Pitch * Framebuffer->Height,
+		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		POOL_TAG("FWFB")
+	);
+#else
 	PixBuff   = Framebuffer->Address;
+#endif
+
 	PixWidth  = Framebuffer->Width;
 	PixHeight = Framebuffer->Height;
 	PixPitch  = Framebuffer->Pitch;
@@ -131,13 +141,13 @@ void Init()
 
 uint64_t ReadTsc()
 {
-	uint64_t low, high;
+	uintptr_t low, high;
 	
 	// note: The rdtsc instruction is specified to zero out the top 32 bits of rax and rdx.
 	ASM("rdtsc":"=a"(low), "=d"(high));
 	
 	// So something like this is fine.
-	return high << 32 | low;
+	return ((uint64_t)high << 32) | low;
 }
 
 unsigned RandTscBased()
@@ -269,9 +279,6 @@ NO_RETURN void T_Particle(void* Parameter)
 
 NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 {
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	
 	FIREWORK_DATA Data;
 	memset(&Data, 0, sizeof Data);
 	
@@ -365,9 +372,6 @@ void PerformFireworksTest()
 
 	// The main thread occupies itself with spawning explodeables
 	// from time to time, to keep things interesting.
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	
 	while (true)
 	{
 		int SpawnCount = Rand() % 20 + 1;

@@ -4,8 +4,10 @@
 #include <main.h>
 
 // ==== Platform specific defintions ====
-#ifdef TARGET_AMD64
+#if   defined TARGET_AMD64
 #include <arch/amd64.h>
+#elif defined TARGET_I386
+#include <arch/i386.h>
 #endif
 
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
@@ -13,7 +15,7 @@ typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 
 // Functions that do different things based on architecture,
 // but exist everywhere
-#ifdef TARGET_AMD64
+#if defined TARGET_AMD64 || defined TARGET_I386
 
 FORCE_INLINE
 void KeWaitForNextInterrupt(void)

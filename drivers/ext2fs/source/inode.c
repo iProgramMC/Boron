@@ -210,6 +210,7 @@ BSTATUS Ext2OpenInode(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber, PFCB* 
 	if (InodeNumber >= FileSystem->SuperBlock.InodeCount)
 		return STATUS_INVALID_PARAMETER;
 	
+	PRBTREE_ENTRY Entry = NULL;
 	PFCB Fcb = NULL;
 	BSTATUS Status = STATUS_INVALID_PARAMETER;
 	
@@ -217,7 +218,7 @@ BSTATUS Ext2OpenInode(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber, PFCB* 
 	AcquireInodeTreeMutex(FileSystem);
 	
 Retry:
-	PRBTREE_ENTRY Entry = LookUpItemRbTree(&FileSystem->InodeTree, InodeNumber);
+	Entry = LookUpItemRbTree(&FileSystem->InodeTree, InodeNumber);
 	if (Entry)
 	{
 		// Get the FCB and reference it.

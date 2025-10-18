@@ -9,6 +9,17 @@ import sys
 def SymKey(s):
     return s[0]  # Return the address member
 
+if len(sys.argv) < 1:
+    print('bad usage')
+    exit()
+
+Is32Bit = sys.argv[1] == 'i386'
+
+if Is32Bit:
+    DefineWord = 'dd'
+else:
+    DefineWord = 'dq'
+
 print('; ********** The Boron Operating System **********/')
 print('section .rodata')
 print('global KiSymbolTable')
@@ -68,9 +79,9 @@ for Symbol in SymbolList:
             Size = SymbolList[Count + 1][0] - Address
            
     
-    print(f'dq 0x{Address:x}')
-    print(f'dq 0x{Size:x}')
-    print(f'dq name_{Count}')
+    print(f'{DefineWord} 0x{Address:x}')
+    print(f'{DefineWord} 0x{Size:x}')
+    print(f'{DefineWord} name_{Count}')
     Names += f'name_{Count}: db "{Name}", 0\n'
     Count += 1
 

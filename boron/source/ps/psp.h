@@ -22,8 +22,17 @@ Author:
 #define USER_STACK_SIZE (256 * 1024)
 
 // Initial Virtual Address Range
-#define INITIAL_BEG_VA 0x0000000000001000
-#define INITIAL_END_VA 0x00007FFFFFFFF000
+#ifdef IS_64_BIT
+
+#define INITIAL_BEG_VA (0x0000000000001000)
+#define INITIAL_END_VA (0x00007FFFFFFFF000)
+
+#else
+
+#define INITIAL_BEG_VA (0x00001000U)
+#define INITIAL_END_VA (0x7FFFF000U)
+
+#endif
 
 typedef struct
 {

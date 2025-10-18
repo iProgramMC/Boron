@@ -72,42 +72,46 @@ void RelocateSelf(PPEB Peb)
 	{
 		PELF_RELA Rela = (PELF_RELA) (ImageBase + RelaOffset + i);
 		
-	#ifndef TARGET_AMD64
-	#error TODO!
-	#else
 		uint32_t RelType = (uint32_t) Rela->Info;
 		
+	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
+	#elif defined TARGET_I386
+		if (RelType != R_386_RELATIVE)
+	#else
+		#error TODO!
+	#endif
 			// Libboron.so, in addition to being restricted in so many
 			// different ways already, also cannot import things from
 			// other libraries.  As such, the only relocation type you
-			// should see is R_X86_64_RELATIVE.
+			// should see is R_*_RELATIVE.
 			__builtin_trap();
 		
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rela->Offset);
 		*Reloc = ImageBase + Rela->Addend;
-	#endif
 	}
 	
 	for (size_t i = 0; i < RelSize; i += sizeof(ELF_REL))
 	{
 		PELF_REL Rel = (PELF_REL) (ImageBase + RelOffset + i);
 		
-	#ifndef TARGET_AMD64
-	#error TODO!
-	#else
 		uint32_t RelType = (uint32_t) Rel->Info;
 		
+	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
+	#elif defined TARGET_I386
+		if (RelType != R_386_RELATIVE)
+	#else
+		#error TODO!
+	#endif
 			// Libboron.so, in addition to being restricted in so many
 			// different ways already, also cannot import things from
 			// other libraries.  As such, the only relocation type you
-			// should see is R_X86_64_RELATIVE.
+			// should see is R_*_RELATIVE.
 			__builtin_trap();
 		
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rel->Offset);
 		*Reloc += ImageBase;
-	#endif
 	}
 	
 	// Thanks to mlibc for this one.

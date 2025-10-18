@@ -15,11 +15,9 @@ Author:
 
 #include <main.h>
 #include <string.h>
-#include <mm.h>
 #include <ke.h>
 #include <arch/amd64.h>
-
-#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+#include "../mi.h"
 
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {
@@ -268,7 +266,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 					MmFreePhysicalPage(PfnsAllocated[i]);
 				}
 				
-				return false;
+				return NULL;
 			}
 			
 			PtesModified [NumPfnsAllocated] = EntryPointer;

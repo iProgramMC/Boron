@@ -22,7 +22,7 @@ Author:
 // Updates for each processor ID.
 int Updates[64];
 
-NO_RETURN void TestThread1()
+NO_RETURN void TestThread1(UNUSED void* Parameter)
 {
 	// Display a simple run timer
 	for (int i = 0; ; i++)
@@ -32,7 +32,7 @@ NO_RETURN void TestThread1()
 	}
 }
 
-NO_RETURN void TestThread2()
+NO_RETURN void TestThread2(UNUSED void* Parameter)
 {
 	for (int i = 0; i < 20; i++)
 	{
@@ -98,7 +98,7 @@ int RNGRange(int Min, int Max)
 	return RNG() % (Max - Min) + Min;
 }
 
-NO_RETURN void BallTest()
+NO_RETURN void BallTest(UNUSED void* Parameter)
 {
 	KDPC DrvDpc;
 	KeInitializeDpc(&DrvDpc, BallTestDpc, KeGetCurrentThread());

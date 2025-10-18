@@ -19,8 +19,18 @@ Author:
 #include <ke/ipl.h>
 #include <arch.h>
 
+#ifdef TARGET_AMD64
+
 // Allocate an interrupt vector for the specified IPL.
 int KeAllocateInterruptVector(KIPL Ipl);
+
+#endif
+
+#ifdef TARGET_I386
+
+#define SYSTEM_IRQ(irqNo) (PIC_INTERRUPT_BASE + (irqNo))
+
+#endif
 
 //
 // WARNING!

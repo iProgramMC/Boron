@@ -21,7 +21,7 @@ Author:
 #include "ioapic.h"
 #include "pci.h"
 
-void HalEndOfInterrupt();
+void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestInterruptInTicks(uint64_t Ticks);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();

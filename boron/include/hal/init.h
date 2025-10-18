@@ -21,7 +21,7 @@ Author:
 #define HAL_VFTABLE_LOADED (1 << 0)
 
 // Function pointer definitions
-typedef void(*PFHAL_END_OF_INTERRUPT)(void);
+typedef void(*PFHAL_END_OF_INTERRUPT)(int InterruptNumber);
 typedef void(*PFHAL_REQUEST_INTERRUPT_IN_TICKS)(uint64_t Ticks);
 typedef void(*PFHAL_REQUEST_IPI)(uint32_t LapicId, uint32_t Flags, int Vector);
 typedef void(*PFHAL_INIT_SYSTEM_UP)(void);
@@ -36,11 +36,20 @@ typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
 
 #ifdef TARGET_AMD64
-
 typedef void(*PFHAL_IOAPIC_SET_IRQ_REDIRECT)(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+#endif
 
+#ifdef TARGET_I386
+typedef void(*PFHAL_PIC_REGISTER_INTERRUPT)(uint8_t Vector, KIPL Ipl);
+typedef void(*PFHAL_PIC_DEREGISTER_INTERRUPT)(uint8_t Vector, KIPL Ipl);
+#endif
+
+#if defined TARGET_AMD64 || defined TARGET_I386
 #include "pci.h"
+#endif
 
+#ifdef TARGET_I386
+#define PIC_INTERRUPT_BASE   (0x20)
 #endif
 
 typedef struct
@@ -63,6 +72,12 @@ typedef struct
 	
 #ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;
+#endif
+#ifdef TARGET_I386
+	PFHAL_PIC_REGISTER_INTERRUPT PicRegisterInterrupt;
+	PFHAL_PIC_DEREGISTER_INTERRUPT PicDeregisterInterrupt;
+#endif
+#if defined TARGET_AMD64 || defined TARGET_I386
 	PFHAL_PCI_ENUMERATE PciEnumerate;
 	PFHAL_PCI_CONFIG_READ_DWORD PciConfigReadDword;
 	PFHAL_PCI_CONFIG_READ_WORD PciConfigReadWord;

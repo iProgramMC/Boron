@@ -67,6 +67,9 @@ typedef struct _KSCHEDULER
 	
 	int ThreadsOnQueueCount;
 	
+#if IS_32_BIT
+	__attribute__((aligned(8)))
+#endif
 	uint64_t TicksSpentNonIdle;
 	
 	// in ticks, copy of CurrentThread->QuantumUntil unless

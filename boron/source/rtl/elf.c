@@ -50,6 +50,7 @@ static bool RtlpComputeRelocation(
 	
 	switch (Type)
 	{
+		// I prefer to go here with the "Add as you go with no plan" method
 #ifdef TARGET_AMD64
 		case R_X86_64_64:
 			*Value  = Addend + Symbol;
@@ -64,14 +65,25 @@ static bool RtlpComputeRelocation(
 			*Length = sizeof(uint64_t);
 			break;
 		case R_X86_64_GLOB_DAT:
-			*Value  = Symbol;
-			*Length = sizeof(uint64_t);
-			break;
 		case R_X86_64_JUMP_SLOT:
 			*Value  = Symbol;
 			*Length = sizeof(uint64_t);
 			break;
-		// I prefer to go here with the "Add as you go with no plan" method
+#elif defined TARGET_I386
+		case R_386_32:
+			*Value = Symbol + Addend;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_386_RELATIVE:
+			*Value = Base + Addend;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_386_GLOB_DAT:
+		case R_386_JUMP_SLOT:
+			*Value = Symbol;
+			*Length = sizeof(uint32_t);
+			break;
+		// TODO
 #else
 #error Hey! Add ELF relocation types here
 #endif
@@ -130,14 +142,14 @@ static bool RtlpApplyRelocation(
 	}
 	
 	// If there is no pre-resolved symbol and we actually have a symbol index, then look it up
-	if (ResolvedSymbol == 0 && (Rela.Info >> 32) != 0)
-		ResolvedSymbol = RtlpResolveSymbolAddress(DynInfo, Rela.Info >> 32, LoadBase);
+	if (ResolvedSymbol == 0 && ELF_R_SYM(Rela.Info) != 0)
+		ResolvedSymbol = RtlpResolveSymbolAddress(DynInfo, ELF_R_SYM(Rela.Info), LoadBase);
 	
 	uintptr_t Place  = LoadBase + Rela.Offset;
 	uintptr_t Addend = Rela.Addend;
 	
 	uintptr_t Value, Length;
-	uint32_t RelType = (uint32_t) Rela.Info; // ELF64_R_TYPE(x) => (x & 0xFFFFFFFF)
+	uint32_t RelType = ELF_R_TYPE(Rela.Info);
 	
 	if (!RtlpComputeRelocation(RelType,
 	                           Addend,
@@ -284,7 +296,7 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 		// NOTE: PELF_RELA and PELF_REL need to have the same starting members!!
 		PELF_REL Rel = (PELF_REL)((uintptr_t)DynInfo->PltRelocations + i);
 		
-		PELF_SYMBOL Symbol = &DynInfo->DynSymTable[Rel->Info >> 32];
+		PELF_SYMBOL Symbol = &DynInfo->DynSymTable[ELF_R_SYM(Rel->Info)];
 		
 		uintptr_t SymbolOffset = Symbol->Name;
 		const char* SymbolName = DynInfo->DynStrTable + SymbolOffset;

@@ -26,8 +26,6 @@ BORON Operating System Address Space (AMD64)
 |    higher half direct map    |
 +------------------------------+ - 0xFFFF800000000000
 
-NOTE: file system caching will be implemented in the future
-
 ** User Mode **
 
 Currently this is nothing more than a plan.
@@ -39,13 +37,13 @@ However, this is the plan for normal user processes.
 
 +-----------------------------+ - 0x0000800000000000
 |  process environment block  |
-+-----------------------------+ - 0x00007ffffffff000
++-----------------------------+ - 0x00007FFFFFFFE000
 |    operating system DLLs    |
-+-----------------------------+ - 0x00007fff00000000
++-----------------------------+ - 0x00007FFF00000000
 |  thread environment blocks  |
-+-----------------------------+ - 0x00007ffe00000000
++-----------------------------+ - 0x00007FFE00000000
 |        thread stacks        |
-+-----------------------------+ - 0x00007e0000000000
++-----------------------------+ - 0x00007E0000000000
 |        user mappings        |
 +-----------------------------+ - 0x0000500000000000
 |          user heap          |

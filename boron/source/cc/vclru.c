@@ -94,6 +94,7 @@ void CcPurgeViewsOverLimit(int LeaveSpaceFor)
 	
 	while (AtLoad(CcViewCacheLruSize) > Limit)
 	{
+		// TODO: THIS DOES NOT WORK. You must NOT remove the head of view cache!!!
 		PMMVAD Vad = CcRemoveHeadOfViewCacheLru();
 		
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, true);
