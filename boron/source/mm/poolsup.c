@@ -80,7 +80,9 @@ uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
 
 #else
 
-#define MiCalculatePoolHeaderPte(Handle) (((Handle) - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR)
+#define MiCalculatePoolHeaderPte(Handle) (((uintptr_t)(Handle) - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR)
+
+#define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
 
 #endif
 
@@ -209,8 +211,10 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 	
 	while (CurrentEntry != &MmpPoolList)
 	{
+#ifdef DEBUG
 		if (CurrentEntry == NULL)
-			KeCrash("HUH??!  CurrentEntry is NULL");
+			KeCrash("HUH?!?  CurrentEntry is NULL");
+#endif
 		
 		// Skip allocated entries.
 		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
@@ -228,8 +232,10 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 			return Handle;
 		}
 		
+#ifdef DEBUG
 		if (CurrentEntry->Flink == NULL)
-			KeCrash("HUH??!  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
+			KeCrash("HUH?!?  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
+#endif
 		
 		CurrentEntry = CurrentEntry->Flink;
 	}
@@ -278,7 +284,7 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
 	ASSERT(!(Handle & 0x7));
 	ASSERT(Handle >= MM_KERNEL_SPACE_BASE);
-	ASSERT(MiReconstructPoolHandleFromPte(MiGetPoolSpaceHandleFromAddress(Entry)) == Handle);
+	ASSERT(MiReconstructPoolHandleFromPte(MiCalculatePoolHeaderPte(Handle)) == Handle);
 	
 	if (~Entry->Flags & MI_POOL_ENTRY_ALLOCATED)
 	{
@@ -427,14 +433,7 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	// the valid bit set.
 	uintptr_t PAddress = *PtePtr;
 	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
-	
-#ifdef IS_32_BIT
 	PAddress = MiReconstructPoolHandleFromPte(PAddress);
-#else
-	PAddress &= ~MM_PTE_ISPOOLHDR;
-	PAddress += MM_KERNEL_SPACE_BASE;
-#endif
-	
 	MIPOOL_SPACE_HANDLE Handle = PAddress;
 	MmUnlockKernelSpace();
 	return Handle;

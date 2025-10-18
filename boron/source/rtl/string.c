@@ -64,6 +64,10 @@ void* memset(void* dst, int c, size_t n)
 
 size_t strlen(const char * s)
 {
+#if defined KERNEL && defined DEBUG
+	if (!s)
+		KeCrash("strlen(NULL)");
+#endif
 	// Count the amount of non-zero characters in the null-terminated string.
 	size_t sz = 0;
 	while (*s++) sz++;

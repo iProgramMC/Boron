@@ -9,9 +9,15 @@ BORON Operating System Address Space (i386)
 +------------------------------+ - 0xF0000000
 |   more dynamic pool space    |
 +------------------------------+ - 0xE0000000
+|            unused            |
++------------------------------+ - 0xD8000000
 |     page frame data base     |
 +------------------------------+ - 0xD4000000
 |      system module DLLs      |
++------------------------------+ - 0xD2000000
+|            unused            |
++------------------------------+ - 0xD1800000
+|  pool header slab magazines  |
 +------------------------------+ - 0xD1000000
 | fast mapping in 16MB windows |
 +------------------------------+ - 0xD0000000

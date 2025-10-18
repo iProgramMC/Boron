@@ -174,18 +174,24 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 
 typedef struct MIPOOL_ENTRY_tag
 {
+	LIST_ENTRY ListEntry;
+	int        Flags;
+	int        Tag;
+	uintptr_t  UserData;
+	uintptr_t  Address;
+	size_t     Size;
 #ifdef IS_32_BIT
 	int        Dummy;
 	#define    MIPOOL_DUMMY_SIGNATURE 0x12345678
 #endif
-	int        Flags;                       // Qword 2
-	int        Tag;
-	uintptr_t  UserData;                    // Qword 3
-	uintptr_t  Address;                     // Qword 4
-	size_t     Size;                        // Qword 5, size is in pages.
-	LIST_ENTRY ListEntry;                   // Qword 0, 1
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
+
+#ifdef IS_64_BIT
+static_assert(sizeof(MIPOOL_ENTRY) == 48);
+#else
+static_assert(sizeof(MIPOOL_ENTRY) == 32);
+#endif
 
 typedef enum MIPOOL_ENTRY_FLAGS_tag
 {
@@ -234,10 +240,15 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* Address);
 void MiDumpPoolInfo();
 
 // ===== Pool entry allocator =====
-// Really simple allocator that dishes out pool entries. To get rid of the pool allocator's dependency on the slab allocator.
+// Really simple allocator that dishes out pool entries. To get rid of the pool allocator's
+// dependency on the slab allocator.
 // The dependency chart will now look like this:
 // [PoolEntryAllocator] <----- [PoolAllocator] <----- [SlabAllocator]
 
+#ifdef IS_32_BIT
+#define MI_POOL_HEADERS_START (0xD1000000U)
+#define MI_POOL_HEADERS_SIZE  (0x00800000U)
+#endif
 
 PMIPOOL_ENTRY MiCreatePoolEntry();
 

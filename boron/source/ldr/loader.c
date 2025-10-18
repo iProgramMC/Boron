@@ -21,7 +21,7 @@ static const char* LdrpHalPath = "halx86.sys";
 
 #elif defined TARGET_I386
 
-static uintptr_t LdrpCurrentBase = 0xD1000000;
+static uintptr_t LdrpCurrentBase = 0xD2000000;
 static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
 
 #else
