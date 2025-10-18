@@ -25,10 +25,10 @@ typedef struct
 	// Size of additional data is 32 bytes. (2xPtr=16 + 2xU64=16)
 	// Note: Free space is 32 bytes
 #else
-	#define POOL_ENTRY_COUNT 127
+	#define POOL_ENTRY_COUNT 64
 	// Size of a MIPOOL_ENTRY is 32
 	// Size of additional data is 24 bytes (2xPtr=8 + 2xU64=16)
-	// Note: Free space is 16 bytes
+	// Note: Free space is 8 bytes
 #endif
 
 	MIPOOL_ENTRY Entries[POOL_ENTRY_COUNT];
@@ -96,6 +96,9 @@ PMIPOOL_ENTRY MiCreatePoolEntry()
 		if (PoolEntry)
 		{
 			memset(PoolEntry, 0, sizeof *PoolEntry);
+		#ifdef MIPOOL_DUMMY_SIGNATURE
+			PoolEntry->Dummy = MIPOOL_DUMMY_SIGNATURE;
+		#endif
 			KeReleaseSpinLock(&MmpPoolSlabListLock, Ipl);
 			return PoolEntry;
 		}
@@ -121,6 +124,13 @@ PMIPOOL_ENTRY MiCreatePoolEntry()
 	
 	// Attempt to allocate as usual.
 	PMIPOOL_ENTRY PoolEntry = MmpAllocateFromPoolEntrySlab(Item);
+	if (PoolEntry)
+	{
+		memset(PoolEntry, 0, sizeof *PoolEntry);
+	#ifdef MIPOOL_DUMMY_SIGNATURE
+		PoolEntry->Dummy = MIPOOL_DUMMY_SIGNATURE;
+	#endif
+	}
 	
 	KeReleaseSpinLock(&MmpPoolSlabListLock, Ipl);
 	
@@ -129,6 +139,13 @@ PMIPOOL_ENTRY MiCreatePoolEntry()
 
 void MiDeletePoolEntry(PMIPOOL_ENTRY Entry)
 {
+#ifdef MIPOOL_DUMMY_SIGNATURE
+	ASSERT(Entry->Dummy == MIPOOL_DUMMY_SIGNATURE);
+	
+	ASSERT(Entry->ListEntry.Flink == NULL);
+	ASSERT(Entry->ListEntry.Blink == NULL);
+#endif
+	
 	// Get the containing slab.
 	PMIPOOL_ENTRY_SLAB Slab = (PMIPOOL_ENTRY_SLAB) ((uintptr_t) Entry & ~(PAGE_SIZE - 1));
 	

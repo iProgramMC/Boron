@@ -336,6 +336,10 @@ void MiSlabFree(void* Ptr)
 	PHUGE_MEMORY_BLOCK Hmb = PageAlignedPtr;
 	if (Hmb->Check == MI_HUGE_MEMORY_CHECK)
 	{
+		// FIX ASAP
+		// TODO: this is vulnerable to attacks where someone fills the memory with this
+		// TODO TODO TODO
+		
 		// Free it as a huge memory block.
 		MmpFreeHuge(Hmb);
 		return;

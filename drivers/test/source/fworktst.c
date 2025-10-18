@@ -279,9 +279,6 @@ NO_RETURN void T_Particle(void* Parameter)
 
 NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 {
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	
 	FIREWORK_DATA Data;
 	memset(&Data, 0, sizeof Data);
 	
@@ -375,9 +372,6 @@ void PerformFireworksTest()
 
 	// The main thread occupies itself with spawning explodeables
 	// from time to time, to keep things interesting.
-	KTIMER Timer;
-	KeInitializeTimer(&Timer);
-	
 	while (true)
 	{
 		int SpawnCount = Rand() % 20 + 1;

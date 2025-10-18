@@ -35,7 +35,11 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, Ms, Dpc);
 	
-	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	BSTATUS Status = KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	if (FAILED(Status))
+		DbgPrint("PerformDelay FAILED. %d (%s)", Status, RtlGetStatusString(Status));
+	
+	KeCancelTimer(&Timer);
 }
 
 void DumpHex(void* DataV, size_t DataSize, bool LogScreen)

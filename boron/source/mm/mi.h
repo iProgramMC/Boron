@@ -67,7 +67,6 @@ struct MISLAB_CONTAINER_tag;
 
 #define MI_SLAB_ITEM_CHECK (0x424C5342) // "BSLB"
 
-#define MI_MIN_SIZE_SLAB (8)
 #define MI_MAX_SIZE_SLAB (32768)
 
 typedef struct MISLAB_ITEM_tag
@@ -175,15 +174,16 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 
 typedef struct MIPOOL_ENTRY_tag
 {
-	LIST_ENTRY ListEntry;                   // Qword 0, 1
+#ifdef IS_32_BIT
+	int        Dummy;
+	#define    MIPOOL_DUMMY_SIGNATURE 0x12345678
+#endif
 	int        Flags;                       // Qword 2
 	int        Tag;
 	uintptr_t  UserData;                    // Qword 3
 	uintptr_t  Address;                     // Qword 4
 	size_t     Size;                        // Qword 5, size is in pages.
-#ifdef IS_32_BIT
-	int        Dummy;
-#endif
+	LIST_ENTRY ListEntry;                   // Qword 0, 1
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
 

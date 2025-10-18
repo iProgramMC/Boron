@@ -50,15 +50,32 @@ static_assert(MM_PTE_ISPOOLHDR == (1 << 11));
 
 MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
 {
+	ASSERT(!(Handle & 0x7));
 	MMPTE_POOLHEADER PteHeader;
 	PteHeader.Pte = 0;
 	
-	PteHeader.B3to9 = (Handle >> 3) & 0x1FF;
+	PteHeader.B3to9 = (Handle >> 3) & 0x7F;
 	PteHeader.B10to11 = (Handle >> 10) & 0x3;
 	PteHeader.B12to31 = (Handle >> 12);
 	PteHeader.IsPoolHdr = true;
 
 	return PteHeader.Pte;
+}
+
+FORCE_INLINE
+uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
+{
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = Pte;
+	
+	ASSERT(!PteHeader.Present);
+	ASSERT(!PteHeader.Committed);
+	ASSERT(PteHeader.IsPoolHdr);
+	
+	return
+		PteHeader.B3to9 << 3 |
+		PteHeader.B10to11 << 10 |
+		PteHeader.B12to31 << 12;
 }
 
 #else
@@ -149,15 +166,15 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	// This entry manages the area directly after the PoolEntry does.
 	PMIPOOL_ENTRY NewEntry = MiCreatePoolEntry();
 	
-	// TODO: Debug the firework test driver. When removing this, it doesn't throw up a nice
-	// page fault, but rather hits some weird code which sets the stack pointer to 0x000000017FFFFFFF
-	// and triple faults the kernel.
 	if (!NewEntry)
 		return 0;
 	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
 	ASSERT(NewEntry);
+	ASSERT(PoolEntry);
+	ASSERT(PoolEntry->ListEntry.Flink);
+	ASSERT(PoolEntry->ListEntry.Blink);
 	InsertHeadList(&PoolEntry->ListEntry, &NewEntry->ListEntry);
 	
 	// Assign the other properties
@@ -211,6 +228,9 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 			return Handle;
 		}
 		
+		if (CurrentEntry->Flink == NULL)
+			KeCrash("HUH??!  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
+		
 		CurrentEntry = CurrentEntry->Flink;
 	}
 	
@@ -239,7 +259,11 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 		Entry->Size += Flink->Size;
 		
 		// remove the 'flink' entry
-		RemoveHeadList(&Entry->ListEntry);
+		RemoveEntryList(&Flink->ListEntry);
+		ASSERT(Entry->ListEntry.Flink != NULL);
+		ASSERT(Entry->ListEntry.Blink != NULL);
+		ASSERT(Flink->ListEntry.Flink == NULL);
+		ASSERT(Flink->ListEntry.Blink == NULL);
 		
 		MiDeletePoolEntry(Flink);
 	}
@@ -252,6 +276,9 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
+	ASSERT(!(Handle & 0x7));
+	ASSERT(Handle >= MM_KERNEL_SPACE_BASE);
+	ASSERT(MiReconstructPoolHandleFromPte(MiGetPoolSpaceHandleFromAddress(Entry)) == Handle);
 	
 	if (~Entry->Flags & MI_POOL_ENTRY_ALLOCATED)
 	{
@@ -262,7 +289,8 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	Entry->Tag    = MI_EMPTY_TAG;
 	
 	MmpTryConnectEntryWithItsFlink(Entry);
-	MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
+	if (Entry->ListEntry.Blink != &MmpPoolList)
+		MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
 	
 	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 }
@@ -401,13 +429,7 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
 	
 #ifdef IS_32_BIT
-	MMPTE_POOLHEADER PteHeader;
-	PteHeader.Pte = PAddress;
-	
-	PAddress =
-		PteHeader.B12to31 << 12 |
-		PteHeader.B10to11 << 10 |
-		PteHeader.B3to9 << 3;
+	PAddress = MiReconstructPoolHandleFromPte(PAddress);
 #else
 	PAddress &= ~MM_PTE_ISPOOLHDR;
 	PAddress += MM_KERNEL_SPACE_BASE;
