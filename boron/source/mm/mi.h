@@ -80,11 +80,16 @@ typedef struct MISLAB_ITEM_tag
 	// into the rest.
 	union
 	{
-		uint64_t Bitmap[4]; // Supports down to 16 byte sized items
+		uint64_t Bitmap[4]; // 32 bytes - Supports down to 16 byte sized items
 		struct
 		{
-			uint64_t Bitmap2[1];
-			RBTREE_ENTRY TreeEntry;
+		#ifdef IS_64_BIT
+			uint64_t Bitmap2[1];    // 8
+			RBTREE_ENTRY TreeEntry; // 24
+		#else
+			uint64_t Bitmap2[2];    // 16
+			RBTREE_ENTRY TreeEntry; // 12
+		#endif
 		};
 	};
 	

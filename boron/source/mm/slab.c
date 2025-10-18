@@ -266,7 +266,11 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 	bool RequiresRbTreeEntry = MmpRequiresRbTreeEntry(Container->ItemSize);
 	
 	// Check if it's all zero:
+#ifdef IS_64_BIT
 	if (!Item->Bitmap[0] && (RequiresRbTreeEntry || (!Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])))
+#else
+	if (!Item->Bitmap[0] && !Item->Bitmap[1] && (RequiresRbTreeEntry || (!Item->Bitmap[2] && !Item->Bitmap[3])))
+#endif
 	{
 		RemoveEntryList(&Item->ListEntry);
 		

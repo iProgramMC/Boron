@@ -18,6 +18,7 @@ Author:
 #define V2P(p) ((uintptr_t)(p) - MI_IDENTMAP_START)
 
 extern uint8_t KiBootstrapPageTables[];
+extern uint8_t KiHhdmWindowPageTables[];
 
 void MiInitializeBaseIdentityMapping()
 {
@@ -33,5 +34,15 @@ void MiInitializeBaseIdentityMapping()
 			| MM_PTE_PRESENT;
 		
 		*Level1 = i | MM_PTE_READWRITE | MM_PTE_PRESENT;
+	}
+	
+	for (size_t i = 0; i < MI_FASTMAP_SIZE; i += PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE))
+	{
+		uintptr_t Address = MI_FASTMAP_START + i;
+		
+		PMMPTE Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
+		*Level2 = V2P(&KiHhdmWindowPageTables[(i >> 22) * PAGE_SIZE])
+			| MM_PTE_READWRITE
+			| MM_PTE_PRESENT;
 	}
 }

@@ -126,6 +126,7 @@ global KiMultibootSignature
 global KiMultibootInfo
 global KiBootstrapPageDirectory
 global KiBootstrapPageTables
+global KiHhdmWindowPageTables
 
 KiMultibootSignature:		resd 1
 KiMultibootInfo:			resd 1
@@ -134,3 +135,4 @@ alignb 4096
 KiInitialStack:				resb 4096
 KiBootstrapPageDirectory:	resb 4096
 KiBootstrapPageTables:		resb 64 * 4096
+KiHhdmWindowPageTables:		resb 4 * 4096

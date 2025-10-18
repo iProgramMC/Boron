@@ -71,6 +71,8 @@ uintptr_t MmHHDMWindowBase;
 
 static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 {
+	KIPL Ipl = MiLockPfdb();
+	
 	const int PtesPerLevel = PAGE_SIZE / sizeof(MMPTE);
 	PMMPTE Ptes = (PMMPTE)(MI_PML1_LOCATION);
 	
@@ -87,6 +89,8 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | (PhysAddr + i);
 		KeInvalidatePage((void*)Address);
 	}
+	
+	MiUnlockPfdb(Ipl);
 }
 
 void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)

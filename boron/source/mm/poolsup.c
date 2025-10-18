@@ -157,6 +157,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	
 	// Link it such that:
 	// PoolEntry ====> NewEntry ====> PoolEntry->Flink
+	ASSERT(NewEntry);
 	InsertHeadList(&PoolEntry->ListEntry, &NewEntry->ListEntry);
 	
 	// Assign the other properties
@@ -191,6 +192,9 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 	
 	while (CurrentEntry != &MmpPoolList)
 	{
+		if (CurrentEntry == NULL)
+			KeCrash("HUH??!  CurrentEntry is NULL");
+		
 		// Skip allocated entries.
 		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
 		
