@@ -31,9 +31,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	
 	// TODO: locking?
 	
-	HPAGEMAP Map = MiGetCurrentPageMap();
-	
-	MiMapAnonPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE, true);
+	MiMapAnonPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE, true);
 	
 	// Probe the memory.
 	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);
@@ -50,7 +48,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	// Unmap the memory.
-	MiUnmapPages(Map, (uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
+	MiUnmapPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
 	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);
 	LogMsg("Status In Process: %d (after unmapping memory)", Status);
 	

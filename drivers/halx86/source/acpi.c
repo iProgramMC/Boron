@@ -18,8 +18,7 @@ Author:
 #include "pio.h"
 
 // TODO: Add a way to do that without breaking into Mm's internal functions
-HPAGEMAP MiGetCurrentPageMap();
-bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
+bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
 
 static PRSDP_DESCRIPTION HalpRsdp;
 static PRSDT_TABLE       HalpRsdt;
@@ -92,20 +91,15 @@ void AcpiInitPmt()
 		uintptr_t Addr = Header->X_PMTimerBlock.Address;
 		uintptr_t OffsetWithinPage = Addr & 0xFFF;
 		
-		void* PageAddress = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("APMT"));
+		void* PageAddress = MmMapIoSpace(
+			Addr,
+			1,    // SizePages
+			MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC,
+			POOL_TAG("APMT")
+		);
+
 		if (!PageAddress)
-		{
-		CRASH_BECAUSE_FAILURE_TO_MAP:
 			KeCrashBeforeSMPInit("Could not map ACPI PMT timer as uncacheable");
-		}
-		
-		if (!MiMapPhysicalPage(MiGetCurrentPageMap(),
-		                       Addr,
-		                       (uintptr_t) PageAddress,
-		                       MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))
-		{
-		   goto CRASH_BECAUSE_FAILURE_TO_MAP;
-		}
 		
 		uintptr_t PageAddress2 = (uintptr_t) PageAddress;
 		PageAddress2 += OffsetWithinPage;

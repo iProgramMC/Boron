@@ -538,8 +538,10 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			return STATUS_REFAULT_SLEEP;
 		}
 		
+		MmBeginUsingHHDM();
 		void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
 		memcpy(Address, (void*)(Va & ~(PAGE_SIZE - 1)), PAGE_SIZE);
+		MmEndUsingHHDM();
 		
 		// Now assign the new PFN.
 		*PtePtr =

@@ -308,7 +308,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	// Acquire the kernel space lock and zero out its PTE.
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address, false);
+	PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
 	ASSERT(PtePtr);
 	ASSERT(*PtePtr == MiCalculatePoolHeaderPte(Handle));
 	*PtePtr = 0;
@@ -341,7 +341,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	// Acquire the kernel space lock and place the address of the handle into the first part of the PTE.
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), (uintptr_t) OutputAddressSub, true);
+	PMMPTE PtePtr = MmGetPteLocationCheck((uintptr_t) OutputAddressSub, true);
 	if (!PtePtr)
 	{
 		// TODO: Handle this in a nicer way.
@@ -354,7 +354,10 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	ASSERT(*PtePtr == 0);
 	ASSERT((Handle & MM_PTE_PRESENT) == 0);
 	
-	*PtePtr = MiCalculatePoolHeaderPte(Handle);
+	MMPTE Pte = MiCalculatePoolHeaderPte(Handle);
+	ASSERT(MiReconstructPoolHandleFromPte(Pte) == Handle);
+	
+	*PtePtr = Pte;
 
 	MmUnlockKernelSpace();
 	
@@ -421,7 +424,7 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), Address - PAGE_SIZE, false);
+	PMMPTE PtePtr = MmGetPteLocationCheck(Address - PAGE_SIZE, false);
 	if (!PtePtr)
 	{
 		MmUnlockKernelSpace();
@@ -432,6 +435,9 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	// N.B.  This kind of relies on the notion that the address doesn't have
 	// the valid bit set.
 	uintptr_t PAddress = *PtePtr;
+	if (~PAddress & MM_PTE_ISPOOLHDR) {
+		KeCrash("Trying to access pool space handle from address %p, but its PTE says %p", AddressV, PAddress);
+	}
 	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
 	PAddress = MiReconstructPoolHandleFromPte(PAddress);
 	MIPOOL_SPACE_HANDLE Handle = PAddress;

@@ -51,16 +51,10 @@ void MmUnlockSpace(KIPL OldIpl, uintptr_t DecidingAddress);
 HPAGEMAP MiGetCurrentPageMap();
 
 // Creates a page mapping.
-HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping);
+HPAGEMAP MiCreatePageMapping();
 
 // Deletes a page mapping.
 void MiFreePageMapping(HPAGEMAP OldPageMapping);
-
-// Resolves a page table entry pointer (virtual address offset by HHDM) relative to an address.
-// Can allocate the missing page mapping levels on its way if the flag is set.
-// If on its way, it hits a higher page size, currently it will return null since it's not really
-// designed for that.
-PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
 // Check if the PTE for a certain VA exists at the recursive PTE address, in the
 // current page mapping.
@@ -88,16 +82,16 @@ PMMPTE MmGetPteLocation(uintptr_t Address);
 PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels);
 
 // Attempts to map a physical page into the specified address space.
-bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged);
+bool MiMapAnonPage(uintptr_t Address, uintptr_t Permissions, bool NonPaged);
 
 // Attempts to map several anonymous pages into the specified address space.
-bool MiMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
+bool MiMapAnonPages(uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged);
 
 // Attempts to map a known physical page into the specified address space.
-bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
+bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
 
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
-void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages); 
+void MiUnmapPages(uintptr_t Address, size_t LengthPages); 
 
 // Handles a page fault. Returns whether or not the page fault was handled.
 // TODO make it MiPageFault and export it only to ke/except

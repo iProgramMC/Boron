@@ -53,7 +53,8 @@ static void* KiEarlyAllocateMemoryFromMemMap(size_t Size)
 		Entry->Base += Size;
 		Entry->Size -= Size;
 		
-		return (void*) MmGetHHDMOffsetAddr(CurrAddr);
+		ASSERT(CurrAddr < MI_IDENTMAP_SIZE);
+		return (void*) (MI_IDENTMAP_START + CurrAddr);
 	}
 	
 	KeCrashBeforeSMPInit("Error, out of memory in KiEarlyAllocateMemoryFromMemMap");

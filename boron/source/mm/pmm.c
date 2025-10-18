@@ -25,8 +25,7 @@ Author:
 #define PmmDbgPrint(...) do {} while (0)
 #endif
 
-//extern volatile struct limine_hhdm_request   KeLimineHhdmRequest;
-//extern volatile struct limine_memmap_request KeLimineMemMapRequest;
+static KSPIN_LOCK MmPfnLock;
 
 // Free page statistics
 size_t MmTotalAvailablePages;
@@ -68,9 +67,25 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* addr)
 #endif
 
 uintptr_t MmHHDMWindowBase;
+static KSPIN_LOCK MiHHDMWindowLock;
+static KIPL MiHHDMWindowIpl;
+
+void MmBeginUsingHHDM()
+{
+	KIPL Ipl;
+	KeAcquireSpinLock(&MiHHDMWindowLock, &Ipl);
+	MiHHDMWindowIpl = Ipl;
+}
+
+void MmEndUsingHHDM()
+{
+	ASSERT(MiHHDMWindowLock.Locked);
+	KeReleaseSpinLock(&MiHHDMWindowLock, MiHHDMWindowIpl);
+}
 
 static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 {
+	ASSERT(MiHHDMWindowLock.Locked);
 	KIPL Ipl = MiLockPfdb();
 	
 	const int PtesPerLevel = PAGE_SIZE / sizeof(MMPTE);
@@ -95,6 +110,9 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 
 void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
 {
+	ASSERT(!MmPfnLock.Locked);
+	ASSERT(MiHHDMWindowLock.Locked);
+	
 	if (PhysAddr < MI_IDENTMAP_SIZE)
 		return (void*)(MI_IDENTMAP_START + PhysAddr);
 	
@@ -106,6 +124,9 @@ void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
 
 uintptr_t MmGetHHDMOffsetFromAddr(void* Addr)
 {
+	ASSERT(!MmPfnLock.Locked);
+	ASSERT(MiHHDMWindowLock.Locked);
+	
 	uintptr_t AddrInt = (uintptr_t) Addr;
 	if (AddrInt >= MI_IDENTMAP_START && AddrInt < MI_IDENTMAP_START + MI_IDENTMAP_SIZE)
 		return AddrInt - MI_IDENTMAP_START;
@@ -272,7 +293,10 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 			return false;
 		}
 		
+		MmBeginUsingHHDM();
 		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
+		MmEndUsingHHDM();
+		
 		Level1[Convert.Level1Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
 	}
 	
@@ -325,7 +349,6 @@ static MMPFN MiFirstZeroPFN = PFN_INVALID, MiLastZeroPFN = PFN_INVALID;
 static MMPFN MiFirstFreePFN = PFN_INVALID, MiLastFreePFN = PFN_INVALID;
 static MMPFN MiFirstStandbyPFN = PFN_INVALID, MiLastStandbyPFN = PFN_INVALID;
 static MMPFN MiFirstModifiedPFN = PFN_INVALID, MiLastModifiedPFN = PFN_INVALID;
-static KSPIN_LOCK MmPfnLock;
 
 KIPL MiLockPfdb()
 {
@@ -696,7 +719,11 @@ MMPFN MmAllocatePhysicalPage()
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
 	if (!FromZero && currPFN != PFN_INVALID)
+	{
+		MmBeginUsingHHDM();
 		memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(currPFN)), 0, PAGE_SIZE);
+		MmEndUsingHHDM();
+	}
 	
 #ifdef PMMDEBUG
 	DbgPrint("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
@@ -906,56 +933,50 @@ void MiReinsertIntoModifiedList(MMPFN Pfn)
 	}
 }
 
-// Zeroes out a free PFN, takes it off the free PFN list and adds it to
-// the zero PFN list.
-static void MmpZeroOutPFN(MMPFN pfn)
-{
-	ASSERT(pfn != PFN_INVALID);
-	PMMPFDBE pPF = MmGetPageFrameFromPFN(pfn);
-	if (pPF->Type == PF_TYPE_ZEROED)
-		return;
-	
-	if (pPF->Type != PF_TYPE_FREE)
-	{
-		DbgPrint("Error, attempting to zero out pfn %d which is used", pfn);
-		return;
-	}
-	
-	pPF->Type = PF_TYPE_ZEROED;
-	
-	MmpRemovePfnFromList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
-	
-	// zero out the page itself
-	uint8_t* mem = MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn));
-	memset(mem, 0, PAGE_SIZE);
-	
-	MmpAddPfnToList(&MiFirstZeroPFN, &MiLastZeroPFN, pfn);
-}
-
-void MmZeroOutPFN(MMPFN pfn)
-{
-	ASSERT(pfn != PFN_INVALID);
-	KIPL OldIpl;
-	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
-	MmpZeroOutPFN(pfn);
-	KeReleaseSpinLock(&MmPfnLock, OldIpl);
-}
-
+// Zeroes out the first free PFN, takes it off the free PFN list and
+// adds it to the zero PFN list.
 void MmZeroOutFirstPFN()
 {
+	// step 1. find the first free PFN, if it exists.
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
 	
 	if (MiFirstFreePFN == PFN_INVALID)
 	{
+	Return:
 		KeReleaseSpinLock(&MmPfnLock, OldIpl);
 		return;
 	}
+
+	MMPFN pfn = MiFirstFreePFN;
+	PMMPFDBE pPF = MmGetPageFrameFromPFN(pfn);
 	
-	MmpZeroOutPFN(MiFirstFreePFN);
+	if (pPF->Type == PF_TYPE_ZEROED)
+		goto Return;
+
+#ifdef DEBUG	
+	if (pPF->Type != PF_TYPE_FREE)
+		KeCrash("Error, attempting to zero out pfn %d which is used", pfn);
+#endif
 	
+	pPF->Type = PF_TYPE_ZEROED;
+	
+	MmpRemovePfnFromList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+	
+	// step 2. free the PFN.
+	MmBeginUsingHHDM();
+	uint8_t* mem = MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn));
+	memset(mem, 0, PAGE_SIZE);
+	MmEndUsingHHDM();
+	
+	// step 3. add this PFN to the zero list
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	MmpAddPfnToList(&MiFirstZeroPFN, &MiLastZeroPFN, pfn);
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
+
+#ifdef IS_64_BIT
 
 void* MmAllocatePhysicalPageHHDM()
 {
@@ -971,6 +992,20 @@ void MmFreePhysicalPageHHDM(void* page)
 {
 	return MmFreePhysicalPage(MmPhysPageToPFN(MmGetHHDMOffsetFromAddr(page)));
 }
+
+#else
+
+void* MmAllocatePhysicalPageHHDM()
+{
+	KeCrash("NYI MmAllocatePhysicalPageHHDM");
+}
+
+void MmFreePhysicalPageHHDM(void* Page)
+{
+	KeCrash("NYI MmFreePhysicalPageHHDM(%p)", Page);
+}
+
+#endif
 
 void MiPageAddReferenceWithPfdbLocked(MMPFN Pfn)
 {

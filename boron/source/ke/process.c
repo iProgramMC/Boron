@@ -50,7 +50,7 @@ BSTATUS KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseA
 {
 	KeInitializeDispatchHeader(&Process->Header, DISPATCH_PROCESS);
 	
-	Process->PageMap = MiCreatePageMapping(KeGetCurrentPageTable());
+	Process->PageMap = MiCreatePageMapping();
 	
 	if (Process->PageMap == 0)
 		return STATUS_INSUFFICIENT_MEMORY;

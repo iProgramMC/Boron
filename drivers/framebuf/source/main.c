@@ -62,7 +62,27 @@ BSTATUS FramebufferRead(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, uint64_t Offset,
 	if (Size == 0)
 		goto SuccessZero;
 	
+#ifdef IS_64_BIT
+	
 	MmCopyIntoMdl(MdlBuffer, 0, MmGetHHDMOffsetAddr(Ext->Address + Offset), Size);
+
+#else
+	
+	void *TempMapping = MmMapIoSpace(
+		Ext->Address + Offset,
+		Size,
+		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		POOL_TAG("FBCP")
+	);
+	
+	if (!TempMapping)
+		return IOSB_STATUS(Iosb, STATUS_INSUFFICIENT_MEMORY);
+	
+	MmCopyIntoMdl(MdlBuffer, 0, TempMapping, Size);
+	
+	MmFreePoolBig(TempMapping);
+
+#endif
 	
 	Iosb->BytesRead = Size;
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
@@ -92,7 +112,27 @@ BSTATUS FramebufferWrite(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL 
 	if (Size == 0)
 		goto SuccessZero;
 	
+#ifdef IS_64_BIT
+	
 	MmCopyFromMdl(MdlBuffer, 0, MmGetHHDMOffsetAddr(Ext->Address + Offset), Size);
+
+#else
+	
+	void *TempMapping = MmMapIoSpace(
+		Ext->Address + Offset,
+		Size,
+		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		POOL_TAG("FBCP")
+	);
+	
+	if (!TempMapping)
+		return IOSB_STATUS(Iosb, STATUS_INSUFFICIENT_MEMORY);
+	
+	MmCopyFromMdl(MdlBuffer, 0, TempMapping, Size);
+	
+	MmFreePoolBig(TempMapping);
+
+#endif
 	
 	Iosb->BytesWritten = Size;
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);

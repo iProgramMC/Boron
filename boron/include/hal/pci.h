@@ -316,10 +316,14 @@ void HalPciMsixSetInterrupt(PPCI_DEVICE Device, int Index, uint8_t ProcessorId, 
 {
 	uintptr_t Address = HalPciReadBarAddress(&Device->Address, Device->MsixData.Bir);
 	
+	MmBeginUsingHHDM();
+	
 	PPCI_MSIX_TABLE_ENTRY Table = MmGetHHDMOffsetAddr(Address + Device->MsixData.TableOffset);
 	Table += Index;
 	
 	Table->Address = HalPciMsiCreateAddress(ProcessorId);
 	Table->MessageData = HalPciMsiCreateMessage(Vector, EdgeTrigger, Deassert);
 	Table->VectorControl = 0;
+	
+	MmEndUsingHHDM();
 }

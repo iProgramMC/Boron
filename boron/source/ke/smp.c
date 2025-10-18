@@ -159,6 +159,11 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 
 void PsInitSystemProcess();
 
+#ifndef CONFIG_SMP
+static KPRCB KiPrcb;
+static PKPRCB KiPrcbList[1];
+#endif
+
 NO_RETURN INIT
 void KeInitSMP()
 {
@@ -179,12 +184,24 @@ void KeInitSMP()
 	if (MpInfo->Count > ProcessorLimit)
 		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", MpInfo->Count, ProcessorLimit);
 	
+#ifdef CONFIG_SMP
 	int cpuListPFN = MmAllocatePhysicalPage();
 	if (cpuListPFN == PFN_INVALID)
 		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
 	
+	// TODO: don't use MmGetHHDMOffsetAddr on 32-bit builds?
 	KeProcessorList  = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuListPFN));
 	KeProcessorCount = MpInfo->Count;
+#else
+	KeProcessorList  = KiPrcbList;
+	KeProcessorCount = 1;
+	
+	if (MpInfo->Count >= 1)
+	{
+		DbgPrint("%zu processors provided by the loader, but we only support one");
+		MpInfo->Count = 1;
+	}
+#endif
 	
 	// Initialize all the CPUs in series.
 	for (uint64_t i = 0; i < MpInfo->Count; i++)
@@ -199,7 +216,12 @@ void KeInitSMP()
 			KeCrashBeforeSMPInit("Error, can't initialize CPUs, we don't have enough memory");
 		}
 		
+	#ifdef CONFIG_SMP
 		PKPRCB Prcb = MmGetHHDMOffsetAddr(MmPFNToPhysPage(PrcbPfn));
+	#else
+		PKPRCB Prcb = &KiPrcb;
+		ASSERT(MpInfo->Count == 1);
+	#endif
 		memset(Prcb, 0, sizeof *Prcb);
 		
 		// initialize the struct

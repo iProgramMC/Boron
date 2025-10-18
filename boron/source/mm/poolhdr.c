@@ -93,7 +93,7 @@ PMIPOOL_ENTRY_SLAB MiAllocatePoolHeaderSlab()
 	}
 	
 	// HHDM is supported on 64-bit, so just return this
-	return MmGetHHDMOffsetAddr(Pfn);
+	return MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
 }
 
 void MiFreePoolHeaderSlab(PMIPOOL_ENTRY_SLAB Address)

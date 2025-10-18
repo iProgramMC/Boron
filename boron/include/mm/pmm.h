@@ -41,6 +41,18 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* Addr);
 // Converts a physical address to a page frame number (PFN).
 MMPFN MmPhysPageToPFN(uintptr_t PhysAddr);
 
+#ifdef IS_32_BIT
+
+void MmBeginUsingHHDM(void);
+void MmEndUsingHHDM(void);
+
+#else
+
+#define MmBeginUsingHHDM()
+#define MmEndUsingHHDM()
+
+#endif
+
 // Converts a page frame number (PFN) to a physical page.
 uintptr_t MmPFNToPhysPage(MMPFN Pfn);
 

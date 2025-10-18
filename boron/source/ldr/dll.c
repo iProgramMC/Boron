@@ -56,8 +56,6 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 	
 	Permissions |= MM_PTE_READWRITE;
 	
-	HPAGEMAP PageMap = MiGetCurrentPageMap();
-	
 	// Now map it in.
 	uintptr_t VirtAddrBackup = VirtAddr;
 	for (size_t i = 0; i < SizePages; i++)
@@ -70,7 +68,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		// care of zero-filling everything. But not here.
 		
 		// Some entries overlap. Check if there's already a PTE beforehand.
-		PMMPTE Pte = MiGetPTEPointer(PageMap, VirtAddr, false);
+		PMMPTE Pte = MmGetPteLocationCheck(VirtAddr, false);
 		if (Pte && (*Pte & MM_PTE_PRESENT))
 		{
 			MMPTE OldPte = *Pte;
@@ -97,8 +95,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		
 		uintptr_t Page = MmPFNToPhysPage(Pfn);
 		
-		if (!MiMapPhysicalPage(PageMap,
-		                       Page,
+		if (!MiMapPhysicalPage(Page,
 		                       VirtAddr,
 		                       Permissions))
 			KeCrashBeforeSMPInit("Can't map in program header to virtual address %p!", VirtAddr);

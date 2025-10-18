@@ -46,7 +46,6 @@ void Reboot() {
 void PerformDemandPageTest()
 {
 	LogMsg(">> Demand page test");
-	HPAGEMAP Map = MiGetCurrentPageMap();
 	
 	void* PoolAddr = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("Mts1"));
 	ASSERT(PoolAddr);
@@ -56,7 +55,7 @@ void PerformDemandPageTest()
 	// Make the PTE a demand page PTE.
 	MmLockKernelSpaceExclusive();
 	
-	PMMPTE Pte = MiGetPTEPointer(Map, Va, true);
+	PMMPTE Pte = MmGetPteLocationCheck(Va, true);
 	ASSERT(Pte);
 	*Pte = MM_DPTE_COMMITTED | MM_PTE_READWRITE;
 	
@@ -68,7 +67,7 @@ void PerformDemandPageTest()
 	LogMsg("Va read: %08x", *((uint32_t*)Va));
 	
 	MmLockKernelSpaceExclusive();
-	MiUnmapPages(Map, Va, 1);
+	MiUnmapPages(Va, 1);
 	MmUnlockKernelSpace();
 	
 	MmFreePoolBig(PoolAddr);
@@ -77,8 +76,7 @@ void PerformDemandPageTest()
 void PerformCopyOnWriteTest()
 {
 	LogMsg(">> Copy on write test");
-	HPAGEMAP Map = MiGetCurrentPageMap();
-	
+
 	void* PoolAddr = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 2, POOL_TAG("Mts2"));
 	ASSERT(PoolAddr);
 	
@@ -96,8 +94,8 @@ void PerformCopyOnWriteTest()
 	// Now map them in.
 	MmLockKernelSpaceExclusive();
 	
-	bool Res1 = MiMapPhysicalPage(Map, MmPFNToPhysPage(Pfn), Va1, MM_PTE_ISFROMPMM | MM_PTE_COW);
-	bool Res2 = MiMapPhysicalPage(Map, MmPFNToPhysPage(Pfn), Va2, MM_PTE_ISFROMPMM | MM_PTE_COW);
+	bool Res1 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va1, MM_PTE_ISFROMPMM | MM_PTE_COW);
+	bool Res2 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va2, MM_PTE_ISFROMPMM | MM_PTE_COW);
 	ASSERT(Res1 && Res2);
 	
 	MmUnlockKernelSpace();
@@ -115,7 +113,7 @@ void PerformCopyOnWriteTest()
 	
 	// Unmap everything.
 	MmLockKernelSpaceExclusive();
-	MiUnmapPages(Map, Va1, 2);
+	MiUnmapPages(Va1, 2);
 	MmUnlockKernelSpace();
 	
 	// Free the pool space.

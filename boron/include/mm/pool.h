@@ -24,6 +24,10 @@ typedef int POOL_TYPE;
 // but the range itself is unmapped
 #define POOL_FLAG_CALLER_CONTROLLED (1 << 1)
 
+// If this flag is set, then the PTEs will be unmapped automatically
+// even if POOL_FLAG_CALLER_CONTROLLED is set.
+#define POOL_FLAG_UNMAP_ANYWAY (1 << 2)
+
 // Redundant, could just pass 0
 #define POOL_PAGED (0)
 
@@ -35,6 +39,7 @@ typedef int POOL_TYPE;
 
 void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag);
 
+// NOTE: This accepts any offset within the page. So even MmMapIoSpace mapped items can be freed with this.
 void MmFreePoolBig(void* Address);
 
 size_t MmGetSizeFromPoolAddress(void* Address);

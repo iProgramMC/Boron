@@ -21,7 +21,7 @@ void MmUnmapPagesMdl(PMDL Mdl)
 	if (!Mdl->MappedStartVA)
 		return;
 	
-	MiUnmapPages(Mdl->Process->Pcb.PageMap, Mdl->MappedStartVA, Mdl->NumberPages);
+	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
 
@@ -77,8 +77,6 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 	uintptr_t Address = MapAddress;
 	size_t Index = 0;
 	
-	HPAGEMAP PageMap = Mdl->Process->Pcb.PageMap;
-	
 	MmLockKernelSpaceExclusive();
 	
 	for (; Index < Mdl->NumberPages; Address += PAGE_SIZE, Index++)
@@ -86,10 +84,10 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 		// Add a reference to the page.
 		MmPageAddReference(Mdl->Pages[Index]);
 		
-		if (!MiMapPhysicalPage(PageMap, Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions))
+		if (!MiMapPhysicalPage(Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions))
 		{
 			// Unmap everything mapped so far.
-			MiUnmapPages(PageMap, MapAddress, Index);
+			MiUnmapPages(MapAddress, Index);
 			
 			MmUnlockKernelSpace();
 			
@@ -158,6 +156,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	uintptr_t EndPage   = (VirtualAddress + Mdl->ByteOffset + Size + 0xFFF) & ~0xFFF;
 	BSTATUS FailureReason = STATUS_SUCCESS;
 	
+	// TODO: Arbitrary size limitation that we should remove!
 	if (Size >= MDL_MAX_SIZE)
 		return STATUS_INVALID_PARAMETER;
 	
@@ -167,7 +166,9 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	if (AccessMode == MODE_USER && MM_USER_SPACE_END < EndPage)
 		return STATUS_INVALID_PARAMETER;
 	
-	HPAGEMAP PageMap = Mdl->Process->Pcb.PageMap;
+	PEPROCESS Restore = NULL;
+	if (Mdl->Process != PsGetAttachedProcess())
+		Restore = PsSetAttachedProcess(Mdl->Process);
 	
 	// Fault all the pages in.
 	for (uintptr_t Address = StartPage; Address < EndPage; Address += PAGE_SIZE)
@@ -182,7 +183,12 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	}
 	
 	if (FailureReason)
+	{
+		if (Restore)
+			PsSetAttachedProcess(Restore);
+		
 		return FailureReason;
+	}
 	
 	// TODO(WORKINGSET): Check if the working set (when we add it) can even fit all of these pages.
 	// TODO(possibly related to above): Ensure proper failure if the whole buffer doesn't fit in system memory!
@@ -193,7 +199,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 		while (true)
 		{
 			KIPL OldIpl = MmLockSpaceShared(Address);
-			PMMPTE PtePtr = MiGetPTEPointer(PageMap, Address, false);
+			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
 			
 			bool TryFault = false;
 			if (!PtePtr)
@@ -285,6 +291,9 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	else
 		Mdl->Flags &= ~MDL_FLAG_WRITE;
 	
+	if (Restore)
+		PsSetAttachedProcess(Restore);
+	
 	if (FailureReason)
 	{
 		// Unpin only up to the current index, the rest weren't filled in due to the failure.
@@ -354,8 +363,10 @@ void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t 
 		else
 			CopyAmount = BytesTillNext;
 		
+		MmBeginUsingHHDM();
 		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
 		memcpy(PageDest + PageOffs, SourceBufferChr, CopyAmount);
+		MmEndUsingHHDM();
 		
 		SourceBufferChr += CopyAmount;
 		Offset += CopyAmount;
@@ -385,8 +396,10 @@ void MmSetIntoMdl(PMDL Mdl, uintptr_t Offset, uint8_t ToSet, size_t Size)
 		else
 			CopyAmount = BytesTillNext;
 		
+		MmBeginUsingHHDM();
 		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
 		memset(PageDest + PageOffs, ToSet, CopyAmount);
+		MmEndUsingHHDM();
 		
 		Offset += CopyAmount;
 		Size -= CopyAmount;
@@ -417,8 +430,10 @@ void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t S
 		else
 			CopyAmount = BytesTillNext;
 		
+		MmBeginUsingHHDM();
 		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
 		memcpy(DestBufferChr, PageDest + PageOffs, CopyAmount);
+		MmEndUsingHHDM();
 		
 		DestBufferChr += CopyAmount;
 		Offset += CopyAmount;

@@ -14,6 +14,8 @@ Author:
 ***/
 #include "mi.h"
 
+// ***TODO: Rewrite this for 32-bit builds***
+
 void MmInitializeCcb(PCCB Ccb)
 {
 	memset(Ccb, 0, sizeof *Ccb);
