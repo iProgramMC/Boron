@@ -35,6 +35,10 @@ KIPL MiLockPfdb();
 // Unlocks the page frame database's spinlock.
 void MiUnlockPfdb(KIPL Ipl);
 
+// This does the same as MmAllocatePhysicalPage, but expects the PFDB
+// lock to be locked.
+MMPFN MiAllocatePhysicalPageWithPfdbLocked(bool* IsZeroed);
+
 // Gets the reference count of a page by PFN.
 // The PFN lock must be held.
 int MiGetReferenceCountPfn(MMPFN Pfn);

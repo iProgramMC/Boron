@@ -25,6 +25,26 @@ Author:
 #define PmmDbgPrint(...) do {} while (0)
 #endif
 
+// LOCKING:
+//
+// You might think that I would need to establish a locking
+// order between the PFN lock and the HHDM lock. But I won't.
+// Why? Well, let's take a look at the two cases:
+//
+// 64-bit: The HHDM lock doesn't exist. Like, at all. So,
+//     MmBeginUsingHHDM and MmEndUsingHHDM are no-ops, and as
+//     such, both orderings work.
+//
+// 32-bit: The HHDM lock exists. However, since we're on a
+//     non-SMP system (assert that later), that means that
+//     regardless of what lock we grab first, the other is
+//     guaranteed to be unlocked.  So there is no locking-
+//     inversion-caused deadlock.
+
+#if defined IS_32_BIT && defined CONFIG_SMP
+#error You should fix this locking inversion bug! It could result in nasty deadlocks!
+#endif
+
 static KSPIN_LOCK MmPfnLock;
 
 // Free page statistics
@@ -673,10 +693,30 @@ static void MmpInitializePfn(PMMPFDBE Pfdbe)
 		//       MiDetransitionPfn(PFN(pte))
 		//       release PTE lock
 		//   }
+		//
+		// ^^^^^ this is old as hell and probably outdated TODO: clarify or remove
 		ASSERT(Pfdbe->FileCache._PrototypePte);
 		
-		uintptr_t* Ptr = PFDBE_PrototypePte(Pfdbe);
+		MM_PROTOTYPE_PTE_PTR Ptr = PFDBE_PrototypePte(Pfdbe);
+		
+#ifdef IS_64_BIT
+
 		AtStore(*Ptr, 0);
+
+#else
+		if (Ptr & MM_PROTO_PTE_PTR_IS_VIRTUAL)
+		{
+			// Virtual
+			AtStore(*(PMMPFN)(Ptr & ~MM_PROTO_PTE_PTR_IS_VIRTUAL), 0);
+		}
+		else
+		{
+			// Physical
+			MmBeginUsingHHDM();
+			AtStore(*(PMMPFN)MmGetHHDMOffsetAddr(Ptr), 0);
+			MmEndUsingHHDM();
+		}
+#endif
 	}
 	
 	Pfdbe->Type = PF_TYPE_USED;
@@ -698,24 +738,31 @@ static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 	MmpRemovePfnFromList(First, Last, *First);
 	MmpInitializePfn(pPF);
 	
+	ASSERT(currPFN != PFN_INVALID && currPFN != MM_PFN_OUTOFMEMORY);
 	return currPFN;
 }
 
-MMPFN MmAllocatePhysicalPage()
+MMPFN MiAllocatePhysicalPageWithPfdbLocked(bool* IsZeroed)
 {
-	KIPL OldIpl;
-	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
-	
-	bool FromZero = true;
+	*IsZeroed = true;
 	MMPFN currPFN = MmpAllocateFromFreeList(&MiFirstZeroPFN, &MiLastZeroPFN);
 	if (currPFN == PFN_INVALID)
 	{
-		FromZero = false;
+		*IsZeroed = false;
 		currPFN = MmpAllocateFromFreeList(&MiFirstFreePFN, &MiLastFreePFN);
 		if (currPFN == PFN_INVALID)
 			currPFN = MmpAllocateFromFreeList(&MiFirstStandbyPFN, &MiLastStandbyPFN);
 	}
 	
+	return currPFN;
+}
+
+MMPFN MmAllocatePhysicalPage()
+{
+	bool FromZero;
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	MMPFN currPFN = MiAllocatePhysicalPageWithPfdbLocked(&FromZero);
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 	
 	if (!FromZero && currPFN != PFN_INVALID)
@@ -750,7 +797,7 @@ MMPFN MiRemoveOneModifiedPfn()
 	return Pfn;
 }
 
-void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
+void MmSetPrototypePtePfn(MMPFN Pfn, MM_PROTOTYPE_PTE_PTR PrototypePte)
 {
 	ASSERT(Pfn != PFN_INVALID);
 	
@@ -759,12 +806,12 @@ void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte)
 	
 	// If this page is freed after this operation, then the prototype
 	// PTE will be atomically set to zero when reclaimed.
-	MmGetPageFrameFromPFN(Pfn)->FileCache._PrototypePte = (uint64_t) PrototypePte;
+	MmGetPageFrameFromPFN(Pfn)->FileCache._PrototypePte = (uintptr_t) PrototypePte;
 	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
-void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t Offset)
+void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset)
 {
 	ASSERT(Pfn != PFN_INVALID);
 	
@@ -775,8 +822,7 @@ void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t
 	
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
 	
-	Pfdbe->FileCache._PrototypePte = (uint64_t) PrototypePte;
-	Pfdbe->FileCache._Fcb = (uint64_t) Fcb;
+	Pfdbe->FileCache._Fcb = (uintptr_t) Fcb;
 	Pfdbe->FileCache._OffsetLower = Offset;
 	Pfdbe->_OffsetUpper = (Offset >> 32);
 	Pfdbe->IsFileCache = 1;

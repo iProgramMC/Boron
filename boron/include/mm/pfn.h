@@ -90,6 +90,7 @@ typedef struct
 	{
 		struct
 		{
+			// This address is a **physical** address.  Therefore, 
 			uint32_t _PrototypePte;
 			
 			uint32_t _Fcb;
@@ -108,13 +109,13 @@ MMPFDBE, *PMMPFDBE;
 
 #ifdef IS_64_BIT
 
-#define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB)       (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
+#define PFDBE_PrototypePte(Pfdbe) ((MMPFN*) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)   (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
 
 #else
 
-#define PFDBE_PrototypePte(Pfdbe) ((uintptr_t*) ((Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB)       ((Pfdbe)->FileCache._Fcb))
+#define PFDBE_PrototypePte(Pfdbe) ((MMPFN*) ((Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)   ((Pfdbe)->FileCache._Fcb))
 
 #endif
 
@@ -133,6 +134,11 @@ enum
 };
 
 #define PFN_INVALID ((MMPFN)-1)
+
+// Returned by the page cache.  Watch out!
+#define MM_PFN_OUTOFMEMORY ((MMPFN) -2)
+
+#define IS_BAD_PFN(Pfn) ((Pfn) == PFN_INVALID || (Pfn) == MM_PFN_OUTOFMEMORY)
 
 #ifdef IS_64_BIT
 static_assert((sizeof(MMPFDBE) & (sizeof(MMPFDBE) - 1)) == 0,  "The page frame struct should be a power of two");

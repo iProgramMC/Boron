@@ -17,6 +17,22 @@ Author:
 
 #include <mm/pfn.h>
 
+#ifdef IS_64_BIT
+
+typedef MMPFN *MM_PROTOTYPE_PTE_PTR, **PMM_PROTOTYPE_PTE_PTR;
+#define MM_PROTOTYPE_PTE_PTR_NONE (NULL)
+
+#else
+
+// 32-bit prototype PTE addresses should be OR'd with this value to
+// make them virtual.
+#define MM_PROTO_PTE_PTR_IS_VIRTUAL (1 << 0)
+#define MM_VIRTUAL_PROTO_PTE_PTR(Ptr) ((uintptr_t)(Ptr) | 1)
+#define MM_PROTOTYPE_PTE_PTR_NONE (0)
+typedef uintptr_t MM_PROTOTYPE_PTE_PTR, *PMM_PROTOTYPE_PTE_PTR;
+
+#endif
+
 typedef struct _FCB FCB, *PFCB;
 
 #ifdef KERNEL
@@ -41,6 +57,8 @@ uintptr_t MmGetHHDMOffsetFromAddr(void* Addr);
 // Converts a physical address to a page frame number (PFN).
 MMPFN MmPhysPageToPFN(uintptr_t PhysAddr);
 
+#define MmGetHHDMOffsetAddrPfn(Pfn) MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn))
+
 #ifdef IS_32_BIT
 
 void MmBeginUsingHHDM(void);
@@ -64,9 +82,9 @@ MMPFN MmAllocatePhysicalPage(void);
 void MmPageAddReference(MMPFN Pfn);
 
 // Assign a prototype PTE address to the page frame.
-void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte);
+void MmSetPrototypePtePfn(MMPFN Pfn, MM_PROTOTYPE_PTE_PTR PrototypePte);
 
-// Assign a prototype PTE address, FCB pointer and offset, to the page frame.
+// Assign an FCB pointer and offset, to the page frame.
 //
 // Note that the reference to the FCB is weak, i.e. it does not count towards
 // the FCB's reference count.  When the FCB is deleted, the entire page cache
@@ -74,7 +92,7 @@ void MmSetPrototypePtePfn(MMPFN Pfn, uintptr_t* PrototypePte);
 //
 // The offset is saved in multiples of page size, but the passed in offset
 // is in bytes.
-void MmSetCacheDetailsPfn(MMPFN Pfn, uintptr_t* PrototypePte, PFCB Fcb, uint64_t Offset);
+void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset);
 
 // Set an allocated page as modified.
 void MmSetModifiedPfn(MMPFN Pfn);

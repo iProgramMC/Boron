@@ -64,6 +64,30 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, bool SetCacheDetails, uint32_t VadFlagsLong, PFILE_OBJECT FileObject, uint64_t FileOffset)
+{
+	MMPTE SupervisorBit = Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS;
+	
+	PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
+	if (!PtePtr)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
+	
+	MMVAD_FLAGS VadFlags;
+	VadFlags.LongFlags = VadFlagsLong;
+	
+	if (VadFlags.Cow)
+		NewPte |= MM_PTE_COW;
+	
+	*PtePtr = NewPte;
+	
+	if (SetCacheDetails)
+		MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, FileOffset);
+	
+	return STATUS_SUCCESS;
+}
+
 static BSTATUS MmpHandleFaultCommittedMappedPage(
 	uintptr_t Va,
 	uintptr_t VaBase,
@@ -93,12 +117,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	// Now, this is obviously just user error, but can this be exploited?
 	// Probably not.  When the page fault finishes, 
 	BSTATUS Status;
-	PMMPTE PtePtr = NULL;
-	
-	MMPTE SupervisorBit = Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS;
-	
-	MMVAD_FLAGS VadFlags;
-	VadFlags.LongFlags = VadFlagsLong;
 	
 	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
 	uint64_t FileOffset = (Va & PageMask) - VaBase + MappedOffset;
@@ -114,7 +132,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	{
 		MMPFN Pfn = PFN_INVALID;
 		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
-		PCCB_ENTRY PCcbEntry = NULL;
 		
 		// First, check if the BackingMemory call is supported.
 		IO_STATUS_BLOCK Iosb;
@@ -164,66 +181,24 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		}
 		else
 		{
-			MmLockCcb(PageCache);
-			
-			PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, false);
-			if (PCcbEntry && AtLoad(PCcbEntry->Long))
-			{
-				// Lock the physical memory lock because the page we're looking for
-				// might have been freed.
-				//
-				// This is, as far as I know, the only way.  Sure, if the CCB entry
-				// doesn't exist and it is zero, then you are able to skip over the
-				// PFN lock at no extra cost (you'd just be reloading the same page
-				// twice potentially)
-				KIPL Ipl = MiLockPfdb();
-				
-				// After this, the CCB entry cannot be changed.  This is because
-				// when a page is reclaimed the PFDB lock is held.
-				CCB_ENTRY CcbEntry;
-				if (PCcbEntry)
-					CcbEntry = *PCcbEntry;
-				
-				if (CcbEntry.Long)
-				{
-					// We managed to find the PFN in one piece.  Add a reference to it as we
-					// will just map it directly.
-					Pfn = CcbEntry.Pfn;
-					MiPageAddReferenceWithPfdbLocked(Pfn);
-				}
-				
-				MiUnlockPfdb(Ipl);
-			}
-			
-			MmUnlockCcb(PageCache);
+			Pfn = MmGetEntryCcb(PageCache, FileOffset / PAGE_SIZE);
 		}
 		
 		// Did we find the PFN already?
 		if (Pfn != PFN_INVALID)
 		{
-			// As it turns out, yes!
-			PtePtr = MmGetPteLocationCheck(Va, true);
-			if (!PtePtr)
+			Status = MmpAssignPfnToAddress(Va, Pfn, BackingMemory == NULL, VadFlagsLong, FileObject, FileOffset);
+			if (FAILED(Status))
 			{
+				MmFreePhysicalPage(Pfn);
+				
 				DbgPrint("%s: out of memory because PTE couldn't be allocated (1)", __func__);
+				ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
 				Status = STATUS_REFAULT_SLEEP;
 				goto Exit;
 			}
 			
-			MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
-			
-			if (VadFlags.Cow)
-				NewPte |= MM_PTE_COW;
-			
-			*PtePtr = NewPte;
-			
-			if (!BackingMemory)
-			{
-				MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
-			}
-			
 			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
-			Status = STATUS_SUCCESS;
 			goto Exit;
 		}
 		
@@ -235,15 +210,20 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		ASSERT(!BackingMemory);
 		
 		// First, ensure the CCB entry can be there.
-		MmLockCcb(PageCache);
-		PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, true);
-		MmUnlockCcb(PageCache);
-		
-		if (!PCcbEntry)
+		int SetResult = MmSetEntryCcb(PageCache, FileOffset / PAGE_SIZE, PFN_INVALID, NULL);
+		if (SetResult == STATUS_INSUFFICIENT_MEMORY)
 		{
 			// Out of memory.
 			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (1)", __func__);
 			Status = STATUS_REFAULT_SLEEP;
+			goto Exit;
+		}
+		
+		if (SetResult == STATUS_CONFLICTING_ADDRESSES)
+		{
+			// Already assigned.
+			DbgPrint("%s: CCB entry was found to be assigned, refaulting", __func__);
+			Status = STATUS_REFAULT;
 			goto Exit;
 		}
 		
@@ -253,7 +233,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		{
 			// Out of memory.
 			DbgPrint("%s: out of memory because a page frame couldn't be allocated", __func__);
-			MmUnlockCcb(PageCache);
 			Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
 		}
@@ -276,7 +255,6 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			// Ran out of memory trying to read this file.
 			DbgPrint("%s: cannot answer page fault because I/O failed with code %d", __func__, Status);
 			MmFreePhysicalPage(Pfn);
-			MmUnlockCcb(PageCache);
 			
 			if (Status == STATUS_INSUFFICIENT_MEMORY)
 			{
@@ -288,87 +266,49 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		}
 		
 		// The I/O operation has succeeded.
-		// Prepare the CCB entry.
-		CCB_ENTRY CcbEntryNew;
-		CcbEntryNew.Long = 0;
-		CcbEntryNew.Pfn = Pfn;
-		
 		// It's time to put this in the CCB and then map.
-		MmLockCcb(PageCache);
-		PCcbEntry = MmGetEntryPointerCcb(PageCache, FileOffset / PAGE_SIZE, true);
-		if (!PCcbEntry)
+		Status = MmSetEntryCcb(PageCache, FileOffset / PAGE_SIZE, Pfn, NULL);
+		if (FAILED(Status))
 		{
-			// Out of memory.  Did someone remove our prior allocation?
-			// Well, we've got almost no choice but to throw away our result.
-			//
-			// (We could instead beg the memory manager for more memory, but
-			// I don't feel like writing that right now.)
-			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
+			if (Status == STATUS_CONFLICTING_ADDRESSES)
+			{
+				// Need to throw away our hard work as someone finished it before us.
+				DbgPrint("%s: CCB entry was found to be assigned by the time IO was made (%p), refaulting (2)", __func__, Va);
+				Status = STATUS_REFAULT;
+			}
+			else
+			{
+				// Out of memory.  Did someone remove our prior allocation?
+				// Well, we've got almost no choice but to throw away our result.
+				//
+				// (We could instead beg the memory manager for more memory, but
+				// I don't feel like writing that right now.)
+				ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
+				DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
+				Status = STATUS_REFAULT_SLEEP;
+			}
+			
 			MmFreePhysicalPage(Pfn);
-			MmUnlockCcb(PageCache);
+			goto Exit;
+		}
+		
+		// Success! This is the right PFN, so assign it.
+		
+		// Acquire the address space lock now.
+		SpaceUnlockIpl = MmLockSpaceExclusive(Va);
+		
+		Status = MmpAssignPfnToAddress(Va, Pfn, true, VadFlagsLong, FileObject, FileOffset);
+		if (FAILED(Status))
+		{
+			DbgPrint("%s: out of memory because PTE couldn't be allocated (2)", __func__);
+			MmFreePhysicalPage(Pfn);
 			Status = STATUS_REFAULT_SLEEP;
 			goto Exit;
 		}
 		
-		// There you are!
-		//
-		// If the CCB entry is zero, then it'll be populated with the
-		// new CCB entry.  Otherwise, there's something already there
-		// and we have simply wasted our time and we need to refault.
-		MMPTE Expected = 0;
-		if (AtCompareExchange(&PCcbEntry->Long, &Expected, CcbEntryNew.Long))
-		{
-			// Compare-exchange successful.  Note: we are surrendering
-			// our reference of the physical page to the CCB.
-			MmUnlockCcb(PageCache);
-			
-			// Acquire the address space lock now.
-			SpaceUnlockIpl = MmLockSpaceExclusive(Va);
-			
-			// We need to refetch the PTE pointer because it may have been
-			// freed in the meantime.
-			PtePtr = MmGetPteLocationCheck(Va, true);
-			if (!PtePtr)
-			{
-				DbgPrint("%s: out of memory because PTE couldn't be allocated (2)", __func__);
-				MmFreePhysicalPage(Pfn);
-				MmUnlockCcb(PageCache);
-				Status = STATUS_REFAULT_SLEEP;
-				goto Exit;
-			}
-			
-			MMPTE NewPte = *PtePtr;
-			
-			// Are you already present?!
-			if (NewPte & MM_PTE_PRESENT)
-			{
-				// Yeah, you seem to already be present.  So we just
-				// wasted all of our time.
-				DbgPrint("%s: va already valid by the time IO was made (%p)", __func__, Va);
-				MmFreePhysicalPage(Pfn);
-				Status = STATUS_SUCCESS;
-				goto Exit;
-			}
-			
-			NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
-			
-			if (VadFlags.Cow)
-				NewPte |= MM_PTE_COW;
-			
-			MmSetCacheDetailsPfn(Pfn, &PCcbEntry->Long, FileObject->Fcb, FileOffset);
-			
-			*PtePtr = NewPte;
-			
-			PFDbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
-			Status = STATUS_SUCCESS;
-			goto Exit;
-		}
-		
-		// Something's already there!
-		// It's most likely a good page, so let's just refault.
-		DbgPrint("%s: ccb already found by the time IO was made (%p), refaulting", __func__, Va);
-		Status = STATUS_REFAULT;
-		MmUnlockCcb(PageCache);
+		PFDbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
+		Status = STATUS_SUCCESS;
+		goto Exit;
 	}
 	
 Exit:
@@ -678,6 +618,7 @@ EarlyExit:
 		BSTATUS Status = KeWaitForSingleObject(&Timer, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 		if (FAILED(Status))
 		{
+			DbgPrint("MmPageFault: Failed to sleep?! %s (%d)", RtlGetStatusString(Status), Status);
 			KeCancelTimer(&Timer);
 		}
 		else
