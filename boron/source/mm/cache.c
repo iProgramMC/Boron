@@ -185,7 +185,7 @@ static MMPFN MiWalkCacheUntilIndirection(PCCB Ccb, uint64_t* PageOffset, bool Al
 	
 	// Level 2
 	*PageOffset -= MM_DIRECT_PAGE_COUNT;
-	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
+	if (*PageOffset < MM_INDIRECTION_COUNT)
 	{
 		if (!MmpEnsureIndirectionExists(&Ccb->Level2Indirect, AllocateIndirection))
 			return Failure;
@@ -240,7 +240,7 @@ static MMPFN MiWalkCacheUntilIndirection(PCCB Ccb, uint64_t* PageOffset, bool Al
 			return Failure;
 		
 		MMPFN Pfn5 = MiNextEntryCache(Ccb->Level5Indirect, PageOffset, AllocateIndirection);
-		if (IS_BAD_PFN(Pfn4))
+		if (IS_BAD_PFN(Pfn5))
 			return Pfn4;
 		
 		MMPFN Pfn4 = MiNextEntryCache(Pfn5, PageOffset, AllocateIndirection);
