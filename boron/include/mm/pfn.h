@@ -114,8 +114,8 @@ MMPFDBE, *PMMPFDBE;
 
 #else
 
-#define PFDBE_PrototypePte(Pfdbe) ((MMPFN*) ((Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB)   ((Pfdbe)->FileCache._Fcb))
+#define PFDBE_PrototypePte(Pfdbe) ((MM_PROTOTYPE_PTE_PTR) ((Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)((Pfdbe)->FileCache._Fcb))
 
 #endif
 
