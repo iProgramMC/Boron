@@ -421,6 +421,55 @@ void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)
 	}
 }
 
+BSTATUS RtlCheckValidity(PELF_HEADER Header)
+{
+	if (memcmp(Header->Identifier, "\x7F" "ELF", 4) != 0)
+	{
+		DbgPrint("Rtl: Elf has invalid header.");
+		return STATUS_INVALID_EXECUTABLE;
+	}
+	
+#ifdef IS_64_BIT
+	if (Header->Identifier[ELF_IDENT_CLASS] != ELF_MCLASS_64BIT)
+#else
+	if (Header->Identifier[ELF_IDENT_CLASS] != ELF_MCLASS_32BIT)
+#endif
+	{
+		DbgPrint("Rtl: Elf isn't %d bit", sizeof(uintptr_t) * 8);
+		return STATUS_INVALID_ARCHITECTURE;
+	}
+	
+	// N.B. we don't support big endian, and probably will never
+	if (Header->Identifier[ELF_IDENT_DATA] != ELF_MDATA_LSB)
+	{
+		DbgPrint("Rtl: Elf is opposite endianness");
+		return STATUS_INVALID_ARCHITECTURE;
+	}
+	
+#if   defined TARGET_AMD64
+	const int Arch = ELF_ARCH_AMD64;
+#elif defined TARGET_I386
+	const int Arch = ELF_ARCH_386;
+#endif
+
+	if (Header->Machine != Arch)
+		return STATUS_INVALID_ARCHITECTURE;
+	
+	if (Header->Type != ELF_TYPE_EXECUTABLE && Header->Type != ELF_TYPE_DYNAMIC)
+	{
+		DbgPrint("Rtl: Elf is type %d which we don't know about");
+		return STATUS_INVALID_EXECUTABLE;
+	}
+	
+	if (Header->ProgramHeaderCount == 0)
+	{
+		DbgPrint("Rtl: Elf has no program headers, probably invalid for our purposes");
+		return STATUS_INVALID_EXECUTABLE;
+	}
+	
+	return STATUS_SUCCESS;
+}
+
 uint32_t RtlElfHash(const char* Name)
 {
 	const uint8_t* NameU = (const uint8_t*) Name;

@@ -55,6 +55,8 @@ void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase);
 
 uint32_t RtlElfHash(const char* Name);
 
+BSTATUS RtlCheckValidity(PELF_HEADER Header);
+
 #ifdef __cplusplus
 }
 #endif

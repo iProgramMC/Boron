@@ -4,6 +4,8 @@
 .section .text
 .att_syntax
 
+#ifdef TARGET_AMD64
+
 .macro CALL number, name
 	.globl \name
 	.type  \name, @function
@@ -53,6 +55,26 @@
 	popq  %rbp
 	ret
 .endm
+
+#elif defined TARGET_I386
+
+.macro CALL number, name
+	.globl \name
+	.type  \name, @function
+\name:
+	// TODO
+	ret
+.endmacro
+
+.macro CALLEX number, name
+	.globl \name
+	.type  \name, @function
+\name:
+	// TODO
+	ret
+.endmacro
+
+#endif
 
 CALL   0,  OSAllocateVirtualMemory
 CALL   1,  OSClose

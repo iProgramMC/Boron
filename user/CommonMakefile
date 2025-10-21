@@ -57,14 +57,7 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
-# It is highly recommended to use a custom built cross toolchain to build a driver.
-# We are only using "cc" as a placeholder here. It may work by using
-# the host system's toolchain, but this is not guaranteed.
-$(eval $(call DEFAULT_VAR,CC,cc))
-$(eval $(call DEFAULT_VAR,CXX,c++))
-
-# Same thing for "ld" (the linker).
-$(eval $(call DEFAULT_VAR,LD,ld))
+include ../../tools/toolchain.mk
 
 # User controllable CFLAGS.
 CFLAGS ?=
@@ -86,7 +79,7 @@ NASMFLAGS += -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
-override CFLAGS +=          \
+CFLAGS +=                   \
 	-fno-omit-frame-pointer \
 	-std=c11                \
 	-ffreestanding          \
@@ -94,53 +87,37 @@ override CFLAGS +=          \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fPIC                   \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
 	-MMD                    \
 	-MP                     \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 
 # Internal C++ flags that should not be changed by the user.
-override CXXFLAGS +=        \
+CXXFLAGS +=                 \
 	-fno-omit-frame-pointer \
 	-std=c++17              \
 	-ffreestanding          \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
-	-MMD                    \
-	-MP                     \
 	-fno-exceptions         \
 	-fno-rtti               \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 	
-override LDFLAGSBASE +=     \
+LDFLAGSBASE +=              \
+	--dynamic-linker libboron.so \
 	-nostdlib               \
-	-m elf_x86_64           \
 	-z max-page-size=0x1000 \
-	--dynamic-linker libboron.so
+	-m $(LINK_ARCH)         \
+	$(ARCH_LDFLAGS)
 
 # Internal linker flags that should not be changed by the user.
 LDFLAGS +=  \
 	$(LDFLAGSBASE)
 
 # Internal nasm flags that should not be changed by the user.
-NASMFLAGS += \
-	-f elf64
+NASMFLAGS += $(ARCH_ASFLAGS)
 
 ifeq ($(IS_LIBRARY),yes)
 LDFLAGS +=                  \
@@ -170,7 +147,7 @@ all: application
 # Link rules for the final driver executable.
 $(TARGET_FILE): $(OBJ)
 	@echo "[LD]\tBuilding $(TARGET_FILE)"
-	@$(LD) $(OBJ) $(LDFLAGS) -o $@
+	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
@@ -179,25 +156,25 @@ $(TARGET_FILE): $(OBJ)
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp
 	@echo "[CXX]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(BCXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Compilation rules for *.S files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.S
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.asm (nasm) files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.asm
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@nasm $(NASMFLAGS) $< -o $@
+	@$(BASM) $(NASMFLAGS) $< -o $@
 
 # Remove object files and the final executable.
 .PHONY: clean

@@ -155,6 +155,10 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	FirstAddr = (uintptr_t) ~0ULL;
 	LargestAddr = 0;
 	
+	Status = RtlCheckValidity(&ElfHeader);
+	if (FAILED(Status))
+		KeCrash("%s: libboron.so has an invalid header: %s (%d)", Func, RtlGetStatusString(Status), Status);
+	
 	// Find the dynamic program header;
 	PELF_PROGRAM_HEADER DynamicPhdr = PspLdrFindDynamicPhdr(
 		ProgramHeaders,
