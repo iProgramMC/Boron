@@ -506,7 +506,7 @@ extern IO_DISPATCH_TABLE NvmeDispatchTable;
 // 
 // After sending, one may wait on the event passed into EntryPair. Once the operation is
 // complete, the event will be set.
-void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair);
+BSTATUS NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair, bool Alertable);
 
 // NOTE: Ownership of the SubmissionQueuePhysical and CompletionQueuePhysical pages is transferred to the queue.
 void NvmeSetupQueue(

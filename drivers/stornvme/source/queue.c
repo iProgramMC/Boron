@@ -91,16 +91,27 @@ static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex)
 	HalPciMsixSetFunctionMask(Device, false);
 }
 
-// Send a command to a queue and wait for it to finish.
+// Send a command to a queue.
 //
 // NOTE: The PKEVENT Event field of EntryPair must point to a valid event.
-void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
+// The event will be signalled once the command finishes.
+BSTATUS NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair, bool Alertable)
 {
 	// Wait on the semaphore to ensure there's space for our request.
 	//
 	// The semaphore will get released by the DPC routine when an operation
 	// has completed.
-	KeWaitForSingleObject(&Qcb->Semaphore, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	BSTATUS Status;
+	Status = KeWaitForSingleObject(
+		&Qcb->Semaphore,
+		Alertable,
+		TIMEOUT_INFINITE,
+		Alertable ? KeGetPreviousMode() : MODE_KERNEL
+	);
+	
+	if (FAILED(Status))
+		// Thread was alerted, abort this request.
+		return Status;
 	
 	KIPL Ipl;
 	KeAcquireSpinLock(&Qcb->SpinLock, &Ipl);
@@ -126,6 +137,7 @@ void NvmeSend(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
 	*Qcb->SubmissionQueue.DoorBell = Qcb->SubmissionQueue.Index;
 	
 	KeReleaseSpinLock(&Qcb->SpinLock, Ipl);
+	return Status;
 }
 
 void NvmeSetupQueue(
