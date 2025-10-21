@@ -17,7 +17,7 @@ Author:
 
 // TODO: Decide on a good tick rate.  For slower systems, increased
 // time slice time would be better.
-#define TIMER_RELOAD_VALUE 4000
+#define TIMER_RELOAD_VALUE 15000
 
 // This value is incremented by TIMER_RELOAD_VALUE on every timer interrupt.
 static uint64_t PitTicksPassed;
@@ -33,13 +33,29 @@ HAL_API uint64_t HalGetTickCount()
 	if (!PitInitialized)
 		return 0;
 	
-	// The PIT decrements from TIMER_RELOAD_VALUE
+	KePortWriteByte(PIT_COMMAND_PORT, 0x00); // latch
+	
+	bool Restore = KeDisableInterrupts();
+	static uint64_t LastValue = 0;
+	
 	uint8_t Low, High;
 	Low  = KePortReadByte(PIT_CHANNEL_0_PORT);
 	High = KePortReadByte(PIT_CHANNEL_0_PORT);
 	
-	uint16_t Timer = TIMER_RELOAD_VALUE - (Low | (High << 8));
+	uint16_t ReadIn = (Low | (High << 8));
+	uint16_t Timer = TIMER_RELOAD_VALUE - ReadIn;
 	uint64_t Value = PitTicksPassed + Timer;
+	
+	if (Value < LastValue)
+	{
+		// Seems like there's been an extended period of time where interrupts
+		// were disabled? Not sure. But what I know for sure is that timers
+		// can't go backwards. (unless they overflow)
+		Value += TIMER_RELOAD_VALUE;
+	}
+	
+	LastValue = Value;
+	KeRestoreInterrupts(Restore);
 	return Value;
 }
 

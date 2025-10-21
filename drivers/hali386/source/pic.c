@@ -55,6 +55,7 @@ HAL_API void HalEndOfInterrupt(int InterruptNumber)
 
 HAL_API void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl)
 {
+	DbgPrint("HalPicRegisterInterrupt: %d, %d", Vector, Ipl);
 	if (Vector < PIC_INTERRUPT_BASE || Vector >= PIC_INTERRUPT_BASE + 16)
 	{
 		DbgPrint("HalRegisterInterrupt: Dropping vector %zu", Vector);

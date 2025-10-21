@@ -196,9 +196,9 @@ void KeInitSMP()
 	KeProcessorList  = KiPrcbList;
 	KeProcessorCount = 1;
 	
-	if (MpInfo->Count >= 1)
+	if (MpInfo->Count > 1)
 	{
-		DbgPrint("%zu processors provided by the loader, but we only support one");
+		DbgPrint("%zu processors provided by the loader, but we only support one", MpInfo->Count);
 		MpInfo->Count = 1;
 	}
 #endif

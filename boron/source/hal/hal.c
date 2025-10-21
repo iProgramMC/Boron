@@ -15,6 +15,10 @@ Author:
 #include <hal.h>
 #include <ke.h>
 
+#if defined DEBUG && !defined CONFIG_SMP
+#define TICK_DEBUG
+#endif
+
 HAL_VFTABLE HalpVftable;
 
 bool HalWasInitted()
@@ -84,7 +88,28 @@ uint64_t HalGetIntTimerFrequency()
 
 uint64_t HalGetTickCount()
 {
-	return HalpVftable.GetTickCount();
+#ifdef TICK_DEBUG
+	static uint64_t LastTickCount = 0;
+#endif
+
+	uint64_t TickCount = HalpVftable.GetTickCount();
+
+#ifdef TICK_DEBUG
+	bool Restore = KeDisableInterrupts();
+	if (LastTickCount > TickCount)
+	{
+		KeCrash(
+			"ERROR: LastTickCount: %lld,  TickCount: %lld. Timer went backwards?",
+			LastTickCount,
+			TickCount
+		);
+	}
+	
+	LastTickCount = TickCount;
+	KeRestoreInterrupts(Restore);
+#endif
+	
+	return TickCount;
 }
 
 uint64_t HalGetTickFrequency()
@@ -110,7 +135,7 @@ void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool
 
 void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl)
 {
-	HalpVftable.PicDeregisterInterrupt(Vector, Ipl);
+	HalpVftable.PicRegisterInterrupt(Vector, Ipl);
 }
 
 void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
