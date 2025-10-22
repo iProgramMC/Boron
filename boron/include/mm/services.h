@@ -40,3 +40,16 @@ BSTATUS OSMapViewOfObject(
 	uint64_t SectionOffset,
 	int Protection
 );
+
+BSTATUS OSWriteVirtualMemory(
+	HANDLE ProcessHandle,
+	void* TargetAddress,
+	const void* Source,
+	size_t ByteCount
+);
+
+BSTATUS OSGetMappedFileHandle(
+	PHANDLE OutHandle,
+	HANDLE ProcessHandle,
+	uintptr_t Address
+);

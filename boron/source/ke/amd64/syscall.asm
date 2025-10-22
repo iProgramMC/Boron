@@ -132,6 +132,8 @@ KiSystemServiceTableEnd:
 ; R12 - Argument 7
 ; R13 - Argument 8
 ; R14 - Argument 9
+;
+; RBX, RCX, and R15 are used by this handler and can't be provided.
 
 extern KiCheckTerminatedUserMode
 extern KiSystemServices

@@ -180,6 +180,7 @@ struct KREGISTERS_tag
 #define INTV_DBL_FAULT  (0x08)
 #define INTV_PROT_FAULT (0x0D)
 #define INTV_PAGE_FAULT (0x0E)
+#define INTV_SYSTEMCALL (0x80)
 
 typedef struct KIDT_ENTRY_tag
 {

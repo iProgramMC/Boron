@@ -47,8 +47,6 @@ KiIdtDescriptor;
 // The interrupt vector function type.  It's not a function you can actually call from C.
 typedef void(*KiInterruptVector)();
 
-// Probably not going to be used because SYSCALL and SYSENTER both bypass the interrupt system.
-// These are going to be optimized out, and are also niceties when needed, so I will keep them.
 static UNUSED void KiSetInterruptDPL(PKIDT Idt, int Vector, int Ring)
 {
 	Idt->Entries[Vector].DPL = Ring;
@@ -225,6 +223,8 @@ PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
 
 static KSPIN_LOCK KiTrapLock;
 
+extern PKREGISTERS KiSystemServiceHandler(PKREGISTERS Regs);
+
 // Run on the BSP only.
 void KiSetupIdt()
 {
@@ -242,9 +242,12 @@ void KiSetupIdt()
 	KeRegisterInterrupt(INTV_DBL_FAULT,  KiHandleDoubleFault);
 	KeRegisterInterrupt(INTV_PROT_FAULT, KiHandleProtectionFault);
 	KeRegisterInterrupt(INTV_PAGE_FAULT, KiHandlePageFault);
+	KeRegisterInterrupt(INTV_SYSTEMCALL, KiSystemServiceHandler);
 	KeSetInterruptIPL(INTV_DBL_FAULT,  IPL_NOINTS);
 	KeSetInterruptIPL(INTV_PROT_FAULT, IPL_NOINTS);
 	KeSetInterruptIPL(INTV_PAGE_FAULT, IPL_UNDEFINED);
+	KeSetInterruptIPL(INTV_SYSTEMCALL, IPL_UNDEFINED);
+	KiSetInterruptDPL(&KiIdt, INTV_SYSTEMCALL, 3);
 }
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)

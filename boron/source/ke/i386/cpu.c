@@ -140,8 +140,8 @@ static void KepSetupGdt(KARCH_DATA* Data)
 INIT
 static void KepSetupTss(KTSS* Tss)
 {
-	// we'll set it up later..
 	memset(Tss, 0, sizeof * Tss);
+	Tss->Ss0 = SEG_RING_0_DATA;
 }
 
 extern void KiSystemServiceHandler();
@@ -184,23 +184,12 @@ void KeInitCPU()
 */
 }
 
-/*
 extern uintptr_t KiSystemServiceTable[];
-extern uintptr_t KiSystemServiceTableEnd[];
 
 // If system call tracing is enabled, this shows all of the system calls happening.
 void KePrintSystemServiceDebug(size_t Syscall)
 {
 	// Format: "[ThreadPointer] - Syscall [Number] ([FunctionName])"
-	size_t Size = KiSystemServiceTableEnd - KiSystemServiceTable;
-	
-	const char* FunctionName;
-	
-	if (Syscall >= Size)
-		FunctionName = "INVALID";
-	else
-		FunctionName = DbgLookUpRoutineNameByAddressExact(KiSystemServiceTable[Syscall]);
-	
+	const char* FunctionName = DbgLookUpRoutineNameByAddressExact(KiSystemServiceTable[Syscall]);
 	DbgPrint("SYSCALL: %p - %d %s", KeGetCurrentThread(), (int) Syscall, FunctionName);
 }
-*/
