@@ -220,7 +220,7 @@ BSTATUS OSCreateProcess(
 	
 	// Now map the main image inside.
 	LdrDbgPrint("OSCreateProcess: Mapping main image %s.", ImageName);
-	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, true);
+	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, FILE_KIND_MAIN_EXECUTABLE);
 	OSClose(FileHandle);
 	
 	if (FAILED(Status))
@@ -254,7 +254,7 @@ BSTATUS OSCreateProcess(
 		//Status = OSDLLMapSelfIntoProcess(ProcessHandle, InterpreterFileHandle, PebSize, &EntryPoint);
 		
 		LdrDbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
-		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, false);
+		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, FILE_KIND_INTERPRETER);
 		OSClose(InterpreterFileHandle);
 		
 		if (FAILED(Status))

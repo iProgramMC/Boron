@@ -12,11 +12,19 @@
 #define LdrDbgPrint(...) do {} while (0)
 #endif
 
+enum
+{
+	FILE_KIND_MAIN_EXECUTABLE,
+	FILE_KIND_DYNAMIC_LIBRARY,
+	FILE_KIND_INTERPRETER,
+};
+
 typedef struct
 {
 	LIST_ENTRY ListEntry;
 	char Name[32];
 	
+	int FileKind;
 	uintptr_t ImageBase;
 	PELF_DYNAMIC_ITEM DynamicTable;
 	ELF_DYNAMIC_INFO DynamicInfo;
@@ -43,7 +51,7 @@ BSTATUS OSDLLMapElfFile(
 	HANDLE FileHandle,
 	const char* Name,
 	ELF_ENTRY_POINT2* OutEntryPoint,
-	bool IsMainExecutable
+	int FileKind
 );
 
 // Opens a file by name, scanning the PATH environment variable.

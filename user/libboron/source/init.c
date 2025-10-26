@@ -93,7 +93,7 @@ BSTATUS OSDLLMapElfFile(
 	HANDLE Handle,
 	const char* Name,
 	ELF_ENTRY_POINT2* OutEntryPoint,
-	bool IsMainExecutable
+	int FileKind
 )
 {
 	BSTATUS Status;
@@ -107,6 +107,7 @@ BSTATUS OSDLLMapElfFile(
 	bool NeedFreeProgramHeaders = false;
 	bool NeedReadAndMapFile = true;
 	bool IsSeparateProcess = ProcessHandle != CURRENT_PROCESS_HANDLE;
+	bool IsMainExecutable = FileKind == FILE_KIND_MAIN_EXECUTABLE;
 	
 	Name = OSDLLOffsetPathAway(Name);
 	LdrDbgPrint("OSDLL: Mapping ELF file %s.", Name);
@@ -468,6 +469,7 @@ BSTATUS OSDLLMapElfFile(
 	}
 	
 	LoadedImage = OSAllocate(sizeof(LOADED_IMAGE));
+	LoadedImage->FileKind = FileKind;
 	StringCopySafe(LoadedImage->Name, Name, sizeof(LoadedImage->Name));
 	
 	// Parse the dynamic segment, if it exists.
@@ -512,7 +514,7 @@ BSTATUS OSDLLLoadDynamicLibrary(PPEB Peb, const char* FileName)
 	}
 	
 	ELF_ENTRY_POINT2 EntryPoint;
-	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, FileName, &EntryPoint, false);
+	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, FileName, &EntryPoint, FILE_KIND_DYNAMIC_LIBRARY);
 	OSClose(Handle);
 	if (FAILED(Status))
 		return Status;
@@ -528,6 +530,7 @@ void OSDLLAddSelfToDllList()
 	
 	LoadedImage->ImageBase = RtlGetImageBase();
 	LoadedImage->DynamicTable = _DYNAMIC;
+	LoadedImage->FileKind = FILE_KIND_INTERPRETER;
 	
 #ifdef DEBUG
 	// Assert that DYN_NEEDED is not specified.
@@ -587,7 +590,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 		return Status;
 	}
 	
-	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, FileHandle, Peb->ImageName, OutEntryPoint, true);
+	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, FileHandle, Peb->ImageName, OutEntryPoint, FILE_KIND_MAIN_EXECUTABLE);
 	OSClose(FileHandle);
 	
 	if (FAILED(Status))
@@ -650,18 +653,22 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 	{
 		PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
 		
-		if (!RtlPerformRelocations(&LoadedImage->DynamicInfo, LoadedImage->ImageBase))
+		// The interpreter knows how to relocate themselves and has already done so.
+		if (LoadedImage->FileKind != FILE_KIND_INTERPRETER)
 		{
-			DbgPrint("OSDLL: Cannot perform relocations on module %s.", LoadedImage->Name);
-			return STATUS_INVALID_EXECUTABLE;
-		}
-		
-		RtlRelocateRelrEntries(&LoadedImage->DynamicInfo, LoadedImage->ImageBase);
-		
-		if (!RtlLinkPlt(&LoadedImage->DynamicInfo, LoadedImage->ImageBase, LoadedImage->Name))
-		{
-			DbgPrint("OSDLL: Module %s could not be linked.", LoadedImage->Name);
-			return STATUS_INVALID_EXECUTABLE;
+			if (!RtlPerformRelocations(&LoadedImage->DynamicInfo, LoadedImage->ImageBase))
+			{
+				DbgPrint("OSDLL: Cannot perform relocations on module %s.", LoadedImage->Name);
+				return STATUS_INVALID_EXECUTABLE;
+			}
+			
+			RtlRelocateRelrEntries(&LoadedImage->DynamicInfo, LoadedImage->ImageBase);
+			
+			if (!RtlLinkPlt(&LoadedImage->DynamicInfo, LoadedImage->ImageBase, LoadedImage->Name))
+			{
+				DbgPrint("OSDLL: Module %s could not be linked.", LoadedImage->Name);
+				return STATUS_INVALID_EXECUTABLE;
+			}
 		}
 		
 		// TODO: Change permissions so that the code segments cannot be written to anymore.
