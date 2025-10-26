@@ -18,12 +18,14 @@ MAP_VIEW_OF_OBJECT_PARAMS, *PMAP_VIEW_OF_OBJECT_PARAMS;
 
 typedef struct
 {
+	size_t Length;
 	uint32_t Flags;
 }
 READ_FILE_PARAMS, *PREAD_FILE_PARAMS;
 
 typedef struct
 {
+	size_t Length;
 	uint32_t Flags;
 	uint64_t* OutSize;
 }
@@ -61,7 +63,6 @@ BSTATUS OSReadFile_Call(
 	HANDLE Handle,
 	uint64_t ByteOffset, // 2 parameters
 	void* Buffer,
-	size_t Length,
 	PREAD_FILE_PARAMS ExtraParamsPtr
 )
 {
@@ -72,7 +73,7 @@ BSTATUS OSReadFile_Call(
 	if (FAILED(Status))
 		return Status;
 	
-	return OSReadFile(Iosb, Handle, ByteOffset, Buffer, Length, ExtraParams.Flags);
+	return OSReadFile(Iosb, Handle, ByteOffset, Buffer, ExtraParams.Length, ExtraParams.Flags);
 }
 
 BSTATUS OSWriteFile_Call(
@@ -80,7 +81,6 @@ BSTATUS OSWriteFile_Call(
 	HANDLE Handle,
 	uint64_t ByteOffset, // 2 parameters
 	const void* Buffer,
-	size_t Length,
 	PWRITE_FILE_PARAMS ExtraParamsPtr
 )
 {
@@ -91,7 +91,7 @@ BSTATUS OSWriteFile_Call(
 	if (FAILED(Status))
 		return Status;
 	
-	return OSWriteFile(Iosb, Handle, ByteOffset, Buffer, Length, ExtraParams.Flags, ExtraParams.OutSize);
+	return OSWriteFile(Iosb, Handle, ByteOffset, Buffer, ExtraParams.Length, ExtraParams.Flags, ExtraParams.OutSize);
 }
 
 // N.B. extra arguments will be ignored by the called function.

@@ -348,6 +348,11 @@ void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t 
 	// code below to pretend that the starting pointer is page aligned.
 	Offset += Mdl->ByteOffset;
 	
+#ifdef IS_32_BIT
+	// TODO: Get rid of this entirely by re-engineering the HHDM system
+	char* Temporary = MmAllocatePool(POOL_NONPAGED, 4096);
+#endif
+	
 	while (Size)
 	{
 		size_t PageIndex = Offset / PAGE_SIZE;
@@ -363,15 +368,81 @@ void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t 
 		else
 			CopyAmount = BytesTillNext;
 		
+		// on 32-bit, MmBeginUsingHHDM and MmEndUsingHHDM raise and lower IPL, which
+		// means we CANNOT! take page faults.  This is why I opted for this hack.
+#ifdef IS_32_BIT
+		memcpy(Temporary, SourceBufferChr, CopyAmount);
+#else
+		const char* Temporary = SourceBufferChr;
+#endif
+		
 		MmBeginUsingHHDM();
 		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
-		memcpy(PageDest + PageOffs, SourceBufferChr, CopyAmount);
+		memcpy(PageDest + PageOffs, Temporary, CopyAmount);
 		MmEndUsingHHDM();
 		
 		SourceBufferChr += CopyAmount;
 		Offset += CopyAmount;
 		Size -= CopyAmount;
 	}
+	
+#ifdef IS_32_BIT
+	MmFreePool(Temporary);
+#endif
+}
+
+void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t Size)
+{
+	char* DestBufferChr = (char*) DestinationBuffer;
+	
+	// NOTE: The MDL's starting pointer isn't necessarily page aligned.
+	// As such, push the offset forward by Mdl->ByteOffset to allow the
+	// code below to pretend that the starting pointer is page aligned.
+	Offset += Mdl->ByteOffset;
+	
+#ifdef IS_32_BIT
+	// TODO: Get rid of this entirely by re-engineering the HHDM system
+	char* Temporary = MmAllocatePool(POOL_NONPAGED, 4096);
+#endif
+	
+	while (Size)
+	{
+		size_t PageIndex = Offset / PAGE_SIZE;
+		size_t PageOffs  = Offset % PAGE_SIZE;
+		
+		ASSERT(PageIndex < Mdl->NumberPages);
+		
+		size_t BytesTillNext = PAGE_SIZE - PageOffs;
+		size_t CopyAmount;
+		
+		if (Size < BytesTillNext)
+			CopyAmount = Size;
+		else
+			CopyAmount = BytesTillNext;
+		
+		// on 32-bit, MmBeginUsingHHDM and MmEndUsingHHDM raise and lower IPL, which
+		// means we CANNOT! take page faults.  This is why I opted for this hack.
+#ifndef IS_32_BIT
+		char* Temporary = DestBufferChr;
+#endif
+		
+		MmBeginUsingHHDM();
+		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
+		memcpy(DestBufferChr, PageDest + PageOffs, CopyAmount);
+		MmEndUsingHHDM();
+		
+#ifdef IS_32_BIT
+		memcpy(DestBufferChr, Temporary, CopyAmount);
+#endif
+		
+		DestBufferChr += CopyAmount;
+		Offset += CopyAmount;
+		Size -= CopyAmount;
+	}
+	
+#ifdef IS_32_BIT
+	MmFreePool(Temporary);
+#endif
 }
 
 void MmSetIntoMdl(PMDL Mdl, uintptr_t Offset, uint8_t ToSet, size_t Size)
@@ -401,41 +472,6 @@ void MmSetIntoMdl(PMDL Mdl, uintptr_t Offset, uint8_t ToSet, size_t Size)
 		memset(PageDest + PageOffs, ToSet, CopyAmount);
 		MmEndUsingHHDM();
 		
-		Offset += CopyAmount;
-		Size -= CopyAmount;
-	}
-}
-
-void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t Size)
-{
-	char* DestBufferChr = (char*) DestinationBuffer;
-	
-	// NOTE: The MDL's starting pointer isn't necessarily page aligned.
-	// As such, push the offset forward by Mdl->ByteOffset to allow the
-	// code below to pretend that the starting pointer is page aligned.
-	Offset += Mdl->ByteOffset;
-	
-	while (Size)
-	{
-		size_t PageIndex = Offset / PAGE_SIZE;
-		size_t PageOffs  = Offset % PAGE_SIZE;
-		
-		ASSERT(PageIndex < Mdl->NumberPages);
-		
-		size_t BytesTillNext = PAGE_SIZE - PageOffs;
-		size_t CopyAmount;
-		
-		if (Size < BytesTillNext)
-			CopyAmount = Size;
-		else
-			CopyAmount = BytesTillNext;
-		
-		MmBeginUsingHHDM();
-		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
-		memcpy(DestBufferChr, PageDest + PageOffs, CopyAmount);
-		MmEndUsingHHDM();
-		
-		DestBufferChr += CopyAmount;
 		Offset += CopyAmount;
 		Size -= CopyAmount;
 	}

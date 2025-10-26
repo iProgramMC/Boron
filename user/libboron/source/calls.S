@@ -56,6 +56,7 @@
 	pushl %edi
 	
 	movl $\number, %eax
+	
 	.if \argcount > 0
 		movl 8(%ebp), %ebx
 	.endif
@@ -71,6 +72,7 @@
 	.if \argcount > 4
 		movl 24(%ebp), %edi
 	.endif
+	
 	.if \argcount == 6
 		/* if we have *exactly* 6 arguments, then just pass the */
 		/* last one into EBP */

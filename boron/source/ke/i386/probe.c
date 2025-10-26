@@ -24,19 +24,19 @@ bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE Acces
 {
 	// Size=0 is invalid.
 	if (Size == 0) {
-		DbgPrint("Size 0");
+		DbgPrint("MmIsAddressRangeValid FAILURE: Size 0");
 		return false;
 	}
 	
 	// Check for overflow.
 	uintptr_t AddressEnd = Address + Size;
 	if (AddressEnd < Address) {
-		DbgPrint("AddressEnd %p < Address %p", AddressEnd, Address);
+		DbgPrint("MmIsAddressRangeValid FAILURE: AddressEnd %p < Address %p", AddressEnd, Address);
 		return false;
 	}
 	
 	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END) {
-		DbgPrint("AccessMode==MODEUSER   AddressEnd %p  Address %p  Size: %zu  RA:%p", AddressEnd, Address, Size, CallerAddress());
+		DbgPrint("MmIsAddressRangeValid FAILURE: AccessMode==MODEUSER   AddressEnd %p  Address %p  Size: %zu  RA:%p", AddressEnd, Address, Size, CallerAddress());
 		return false;
 	}
 	

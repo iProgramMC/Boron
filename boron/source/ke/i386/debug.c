@@ -130,9 +130,9 @@ void DbgPrintStackTrace(uintptr_t Ebp)
 	DbgPrintDouble("\tAddress \tName\n");
 	
 #ifndef DISABLE_USER_MODE_PREVENTION
-	if (Rbp <= MM_USER_SPACE_END)
+	if (Ebp <= MM_USER_SPACE_END)
 	{
-		snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+		snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Ebp);
 		DbgPrintDouble(Buffer);
 		return;
 	}
@@ -145,7 +145,7 @@ void DbgPrintStackTrace(uintptr_t Ebp)
 #ifndef DISABLE_USER_MODE_PREVENTION
 		if (Address <= MM_USER_SPACE_END)
 		{
-			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Ebp);
 			DbgPrintDouble(Buffer);
 			return;
 		}
@@ -163,7 +163,7 @@ void DbgPrintStackTrace(uintptr_t Ebp)
 #ifndef DISABLE_USER_MODE_PREVENTION
 		if ((uintptr_t)StackFrame <= MM_USER_SPACE_END)
 		{
-			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Rbp);
+			snprintf(Buffer, sizeof(Buffer), "\t%p\tUser Mode Address\n", (void*) Ebp);
 			DbgPrintDouble(Buffer);
 			return;
 		}

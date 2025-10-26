@@ -138,6 +138,15 @@ BSTATUS OSDLLMapElfFile(
 	
 	if (NeedReadAndMapFile)
 	{
+		DbgPrint(
+			"Iosb: %p, Handle: %d, Offset: %lld, Buffer: %p, Size: %zu",
+			(void*) &Iosb,
+			(int) Handle,
+			(uint64_t) 0,
+			(void*) &ElfHeader,
+			(size_t) sizeof ElfHeader
+		);
+		
 		Status = OSReadFile(&Iosb, Handle, 0, &ElfHeader, sizeof ElfHeader, 0);
 		if (FAILED(Status))
 		{
@@ -382,6 +391,36 @@ BSTATUS OSDLLMapElfFile(
 				
 				if (IsMainExecutable && ElfProgramHeader.Offset == 0)
 					Peb->Loader.FileHeader = Address;
+				
+				if (ElfProgramHeader.SizeInFile < ElfProgramHeader.SizeInMemory)
+				{
+					// TODO: add a system call for this instead!
+					size_t Offset = ElfProgramHeader.SizeInFile;
+					size_t Size = ElfProgramHeader.SizeInMemory - ElfProgramHeader.SizeInFile;
+					
+					uint8_t* Data = OSAllocate(Size);
+					if (!Data)
+					{
+						DbgPrint("OSDLL: Failed to map part of uninitialized data for the program due to insufficient memory");
+						Status = STATUS_INSUFFICIENT_MEMORY;
+						goto EarlyExit;
+					}
+					
+					memset(Data, 0, Size);
+					
+					Status = OSWriteVirtualMemory(ProcessHandle, (char*) Address + Offset, Data, Size);
+					OSFree(Data);
+					
+					if (FAILED(Status))
+					{
+						DbgPrint(
+							"OSDLL: Failed to map part of uninitialized data for the program: %s (%d)",
+							RtlGetStatusString(Status),
+							Status
+						);
+						goto EarlyExit;
+					}
+				}
 				
 				break;
 			}
