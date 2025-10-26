@@ -122,6 +122,12 @@ KeDescendIntoUserMode:
 	mov esi, [esp + 8]
 	mov edx, [esp + 12]
 	
+	; put edx onto the stack, as well as a fake return address
+	; this is so that parameter passing through this function works
+	sub esi, 8
+	mov dword [esi], 0
+	mov dword [esi + 4], edx
+	
 	; EDI - Initial program counter
 	; ESI - Initial stack pointer
 	; EDX - User context
@@ -130,7 +136,6 @@ KeDescendIntoUserMode:
 	push dword 0x202               ; push RFLAGS
 	push dword SEG_RING_3_CODE | 3 ; push CS
 	push edi                       ; push RIP
-	mov edi, edx
 	
 	; clear all the registers
 	xor eax, eax
@@ -139,6 +144,7 @@ KeDescendIntoUserMode:
 	xor ecx, ecx
 	xor edx, edx
 	xor esi, esi
+	xor edi, edi
 	
 	; finally, swap gs and return to user mode.
 	cli

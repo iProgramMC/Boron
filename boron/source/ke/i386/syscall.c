@@ -7,6 +7,8 @@
 #include <ps.h>
 #include <io.h>
 
+//#define ENABLE_SYSCALL_TRACE
+
 typedef struct
 {
 	uint64_t SectionOffset;

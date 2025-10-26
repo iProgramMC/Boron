@@ -695,7 +695,6 @@ uintptr_t OSDLLGetProcedureAddress(const char* ProcName)
 HIDDEN
 void DLLEntryPoint(PPEB Peb)
 {
-	DbgPrint("OSDLL: DLLEntryPoint called!");
 	OSDLLInitializeGlobalHeap();
 	InitializeListHead(&OSDllLoadQueue);
 	InitializeListHead(&OSDllsLoaded);
