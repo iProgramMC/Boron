@@ -252,7 +252,6 @@ void KiSetupIdt()
 
 void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
 {
-	DbgPrint("Setting trap handler to %p", Handler);
 	KIPL Ipl;
 	KeAcquireSpinLock(&KiTrapLock, &Ipl);
 	KiTrapCallList[Vector] = Handler;
