@@ -86,14 +86,8 @@ MmProbeAddressSub:
 	pop  edi
 	pop  ebp
 	ret
-	
-; void MmProbeAddressSubEarlyReturn()
-; Returns early from MmProbeAddressSub and MmSafeCopySub. Called by the invalid page fault handler.
-global MmProbeAddressSubEarlyReturn
-MmProbeAddressSubEarlyReturn:
-	ret
 
-; int MmSafeCopySub(void* Address, void* Source, size_t Length);
+; int MmSafeCopySub(void* Destination, void* Source, size_t Length);
 global MmSafeCopySub
 MmSafeCopySub:
 	push ebp
@@ -107,6 +101,12 @@ MmSafeCopySub:
 	mov  ecx, [ebp + 16]
 	rep  movsb
 	xor  eax, eax
+	; fall through
+	
+; void MmProbeAddressSubEarlyReturn()
+; Returns early from MmProbeAddressSub and MmSafeCopySub. Called by the invalid page fault handler.
+global MmProbeAddressSubEarlyReturn
+MmProbeAddressSubEarlyReturn:
 	pop  esi
 	pop  edi
 	pop  ebp

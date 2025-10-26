@@ -289,20 +289,34 @@ BSTATUS OSDummy()
 	return 0;
 }
 
+//#define SHOW_PID_IN_DEBUG_LOGS
+
 // Prints a string to the debug console.
 BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
 {
 	BSTATUS Status;
 	char* Memory;
 	
-	Memory = MmAllocatePool(POOL_PAGED, StringLength + 1);
+#ifdef SHOW_PID_IN_DEBUG_LOGS
+	const int OFFSET = 2 + 2 * sizeof(uintptr_t);
+#else
+	const int OFFSET = 0;
+#endif
+	Memory = MmAllocatePool(POOL_PAGED, StringLength + 1 + OFFSET);
 	if (!Memory)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	Memory[StringLength] = 0;
-	Status = MmSafeCopy(Memory, String, StringLength, KeGetPreviousMode(), false);
+	Memory[StringLength + OFFSET] = 0;
+	Status = MmSafeCopy(Memory + OFFSET, String, StringLength, KeGetPreviousMode(), false);
 	if (SUCCEEDED(Status))
+	{
+	#ifdef SHOW_PID_IN_DEBUG_LOGS
+		char PidBuffer[36];
+		snprintf(PidBuffer, sizeof PidBuffer, "%p:              ", KeGetCurrentProcess());
+		memcpy(Memory, PidBuffer, OFFSET);
+	#endif
 		DbgPrintStringLocked(Memory);
+	}
 	
 	MmFreePool(Memory);
 	return Status;

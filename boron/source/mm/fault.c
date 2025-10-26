@@ -198,7 +198,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				goto Exit;
 			}
 			
-			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, PtePtr);
+			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, Va);
 			goto Exit;
 		}
 		

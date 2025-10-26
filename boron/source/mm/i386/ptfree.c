@@ -14,9 +14,8 @@ Author:
 ***/
 #include "../mi.h"
 
-#define PTES_PER_LEVEL       (PAGE_SIZE / sizeof(MMPTE)) // 1024
-#define PAGE_MAP_LEVELS       8
-#define PTES_COVERED_BY_PML2  PTES_PER_LEVEL
+#define PTES_PER_LEVEL         (PAGE_SIZE / sizeof(MMPTE)) // 1024
+#define PTES_COVERED_BY_ONE_PT (PTES_PER_LEVEL * PTES_PER_LEVEL) // 1048576
 
 // Gets an address down the tree.
 //
@@ -50,34 +49,24 @@ static bool MmpIsPteListCompletelyEmpty(PMMPTE Pte)
 	return AllZeroes;
 }
 
-static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int RecursionCount);
-
 // NOTE: StartVa and SizePages are only roughly followed.
 //
 // NOTE: The address space lock of the process *must* be held.
-// This also issues a TLB shootdown covering the affected area.
 void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 {
-	bool ShouldUnmapPML2;
+	if (StartVa >= MM_KERNEL_SPACE_BASE)
+		return;
+	
 	MMADDRESS_CONVERT Address;
 	PMMPTE Pte;
 	
-	ShouldUnmapPML2 = true;
 	Address.Long = StartVa;
+	Pte = (PMMPTE) MI_PML2_LOCATION + Address.Level2Index;
 	
-	Pte = (PMMPTE) MI_PML1_LOCATION + Address.Level2Index;
-	
-	// Currently, we can only operate in user space.  This is because
-	// in kernel space, the PML2 pages may never be deallocated. 
-	if (Address.Level2Index >= PTES_PER_LEVEL / 2)
-		ShouldUnmapPML2 = false;
-	
-	for (size_t PageNumber = 0;
-	     PageNumber < SizePages;
-	     PageNumber += PTES_COVERED_BY_PML2,
-	     ++Pte)
+	// Scan each page table in the range.
+	for (size_t i = 0; i < SizePages; i += PTES_COVERED_BY_ONE_PT, ++Pte)
 	{
-		if (~*Pte & MM_PTE_PRESENT)
+		if (~(*Pte) & MM_PTE_PRESENT)
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
@@ -85,69 +74,6 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 		{
 			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
 			*Pte = 0;
-			continue;
-		}
-		
-		if (!MmpFreeUnusedMappingLevelsInCurrentMapPML(SubPte, PAGE_MAP_LEVELS - 1))
-			continue;
-		
-		// Returned true, so this is now ready to free.
-		if (ShouldUnmapPML2)
-		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
 		}
 	}
-}
-
-static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
-{
-	if (MapLevel <= 1)
-	{
-		// We're on the last level.
-		for (size_t i = 0; i < PTES_PER_LEVEL; ++i, ++Pte)
-		{
-			if (*Pte)
-			{
-				// The PTE exists, check if it was decommitted though.
-				if ((~*Pte & MM_PTE_PRESENT) && (*Pte & MM_DPTE_DECOMMITTED))
-					continue;
-				
-				// This mapping level is busy.
-				return false;
-			}
-		}
-		
-		return true;
-	}
-	
-	bool FreeParent = true;
-	
-	// Walk the PML.
-	for (size_t i = 0; i < PTES_PER_LEVEL; ++i, ++Pte)
-	{
-		if (~*Pte & MM_PTE_PRESENT)
-			continue;
-		
-		PMMPTE SubPte = MiGetSubPteAddress(Pte);
-		
-		if (MmpIsPteListCompletelyEmpty(SubPte))
-		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
-			continue;
-		}
-		
-		if (!MmpFreeUnusedMappingLevelsInCurrentMapPML(SubPte, MapLevel - 1))
-		{
-			FreeParent = false;
-			continue;
-		}
-		
-		// Returned true, so this is now ready to free.
-		MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-		*Pte = 0;
-	}
-	
-	return FreeParent;
 }

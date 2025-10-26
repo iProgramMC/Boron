@@ -36,7 +36,7 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 
 // start PML2 index will be 512.  The PFN database's is 776
 #define MI_GLOBAL_AREA_START     (512)
-#define MI_GLOBAL_AREA_START_2ND (832)
+#define MI_GLOBAL_AREA_START_2ND (896)
 
 #define MI_RECURSIVE_PAGING_START (1023)
 

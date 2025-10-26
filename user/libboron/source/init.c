@@ -96,7 +96,7 @@ BSTATUS OSDLLMapElfFile(
 	int FileKind
 )
 {
-	BSTATUS Status;
+	BSTATUS Status = STATUS_SUCCESS;
 	IO_STATUS_BLOCK Iosb;
 	ELF_HEADER ElfHeader;
 	ELF_PROGRAM_HEADER ElfProgramHeader;
@@ -139,15 +139,6 @@ BSTATUS OSDLLMapElfFile(
 	
 	if (NeedReadAndMapFile)
 	{
-		DbgPrint(
-			"Iosb: %p, Handle: %d, Offset: %lld, Buffer: %p, Size: %zu",
-			(void*) &Iosb,
-			(int) Handle,
-			(uint64_t) 0,
-			(void*) &ElfHeader,
-			(size_t) sizeof ElfHeader
-		);
-		
 		Status = OSReadFile(&Iosb, Handle, 0, &ElfHeader, sizeof ElfHeader, 0);
 		if (FAILED(Status))
 		{
@@ -240,7 +231,7 @@ BSTATUS OSDLLMapElfFile(
 		}
 		
 		// Found it.
-		LdrDbgPrint("OSDLL: %s's image base is %p", Name, BaseAddress);
+		LdrDbgPrint("OSDLL: %s's image base is %p (size is %zu)", Name, BaseAddress, RegionSize);
 		ImageBase = (uintptr_t) BaseAddress;
 		
 		// TODO: Now, free the reserved memory.  But we may need to avoid a race condition
@@ -365,7 +356,7 @@ BSTATUS OSDLLMapElfFile(
 				void* OldAddress = Address;
 			#endif
 				
-				LdrDbgPrint("OSDLL: Initialized data at offset %p.", OldAddress);
+				LdrDbgPrint("OSDLL: Initialized data at offset %p, size %zu.", OldAddress, ElfProgramHeader.SizeInMemory);
 				
 				// Initialized data.
 				Status = OSMapViewOfObject(
@@ -383,7 +374,9 @@ BSTATUS OSDLLMapElfFile(
 				if (FAILED(Status))
 				{
 					DbgPrint(
-						"OSDLL: Failed to map initialized data for the program: %s (%d)",
+						"OSDLL: Failed to map initialized data for the program: %p %zu %s (%d)",
+						OldAddress,
+						ElfProgramHeader.SizeInMemory,
 						RtlGetStatusString(Status),
 						Status
 					);
@@ -601,6 +594,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 			Status,
 			RtlGetStatusString(Status)
 		);
+		return Status;
 	}
 	
 	// Load the DLLs in the queue.
@@ -656,6 +650,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
 		// The interpreter knows how to relocate themselves and has already done so.
 		if (LoadedImage->FileKind != FILE_KIND_INTERPRETER)
 		{
+			LdrDbgPrint("OSDLL: Linking %s, file kind: %d...", LoadedImage->Name, LoadedImage->FileKind);
 			if (!RtlPerformRelocations(&LoadedImage->DynamicInfo, LoadedImage->ImageBase))
 			{
 				DbgPrint("OSDLL: Cannot perform relocations on module %s.", LoadedImage->Name);

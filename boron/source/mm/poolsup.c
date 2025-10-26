@@ -116,7 +116,7 @@ static LIST_ENTRY MmpPoolList;
 // 0x80000000 - 0xC0000000 and 0xD0000000 - 0xF0000000
 #define MI_POOL_LOG2_SIZE (30)
 
-#define MI_POOL_LOG2_SIZE_2ND (29)
+#define MI_POOL_LOG2_SIZE_2ND (28)
 
 #else
 
@@ -124,9 +124,40 @@ static LIST_ENTRY MmpPoolList;
 
 #endif
 
+#ifdef IS_32_BIT
+
+void MiInitializeRootPageTable(int Idx)
+{
+	PMMPTE Pte = (PMMPTE)MI_PML2_LOCATION + Idx;
+	MMPFN Pfn = MmAllocatePhysicalPage();
+	
+	if (Pfn == PFN_INVALID)
+		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
+	
+	*Pte = MmPFNToPhysPage(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
+}
+
+void MiInitializePoolPageTables()
+{
+	int Size1 = 1 << (MI_POOL_LOG2_SIZE - 22);
+	int Size2 = 1 << (MI_POOL_LOG2_SIZE_2ND - 22);
+	
+	for (int i = MI_GLOBAL_AREA_START; i < MI_GLOBAL_AREA_START + Size1; i++)
+		MiInitializeRootPageTable(i);
+	
+	for (int i = MI_GLOBAL_AREA_START_2ND; i < MI_GLOBAL_AREA_START_2ND + Size2; i++)
+		MiInitializeRootPageTable(i);
+}
+
+#endif
+
 INIT
 void MiInitPool()
 {
+#ifdef IS_32_BIT
+	MiInitializePoolPageTables();
+#endif
+	
 	InitializeListHead(&MmpPoolList);
 	
 	PMIPOOL_ENTRY Entry = MiCreatePoolEntry();

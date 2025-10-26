@@ -428,7 +428,7 @@ void MmCopyFromMdl(PMDL Mdl, uintptr_t Offset, void* DestinationBuffer, size_t S
 		
 		MmBeginUsingHHDM();
 		char* PageDest = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Mdl->Pages[PageIndex]));
-		memcpy(DestBufferChr, PageDest + PageOffs, CopyAmount);
+		memcpy(Temporary, PageDest + PageOffs, CopyAmount);
 		MmEndUsingHHDM();
 		
 #ifdef IS_32_BIT
