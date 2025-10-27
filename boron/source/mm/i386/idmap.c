@@ -23,12 +23,15 @@ extern uint8_t KiPoolHeadersPageTables[];
 
 void MiInitializeBaseIdentityMapping()
 {
+	PMMPTE Level2, Level1;
+	uintptr_t Address;
+	
 	for (size_t i = 0; i < MI_IDENTMAP_SIZE; i += PAGE_SIZE)
 	{
-		uintptr_t Address = MI_IDENTMAP_START + i;
+		Address = MI_IDENTMAP_START + i;
 		
-		PMMPTE Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
-		PMMPTE Level1 = (PMMPTE) MI_PTE_LOC(Address);
+		Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
+		Level1 = (PMMPTE) MI_PTE_LOC(Address);
 		
 		*Level2 = V2P(&KiBootstrapPageTables[(i >> 22) * PAGE_SIZE])
 			| MM_PTE_READWRITE
@@ -38,22 +41,19 @@ void MiInitializeBaseIdentityMapping()
 	}
 	
 	// Map the level 2 PTs for the HHDM window.
-	for (size_t i = 0; i < MI_FASTMAP_SIZE; i += PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE))
-	{
-		uintptr_t Address = MI_FASTMAP_START + i;
-		
-		PMMPTE Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
-		*Level2 = V2P(&KiHhdmWindowPageTables[(i >> 22) * PAGE_SIZE])
-			| MM_PTE_READWRITE
-			| MM_PTE_PRESENT;
-	}
+	Address = MI_FASTMAP_START;
+	
+	Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
+	*Level2 = V2P(KiHhdmWindowPageTables)
+		| MM_PTE_READWRITE
+		| MM_PTE_PRESENT;
 	
 	// Map the level 2 PTs for the pool headers.
 	for (size_t i = 0; i < MI_POOL_HEADERS_SIZE; i += PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE))
 	{
-		uintptr_t Address = MI_POOL_HEADERS_START + i;
+		Address = MI_POOL_HEADERS_START + i;
 		
-		PMMPTE Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
+		Level2 = (PMMPTE) MI_PTE_LOC(MI_PTE_LOC(Address));
 		*Level2 = V2P(&KiPoolHeadersPageTables[(i >> 22) * PAGE_SIZE])
 			| MM_PTE_READWRITE
 			| MM_PTE_PRESENT;

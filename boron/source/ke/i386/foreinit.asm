@@ -136,5 +136,5 @@ alignb 4096
 KiInitialStack:				resb 4096
 KiBootstrapPageDirectory:	resb 4096
 KiBootstrapPageTables:		resb 64 * 4096
-KiHhdmWindowPageTables:		resb 4 * 4096
+KiHhdmWindowPageTables:		resb 4096
 KiPoolHeadersPageTables:	resb 2 * 4096

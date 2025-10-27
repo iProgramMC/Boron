@@ -114,6 +114,7 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 	PhysAddr &= MI_FASTMAP_MASK;
 	MmHHDMWindowBase = PhysAddr;
 	
+	// TODO: Optimize this. We don't really need that many pages.
 	for (size_t i = 0; i < MI_FASTMAP_SIZE; i += PAGE_SIZE)
 	{
 		uintptr_t Address = MI_FASTMAP_START + i;

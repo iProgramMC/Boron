@@ -54,8 +54,8 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MI_IDENTMAP_SIZE  ((uintptr_t) 0x10000000)
 
 #define MI_FASTMAP_START ((uintptr_t) 0xD0000000)
-#define MI_FASTMAP_MASK  ((uintptr_t) 0xFF000000)
-#define MI_FASTMAP_SIZE  (16 * 1024 * 1024)
+#define MI_FASTMAP_MASK  ((uintptr_t) 0xFFFF0000)
+#define MI_FASTMAP_SIZE  (64 * 1024)
 
 typedef union
 {
