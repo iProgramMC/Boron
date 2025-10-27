@@ -37,7 +37,6 @@ void KePortWriteWord(uint16_t portNo, uint16_t data)
 	ASM("outw %0, %1"::"a"((uint16_t)data),"Nd"((uint16_t)portNo));
 }
 
-
 uint32_t KePortReadDword(uint16_t portNo)
 {
     uint32_t rv;

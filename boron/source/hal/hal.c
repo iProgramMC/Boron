@@ -15,6 +15,10 @@ Author:
 #include <hal.h>
 #include <ke.h>
 
+#if defined DEBUG && !defined CONFIG_SMP
+#define TICK_DEBUG
+#endif
+
 HAL_VFTABLE HalpVftable;
 
 bool HalWasInitted()
@@ -27,9 +31,9 @@ void HalSetVftable(const HAL_VFTABLE* Table)
 	HalpVftable = *Table;
 }
 
-void HalEndOfInterrupt()
+void HalEndOfInterrupt(int InterruptNumber)
 {
-	HalpVftable.EndOfInterrupt();
+	HalpVftable.EndOfInterrupt(InterruptNumber);
 }
 
 void HalRequestInterruptInTicks(uint64_t Ticks)
@@ -84,7 +88,28 @@ uint64_t HalGetIntTimerFrequency()
 
 uint64_t HalGetTickCount()
 {
-	return HalpVftable.GetTickCount();
+#ifdef TICK_DEBUG
+	static uint64_t LastTickCount = 0;
+#endif
+
+	uint64_t TickCount = HalpVftable.GetTickCount();
+
+#ifdef TICK_DEBUG
+	bool Restore = KeDisableInterrupts();
+	if (LastTickCount > TickCount)
+	{
+		KeCrash(
+			"ERROR: LastTickCount: %lld,  TickCount: %lld. Timer went backwards?",
+			LastTickCount,
+			TickCount
+		);
+	}
+	
+	LastTickCount = TickCount;
+	KeRestoreInterrupts(Restore);
+#endif
+	
+	return TickCount;
 }
 
 uint64_t HalGetTickFrequency()
@@ -98,10 +123,29 @@ uint64_t HalGetIntTimerDeltaTicks()
 }
 
 #ifdef TARGET_AMD64
+
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status)
 {
 	return HalpVftable.IoApicSetIrqRedirect(Vector, Irq, LapicId, Status);
 }
+
+#endif // TARGET_AMD64
+
+#ifdef TARGET_I386
+
+void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	HalpVftable.PicRegisterInterrupt(Vector, Ipl);
+}
+
+void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl)
+{
+	HalpVftable.PicDeregisterInterrupt(Vector, Ipl);
+}
+
+#endif // TARGET_I386
+
+#if defined TARGET_AMD64 || defined TARGET_I386
 
 BSTATUS
 HalPciEnumerate(

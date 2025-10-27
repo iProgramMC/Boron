@@ -35,7 +35,11 @@ void PerformDelay(int Ms, PKDPC Dpc)
 	KeInitializeTimer(&Timer);
 	KeSetTimer(&Timer, Ms, Dpc);
 	
-	KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	BSTATUS Status = KeWaitForSingleObject(&Timer.Header, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	if (FAILED(Status))
+		DbgPrint("PerformDelay FAILED. %d (%s)", Status, RtlGetStatusString(Status));
+	
+	KeCancelTimer(&Timer);
 }
 
 void DumpHex(void* DataV, size_t DataSize, bool LogScreen)
@@ -88,7 +92,7 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformObjectTest();
 	//PerformMdlTest();
 	//PerformIntTest();
-	//PerformKeyboardTest();
+	PerformKeyboardTest();
 	//PerformStorageTest();
 	//PerformExObTest();
 	//PerformCcbTest();
@@ -98,7 +102,7 @@ NO_RETURN void DriverTestThread(UNUSED void* Parameter)
 	//PerformMm4Test();
 	//PerformMm5Test();
 	//PerformFs1Test();
-	PerformPipeTest();
+	//PerformPipeTest();
 	
 	LogMsg(ANSI_GREEN "*** All tests have concluded." ANSI_RESET);
 	KeTerminateThread(0);

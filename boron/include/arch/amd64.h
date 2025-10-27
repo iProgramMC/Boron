@@ -5,6 +5,8 @@
 #error "Don't include this if you aren't building for amd64!"
 #endif
 
+#include <arch/ipl.h>
+
 // Model specific registers
 uint64_t KeGetMSR(uint32_t msr);
 void KeSetMSR(uint32_t msr, uint64_t value);
@@ -52,7 +54,7 @@ typedef union
 }
 MMADDRESS_CONVERT;
 
-#endif
+#endif // KERNEL
 
 // Note! Most of these are going to be present everywhere we'll port to.
 
@@ -76,11 +78,11 @@ MMADDRESS_CONVERT;
 #define MM_PTE_PAGESIZE   (1ULL <<  7) // in terms of PML3/PML2 entries, for 1GB/2MB pages respectively. Not Used by the kernel
 #define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
-#define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write
-#define MM_PTE_TRANSITION (1ULL << 11) // if this page is in transition (3)
+#define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write -- TODO: We are supposed to be phasing this one out.
+#define MM_PTE_TRANSITION (1ULL << 11) // if this page is in transition (3) (UNUSED)
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
 #define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
-#define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
+#define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it) (NOTE: This is supposed to be MM_DPTE_ISPOOLHDR)
 
 #define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
 	// 63 - execute disable
@@ -171,8 +173,6 @@ struct KREGISTERS_tag
 	uint64_t rsp;
 	uint64_t ss;
 };
-
-#include <arch/ipl.h>
 
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)

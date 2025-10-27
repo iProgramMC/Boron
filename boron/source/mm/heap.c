@@ -310,7 +310,11 @@ void MmDebugDumpHeap()
 	
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Heap->Tree);
 	
+#ifdef IS_64_BIT
 	DbgPrint("HeapPtr          Start            End");
+#else
+	DbgPrint("HeapPtr  Start    End");
+#endif
 	if (!Entry)
 		DbgPrint("There are no heap entries.");
 	

@@ -24,7 +24,7 @@ void MiReclaimInitText()
 	MmLockKernelSpaceExclusive();
 	for (uintptr_t i = (uintptr_t) KiTextInitStart; i != (uintptr_t) KiTextInitEnd; i += PAGE_SIZE)
 	{
-		PMMPTE PtePtr = MiGetPTEPointer(MiGetCurrentPageMap(), i, false);
+		PMMPTE PtePtr = MmGetPteLocationCheck(i, false);
 		ASSERT(PtePtr);
 		
 		MMPTE Pte = *PtePtr;
@@ -39,6 +39,7 @@ void MiReclaimInitText()
 		MmFreePhysicalPage(Pfn);
 		Reclaimed++;
 	}
+	
 	MmUnlockKernelSpace();
 	
 #ifdef DEBUG

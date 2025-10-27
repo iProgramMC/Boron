@@ -34,6 +34,34 @@ enum
 
 enum
 {
+	ELF_MCLASS_NONE,
+	ELF_MCLASS_32BIT,
+	ELF_MCLASS_64BIT,
+};
+
+enum
+{
+	ELF_MDATA_NONE,
+	ELF_MDATA_LSB,
+	ELF_MDATA_MSB,
+};
+
+enum
+{
+	ELF_ARCH_SPARC = 2,
+	ELF_ARCH_386 = 3,
+	ELF_ARCH_M68K = 4,
+	ELF_ARCH_MIPS = 8,
+	ELF_ARCH_MIPS_RS3_LE = 10,
+	ELF_ARCH_PPC = 20,
+	ELF_ARCH_PPC64 = 21,
+	ELF_ARCH_ARM = 40,
+	ELF_ARCH_IA64 = 50,
+	ELF_ARCH_AMD64 = 62,
+};
+
+enum
+{
 	ELF_TYPE_NONE,
 	ELF_TYPE_RELOCATABLE,
 	ELF_TYPE_EXECUTABLE,
@@ -120,6 +148,19 @@ enum
 	R_X86_64_8,
 	R_X86_64_8S,
 	//...
+#elif defined TARGET_I386
+	R_386_NONE,      // none
+	R_386_32,        // S + A
+	R_386_PC32,      // S + A - P
+	R_386_GOT32,     // G + A
+	R_386_PLT32,     // L + A - P
+	R_386_COPY,      // None
+	R_386_GLOB_DAT,  // S
+	R_386_JUMP_SLOT, // S
+	R_386_RELATIVE,  // B + A
+	R_386_GOTOFF,    // S + A - GOT
+	R_386_GOTPC,     // GOT + A - P
+	R_386_32PLT,     // L + A
 #else
 #error Hey! Add ELF relocation types here
 #endif
@@ -238,5 +279,13 @@ typedef struct
 	uint32_t Data[];
 }
 ELF_HASH_TABLE, *PELF_HASH_TABLE;
+
+#ifdef IS_64_BIT
+#define ELF_R_SYM(x)  ((x) >> 32)
+#define ELF_R_TYPE(x) ((x) & 0xFFFFFFFF)
+#else
+#define ELF_R_SYM(x)  ((x) >> 8)
+#define ELF_R_TYPE(x) ((x) & 0xFF)
+#endif
 
 #endif//BORON_ELF_H

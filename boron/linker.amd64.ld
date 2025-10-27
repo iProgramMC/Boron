@@ -51,15 +51,6 @@ SECTIONS
 	/* Move to the next memory page for .rodata */
 	. = ALIGN(CONSTANT(MAXPAGESIZE));
 
-	.rodata : {
-		*(.rodata .rodata.*)
-		PROVIDE(KiSymbolTable = .);
-		PROVIDE(KiSymbolTableEnd = .);
-	} :rodata
-
-	/* Move to the next memory page for .data */
-	. = ALIGN(CONSTANT(MAXPAGESIZE));
-
 	/* Global constructor array. */
 	.init_array : {
 		g_init_array_start = .;
@@ -73,6 +64,15 @@ SECTIONS
 		*(.fini_array)
 		g_fini_array_end = .;
 	}
+
+	.rodata : {
+		*(.rodata .rodata.*)
+		PROVIDE(KiSymbolTable = .);
+		PROVIDE(KiSymbolTableEnd = .);
+	} :rodata
+
+	/* Move to the next memory page for .data */
+	. = ALIGN(CONSTANT(MAXPAGESIZE));
 
 	.data : {
 		*(.data .data.*)

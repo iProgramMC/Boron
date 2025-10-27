@@ -35,6 +35,10 @@ KIPL MiLockPfdb();
 // Unlocks the page frame database's spinlock.
 void MiUnlockPfdb(KIPL Ipl);
 
+// This does the same as MmAllocatePhysicalPage, but expects the PFDB
+// lock to be locked.
+MMPFN MiAllocatePhysicalPageWithPfdbLocked(bool* IsZeroed);
+
 // Gets the reference count of a page by PFN.
 // The PFN lock must be held.
 int MiGetReferenceCountPfn(MMPFN Pfn);
@@ -67,7 +71,6 @@ struct MISLAB_CONTAINER_tag;
 
 #define MI_SLAB_ITEM_CHECK (0x424C5342) // "BSLB"
 
-#define MI_MIN_SIZE_SLAB (8)
 #define MI_MAX_SIZE_SLAB (32768)
 
 typedef struct MISLAB_ITEM_tag
@@ -80,16 +83,25 @@ typedef struct MISLAB_ITEM_tag
 	// into the rest.
 	union
 	{
-		uint64_t Bitmap[4]; // Supports down to 16 byte sized items
+		uint64_t Bitmap[4]; // 32 bytes - Supports down to 16 byte sized items
 		struct
 		{
-			uint64_t Bitmap2[1];
-			RBTREE_ENTRY TreeEntry;
+		#ifdef IS_64_BIT
+			uint64_t Bitmap2[1];    // 8
+			RBTREE_ENTRY TreeEntry; // 24
+		#else
+			uint64_t Bitmap2[2];    // 16
+			RBTREE_ENTRY TreeEntry; // 12
+		#endif
 		};
 	};
 	
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
+	
+#if IS_32_BIT
+	int Dummy; // alignment
+#endif
 	
 	char Data[0];
 }
@@ -164,28 +176,26 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 
 // ===== Pool Allocator =====
 
-#ifdef TARGET_AMD64
-
-// One PML4 entry can map up to 1<<39 (512GB) of memory.
-// Thus, our pool will be 512 GB in size.
-#define MI_POOL_LOG2_SIZE (39)
-
-#else
-
-#error "Define the pool size for your platform!"
-
-#endif
-
 typedef struct MIPOOL_ENTRY_tag
 {
-	LIST_ENTRY ListEntry;                   // Qword 0, 1
-	int        Flags;                       // Qword 2
+	LIST_ENTRY ListEntry;
+	int        Flags;
 	int        Tag;
-	uintptr_t  UserData;                    // Qword 3
-	uintptr_t  Address;                     // Qword 4
-	size_t     Size;                        // Qword 5, size is in pages.
+	uintptr_t  UserData;
+	uintptr_t  Address;
+	size_t     Size;
+#ifdef IS_32_BIT
+	int        Dummy;
+	#define    MIPOOL_DUMMY_SIGNATURE 0x12345678
+#endif
 }
 MIPOOL_ENTRY, *PMIPOOL_ENTRY;
+
+#ifdef IS_64_BIT
+static_assert(sizeof(MIPOOL_ENTRY) == 48);
+#else
+static_assert(sizeof(MIPOOL_ENTRY) == 32);
+#endif
 
 typedef enum MIPOOL_ENTRY_FLAGS_tag
 {
@@ -234,10 +244,15 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* Address);
 void MiDumpPoolInfo();
 
 // ===== Pool entry allocator =====
-// Really simple allocator that dishes out pool entries. To get rid of the pool allocator's dependency on the slab allocator.
+// Really simple allocator that dishes out pool entries. To get rid of the pool allocator's
+// dependency on the slab allocator.
 // The dependency chart will now look like this:
 // [PoolEntryAllocator] <----- [PoolAllocator] <----- [SlabAllocator]
 
+#ifdef IS_32_BIT
+#define MI_POOL_HEADERS_START (0xD1000000U)
+#define MI_POOL_HEADERS_SIZE  (0x00800000U)
+#endif
 
 PMIPOOL_ENTRY MiCreatePoolEntry();
 
@@ -250,6 +265,11 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap);
 
 // Get the top of the area managed by the pool allocator.
 uintptr_t MiGetTopOfPoolManagedArea();
+
+#ifdef TARGET_I386
+// Get the top of the second area managed by the pool allocator.
+uintptr_t MiGetTopOfSecondPoolManagedArea();
+#endif
 
 // Gets the PTE's location in the recursive PTE.
 PMMPTE MmGetPteLocation(uintptr_t Address);
@@ -338,5 +358,16 @@ void MiReleaseVad(PMMVAD Vad);
 // If the region covers the provided VAD, then the VAD is marked
 // uncommitted and certain code paths are skipped.
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
+
+// ===== Memory Initialization =====
+#ifdef IS_32_BIT
+void MiInitializeBaseIdentityMapping();
+#endif
+
+// ===== Hardware Specific =====
+
+#if defined TARGET_I386 || defined TARGET_AMD64
+#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + (((Address) & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+#endif
 
 #endif//NS64_MI_H

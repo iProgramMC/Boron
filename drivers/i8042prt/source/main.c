@@ -21,6 +21,8 @@ Author:
 
 PDRIVER_OBJECT I8042DriverObject;
 
+#ifdef TARGET_AMD64
+
 int AllocateVector(PKIPL Ipl, KIPL Default)
 {
 	int Vector = -1;
@@ -31,6 +33,8 @@ int AllocateVector(PKIPL Ipl, KIPL Default)
 	
 	return Vector;
 }
+
+#endif
 
 BSTATUS InitializeDevice()
 {
@@ -65,6 +69,8 @@ BSTATUS InitializeDevice()
 		(void) 0;
 	
 	// Allocate an interrupt for the keyboard.
+#ifdef TARGET_AMD64
+
 	KIPL IplKbd, IplMou;
 	int VectorKbd = AllocateVector(&IplKbd, IPL_DEVICES0);
 	int VectorMou = AllocateVector(&IplMou, IPL_DEVICES0);
@@ -76,12 +82,22 @@ BSTATUS InitializeDevice()
 	// Ok, now set the IRQ redirects.
 	HalIoApicSetIrqRedirect(VectorKbd, I8042_IRQ_KBD, LapicId, true);
 	HalIoApicSetIrqRedirect(VectorMou, I8042_IRQ_MOU, LapicId, true);
+
+#elif defined TARGET_I386
+
+	const KIPL IplKbd = IPL_DEVICES0;
+	const int VectorKbd = SYSTEM_IRQ(1);
+	
+	bool Restore = KeDisableInterrupts();
+
+#else
+#error "If you're using the i8042prt driver for another architecture, please define the interrupt method for it."
+#endif
 	
 	// Initialize the keyboard.
 	KbdInitialize(VectorKbd, IplKbd);
 	
 	KeRestoreInterrupts(Restore);
-	
 	return STATUS_SUCCESS;
 }
 

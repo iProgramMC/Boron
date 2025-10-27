@@ -61,14 +61,26 @@ void MmTearDownProcess(PEPROCESS Process)
 	
 	MiFreeUnusedMappingLevelsInCurrentMap(0, (MM_USER_SPACE_END + 1) >> 12);
 	
-#if defined(DEBUG) && defined(TARGET_AMD64)
+#ifdef DEBUG
 
+#ifdef TARGET_AMD64
+	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
+	
+	for (int i = 0; i < 256; i++)
+		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
+#endif // TARGET_AMD64
+
+#ifdef TARGET_I386
+	MmBeginUsingHHDM();
 	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
 	
 	for (int i = 0; i < 256; i++)
 		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
 	
-#endif
+	MmEndUsingHHDM();
+#endif // TARGET_I386
+	
+#endif // DEBUG
 	
 	if (Process->Pcb.PageMap != 0)
 		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));

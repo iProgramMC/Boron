@@ -16,24 +16,36 @@ Author:
 #include "ki.h"
 #include <mm.h>
 
-#ifdef TARGET_AMD64
+#if defined TARGET_AMD64
+
 #define KI_EXCEPTION_HANDLER_INIT() \
 	UNUSED uint64_t FaultPC = TrapFrame->rip;      \
 	UNUSED uint64_t FaultAddress = TrapFrame->cr2; \
 	UNUSED uint64_t FaultMode    = TrapFrame->ErrorCode; \
+	UNUSED int Vector = (int)TrapFrame->IntNumber
+
+#elif defined TARGET_I386
+
+#define KI_EXCEPTION_HANDLER_INIT() \
+	UNUSED uint32_t FaultPC = TrapFrame->Eip;      \
+	UNUSED uint32_t FaultAddress = TrapFrame->Cr2; \
+	UNUSED uint64_t FaultMode    = TrapFrame->ErrorCode; \
 	UNUSED int Vector = TrapFrame->IntNumber
+
 #else
+
 #error Go implement KI_EXCEPTION_HANDLER_INIT!
+
 #endif
 
 void KeOnUnknownInterrupt(PKREGISTERS TrapFrame)
 {
 	KI_EXCEPTION_HANDLER_INIT();
 	
-#ifdef TARGET_AMD64
-#define SPECIFIER "%02x"
+#if defined TARGET_AMD64 || defined TARGET_I386
+#define SPECIFIER "0x%02x"
 #else
-#define SPECIFIER "%08x"
+#define SPECIFIER "0x%08x"
 #endif
 	DbgPrint("** Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
 	KeCrash("Unknown interrupt " SPECIFIER " at %p on CPU %u", Vector, FaultPC, KeGetCurrentPRCB()->LapicId);
@@ -113,6 +125,13 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 			
 			TrapFrame->rip = (uint64_t) MmProbeAddressSubEarlyReturn;
 			TrapFrame->rax = (uint64_t) STATUS_FAULT;
+			
+			return;
+			
+		#elif defined TARGET_I386
+			
+			TrapFrame->Eip = (uint32_t) MmProbeAddressSubEarlyReturn;
+			TrapFrame->Eax = (uint32_t) STATUS_FAULT;
 			
 			return;
 			

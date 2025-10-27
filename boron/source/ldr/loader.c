@@ -13,13 +13,21 @@ Author:
 ***/
 #include "ldri.h"
 
-static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
-
 // TODO: Perhaps we could define it from the command line? Something like /HAL=<halfile>
 #ifdef TARGET_AMD64
+
+static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
 static const char* LdrpHalPath = "halx86.sys";
+
+#elif defined TARGET_I386
+
+static uintptr_t LdrpCurrentBase = 0xD2000000;
+static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
+
 #else
-#error Define your HAL path here.
+	
+#error Define your loader base and HAL path here.
+
 #endif
 
 INIT
@@ -99,6 +107,7 @@ void LdrInit()
 INIT
 static void LdrpReclaimFile(PLOADER_MODULE File)
 {
+#ifdef IS_64_BIT
 	if ((uintptr_t)File->Address < (uintptr_t)MmGetHHDMBase() ||
 		(uintptr_t)File->Address >= MM_PFNDB_BASE)
 	{
@@ -112,6 +121,9 @@ static void LdrpReclaimFile(PLOADER_MODULE File)
 		MmFreePhysicalPage(Pfn);
 		Address += PAGE_SIZE;
 	}
+#else
+	(void) File;
+#endif
 }
 
 // NOTE: For now, selectively reclaim certain pages.  At some point, we'll reclaim everything, and scrap this function

@@ -15,11 +15,13 @@ Author:
 
 #include <main.h>
 #include <string.h>
-#include <mm.h>
 #include <ke.h>
 #include <arch/amd64.h>
+#include "../mi.h"
 
-#define MI_PTE_LOC(Address) (MI_PML1_LOCATION + ((Address & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+// TODO: Rewrite this so that MmCheckPteLocation spawns the locations directly
+// instead of relying on the ancient MiGetPTEPointer.
+PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissingPMLs);
 
 PMMPTE MmGetPteLocation(uintptr_t Address)
 {
@@ -78,9 +80,10 @@ PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
 }
 
 // Creates a page mapping.
-HPAGEMAP MiCreatePageMapping(HPAGEMAP OldPageMapping)
+HPAGEMAP MiCreatePageMapping()
 {
 	// Allocate the PML4.
+	HPAGEMAP OldPageMapping = KeGetCurrentPageTable();
 	int NewPageMappingPFN = MmAllocatePhysicalPage();
 	if (NewPageMappingPFN == PFN_INVALID)
 	{
@@ -168,7 +171,7 @@ bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 // Clones a user page mapping
 HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
 {
-	HPAGEMAP NewPageMapping = MiCreatePageMapping(OldPageMapping);
+	HPAGEMAP NewPageMapping = MiCreatePageMapping();
 	
 	// If the new page mapping is zero, we can't proceed!
 	if (NewPageMapping == 0)
@@ -268,7 +271,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 					MmFreePhysicalPage(PfnsAllocated[i]);
 				}
 				
-				return false;
+				return NULL;
 			}
 			
 			PtesModified [NumPfnsAllocated] = EntryPointer;
@@ -451,8 +454,9 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	Return value:
 		Whether the mapping update was successful.
 ***/
-bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, bool NonPaged)
+bool MiMapAnonPage(uintptr_t Address, uintptr_t Permissions, bool NonPaged)
 {
+	HPAGEMAP Mapping = MiGetCurrentPageMap();
 	PMMPTE Pte = MiGetPTEPointer(Mapping, Address, true);
 	
 	return MmpMapSingleAnonPageAtPte(Pte, Permissions, NonPaged);
@@ -478,8 +482,9 @@ bool MiMapAnonPage(HPAGEMAP Mapping, uintptr_t Address, uintptr_t Permissions, b
 	Return value:
 		Whether the mapping update was successful.
 ***/
-bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions)
+bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions)
 {
+	HPAGEMAP Mapping = MiGetCurrentPageMap();
 	PMMPTE Pte = MiGetPTEPointer(Mapping, Address, true);
 	
 	if (!Pte)
@@ -502,8 +507,10 @@ bool MiMapPhysicalPage(HPAGEMAP Mapping, uintptr_t PhysicalPage, uintptr_t Addre
 	Return value:
 		None.
 ***/
-void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
+void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 {
+	HPAGEMAP Mapping = MiGetCurrentPageMap();
+	
 	// Step 1. Unset the PRESENT bit on all pages in the range.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
@@ -560,40 +567,6 @@ void MiUnmapPages(HPAGEMAP Mapping, uintptr_t Address, size_t LengthPages)
 
 /***
 	Function description:
-		Prepares the pool manager. Since this is hardware specific,
-		this was split away from the pool manager.
-	
-	Parameters:
-		The page map to be modified.  Ideally, this function affects
-		ALL page maps.
-	
-	Return value:
-		None.
-	
-	Notes:
-		This function is run during uniprocessor system initialization.
-***/
-void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap)
-{
-	PMMPTE Ptes = MmGetHHDMOffsetAddr(PageMap);
-	
-	int Pfn = MmAllocatePhysicalPage();
-	if (Pfn == PFN_INVALID)
-	{
-		KeCrashBeforeSMPInit("MiPrepareGlobalAreaForPool: Can't allocate global pml4");
-	}
-	
-	Ptes[MI_GLOBAL_AREA_START] = 
-		MM_PTE_PRESENT    |
-		MM_PTE_READWRITE  |
-		MM_PTE_GLOBAL     |
-		MM_PTE_ISFROMPMM  |
-		MM_PTE_NOEXEC     |
-		MmPFNToPhysPage(Pfn);
-}
-
-/***
-	Function description:
 		Gets the top of the pool managed area. This was split away
 		from the pool manager code because it's hardware specific
 		what range of memory the pool manager has access to.
@@ -639,8 +612,10 @@ uintptr_t MiGetTopOfPoolManagedArea()
 	Return value:
 		Whether the allocation was successful.
 ***/
-bool MiMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged)
+bool MiMapAnonPages(uintptr_t Address, size_t SizePages, uintptr_t Permissions, bool NonPaged)
 {
+	HPAGEMAP Mapping = MiGetCurrentPageMap();
+	
 	// As an optimization, we'll wait until the PML1 index rolls over to zero before reloading the PTE pointer.
 	uint64_t CurrentPml1 = PML1_IDX(Address);
 	size_t DonePages = 0;
@@ -672,7 +647,7 @@ bool MiMapAnonPages(HPAGEMAP Mapping, uintptr_t Address, size_t SizePages, uintp
 	
 ROLLBACK:
 	// Unmap all the pages that we have mapped.
-	MiUnmapPages(Mapping, Address, DonePages);
+	MiUnmapPages(Address, DonePages);
 	return false;
 }
 

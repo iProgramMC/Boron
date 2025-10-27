@@ -55,7 +55,7 @@ static size_t MmpSlabItemDetermineLength(int ItemSize)
 		return PAGE_SIZE;
 	
 	// Allow at least 4 items to fit.
-	return (ItemSize * 4 + PAGE_SIZE - 1) / PAGE_SIZE * PAGE_SIZE;
+	return (ItemSize * 4 + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
 
 static bool MmpRequiresRbTreeEntry(int ItemSize)
@@ -130,7 +130,7 @@ int MmGetSmallestSlabSizeThatFitsSize(size_t Size)
 
 void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 {
-	int EntriesPerItem     = (Item->Length - sizeof(Item)) / EntrySize;
+	int EntriesPerItem     = (Item->Length - sizeof(*Item)) / EntrySize;
 	int BitmapWrdsToCheck  = (EntriesPerItem + 63) / 64;
 	int LastBitmapBitCount = EntriesPerItem % 64;
 	
@@ -266,7 +266,11 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 	bool RequiresRbTreeEntry = MmpRequiresRbTreeEntry(Container->ItemSize);
 	
 	// Check if it's all zero:
+#ifdef IS_64_BIT
 	if (!Item->Bitmap[0] && (RequiresRbTreeEntry || (!Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])))
+#else
+	if (!Item->Bitmap[0] && !Item->Bitmap[1] && (RequiresRbTreeEntry || (!Item->Bitmap[2] && !Item->Bitmap[3])))
+#endif
 	{
 		RemoveEntryList(&Item->ListEntry);
 		
@@ -332,6 +336,10 @@ void MiSlabFree(void* Ptr)
 	PHUGE_MEMORY_BLOCK Hmb = PageAlignedPtr;
 	if (Hmb->Check == MI_HUGE_MEMORY_CHECK)
 	{
+		// FIX ASAP
+		// TODO: this is vulnerable to attacks where someone fills the memory with this
+		// TODO TODO TODO
+		
 		// Free it as a huge memory block.
 		MmpFreeHuge(Hmb);
 		return;

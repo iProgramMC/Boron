@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2025 iProgramInCpp
 
 Module name:
 	ps/initproc.c
@@ -99,6 +99,10 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Failed to create initial process: %d (%s)", Status, RtlGetStatusString(Status));
 	
+	PEPROCESS Process = NULL;
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+	ASSERT(SUCCEEDED(Status));
+	
 	FileAttributes.RootDirectory = HANDLE_NONE;
 	FileAttributes.ObjectName = BoronDllPath;
 	FileAttributes.ObjectNameLength = strlen(BoronDllPath);
@@ -154,6 +158,10 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	uintptr_t FirstAddr, LargestAddr;
 	FirstAddr = (uintptr_t) ~0ULL;
 	LargestAddr = 0;
+	
+	Status = RtlCheckValidity(&ElfHeader);
+	if (FAILED(Status))
+		KeCrash("%s: libboron.so has an invalid header: %s (%d)", Func, RtlGetStatusString(Status), Status);
 	
 	// Find the dynamic program header;
 	PELF_PROGRAM_HEADER DynamicPhdr = PspLdrFindDynamicPhdr(
@@ -248,6 +256,22 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 				BaseAddress
 			);
 		}
+		
+		// If the size in file doesn't match the in-memory size, clear the rest to zero.
+		// This will trigger CoW faults.
+		if (ProgramHeader->SizeInFile < ProgramHeader->SizeInMemory)
+		{
+			// Temporarily attach to the process.
+			// TODO: Optimize. Don't switch the address space every time.
+			size_t SizeInFile = ProgramHeader->SizeInFile;
+			size_t SizeInMemory = ProgramHeader->SizeInMemory;
+			
+			PEPROCESS Restore = PsSetAttachedProcess(Process);
+			
+			memset((char*)BaseAddress + SizeInFile, 0, SizeInMemory - SizeInFile);
+			
+			PsSetAttachedProcess(Restore);
+		}
 	}
 	
 	// Program headers have been mapped.
@@ -279,10 +303,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Failed to allocate PEB: %d (%s)", Func, Status, RtlGetStatusString(Status));
 	
 	// Attach to this process so that we can write to the PEB.
-	PEPROCESS Process = NULL;
-	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
-	ASSERT(SUCCEEDED(Status));
-	
 	PEPROCESS OldAttached = PsSetAttachedProcess(Process);
 	
 	PPEB PPeb = PebPtr;

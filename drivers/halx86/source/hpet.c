@@ -49,21 +49,16 @@ void HpetInitialize()
 	uintptr_t HpetAddress = Hpet->Address.Address;
 	
 	// Map the HPET as uncacheable.
-	void* Address = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, 1, POOL_TAG("HPET"));
+	void* Address = MmMapIoSpace(
+		HpetAddress,
+		1,       // SizePages
+		MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC,
+		POOL_TAG("HPET")
+	);
+
 	if (!Address)
-	{
-	CRASH_BECAUSE_FAILURE_TO_MAP:
 		KeCrashBeforeSMPInit("Could not map HPET as uncacheable");
-	}
-	
-	if (!MiMapPhysicalPage(MiGetCurrentPageMap(),
-						   HpetAddress,
-						   (uintptr_t) Address,
-						   MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC))
-	{
-	   goto CRASH_BECAUSE_FAILURE_TO_MAP;
-	}
-	
+
 	HpetpIsAvailable = true;
 	
 	HpetpRegisters = (PHPET_REGISTERS) ((uintptr_t) Address + (HpetAddress & 0xFFF));

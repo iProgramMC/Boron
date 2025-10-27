@@ -35,11 +35,7 @@ BSTATUS MmMapViewOfFile(
 	PMMVAD_LIST VadList;
 	
 	void* BaseAddress = *BaseAddressInOut;
-	
-	// Remove the base address' offset inside a page and add it to the region size.
-	size_t VaOffset = (size_t)((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
 	BaseAddress = (void*)((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
-	ViewSize += VaOffset;
 	
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;

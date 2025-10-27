@@ -148,13 +148,14 @@ static void KiConvertLimineFramebufferToLoaderFramebuffer(
 	LoaderFb->GreenMaskShift = LimineFb->green_mask_shift;
 	LoaderFb->BlueMaskSize   = LimineFb->blue_mask_size;
 	LoaderFb->BlueMaskShift  = LimineFb->blue_mask_shift;
+	LoaderFb->IsPhysicalAddress = false;
 	
 	// TODO: transfer other details if needed.
 }
 
 // Allocate a contiguous area of memory from the memory map.
 INIT
-static void* KiLimineAllocateMemoryFromMemMap(size_t Size)
+static void* KiEarlyAllocateMemoryFromMemMap(size_t Size)
 {
 	Size = (Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	
@@ -179,7 +180,7 @@ static void* KiLimineAllocateMemoryFromMemMap(size_t Size)
 		return (void*) MmGetHHDMOffsetAddr(CurrAddr);
 	}
 	
-	KeCrashBeforeSMPInit("Error, out of memory in KiLimineAllocateMemoryFromMemMap");
+	KeCrashBeforeSMPInit("Error, out of memory in KiEarlyAllocateMemoryFromMemMap");
 }
 
 INIT
@@ -201,6 +202,11 @@ void KiInitLoaderParameterBlock()
 	CHECK_RESPONSE(KeLimineModuleRequest);
 	CHECK_RESPONSE(KeLimineKernelFileRequest);
 	CHECK_RESPONSE(KeLimineBootloaderInfoRequest);
+	
+	// Initialize the recursive paging mechanism.
+	HPAGEMAP PageMap = MiGetCurrentPageMap();
+	PMMPTE Pte = MmGetHHDMOffsetAddr(PageMap);
+	Pte[MI_RECURSIVE_PAGING_START] = PageMap | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
 	
 	// Initialize the memory regions.
 	struct limine_memmap_response* MemMapResponse = KeLimineMemMapRequest.response;
@@ -237,7 +243,7 @@ void KiInitLoaderParameterBlock()
 	
 	// Initialize the other modules.
 	Lpb->ModuleInfo.Count = KeLimineModuleRequest.response->module_count;
-	Lpb->ModuleInfo.List = KiLimineAllocateMemoryFromMemMap(Lpb->ModuleInfo.Count * sizeof(LOADER_MODULE));
+	Lpb->ModuleInfo.List = KiEarlyAllocateMemoryFromMemMap(Lpb->ModuleInfo.Count * sizeof(LOADER_MODULE));
 	
 	for (size_t i = 0; i < Lpb->ModuleInfo.Count; i++)
 		KiConvertLimineFileToLoaderModule(&Lpb->ModuleInfo.List[i], KeLimineModuleRequest.response->modules[i]);
@@ -245,14 +251,14 @@ void KiInitLoaderParameterBlock()
 	// Initialize the CPUs.
 	Lpb->Multiprocessor.BootstrapHardwareId = KeLimineSmpRequest.response->bsp_lapic_id;
 	Lpb->Multiprocessor.Count = KeLimineSmpRequest.response->cpu_count;
-	Lpb->Multiprocessor.List = KiLimineAllocateMemoryFromMemMap(Lpb->Multiprocessor.Count * sizeof(LOADER_AP));
+	Lpb->Multiprocessor.List = KiEarlyAllocateMemoryFromMemMap(Lpb->Multiprocessor.Count * sizeof(LOADER_AP));
 	
 	for (size_t i = 0; i < Lpb->Multiprocessor.Count; i++)
 		KiConvertLimineApToLoaderAp(&Lpb->Multiprocessor.List[i], KeLimineSmpRequest.response->cpus[i]);
 	
 	// Initialize the frame buffers.
 	Lpb->FramebufferCount = KeLimineFramebufferRequest.response->framebuffer_count;
-	Lpb->Framebuffers = KiLimineAllocateMemoryFromMemMap(Lpb->FramebufferCount * sizeof(LOADER_FRAMEBUFFER));
+	Lpb->Framebuffers = KiEarlyAllocateMemoryFromMemMap(Lpb->FramebufferCount * sizeof(LOADER_FRAMEBUFFER));
 	
 	for (size_t i = 0; i < Lpb->FramebufferCount; i++)
 		KiConvertLimineFramebufferToLoaderFramebuffer(&Lpb->Framebuffers[i], KeLimineFramebufferRequest.response->framebuffers[i]);

@@ -32,24 +32,8 @@ Author:
 // I will go for 4 levels of indirection for now.
 
 typedef struct _FCB FCB, *PFCB;
-typedef struct _CCB_INDIRECTION CCB_INDIRECTION, *PCCB_INDIRECTION;
 
-typedef union _CCB_ENTRY
-{
-	PCCB_INDIRECTION Indirection;
-	MMPFN Pfn;
-	uintptr_t Long;
-}
-CCB_ENTRY, *PCCB_ENTRY;
-
-static_assert(sizeof(CCB_ENTRY) == sizeof(uintptr_t));
-
-struct _CCB_INDIRECTION
-{
-	CCB_ENTRY Entries[PAGE_SIZE / sizeof(CCB_ENTRY)];
-};
-
-static_assert(sizeof(CCB_INDIRECTION) == PAGE_SIZE);
+#define MM_INDIRECTION_COUNT (PAGE_SIZE / sizeof(MMPFN))
 
 typedef struct _CCB
 {
@@ -66,13 +50,13 @@ typedef struct _CCB
 	uint64_t FirstModifiedPage;
 	uint64_t LastModifiedPage;
 	
-	CCB_ENTRY Direct[MM_DIRECT_PAGE_COUNT];
-	PCCB_INDIRECTION Level1Indirect;
-	PCCB_INDIRECTION Level2Indirect;
-	PCCB_INDIRECTION Level3Indirect;
-	PCCB_INDIRECTION Level4Indirect;
+	MMPFN Direct[MM_DIRECT_PAGE_COUNT];
+	MMPFN Level1Indirect;
+	MMPFN Level2Indirect;
+	MMPFN Level3Indirect;
+	MMPFN Level4Indirect;
 #if MM_INDIRECTION_LEVELS == 5
-	PCCB_INDIRECTION Level5Indirect;
+	MMPFN Level5Indirect;
 #endif
 }
 CCB, *PCCB;
@@ -94,6 +78,8 @@ void MmUnlockCcb(PCCB Ccb)
 	KeReleaseMutex(&Ccb->Mutex);
 }
 
+#if 0
+
 // Gets a pointer to an entry in the CCB.
 // If TryAllocateLowerLevels is true, it will attempt to allocate levels if they aren't
 // allocated.  However, this might fail if out of memory, in which case NULL will be
@@ -103,3 +89,23 @@ void MmUnlockCcb(PCCB Ccb)
 //
 // NOTE: The CCB must be locked.
 PCCB_ENTRY MmGetEntryPointerCcb(PCCB Ccb, uint64_t PageOffset, bool TryAllocateLowerLevels);
+
+#endif
+
+// Retrieves the page frame number at the specified page offset within the CCB.
+// This returns a PFN whose reference count is incremented by one on retrieval.
+//
+// This is thread safe because the CCB mutex is used internally.
+MMPFN MmGetEntryCcb(PCCB Ccb, uint64_t PageOffset);
+
+// Assigns a PFN to the specified page offset within the CCB.
+//
+// OutPrototypePtePointer is nullable.
+//
+// If Pfn is PFN_INVALID, then this serves to:
+// 1) prepare the CCB for assignment in this slot (as a performance optimization), and
+// 2) check if there is already a PFN assigned to this slot (to refault instead of doing
+//    a useless write)
+//
+// If the entry is already assigned, this returns STATUS_CONFLICTING_ADDRESSES.
+BSTATUS MmSetEntryCcb(PCCB Ccb, uint64_t PageOffset, MMPFN Pfn, PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer);

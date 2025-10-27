@@ -33,3 +33,4 @@ Author:
 #include <ke/smp.h>
 #include <ke/crash.h>
 #include <ke/lpb.h>
+#include <ke/services.h>

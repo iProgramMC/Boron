@@ -58,7 +58,12 @@ void KeCrashConclusion(const char* Message)
 #endif
 	
 	// List each loaded DLL's base
+#ifdef IS_64_BIT
 	LogMsg("Dll Base         Name");
+#else
+	LogMsg("Dll Base     Name");
+#endif
+
 	for (int i = 0; i < KeLoadedDLLCount; i++)
 	{
 		PLOADED_DLL LoadedDll = &KeLoadedDLLs[i];

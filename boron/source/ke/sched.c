@@ -715,16 +715,21 @@ void KiSwitchToNextThread()
 	uintptr_t StackBottom = (uintptr_t) Thread->Stack.Top + Thread->Stack.Size;
 	KeGetCurrentPRCB()->SysCallStack = StackBottom;
 	
-#ifdef TARGET_AMD64
+#if defined TARGET_AMD64 || defined TARGET_I386
+
 	// When an interrupt or exception happens and the CPL is ring 3,
 	// this is fetched for a transition to ring 0.
+#if   defined TARGET_AMD64
 	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
-	
-	// Set the relevant MSRs.
-	KeSetMSR(MSR_GS_BASE_KERNEL, (uint64_t) Thread->Process->PebPointer);
-	KeSetMSR(MSR_FS_BASE,        (uint64_t) Thread->TebPointer);
+#elif defined TARGET_I386
+	KeGetCurrentPRCB()->ArchData.Tss.Esp0 = StackBottom;
 #endif
 	
+	// Set the relevant MSRs.
+	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
+	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
+#endif
+
 	if (OldThread == Thread)
 	{
 		// The old thread is the same as the new thread, there's no need to
@@ -766,6 +771,9 @@ void KiHandleQuantumEnd()
 
 void KeTimerTick()
 {
+	if (!KeGetCurrentThread())
+		return;
+	
 	// Check if the current thread's quantum has expired. If it has, set
 	// the PENDING_YIELD pending event and issue a software interrupt.
 	
@@ -812,7 +820,7 @@ void KeReadyThread(PKTHREAD Thread)
 
 NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 {
-	KIPL Ipl = KiLockDispatcher();
+	UNUSED KIPL Ipl = KiLockDispatcher();
 	
 	PKTHREAD Thread = KeGetCurrentThread();
 	
@@ -828,7 +836,7 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	
 	// Unlock the dispatcher and request an end to current quantum.
 	KiUnlockDispatcher(IPL_DPC);
-	KiHandleQuantumEnd(Ipl);
+	KiHandleQuantumEnd();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

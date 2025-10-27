@@ -16,15 +16,20 @@ Author:
 #include <string.h>
 
 // NOTE: Here, EntryPair's Event field will be replaced with an address that'll be stale on exit.
-BSTATUS NvmeSendAndWait(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair)
+//
+// TODO: Make this event's wait cancelable.
+BSTATUS NvmeSendAndWait(PQUEUE_CONTROL_BLOCK Qcb, PQUEUE_ENTRY_PAIR EntryPair, bool Alertable)
 {
+	BSTATUS Status;
 	KEVENT Event;
 	KeInitializeEvent(&Event, EVENT_NOTIFICATION, false);
 	EntryPair->Event = &Event;
 	
-	NvmeSend(Qcb, EntryPair);
+	Status = NvmeSend(Qcb, EntryPair, Alertable);
+	if (FAILED(Status))
+		return Status;
 	
-	BSTATUS Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	Status = KeWaitForSingleObject(&Event, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	if (FAILED(Status))
 		return Status;
 	
@@ -55,11 +60,9 @@ BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, 
 	
 	QueueEntry.Sub.Dword10.Identify.Cns = Cns;
 	
-	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
+	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry, false);
 	if (!FAILED(Status))
-	{
 		memcpy(IdentifyBuffer, MmGetHHDMOffsetAddr(MmPFNToPhysPage(Page)), PAGE_SIZE);
-	}
 	
 	MmFreePhysicalPage(Page);
 	return Status;
@@ -76,7 +79,7 @@ BSTATUS NvmeSetFeature(PCONTROLLER_EXTENSION ContExtension, int FeatureIdentifie
 	QueueEntry.Sub.DataPointer[0] = DataPointer;
 	QueueEntry.Sub.Dword10.SetFeatures.FeatureIdentifier = FeatureIdentifier;
 	
-	return NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
+	return NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry, false);
 }
 
 BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCount, size_t* OutQueueCount)
@@ -93,7 +96,7 @@ BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCo
 	QueueEntry.Sub.Dword11.SetFeatures.SubQueueCount = QueueCount;
 	QueueEntry.Sub.Dword11.SetFeatures.ComQueueCount = QueueCount;
 	
-	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
+	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry, false);
 	if (FAILED(Status))
 		return Status;
 	
@@ -142,7 +145,7 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	QueueEntry.Sub.Dword11.CreateIoCompQueue.PhysicallyContiguous = 1;
 	QueueEntry.Sub.Dword11.CreateIoCompQueue.InterruptVector = Id;
 	
-	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
+	BSTATUS Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry, false);
 	if (FAILED(Status))
 	{
 		DbgPrint("StorNvme: failed to create I/O completion queue %zu: status %d", Id, Status);
@@ -162,7 +165,7 @@ BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTRO
 	QueueEntry.Sub.Dword11.CreateIoSubQueue.CompletionQueueId = Id;
 	QueueEntry.Sub.Dword11.CreateIoSubQueue.PhysicallyContiguous = 1;
 	
-	Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry);
+	Status = NvmeSendAndWait(&ContExtension->AdminQueue, &QueueEntry, false);
 	if (FAILED(Status))
 	{
 		DbgPrint("StorNvme: failed to create I/O submission queue %zu: status %d", Id, Status);
@@ -193,11 +196,11 @@ BSTATUS NvmeSendRead(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64_
 	
 	if (Wait)
 	{
-		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr, true);
 	}
 	else
 	{
-		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr, true);
 		return STATUS_SUCCESS;
 	}
 }
@@ -217,11 +220,11 @@ BSTATUS NvmeSendWrite(PDEVICE_EXTENSION DeviceExtension, uint64_t Prp[2], uint64
 	
 	if (Wait)
 	{
-		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		return NvmeSendAndWait(NvmeChooseIoQueue(ContExtension), QueueEntryPtr, true);
 	}
 	else
 	{
-		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr);
+		NvmeSend(NvmeChooseIoQueue(ContExtension), QueueEntryPtr, true);
 		return STATUS_SUCCESS;
 	}
 }

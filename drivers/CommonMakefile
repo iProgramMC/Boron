@@ -19,14 +19,14 @@ LINKER_FILE = linker.ld
 
 DRIVER_ENTRY ?= DriverEntry
 
-ARCHITECTURE = AMD64
+TARGET ?= AMD64
 
 # This sucks.
-ARCHITECTUREL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(ARCHITECTURE)))))))))))))))))))))))))))
+TARGETL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(TARGET)))))))))))))))))))))))))))
 
 # This is the name that our final driver executable will have.
 # Change as needed.
-override TARGET := $(BUILD_DIR)/out.$(ARCHITECTUREL).sys
+override TARGET_DRIVER := $(BUILD_DIR)/out.$(TARGETL).sys
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -50,20 +50,13 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
-# It is highly recommended to use a custom built cross toolchain to build a driver.
-# We are only using "cc" as a placeholder here. It may work by using
-# the host system's toolchain, but this is not guaranteed.
-$(eval $(call DEFAULT_VAR,CC,cc))
-$(eval $(call DEFAULT_VAR,CXX,c++))
-
-# Same thing for "ld" (the linker).
-$(eval $(call DEFAULT_VAR,LD,ld))
+include ../../tools/toolchain.mk
 
 # User controllable CFLAGS.
-CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
+CFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable CXXFLAGS.
-CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(ARCHITECTURE) -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
+CXXFLAGS ?= $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_KERNEL_MODE $(DEFINES) $(USER_DEFINES)
 
 # User controllable preprocessor flags.
 CPPFLAGS ?= -I $(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
@@ -75,28 +68,21 @@ NASMFLAGS ?= -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(KE_DIR) -I $(DDK_DIR)
 LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
-override CFLAGS +=          \
+CFLAGS +=                   \
 	-fno-omit-frame-pointer \
-	-std=c11                \
+	-std=c2x                \
 	-ffreestanding          \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fPIC                   \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
 	-MMD                    \
 	-MP                     \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 
 # Internal C++ flags that should not be changed by the user.
-override CXXFLAGS +=        \
+CXXFLAGS +=                 \
 	-fno-omit-frame-pointer \
 	-std=c++17              \
 	-ffreestanding          \
@@ -104,40 +90,33 @@ override CXXFLAGS +=        \
 	-fno-stack-check        \
 	-fno-lto                \
 	-fPIC                   \
-	-m64                    \
-	-march=x86-64           \
-	-mabi=sysv              \
-	-mno-80387              \
-	-mno-mmx                \
-	-mno-sse                \
-	-mno-sse2               \
-	-mno-red-zone           \
+	-fno-reorder-functions  \
 	-MMD                    \
 	-MP                     \
 	-fno-exceptions         \
 	-fno-rtti               \
-	-I.
+	-I.                     \
+	$(ARCH_CFLAGS)
 	
-override LDFLAGSBASE +=     \
+LDFLAGSBASE +=              \
 	-nostdlib -shared       \
 	-e $(DRIVER_ENTRY)      \
-	-m elf_x86_64           \
-	-z max-page-size=0x1000
+	-m $(LINK_ARCH)         \
+	$(ARCH_LDFLAGS)
 
 # Internal linker flags that should not be changed by the user.
-override LDFLAGS +=  \
+LDFLAGS +=  \
 	$(LDFLAGSBASE)
 
 # Internal nasm flags that should not be changed by the user.
-override NASMFLAGS += \
-	-f elf64
+NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
-override CFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
-override CXXFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
-override ASFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
-override NASMFILES := $(shell find $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
-override OBJ := $(patsubst %.o,%.$(ARCHITECTUREL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
+override CFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES  := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override OBJ := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # Default target.
@@ -145,41 +124,41 @@ override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 all: driver
 
 # Link rules for the final driver executable.
-$(TARGET): $(OBJ)
-	@echo "[LD]\tBuilding $(TARGET)"
-	@$(LD) $(OBJ) $(LDFLAGS) -o $@
+$(TARGET_DRIVER): $(OBJ)
+	@echo "[LD]\tBuilding $(TARGET_DRIVER)"
+	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
 
 # Compilation rules for *.c files.
-$(BUILD_DIR)/%.$(ARCHITECTUREL).o: $(SRC_DIR)/%.c
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
-$(BUILD_DIR)/%.$(ARCHITECTUREL).o: $(SRC_DIR)/%.cpp
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp
 	@echo "[CXX]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	@$(BCXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 # Compilation rules for *.S files.
-$(BUILD_DIR)/%.$(ARCHITECTUREL).o: $(SRC_DIR)/%.S
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.S
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.asm (nasm) files.
-$(BUILD_DIR)/%.$(ARCHITECTUREL).o: $(SRC_DIR)/%.asm
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.asm
 	@echo "[AS]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@nasm $(NASMFLAGS) $< -o $@
+	@$(BASM) $(NASMFLAGS) $< -o $@
 
 # Remove object files and the final executable.
 .PHONY: clean
 clean:
 	@echo "Cleaning"
-	@rm -rf $(TARGET) $(OBJ) $(HEADER_DEPS)
+	@rm -rf $(TARGET_DRIVER) $(OBJ) $(HEADER_DEPS)
 
-driver: $(TARGET)
+driver: $(TARGET_DRIVER)

@@ -46,11 +46,14 @@ PKPROCESS KeGetSystemProcess()
 	return &PsGetSystemProcess()->Pcb;
 }
 
-void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity)
+BSTATUS KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffinity)
 {
 	KeInitializeDispatchHeader(&Process->Header, DISPATCH_PROCESS);
 	
-	Process->PageMap = MiCreatePageMapping(KeGetCurrentPageTable());
+	Process->PageMap = MiCreatePageMapping();
+	
+	if (Process->PageMap == 0)
+		return STATUS_INSUFFICIENT_MEMORY;
 	
 	InitializeListHead(&Process->ThreadList);
 	
@@ -61,6 +64,7 @@ void KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseAffi
 	Process->DefaultAffinity = BaseAffinity;
 	
 	Process->PebPointer = NULL;
+	return STATUS_SUCCESS;
 }
 
 PKPROCESS KeSetAttachedProcess(PKPROCESS Process)

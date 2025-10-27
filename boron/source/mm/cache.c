@@ -14,11 +14,25 @@ Author:
 ***/
 #include "mi.h"
 
+// TODO: There is probably going to be a lot of contention on the PFDB lock
+// from here.  Find a better way.
+
 void MmInitializeCcb(PCCB Ccb)
 {
 	memset(Ccb, 0, sizeof *Ccb);
 	
 	KeInitializeMutex(&Ccb->Mutex, MM_CCB_MUTEX_LEVEL);
+	
+	for (int i = 0; i < MM_DIRECT_PAGE_COUNT; i++)
+		Ccb->Direct[i] = PFN_INVALID;
+	
+	Ccb->Level1Indirect = PFN_INVALID;
+	Ccb->Level2Indirect = PFN_INVALID;
+	Ccb->Level3Indirect = PFN_INVALID;
+	Ccb->Level4Indirect = PFN_INVALID;
+#if MM_INDIRECTION_LEVELS == 5
+	Ccb->Level5Indirect = PFN_INVALID;
+#endif
 }
 
 void MmTearDownCcb(PCCB Ccb)
@@ -31,141 +45,276 @@ void MmTearDownCcb(PCCB Ccb)
 	DbgPrint("TODO: MmTearDownCcb(%p)", Ccb);
 }
 
-PCCB_ENTRY MmGetEntryPointerCcb(PCCB Ccb, uint64_t PageOffset, bool TryAllocateLowerLevels)
+static MMPFN MiNextEntryCache(MMPFN PfnIndirection, uint64_t* PageOffset, bool AllocateIndirection)
 {
-	ASSERT(Ccb->Mutex.Header.Signaled > 0 && Ccb->Mutex.OwnerThread == KeGetCurrentThread());
+	if (IS_BAD_PFN(PfnIndirection))
+		return PFN_INVALID;
 	
-	if (PageOffset < MM_DIRECT_PAGE_COUNT)
-		return &Ccb->Direct[PageOffset];
-	PageOffset -= MM_DIRECT_PAGE_COUNT;
+	size_t InPageOffset = *PageOffset & (MM_INDIRECTION_COUNT - 1);
+	*PageOffset /= MM_INDIRECTION_COUNT;
 	
-	size_t EntriesPerPage = ARRAY_COUNT(Ccb->Level1Indirect[0].Entries);
-	size_t Range = EntriesPerPage;
+	// This is slower than it probably should be.
+	//
+	// However, we have to guard against the PFN getting reclaimed
+	// from under our nose before we get to add our own reference to it.
+	MmBeginUsingHHDM();
+	PMMPFN Indirection = MmGetHHDMOffsetAddrPfn(PfnIndirection);
+	
+	KIPL Ipl = MiLockPfdb();
+	MMPFN Pfn = Indirection[InPageOffset];
+	
+	if (Pfn == PFN_INVALID && AllocateIndirection)
+	{
+		bool IsZeroed;
+		Pfn = MiAllocatePhysicalPageWithPfdbLocked(&IsZeroed);
+		if (Pfn == PFN_INVALID)
+		{
+			// still invalid, so no dice.
+			MiUnlockPfdb(Ipl);
+			MmEndUsingHHDM();
+			return MM_PFN_OUTOFMEMORY;
+		}
+		
+		// PFN is valid, so clear it
+		memset(MmGetHHDMOffsetAddrPfn(Pfn), 0xFF, PAGE_SIZE);
+		Indirection[InPageOffset] = Pfn;
+	}
+	
+	if (Pfn != PFN_INVALID)
+		MiPageAddReferenceWithPfdbLocked(Pfn);
+	
+	MiUnlockPfdb(Ipl);
+	MmEndUsingHHDM();
+	return Pfn;
+}
+
+// Input: PfnIndirection - the PFN of the indirection to store to, PageOffset - the offset inside this indirection
+static BSTATUS MiAssignEntryToCache(
+	PMMPFN Pointer,
+	MMPFN Pfn,
+	bool IsHhdm,
+	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
+)
+{
+	// If we're trying to set a PFN, and a PFN is already set:
+	if (!IS_BAD_PFN(*Pointer))
+		return STATUS_CONFLICTING_ADDRESSES;
+	
+	// Assign the entry now.
+	if (!IS_BAD_PFN(Pfn))
+	{
+		*Pointer = Pfn;
+
+		MM_PROTOTYPE_PTE_PTR ProtoPtePtr;
+		
+	#ifdef IS_32_BIT
+		if (IsHhdm)
+			ProtoPtePtr = MmGetHHDMOffsetFromAddr(Pointer);
+		else
+			ProtoPtePtr = MM_VIRTUAL_PROTO_PTE_PTR(Pointer);
+	#else
+		(void) IsHhdm;
+		ProtoPtePtr = Pointer;
+	#endif
+		
+		MmSetPrototypePtePfn(Pfn, ProtoPtePtr);
+		
+		if (OutPrototypePtePointer)
+			*OutPrototypePtePointer = ProtoPtePtr;
+	}
+	
+	return STATUS_SUCCESS;
+}
+
+static BSTATUS MiAssignEntryToCacheIndirect(
+	MMPFN PfnIndirection,
+	uint64_t PageOffset,
+	MMPFN Pfn,
+	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
+)
+{
+	MmBeginUsingHHDM();
+	
+	PMMPFN Indirection = MmGetHHDMOffsetAddrPfn(PfnIndirection);
+	BSTATUS Result = MiAssignEntryToCache(Indirection + PageOffset, Pfn, false, OutPrototypePtePointer);
+	
+	MmEndUsingHHDM();
+	return Result;
+}
+
+static bool MmpEnsureIndirectionExists(PMMPFN Indirection, bool AllocateIndirection)
+{
+	if (!IS_BAD_PFN(*Indirection))
+		return true;
+	
+	if (!AllocateIndirection)
+		return false;
+	
+	*Indirection = MmAllocatePhysicalPage();
+	
+	MmBeginUsingHHDM();
+	PMMPFN Memory = MmGetHHDMOffsetAddrPfn(*Indirection);
+	memset(Memory, 0xFF, PAGE_SIZE);
+	MmEndUsingHHDM();
+	
+	return !IS_BAD_PFN(*Indirection);
+}
+
+// Takes in the page offset as passed into MmGetEntryCcb and MmSetEntryCcb.
+// However, this does nothing if PageOffset < MM_DIRECT_PAGE_COUNT.
+static MMPFN MiWalkCacheUntilIndirection(PCCB Ccb, uint64_t* PageOffset, bool AllocateIndirection)
+{
+#ifdef DEBUG
+	uint64_t OriginalPageOffset = *PageOffset;
+#endif
+	const MMPFN Failure = AllocateIndirection ? MM_PFN_OUTOFMEMORY : PFN_INVALID;
+	
+	ASSERT(*PageOffset >= MM_DIRECT_PAGE_COUNT);
+	*PageOffset -= MM_DIRECT_PAGE_COUNT;
 	
 	// Level 1
-	if (PageOffset < EntriesPerPage)
+	if (*PageOffset < MM_DIRECT_PAGE_COUNT)
 	{
-		//DbgPrint("L1: OffsetL0=%04x", PageOffset);
-		if (!Ccb->Level1Indirect)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level1Indirect = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 1st level indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
+		if (!MmpEnsureIndirectionExists(&Ccb->Level1Indirect, AllocateIndirection))
+			return Failure;
 		
-		return &Ccb->Level1Indirect->Entries[PageOffset];
+		// Well, this is trivial.
+		MmPageAddReference(Ccb->Level1Indirect);
+		return Ccb->Level1Indirect;
 	}
-	PageOffset -= EntriesPerPage;
-	Range *= EntriesPerPage;
 	
 	// Level 2
-	if (PageOffset < Range)
+	*PageOffset -= MM_DIRECT_PAGE_COUNT;
+	if (*PageOffset < MM_INDIRECTION_COUNT)
 	{
-		uint64_t OffsetL1 = PageOffset % EntriesPerPage;
-		uint64_t OffsetL0 = PageOffset / EntriesPerPage;
-		//DbgPrint("L2: OffsetL0=%04x OffsetL1=%04x", OffsetL0, OffsetL1);
+		if (!MmpEnsureIndirectionExists(&Ccb->Level2Indirect, AllocateIndirection))
+			return Failure;
 		
-		if (!Ccb->Level2Indirect)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level2Indirect = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 2nd level (root) indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
-		if (!Ccb->Level2Indirect->Entries[OffsetL0].Indirection)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level2Indirect->Entries[OffsetL0].Indirection = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 2nd level (L1) indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
-		
-		return &Ccb->Level2Indirect->Entries[OffsetL0].Indirection->Entries[OffsetL1];
+		// This is also kind of trivial although less so.
+		return MiNextEntryCache(Ccb->Level2Indirect, PageOffset, AllocateIndirection);
 	}
-	PageOffset -= Range;
-	Range *= EntriesPerPage;
 	
 	// Level 3
-	if (PageOffset < Range)
+	*PageOffset -= MM_INDIRECTION_COUNT;
+	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
 	{
-		uint64_t OffsetL2 = PageOffset % EntriesPerPage;
-		uint64_t OffsetL1 = PageOffset / EntriesPerPage % EntriesPerPage;
-		uint64_t OffsetL0 = PageOffset / EntriesPerPage / EntriesPerPage;
-		//DbgPrint("L3: OffsetL0=%04x OffsetL1=%04x OffsetL2=%04x", OffsetL0, OffsetL1, OffsetL2);
+		if (!MmpEnsureIndirectionExists(&Ccb->Level3Indirect, AllocateIndirection))
+			return Failure;
 		
-		if (!Ccb->Level3Indirect)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level3Indirect = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 3rd level (root) indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
-		if (!Ccb->Level3Indirect->Entries[OffsetL0].Indirection)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level3Indirect->Entries[OffsetL0].Indirection = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 3rd level (L1) indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
+		MMPFN Pfn3 = MiNextEntryCache(Ccb->Level3Indirect, PageOffset, AllocateIndirection);
+		if (IS_BAD_PFN(Pfn3))
+			return Pfn3;
 		
-		if (!Ccb->Level3Indirect->Entries[OffsetL0].Indirection->Entries[OffsetL1].Indirection)
-		{
-			if (!TryAllocateLowerLevels)
-				return NULL;
-			
-			if (!(Ccb->Level3Indirect->Entries[OffsetL0].Indirection->Entries[OffsetL1].Indirection = MmAllocatePhysicalPageHHDM()))
-			{
-				DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): could not allocate 3rd level (L1) indirection table", Ccb, PageOffset, TryAllocateLowerLevels);
-				return NULL;
-			}
-		}
-		
-		return &Ccb->Level3Indirect->Entries[OffsetL0].Indirection->Entries[OffsetL1].Indirection->Entries[OffsetL2];
+		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn3);
+		return Pfn2;
 	}
-	PageOffset -= Range;
-	Range *= EntriesPerPage;
 	
 	// Level 4
-	if (PageOffset < Range)
+	*PageOffset -= MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT;
+	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
 	{
-		DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): TODO: level 4", Ccb, PageOffset, TryAllocateLowerLevels);
-		return NULL;
+		if (!MmpEnsureIndirectionExists(&Ccb->Level4Indirect, AllocateIndirection))
+			return Failure;
+		
+		MMPFN Pfn4 = MiNextEntryCache(Ccb->Level4Indirect, PageOffset, AllocateIndirection);
+		if (IS_BAD_PFN(Pfn4))
+			return Pfn4;
+		
+		MMPFN Pfn3 = MiNextEntryCache(Pfn4, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn4);
+		if (IS_BAD_PFN(Pfn3))
+			return Pfn3;
+		
+		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn3);
+		return Pfn2;
 	}
-	PageOffset -= Range;
-	Range *= EntriesPerPage;
 	
 #if MM_INDIRECTION_LEVELS == 5
 	// Level 5
-	if (PageOffset < Range)
+	*PageOffset -= MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT;
+	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
 	{
-		DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): TODO: level 5", Ccb, PageOffset, TryAllocateLowerLevels);
-		return NULL;
+		if (!MmpEnsureIndirectionExists(&Ccb->Level5Indirect, AllocateIndirection))
+			return Failure;
+		
+		MMPFN Pfn5 = MiNextEntryCache(Ccb->Level5Indirect, PageOffset, AllocateIndirection);
+		if (IS_BAD_PFN(Pfn5))
+			return Pfn4;
+		
+		MMPFN Pfn4 = MiNextEntryCache(Pfn5, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn5);
+		if (IS_BAD_PFN(Pfn4))
+			return Pfn4;
+		
+		MMPFN Pfn3 = MiNextEntryCache(Pfn4, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn4);
+		if (IS_BAD_PFN(Pfn3))
+			return Pfn3;
+		
+		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
+		MmFreePhysicalPage(Pfn3);
+		return Pfn2;
 	}
-	PageOffset -= Range;
-	Range *= EntriesPerPage;
 #endif
+
+	DbgPrint("MiWalkCacheUntilIndirection: Page offset %zu is outside of the supported range.", OriginalPageOffset);
+	return PFN_INVALID;
+}
+
+MMPFN MmGetEntryCcb(PCCB Ccb, uint64_t PageOffset)
+{
+	MMPFN Pfn = PFN_INVALID;
+	MmLockCcb(Ccb);
 	
-	DbgPrint("MmGetEntryPointerCcb(%p, %llu, %d): no more levels to check", Ccb, PageOffset, TryAllocateLowerLevels);
-	return NULL;
+	if (PageOffset < MM_DIRECT_PAGE_COUNT)
+	{
+		KIPL Ipl = MiLockPfdb();
+		Pfn = Ccb->Direct[PageOffset];
+		
+		if (!IS_BAD_PFN(Pfn))
+			MiPageAddReferenceWithPfdbLocked(Pfn);
+		
+		MiUnlockPfdb(Ipl);
+		goto Done;
+	}
+	
+	Pfn = MiWalkCacheUntilIndirection(Ccb, &PageOffset, false);
+	if (!IS_BAD_PFN(Pfn))
+	{
+		MMPFN Pfn2 = Pfn;
+		Pfn = MiNextEntryCache(Pfn2, &PageOffset, false);
+		MmFreePhysicalPage(Pfn2);
+	}
+	
+	if (IS_BAD_PFN(Pfn))
+		Pfn = PFN_INVALID;
+	
+Done:
+	MmUnlockCcb(Ccb);
+	return Pfn;
+}
+
+BSTATUS MmSetEntryCcb(PCCB Ccb, uint64_t PageOffset, MMPFN InPfn, PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer)
+{
+	BSTATUS Status = STATUS_INSUFFICIENT_MEMORY;
+	MmLockCcb(Ccb);
+	
+	if (PageOffset < MM_DIRECT_PAGE_COUNT)
+	{
+		Status = MiAssignEntryToCache(&Ccb->Direct[PageOffset], InPfn, false, OutPrototypePtePointer);
+		goto Exit;
+	}
+	
+	MMPFN Pfn = MiWalkCacheUntilIndirection(Ccb, &PageOffset, true);
+	if (!IS_BAD_PFN(Pfn))
+	{
+		Status = MiAssignEntryToCacheIndirect(Pfn, PageOffset, InPfn, OutPrototypePtePointer);
+		MmFreePhysicalPage(Pfn);
+	}
+	
+Exit:
+	MmUnlockCcb(Ccb);
+	return Status;
 }

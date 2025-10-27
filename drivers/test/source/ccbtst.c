@@ -16,6 +16,8 @@ Author:
 #include <mm.h>
 #include "utils.h"
 
+#if 0
+
 void PerformCcbTest()
 {
 	LogMsg("Delaying half a second");
@@ -47,3 +49,5 @@ void PerformCcbTest()
 	
 	
 }
+
+#endif

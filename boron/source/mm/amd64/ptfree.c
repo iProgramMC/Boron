@@ -84,7 +84,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
-		if (MmpIsPteListCompletelyEmpty(SubPte))
+		if (MmpIsPteListCompletelyEmpty(SubPte) && ShouldUnmapPML4)
 		{
 			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
 			*Pte = 0;

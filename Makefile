@@ -19,6 +19,7 @@ TARGETL ?= $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F
 KERNEL_NAME = kernel.elf
 SYSDLL_NAME = libboron.so
 
+ifeq ($(TARGET),AMD64)
 DRIVERS_LIST = \
 	halx86     \
 	framebuf   \
@@ -26,6 +27,14 @@ DRIVERS_LIST = \
 	stornvme   \
 	ext2fs     \
 	test
+else ifeq ($(TARGET),I386)
+DRIVERS_LIST = \
+	hali386    \
+	framebuf   \
+	i8042prt   \
+	ext2fs     \
+	test
+endif
 
 # The build directory
 BUILD_DIR = build/$(TARGETL)
@@ -75,23 +84,13 @@ clean:
 
 image: limine $(IMAGE_TARGET)
 
-$(IMAGE_TARGET): kernel drivers apps limine_config
-	@echo "Building iso..."
-	@rm -rf $(ISO_DIR)
-	@mkdir -p $(ISO_DIR)
-	@cp $(KERNEL_ELF) $(ISO_DIR)/$(KERNEL_NAME)
-	@cp -r $(BUILD_DIR)/*.exe $(BUILD_DIR)/*.sys $(BUILD_DIR)/*.so limine.cfg limine/limine-bios.sys limine/limine-bios-cd.bin $(ISO_DIR)
-	@xorriso -as mkisofs -b limine-bios-cd.bin -no-emul-boot -boot-load-size 4 -boot-info-table --protective-msdos-label $(ISO_DIR) -o $@ 2>/dev/null
-	@limine/limine-deploy $@ 2>/dev/null
-	@rm -rf $(ISO_DIR)
-
-run: image
-	@echo "Running..."
-	@./run-unix.sh
-
-runw: image
-	@echo "Invoking WSL to run the OS..."
-	@./run.sh
+ifeq ($(TARGET),AMD64)
+include tools/build_iso_limine.mk
+include tools/run_rule_amd64.mk
+else ifeq ($(TARGET),I386)
+include tools/build_iso_limine.mk
+include tools/run_rule_i386.mk
+endif
 
 kernel: $(KERNEL_ELF)
 
@@ -118,8 +117,5 @@ $(BUILD_DIR)/%.sys: FORCE
 	@echo "[MK]\tMaking driver $(patsubst $(BUILD_DIR)/%.sys,%,$@)"
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%,$@)
 	@cp $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%/build/out.$(TARGETL).sys,$@) $@
-
-limine_config: limine.cfg
-	@echo "[MK]\tlimine.cfg was updated"
 
 FORCE: ;

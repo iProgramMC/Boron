@@ -85,3 +85,5 @@ BSTATUS OSWaitForSingleObject(
 	bool Alertable,
 	int TimeoutMS
 );
+
+BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, PHANDLE OutNewHandle, int OpenFlags);

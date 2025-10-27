@@ -29,12 +29,10 @@ void PerformMdlTest()
 	KeWaitForSingleObject(&Timer, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	*/
 	
-	HPAGEMAP PageMap = MiGetCurrentPageMap();
 	uintptr_t FixedAddr = 0x40000000;
 	size_t FixedSize = 0x10000;
 	
 	if (!MiMapAnonPages(
-		PageMap,
 		FixedAddr,
 		FixedSize / PAGE_SIZE,
 		MM_PTE_READWRITE,
@@ -94,7 +92,7 @@ void PerformMdlTest()
 	
 	LogMsg("Memory Pages Available Now: %zu", MmGetTotalFreePages());
 	
-	MiUnmapPages(PageMap, FixedAddr, FixedSize);
+	MiUnmapPages(FixedAddr, FixedSize);
 	
 	// note: the variation of 3 pages is actually normal at this point
 	// the pages are allocated during the initial mapping

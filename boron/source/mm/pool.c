@@ -43,7 +43,6 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 		
 		// Map the memory in!  This will affect ALL page maps
 		if (!MiMapAnonPages(
-			MiGetCurrentPageMap(),
 			(uintptr_t) OutputAddress,
 			PageCount,
 			MM_PTE_READWRITE | MM_PTE_GLOBAL,
@@ -65,14 +64,16 @@ void MmFreePoolBig(void* Address)
 	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
 	
 	int PoolFlags = (int) MiGetUserDataFromPoolSpaceHandle(Handle);
-	if (~PoolFlags & POOL_FLAG_CALLER_CONTROLLED)
+	if ((~PoolFlags & POOL_FLAG_CALLER_CONTROLLED) ||
+		(PoolFlags & POOL_FLAG_UNMAP_ANYWAY))
 	{
 		MmLockKernelSpaceExclusive();
 		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
-		MiUnmapPages(MiGetCurrentPageMap(),
-					 (uintptr_t)Address,
-					 MiGetSizeFromPoolSpaceHandle(Handle));
+		MiUnmapPages(
+			(uintptr_t)Address,
+			MiGetSizeFromPoolSpaceHandle(Handle)
+		);
 		
 		MmUnlockKernelSpace();
 	}
@@ -91,12 +92,22 @@ void MmFreePool(void* Pointer)
 	MiSlabFree(Pointer);
 }
 
-void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t PermissionsAndCaching, int Tag)
+void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t PermissionsAndCaching, int Tag)
 {
 	if (Tag == 0) Tag = POOL_TAG("MMIS");
 	
+	// Ensure the starting address is page aligned.
+	Size += PhysicalAddress & (PAGE_SIZE - 1);
+	PhysicalAddress &= ~(PAGE_SIZE - 1);
+	
+	size_t SizePages = (Size + PAGE_SIZE - 1) / PAGE_SIZE;
+	
 	// Allocate some pool space.
-	void* Space = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, NumberOfPages, Tag);
+	void* Space = MmAllocatePoolBig(
+		POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_UNMAP_ANYWAY,
+		SizePages,
+		Tag
+	);
 	uintptr_t VirtualAddress = (uintptr_t) Space;
 	
 	if (!Space)
@@ -104,13 +115,11 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t Pe
 	
 	MmLockKernelSpaceExclusive();
 	
-	HPAGEMAP PageMap = MiGetCurrentPageMap();
-	
-	for (size_t i = 0; i < NumberOfPages; i++, PhysicalAddress += PAGE_SIZE, VirtualAddress += PAGE_SIZE)
+	for (size_t i = 0; i < SizePages; i++, PhysicalAddress += PAGE_SIZE, VirtualAddress += PAGE_SIZE)
 	{
-		if (!MiMapPhysicalPage(PageMap, PhysicalAddress, VirtualAddress, PermissionsAndCaching))
+		if (!MiMapPhysicalPage(PhysicalAddress, VirtualAddress, PermissionsAndCaching))
 		{
-			NumberOfPages = i;
+			SizePages = i;
 			goto Rollback;
 		}
 	}
@@ -119,7 +128,7 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t NumberOfPages, uintptr_t Pe
 	return Space;
 
 Rollback:
-	MiUnmapPages(PageMap, (uintptr_t) Space, NumberOfPages);
+	MiUnmapPages((uintptr_t) Space, SizePages);
 	MmUnlockKernelSpace();
 	MmFreePoolBig(Space);
 	return NULL;
