@@ -1,6 +1,6 @@
 # The Boron Operating System
 
-Boron is a 64-bit operating system designed with SMP in mind. It borrows heavily from Windows NT,
+Boron is a portable (32-bit and 64-bit) operating system designed with SMP in mind. It borrows heavily from Windows NT,
 but does not aim to be a total clone.
 
 NOTE: Boron is currently not even in a minimally usable state. Don't expect it to do anything.
@@ -87,7 +87,7 @@ all present related to it.
 	* [x] DPCs (deferred procedure calls)
 	* [x] Interrupt dispatching
 	* [x] APCs
-	* [ ] User mode programs
+	* [x] User mode programs
 
 * [x] Memory manager (`Mm`)
 	* [x] Page frame database
@@ -110,7 +110,7 @@ all present related to it.
 * [x] I/O manager (`Io`)
 	* [x] Device objects
 	* [ ] System services
-	* [ ] File objects
+	* [x] File objects
 	* [ ] File system/volume objects
 	* [ ] ...
 
