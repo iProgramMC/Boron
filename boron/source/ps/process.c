@@ -122,7 +122,7 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	if (SUCCEEDED(Status))
 	{
 		Pic->Process = Process;
-		ObReferenceObjectByPointer(Process);
+		//ObReferenceObjectByPointer(Process);
 		return Status;
 	}
 	

@@ -17,6 +17,15 @@ Author:
 #include <ob.h>
 #include <string.h>
 
+// Debugging
+//#define OB_REFERENCE_DEBUG
+
+#ifdef OB_REFERENCE_DEBUG
+#define ObRefDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define ObRefDbgPrint(...)
+#endif
+
 #define OB_MUTEX_LEVEL_HANDLE_TABLE (1)
 #define OB_MUTEX_LEVEL_DIRECTORY    (2)
 #define OB_MUTEX_LEVEL_OBJECT_TYPES (3)

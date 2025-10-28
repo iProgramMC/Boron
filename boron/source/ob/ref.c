@@ -19,6 +19,14 @@ void ObpDeleteObject(void* Object)
 	//DbgPrint("Deleting object %p", Object);
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
+	ObRefDbgPrint(
+		"ObpDeleteObject(%p) (RA: %p) (%s, \"%s\")",
+		Object,
+		CallerAddress(),
+		Hdr->NonPagedObjectHeader->ObjectType ? Hdr->NonPagedObjectHeader->ObjectType->TypeName : "[TYPELESS??]",
+		Hdr->ObjectName
+	);
+	
 	if (Hdr->Flags & OB_FLAG_PERMANENT)
 		return;
 	
@@ -105,6 +113,15 @@ void* ObReferenceObjectByPointer(void* Object)
 {
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
+	ObRefDbgPrint(
+		"ObReferenceObjectByPointer(%p) (RA: %p) (%s, \"%s\") -> %d",
+		Object,
+		CallerAddress(),
+		Hdr->NonPagedObjectHeader->ObjectType ? Hdr->NonPagedObjectHeader->ObjectType->TypeName : "[TYPELESS??]",
+		Hdr->ObjectName,
+		Hdr->NonPagedObjectHeader->PointerCount + 1
+	);
+	
 	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
 	
 	AtAddFetch(Hdr->NonPagedObjectHeader->PointerCount, 1);
@@ -118,6 +135,15 @@ void ObDereferenceObject(void* Object)
 	POBJECT_HEADER Hdr = OBJECT_GET_HEADER(Object);
 	
 	ASSERTN(Hdr->Signature == OBJECT_HEADER_SIGNATURE);
+	
+	ObRefDbgPrint(
+		"ObDereferenceObject(%p) (RA: %p) (%s, \"%s\") -> %d",
+		Object,
+		CallerAddress(),
+		Hdr->NonPagedObjectHeader->ObjectType ? Hdr->NonPagedObjectHeader->ObjectType->TypeName : "[TYPELESS??]",
+		Hdr->ObjectName,
+		Hdr->NonPagedObjectHeader->PointerCount - 1
+	);
 	
 	int OldCount = AtFetchAdd(Hdr->NonPagedObjectHeader->PointerCount, -1);
 	//DbgPrint("Deref(%p) -> %d (%p)", Object, OldCount - 1, CallerAddress());

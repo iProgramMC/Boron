@@ -201,6 +201,14 @@ BSTATUS ObCreateObjectCallback(
 	}	
 	
 	*OutObject = Hdr->Body;
+	ObRefDbgPrint(
+		"ObCreateObjectCallback(%s, %s, %zu) (RA: %p) -> %p",
+		ObjectType ? ObjectType->TypeName : "[TYPELESS??]",
+		ObjectName,
+		BodySize,
+		CallerAddress(),
+		Hdr->Body
+	);
 	
 	// If the caller did not request this object to be added to a directory,
 	// and ParentDirectory exists, add it to ParentDirectory.
@@ -223,6 +231,7 @@ BSTATUS ObCreateObject(
 	size_t BodySize
 )
 {
+	ObRefDbgPrint("ObCreateObject (RA: %p) calling ObCreateObjectCallback", CallerAddress());
 	return ObCreateObjectCallback(
 		OutObject,
 		ParentDirectory,

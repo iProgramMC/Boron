@@ -14,5 +14,6 @@ user/*.dll
 keep/*
 limine/*
 
+vdiske2.img
 vdiske2.vdi
 vdiske2.vmdk
