@@ -198,7 +198,7 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 			POS_HEAP_HEADER Header = OSCreateArenaHeap(Heap);
 			if (!Header)
 			{
-				// Out of virtual address space (or memory)
+				// Out of virtual address space (or memory).
 				OSLeaveCriticalSection(&Heap->CriticalSection);
 				return NULL;
 			}
@@ -208,6 +208,12 @@ void* OSAllocateHeap(POS_HEAP Heap, size_t Size)
 		}
 
 		POS_HEAP_HEADER Header = OSCreateMappedRegionHeap(Heap, Size + sizeof(OS_HEAP_HEADER), false);
+		if (!Header)
+		{
+			// Out of virtual address space (or memory).
+			OSLeaveCriticalSection(&Heap->CriticalSection);
+			return NULL;
+		}
 
 		RemoveEntryList(&Header->FreeListEntry);
 
