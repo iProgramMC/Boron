@@ -21,7 +21,7 @@ void MmTearDownProcess(PEPROCESS Process)
 	
 	// Free every VAD.
 	PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Process->VadList.Tree);
-	do
+	while (Entry)
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		
@@ -43,11 +43,10 @@ void MmTearDownProcess(PEPROCESS Process)
 		
 		Entry = GetFirstEntryRbTree(&Process->VadList.Tree);
 	}
-	while (Entry);
 	
 	// Free every heap item.
 	Entry = GetFirstEntryRbTree(&Process->Heap.Tree);
-	do
+	while (Entry)
 	{
 		PMMADDRESS_NODE Node = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		
@@ -57,7 +56,6 @@ void MmTearDownProcess(PEPROCESS Process)
 		
 		Entry = GetFirstEntryRbTree(&Process->Heap.Tree);
 	}
-	while (Entry);
 	
 	MiFreeUnusedMappingLevelsInCurrentMap(0, (MM_USER_SPACE_END + 1) >> 12);
 	
