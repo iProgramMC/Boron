@@ -6,12 +6,10 @@ but does not aim to be a total clone.
 NOTE: Boron is currently not even in a minimally usable state. Don't expect it to do anything.
 
 This project is licensed under the three clause BSD license, **except the following**:
-- Flanterm (drivers/halx86/source/flanterm): https://github.com/mintsuki/flanterm - Licensed under the 2 clause BSD license
+- Flanterm (drivers/halx86/source/flanterm): https://codeberg.org/Mintsuki/Flanterm.git - Licensed under the 2 clause BSD license
 - The implementation of splay and RB trees from FreeBSD (boron/include/rtl/fbsdtree.h) - Licensed under the 2 clause BSD license
 
 #### Be advised that this is currently alpha-level software and you should not expect any stability from it.
-
-Currently this uses Limine v7.x.
 
 ### Why the codename Boron?
 (Note: The name is probably temporary, not sure, but this is what it's called right now)
@@ -70,10 +68,10 @@ but it is what it is.
 
 - Dynamically linked kernel modules (drivers)
 
-- Hardware abstraction layer which allows for the same kernel to run
-  across different ISAs, loaded as a kernel module
+- Hardware abstraction layer which allows for the same kernel executable to run on the same ISA across
+  different platforms, loaded as a kernel module
 
-- Nested interrupts thanks to IPLs
+- Nested interrupts thanks to an interrupt priority system
 
 #### Subsystems
 If an item is checked, that means it's being worked on or is complete. If not, that means that no code is at
