@@ -150,6 +150,13 @@ BSTATUS OSDLLMapElfFile(
 			return Status;
 		}
 		
+		Status = RtlCheckValidity(&ElfHeader);
+		if (FAILED(Status))
+		{
+			DbgPrint("OSDLL: The ELF file is invalid. %s (%d)", RtlGetStatusString(Status), Status);
+			return Status;
+		}
+		
 		ProgramHeaders = OSAllocate(ElfHeader.ProgramHeaderSize * ElfHeader.ProgramHeaderCount);
 		if (!ProgramHeaders)
 		{
