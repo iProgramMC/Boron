@@ -384,7 +384,7 @@ void KiInitLoaderParameterBlock()
 			Fb->GreenMaskShift == Fb->BlueMaskShift ||
 			!Fb->RedMaskSize ||
 			!Fb->GreenMaskSize ||
-			!Fb->BlueMaskShift)
+			!Fb->BlueMaskSize)
 		{
 			DbgPrint("Limine v10.x (or earlier) booted us, so correcting color information");
 			Fb->RedMaskSize     = KiMultibootInfo->framebuffer_colorinfo_b;

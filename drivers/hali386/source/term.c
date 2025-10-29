@@ -89,6 +89,9 @@ void HalInitTerminal()
 	HalpTerminalMemoryHead   = 0;
 	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;
 	
+	if (!HalpTerminalMemory)
+		KeCrashBeforeSMPInit("Error, no memory for the terminal.");
+	
 	HalpTerminalContext = flanterm_fb_init(
 		&HalpTerminalMemAlloc,
 		&HalpTerminalFree,
