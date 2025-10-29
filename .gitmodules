@@ -1,7 +1,6 @@
 [submodule "limine"]
 	path = limine
-	url = https://github.com/limine-bootloader/limine.git
-	branch = v7.x-binary
-[submodule "source/ha/flanterm"]
-	path = drivers/halx86/source/flanterm
-	url = https://github.com/mintsuki/flanterm.git
+	url = https://codeberg.org/Limine/Limine.git
+	branch = v10.x-binary
+[submodule "drivers/halx86/source/flanterm"]
+	url = https://codeberg.org/Mintsuki/Flanterm.git
