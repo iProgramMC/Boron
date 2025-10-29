@@ -20,8 +20,8 @@ Author:
 #include <ke.h>
 #include <ex.h>
 #include "font.h"
-#include "flanterm/flanterm.h"
-#include "flanterm/backends/fb.h"
+#include "flanterm/src/flanterm.h"
+#include "flanterm/src/flanterm_backends/fb.h"
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
 uint8_t* HalpTerminalMemory;
@@ -75,7 +75,7 @@ void HalInitTerminal()
 	const int usagePerChar     = 52; // I calculated it
 	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
 	const int fontDataMemUsage = charWidth * charHeight * 256 / 8;
-	const int contextSize      = sizeof(struct flanterm_fb_context);
+	const int contextSize      = 256; // seems like sizeof(struct flanterm_context) is no longer exposed, so my best guess
 	
 	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
 	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
