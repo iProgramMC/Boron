@@ -1,4 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2025 iProgramInCpp
 
+Module name:
+	ke/i386/syscall.c
+	
+Abstract:
+	This module implements the system service dispatcher
+	for the i386 architecture.
+	
+Author:
+	iProgramInCpp - 22 October 2025
+***/
 #include "../ki.h"
 
 #include <ke.h>
