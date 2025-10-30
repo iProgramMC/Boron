@@ -12,7 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 29 October 2025
 ***/
-#include <io.h>
+#include "ttyi.h"
 
 //
 // The pseudo-terminal subsystem will be implemented using three
@@ -55,25 +55,21 @@ Author:
 // read/writable using the OSReadFile/OSWriteFile system service.
 //
 
-// The pseudo-terminal device itself.
-typedef struct
+OBJECT_TYPE_INFO TtyTerminalObjectTypeInfo =
 {
-	int Dummy;
-}
-TERMINAL, *PTERMINAL;
+	.NonPagedPool = false,
+	.MaintainHandleCount = false,
+	.Delete = TtyDeleteTerminal,
+};
 
-typedef struct
+void TtyDeleteTerminal(void* ObjectV)
 {
-	PTERMINAL Terminal;
+	// NOTE: references to the terminal object are held for every
+	// file object 
+	PTERMINAL Terminal = ObjectV;
 	
-	int Dummy;
+	ObDereferenceObject(Terminal->HostToSessionPipe);
+	ObDereferenceObject(Terminal->SessionToHostPipe);
+	IoFreeFcb(Terminal->HostFcb);
+	IoFreeFcb(Terminal->SessionFcb);
 }
-TERMINAL_HOST, *PTERMINAL_HOST;
-
-typedef struct
-{
-	PTERMINAL Terminal;
-	
-	int Dummy;
-}
-TERMINAL_SESSION, *PTERMINAL_SESSION;

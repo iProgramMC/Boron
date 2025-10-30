@@ -40,6 +40,22 @@ BSTATUS IoPerformModifiedPageWrite(
 
 #endif
 
+BSTATUS IoReadFileMdl(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);
+
+BSTATUS IoWriteFileMdl(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+);
+
 BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,

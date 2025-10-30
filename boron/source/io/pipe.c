@@ -313,7 +313,7 @@ IO_DISPATCH_TABLE IopPipeDispatchTable =
 	.Write = IopWritePipe,
 };
 
-BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
 {
 	if (ObjectAttributes)
 	{
@@ -329,13 +329,22 @@ BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 	// file object, and then insert it into the handle table.
 	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize, NonBlock);
 	
-	PFILE_OBJECT FileObject = NULL;
-	BSTATUS Status = IoCreateFileObject(Fcb, &FileObject, 0, 0);
+	BSTATUS Status = IoCreateFileObject(Fcb, OutFileObject, 0, 0);
 	if (FAILED(Status))
 	{
 		IoFreeFcb(Fcb);
 		return Status;
 	}
+	
+	*OutFcb = Fcb;
+	return Status;
+}
+
+BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+{
+	PFCB Fcb = NULL;
+	PFILE_OBJECT FileObject = NULL;
+	BSTATUS Status = IoCreatePipeObject(&FileObject, &Fcb, ObjectAttributes, BufferSize, NonBlock);
 	
 	Status = ObInsertObject(FileObject, OutHandle, 0);
 	if (FAILED(Status))

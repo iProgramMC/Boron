@@ -419,6 +419,30 @@ BSTATUS IoPerformOperationFileHandle(
 }
 
 // Helpers to file objects without holding a handle to them.
+BSTATUS IoReadFileMdl(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+)
+{
+	uint64_t Unused;
+	return IopReadFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+}
+
+BSTATUS IoWriteFileMdl(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	PMDL Mdl,
+	uint64_t FileOffset,
+	bool Cached
+)
+{
+	uint64_t Unused;
+	return IopWriteFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+}
+
 BSTATUS IoReadFile(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
@@ -433,8 +457,7 @@ BSTATUS IoReadFile(
 	
 	if (!FAILED(Status))
 	{
-		uint64_t Unused;
-		Status = IopReadFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+		Status = IoReadFileMdl(Iosb, FileObject, Mdl, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}
 	
@@ -455,8 +478,7 @@ BSTATUS IoWriteFile(
 	
 	if (!FAILED(Status))
 	{
-		uint64_t Unused;
-		Status = IopWriteFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}	
 	

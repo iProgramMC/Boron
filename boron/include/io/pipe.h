@@ -13,6 +13,8 @@ Author:
 ***/
 #pragma once
 
+BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
+
 BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
 
 BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
