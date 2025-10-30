@@ -13,54 +13,86 @@ Author:
 	iProgramInCpp - 30 October 2025
 ***/
 #include "ttyi.h"
+#include <ex.h>
 
-typedef struct
+BSTATUS OSCreateTerminal(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize)
 {
-	size_t BufferSize;
-}
-TERMINAL_INIT_CONTEXT, *PTERMINAL_INIT_CONTEXT;
-
-BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
-{
-	BSTATUS Status;
-	PTERMINAL Terminal = TerminalV;
-	PTERMINAL_INIT_CONTEXT InitContext = Context;
+	TERMINAL_INIT_CONTEXT InitContext;
+	InitContext.BufferSize = BufferSize;
 	
-	Status = IoCreatePipeObject(&Terminal->HostToSessionPipe, &Terminal->HostToSessionPipeFcb, NULL, InitContext->BufferSize, true);
+	return ExCreateObjectUserCall(
+		OutHandle,
+		ObjectAttributes,
+		TtyTerminalObjectType,
+		sizeof(TERMINAL),
+		TtyInitializeTerminal,
+		&InitContext,
+		0,
+		false
+	);
+}
+
+BSTATUS OSCreateTerminalIoHandles(PHANDLE OutHostHandle, PHANDLE OutSessionHandle, HANDLE TerminalHandle)
+{
+	if (!OutHostHandle && !OutSessionHandle)
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	void* TerminalV;
+	
+	Status = ObReferenceObjectByHandle(TerminalHandle, TtyTerminalObjectType, &TerminalV);
 	if (FAILED(Status))
 		return Status;
 	
-	Status = IoCreatePipeObject(&Terminal->SessionToHostPipe, &Terminal->SessionToHostPipeFcb, NULL, InitContext->BufferSize, true);
+	PTERMINAL Terminal = TerminalV;
+	HANDLE HostHandle = HANDLE_NONE, SessionHandle = HANDLE_NONE;
+	
+	if (OutHostHandle)
+	{
+		PFILE_OBJECT FileObject = NULL;
+		Status = IoCreateFileObject(Terminal->HostFcb, &FileObject, 0, 0);
+		if (FAILED(Status))
+			goto Fail;
+		
+		Status = ObInsertObject(FileObject, &HostHandle, 0);
+		if (FAILED(Status))
+		{
+			ObDereferenceObject(FileObject);
+			goto Fail;
+		}
+	}
+	
+	if (OutSessionHandle)
+	{
+		PFILE_OBJECT FileObject = NULL;
+		Status = IoCreateFileObject(Terminal->SessionFcb, &FileObject, 0, 0);
+		if (FAILED(Status))
+			goto Fail;
+		
+		Status = ObInsertObject(FileObject, &SessionHandle, 0);
+		if (FAILED(Status))
+		{
+			ObDereferenceObject(FileObject);
+			goto Fail;
+		}
+	}
+	
+	Status = MmSafeCopy(OutHostHandle, &HostHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (FAILED(Status))
-		goto Fail1;
+		goto Fail;
 	
-	Terminal->HostFcb = IoAllocateFcb(&TtyHostDispatch, sizeof(TERMINAL_HOST), false);
-	if (!Terminal->HostFcb)
-	{
-		Status = STATUS_INSUFFICIENT_MEMORY;
-		goto Fail2;
-	}
+	Status = MmSafeCopy(OutSessionHandle, &SessionHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
+	if (SUCCEEDED(Status))
+		goto Success;
 	
-	Terminal->SessionFcb = IoAllocateFcb(&TtySessionDispatch, sizeof(TERMINAL_SESSION), false);
-	if (!Terminal->SessionFcb)
-	{
-		Status = STATUS_INSUFFICIENT_MEMORY;
-		goto Fail3;
-	}
+Fail:
+	if (HostHandle)
+		OSClose(HostHandle);
 	
-	// Creation succeeded, now initialize everything.
-	PTERMINAL_HOST Host = (PTERMINAL_HOST) Terminal->HostFcb->Extension;
-	PTERMINAL_HOST Session = (PTERMINAL_HOST) Terminal->SessionFcb->Extension;
-	Host->Terminal = Terminal;
-	Session->Terminal = Terminal;
+	if (SessionHandle)
+		OSClose(SessionHandle);
 	
-Fail3:
-	IoFreeFcb(Terminal->HostFcb);
-Fail2:
-	ObDereferenceObject(Terminal->SessionToHostPipe);
-	IoFreeFcb(Terminal->HostToSessionPipeFcb);
-Fail1:
-	ObDereferenceObject(Terminal->HostToSessionPipe);
-	IoFreeFcb(Terminal->SessionToHostPipeFcb);
+Success:
+	ObDereferenceObject(Terminal);
 	return Status;
 }

@@ -25,7 +25,15 @@ BSTATUS TtyInitializeTerminalObjectType()
 	);
 	
 	if (FAILED(Status))
-		DbgPrint("Failed to create terminal object type.");
+		DbgPrint("Failed to create terminal object type: %s (%d)", RtlGetStatusString(Status), Status);
 	
 	return Status;
+}
+
+bool TtyInitSystem()
+{
+	if (FAILED(TtyInitializeTerminalObjectType()))
+		return false;
+	
+	return true;
 }

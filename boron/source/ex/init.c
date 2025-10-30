@@ -16,6 +16,7 @@ Author:
 #include <io.h>
 #include <ps.h>
 #include <ldr.h>
+#include <tty.h>
 
 INIT
 bool ExInitSystem()
@@ -65,6 +66,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	
 	if (!PsInitSystemPart2())
 		KeCrash("Could not initialize process manager - part 2");
+	
+	if (!TtyInitSystem())
+		KeCrash("Could not initialize pseudoterminal subsystem");
 	
 	// TODO: Crash inside of these functions instead of returning false.
 	// It'll be more useful because those functions actually have the

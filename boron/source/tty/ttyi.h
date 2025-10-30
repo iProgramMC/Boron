@@ -17,6 +17,13 @@ Author:
 #include <io.h>
 #include <ob.h>
 
+extern POBJECT_TYPE TtyTerminalObjectType;
+extern OBJECT_TYPE_INFO TtyTerminalObjectTypeInfo;
+extern IO_DISPATCH_TABLE TtyHostDispatch, TtySessionDispatch;
+
+// ttyobj.c contains a more in-depth explanation of the rationale and design
+// of the pseudoterminal subsystem.
+
 typedef struct
 {
 	PFILE_OBJECT HostToSessionPipe;
@@ -45,8 +52,14 @@ typedef struct
 }
 TERMINAL_SESSION, *PTERMINAL_SESSION;
 
-extern POBJECT_TYPE TtyTerminalObjectType;
-extern OBJECT_TYPE_INFO TtyTerminalObjectTypeInfo;
-extern IO_DISPATCH_TABLE TtyHostDispatch, TtySessionDispatch;
-
+// Terminal object dispatch functions.
 void TtyDeleteTerminal(void* ObjectV);
+
+// These are for use with ExCreateObjectUserCall
+typedef struct
+{
+	size_t BufferSize;
+}
+TERMINAL_INIT_CONTEXT, *PTERMINAL_INIT_CONTEXT;
+
+BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context);
