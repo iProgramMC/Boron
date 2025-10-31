@@ -19,3 +19,5 @@ Author:
 
 // Retrieves a config value, and if it wasn't found, returns ValueIfNotFound.
 const char* ExGetConfigValue(const char* Key, const char* ValueIfNotFound);
+
+#define ExIsConfigValue(Key, Value) (strcmp(ExGetConfigValue((Key), ""), (Value)) == 0)

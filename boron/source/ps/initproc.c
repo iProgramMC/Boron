@@ -24,7 +24,6 @@ Author:
 const char* PspBoronDllFileName = "/InitRoot/libboron.so";
 
 // path to init.exe and command line. temporary
-const char* PspInitialProcessFileName = "/InitRoot/init.exe";
 const char* PspInitialProcessCommandLine = "";
 
 // environment. temporary.
@@ -35,7 +34,7 @@ const char* PspInitialProcessEnvironment =
 
 bool PsShouldStartInitialProcess()
 {
-	return !StringContainsCaseInsensitive(KeGetBootCommandLine(), "/noinit");
+	return !ExIsConfigValue("NoInit", CONFIG_YES);
 }
 
 // Unlike strlen(), this counts the amount of characters in an environment
@@ -83,9 +82,12 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	// TODO: Make these changeable!
 	const char* BoronDllPath = PspBoronDllFileName;
 	
-	const char* ImageName = PspInitialProcessFileName;
+	const char* ImageName = ExGetConfigValue("Init", NULL);
 	const char* CommandLine = PspInitialProcessCommandLine;
 	const char* Environment = PspInitialProcessEnvironment;
+	
+	if (!ImageName)
+		KeCrash("No initial program specified.  Add \"Init=[your initial program]\" to the boot command line.");
 	
 	Func = __func__;
 	
@@ -386,7 +388,7 @@ bool PsInitSystemPart2()
 	
 	if (!PsShouldStartInitialProcess())
 	{
-		LogMsg("/NOINIT specified, not starting initial process.");
+		LogMsg("NoInit specified, not starting initial process.");
 		return true;
 	}
 	
