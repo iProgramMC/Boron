@@ -33,4 +33,6 @@ bool ExpCreateTimerType();
 bool ExpCreateThreadType();
 bool ExpCreateProcessType();
 
+void ExInitBootConfig();
+
 #include <ex/internal.h>

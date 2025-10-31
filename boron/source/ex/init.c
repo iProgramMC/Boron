@@ -35,12 +35,7 @@ bool ExInitSystem()
 		return false;
 #endif
 	
-	// TODO:
-	// After creating the process type, create the System process?
-	// Three ways to do this:
-	// 1. Shift all references from PsInitProcess to the new object.
-	// 2. Make the System process a shadow of PsSystemProcess or
-	// 3. Don't create a process object for the system at all.
+	ExInitBootConfig();
 	return true;
 }
 

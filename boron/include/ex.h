@@ -23,5 +23,6 @@ Author:
 #include <ex/rwlock.h>
 #include <ex/process.h>
 #include <ex/object.h>
+#include <ex/bootcfg.h>
 
 #endif//BORON_EX_H
