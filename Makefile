@@ -52,6 +52,12 @@ ISO_DIR = $(BUILD_DIR)/iso_root
 # The ISO target.
 IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).iso
 
+# The init ramdisk directory.
+INITRD_DIR = $(BUILD_DIR)/initrd_root
+
+# The init ramdisk target.
+INITRD_TARGET = $(BUILD_DIR)/initrd.tar
+
 KERNEL_BUILD = boron/build
 KERNEL_ELF = $(patsubst %.elf,%.$(TARGETL).elf,$(KERNEL_BUILD)/$(KERNEL_NAME))
 
@@ -83,7 +89,7 @@ clean:
 	@echo "Cleaning user applications..."
 	$(MAKE) -C user clean
 
-image: limine $(IMAGE_TARGET)
+image: limine $(IMAGE_TARGET) $(INITRD_TARGET)
 
 ifeq ($(TARGET),AMD64)
 include tools/build_iso_limine.mk
@@ -96,6 +102,8 @@ endif
 kernel: $(KERNEL_ELF)
 
 drivers: $(DRIVERS_TARGETS)
+
+initrd: $(INITRD_TARGET)
 
 apps:
 	$(MAKE) -C user
@@ -118,5 +126,12 @@ $(BUILD_DIR)/%.sys: FORCE
 	@echo "[MK]\tMaking driver $(patsubst $(BUILD_DIR)/%.sys,%,$@)"
 	@$(MAKE) -C $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%,$@)
 	@cp $(patsubst $(BUILD_DIR)/%.sys,$(DRIVERS_DIR)/%/build/out.$(TARGETL).sys,$@) $@
+
+$(BUILD_DIR)/%.tar: FORCE apps
+	@echo "[MK]\tBuilding initrd"
+	mkdir -p $(INITRD_DIR)/usr/include
+	cp -rf common/include $(INITRD_DIR)/usr/include
+	cp -rf user/include $(INITRD_DIR)/usr/include
+	tar -cf $@ -C $(INITRD_DIR) .
 
 FORCE: ;
