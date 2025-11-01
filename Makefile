@@ -26,6 +26,7 @@ DRIVERS_LIST = \
 	i8042prt   \
 	stornvme   \
 	ext2fs     \
+	tmpfs      \
 	test
 else ifeq ($(TARGET),I386)
 DRIVERS_LIST = \
