@@ -141,41 +141,24 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		
 		if (BackingMemory)
 		{
-			Status = BackingMemory(&Iosb, Fcb);
+			Status = BackingMemory(&Iosb, Fcb, FileOffset);
 			if (FAILED(Status))
 			{
 				DbgPrint(
-					"%s: BackingMemory call on FCB %p failed with status %s (%d)",
+					"%s: BackingMemory call on FCB %p and offset %llu failed with status %s (%d)",
 					__func__,
 					Fcb,
+					FileOffset,
 					RtlGetStatusString(Status),
 					Status
 				);
 				goto Exit;
 			}
 			
-			// The backing memory is an address range in physical memory.
-			if (FileOffset >= Iosb.BackingMemory.Length)
-			{
-				DbgPrint(
-					"%s: Could not access file offset %zu into mapped range because it's outside of "
-					"its range of %zu bytes",
-					__func__,
-					FileOffset,
-					Iosb.BackingMemory.Length
-				);
-				
-				// NOTE: Would call it STATUS_IN_PAGE_ERROR.  However, currently we have no support
-				// for status codes with additional information, and actual I/O errors would behave
-				// similarly to this.
-				Status = STATUS_HARDWARE_IO_ERROR;
-				goto Exit;
-			}
-			
-			uintptr_t Address = Iosb.BackingMemory.Start + FileOffset;
+			uintptr_t Address = Iosb.BackingMemory.PhysicalAddress;
 			
 			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
-			// with the page frame database! (via MmRegisterMMIOAsMemory)
+			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory)
 			Pfn = MmPhysPageToPFN(Address);
 			MmPageAddReference(Pfn);
 		}

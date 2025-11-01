@@ -143,11 +143,15 @@ bool FramebufferSeekable(UNUSED PFCB Fcb)
 	return true;
 }
 
-BSTATUS FramebufferBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb)
+BSTATUS FramebufferBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t FileOffset)
 {
 	PREP_EXT;
-	Iosb->BackingMemory.Start = Ext->Address;
-	Iosb->BackingMemory.Length = (Ext->Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	
+	size_t Size = (Ext->Size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+	if (FileOffset >= Size)
+		return IOSB_STATUS(Iosb, STATUS_HARDWARE_IO_ERROR);
+	
+	Iosb->BackingMemory.PhysicalAddress = Ext->Address + FileOffset;
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }
 

@@ -77,8 +77,7 @@ typedef struct _IO_STATUS_BLOCK
 		// BackingMemory
 		struct
 		{
-			uintptr_t Start;  // Start is a physical address that should be aligned to 4096 bytes
-			size_t    Length; // Length should be a multiple of 4096
+			uintptr_t PhysicalAddress;
 		}
 		BackingMemory;
 #endif

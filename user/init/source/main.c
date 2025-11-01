@@ -16,8 +16,8 @@ int _start()
 	//RunTest2();
 	//RunTest3();
 	//RunTest4();
-	RunTest5();
-	//RunTest6();
+	//RunTest5();
+	RunTest6();
 	
 	OSExitProcess(0);
 }

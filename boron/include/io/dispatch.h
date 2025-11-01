@@ -74,9 +74,9 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - TODO: Define a kernel-wide time format (64-bit Unix epoch time?)
 //
-// - IO_BACKING_MEM_METHOD gets the backing memory address and length from the FCB.  This is usually not implemented for
-//   on-disk file systems, but can be implemented for RAM-backed file systems and certain MMIO devices, such as frame buffer
-//   devices.
+// - IO_BACKING_MEM_METHOD gets the backing memory address at a specified offset, from the FCB.  This is usually not
+//   implemented for on-disk file systems, but can be implemented for RAM-backed file systems and certain MMIO devices,
+//   such as frame buffer devices.  Return STATUS_HARDWARE_IO_ERROR if there is no backing memory for this offset.
 //
 // - IO_CREATE_OBJ_METHOD is the method called when a file object is created from this FCB.
 //   Note: This method will not add a reference to the FCB.  The job of adding a reference to the FCB falls on the FSD
@@ -136,7 +136,7 @@ typedef BSTATUS(*IO_CHANGE_MODE_METHOD)(PFCB Fcb, uintptr_t NewMode);
 typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
 typedef BSTATUS(*IO_TOUCH_METHOD)      (PFCB Fcb, bool IsWrite);
-typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb);
+typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset);
 typedef size_t (*IO_ALIGN_INFO_METHOD) (PFCB Fcb);
 
 enum
