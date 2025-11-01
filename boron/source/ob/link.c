@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2023 iProgramInCpp
+	Copyright (C) 2023-2025 iProgramInCpp
 
 Module name:
 	ob/link.c
@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 23 December 2023
 ***/
 #include "obp.h"
+#include <ex.h>
 
 BSTATUS ObpParseSymbolicLink(
 	void* SymLinkObject,
@@ -164,3 +165,26 @@ BSTATUS ObCreateSymbolicLinkObject(
 	return STATUS_SUCCESS;
 }
 	
+bool ObLinkRootDirectory()
+{
+	const char* RootPath = ExGetConfigValue("Root", NULL);
+	if (!RootPath)
+		KeCrash("No root path specified.  Add \"Root=[your root path here]\" to the boot command line.");
+	
+	void* Object = NULL;
+	BSTATUS Status = ObCreateSymbolicLinkObject(
+		&Object,
+		RootPath,
+		"/Root",
+		OB_FLAG_PERMANENT
+	);
+	
+	if (FAILED(Status))
+	{
+		DbgPrint("Failed to create symbolic link from %s to /Root: %s (%d)", RootPath, RtlGetStatusString(Status), Status);
+		return false;
+	}
+	
+	ObDereferenceObject(Object);
+	return true;
+}

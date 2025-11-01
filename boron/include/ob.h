@@ -372,6 +372,14 @@ enum
 
 #ifdef KERNEL
 
+// Creates a symbolic link to the root of the active installation.
+// Must be used only once during init.
+bool ObLinkRootDirectory();
+
+#endif
+
+#ifdef KERNEL
+
 extern POBJECT_TYPE ObObjectTypeType;
 extern POBJECT_TYPE ObDirectoryType;
 extern POBJECT_TYPE ObSymbolicLinkType;

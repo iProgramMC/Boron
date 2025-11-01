@@ -21,14 +21,14 @@ Author:
 // TODO: make these changeable
 
 // path to libboron.so. temporary
-const char* PspBoronDllFileName = "/InitRoot/libboron.so";
+const char* PspBoronDllFileName = "/Root/libboron.so";
 
 // path to init.exe and command line. temporary
 const char* PspInitialProcessCommandLine = "";
 
 // environment. temporary.
 const char* PspInitialProcessEnvironment =
-	"PATH=/Mount/Nvme0Disk1Part0:/InitRoot:/\0"
+	"PATH=/Mount/Nvme0Disk1Part0:/InitRoot:/Root:/\0"
 	"SOMETHING=Something here\0"
 	"\0";
 

@@ -65,6 +65,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!TtyInitSystem())
 		KeCrash("Could not initialize pseudoterminal subsystem");
 	
+	if (!ObLinkRootDirectory())
+		KeCrash("Could not create a symbolic link to the root directory");
+	
 	// TODO: Crash inside of these functions instead of returning false.
 	// It'll be more useful because those functions actually have the
 	// context needed to resolve the bug.
