@@ -17,11 +17,11 @@ Author:
 
 BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
 {
-    PTAR_UNIT CurrentUnit = Module->Address;
-    PTAR_UNIT EndUnit = Module->Address + Module->Size;
-    
-    while (CurrentUnit < EndUnit)
-    {
-        CurrentUnit++;
-    }
+	PTAR_UNIT CurrentUnit = Module->Address;
+	PTAR_UNIT EndUnit = Module->Address + Module->Size;
+	
+	while (CurrentUnit < EndUnit)
+	{
+		CurrentUnit++;
+	}
 }

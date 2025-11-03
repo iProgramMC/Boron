@@ -151,6 +151,7 @@ BSTATUS FramebufferBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t FileO
 	if (FileOffset >= Size)
 		return IOSB_STATUS(Iosb, STATUS_HARDWARE_IO_ERROR);
 	
+	MmPageAddReference(MmPhysPageToPFN(Iosb->BackingMemory.PhysicalAddress));
 	Iosb->BackingMemory.PhysicalAddress = Ext->Address + FileOffset;
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }

@@ -77,6 +77,7 @@ typedef struct _FCB FCB, *PFCB;
 // - IO_BACKING_MEM_METHOD gets the backing memory address at a specified offset, from the FCB.  This is usually not
 //   implemented for on-disk file systems, but can be implemented for RAM-backed file systems and certain MMIO devices,
 //   such as frame buffer devices.  Return STATUS_HARDWARE_IO_ERROR if there is no backing memory for this offset.
+//   The page returned by IO_BACKING_MEM_METHOD MUST have a reference added to it from the function.
 //
 // - IO_CREATE_OBJ_METHOD is the method called when a file object is created from this FCB.
 //   Note: This method will not add a reference to the FCB.  The job of adding a reference to the FCB falls on the FSD
@@ -108,6 +109,11 @@ typedef struct _FCB FCB, *PFCB;
 //   usual? Well, it's because these should do *cached* accesses, and we can't do that without a FILE_OBJECT, because
 //   our view cache infrastructure relies on those! (Sure, maybe I should refactor it to use FCBs throughout, or maybe
 //   not?!)
+//
+// - TODO: I should probably refactor the ParseDir method to return an arbitrary object (FILE_OBJECT or otherwise), instead
+//   of a pure FCB.
+//
+// - TODO: Add a function that creates a symbolic link.
 //
 typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
 //typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);

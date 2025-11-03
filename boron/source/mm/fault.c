@@ -144,6 +144,9 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			Status = BackingMemory(&Iosb, Fcb, FileOffset);
 			if (FAILED(Status))
 			{
+				// TODO: If an I/O call was interrupted, then we should probably not throw a
+				// page fault related error, and we should send that signal instead.
+				
 				DbgPrint(
 					"%s: BackingMemory call on FCB %p and offset %llu failed with status %s (%d)",
 					__func__,
@@ -158,9 +161,11 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			uintptr_t Address = Iosb.BackingMemory.PhysicalAddress;
 			
 			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
-			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory)
+			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory).
+			//
+			// UPDATE 2025/11/03: The BackingMemory call MUST bias the reference count of the
+			// physical page by one before returning to the caller.
 			Pfn = MmPhysPageToPFN(Address);
-			MmPageAddReference(Pfn);
 		}
 		else
 		{

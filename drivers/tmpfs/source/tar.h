@@ -7,7 +7,7 @@ Module name:
 	
 Abstract:
 	This header file defines structs and function prototypes
-    pertaining to the TAR file format.
+	pertaining to the TAR file format.
 	
 Author:
 	iProgramInCpp - 3 November 2025
