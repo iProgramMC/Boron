@@ -14,6 +14,8 @@ Author:
 ***/
 #include "tmpfs.h"
 
+#define TMPFS_TIMEOUT 2000
+
 #define EXT(Fcb) ((PTMPFS_EXT) (Fcb)->Extension)
 
 #define PREP_EXT PTMPFS_EXT Ext = EXT(Fcb)
@@ -45,6 +47,8 @@ bool TmpFileSeekable(UNUSED PFCB Fcb)
 	return true;
 }
 
+BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength);
+
 BSTATUS TmpBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset)
 {
 	PREP_EXT;
@@ -54,9 +58,19 @@ BSTATUS TmpBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset)
 	if (Offset >= Fcb->FileLength)
 		return IOSB_STATUS(Iosb, STATUS_HARDWARE_IO_ERROR);
 	
-	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
+	
+	if (Ext->PageListCount == 0 && Fcb->FileLength != 0)
+	{
+		BSTATUS Status = TmpResize(Fcb, Fcb->FileLength);
+		if (FAILED(Status))
+		{
+			KeReleaseMutex(&Ext->Lock);
+			return IOSB_STATUS(Iosb, Status);
+		}
+	}
 	
 	Offset /= PAGE_SIZE;
 	ASSERT(Offset < Ext->PageListCount);
@@ -76,11 +90,13 @@ BSTATUS TmpBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset)
 		
 		Ext->PageList[Offset] = Pfn;
 		
+		DbgPrint("InitialAddress: %p   Length: %zu  Offset: %zu", Ext->InitialAddress, Ext->InitialLength, Offset * PAGE_SIZE);
+		
 		// Physical pages are initialized to zero automatically.
 		if (Ext->InitialAddress && Offset * PAGE_SIZE < Ext->InitialLength)
 		{
 			MmBeginUsingHHDM();
-			void* AddressDest = MmGetHHDMOffsetAddr(Pfn);
+			void* AddressDest = MmGetHHDMOffsetAddrPfn(Pfn);
 			
 			size_t Size = PAGE_SIZE;
 			if (Size > Ext->InitialLength - Offset * PAGE_SIZE)
@@ -129,7 +145,7 @@ BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength)
 		return STATUS_INSUFFICIENT_MEMORY;
 #endif
 	
-	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
@@ -277,7 +293,7 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 	
 	BSTATUS Status = STATUS_SUCCESS;
 	
-	Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
@@ -370,7 +386,7 @@ BSTATUS TmpParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* 
 		PTMPFS_EXT Ext;
 		
 		Ext = EXT(InitialFcb);
-		Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+		Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
 		
@@ -390,10 +406,12 @@ BSTATUS TmpParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* 
 			TmpReferenceFcb(DirEntry->Fcb);
 			Iosb->ParseDir.FoundFcb = DirEntry->Fcb;
 			Iosb->ParseDir.ReparsePath = ParsePath + Match;
+			KeReleaseMutex(&Ext->Lock);
 			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 		}
 		
 		// Not Found
+		KeReleaseMutex(&Ext->Lock);
 		return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
 	}
 	else if (InitialFcb->FileType == FILE_TYPE_SYMBOLIC_LINK)
@@ -427,7 +445,7 @@ BSTATUS TmpUnlink(PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENT
 	if (ContainingFcb->FileType != FILE_TYPE_DIRECTORY)
 		return STATUS_NOT_A_DIRECTORY;
 	
-	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
@@ -478,7 +496,7 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 	if (Fcb->FileType != FILE_TYPE_DIRECTORY)
 		return STATUS_NOT_A_DIRECTORY;
 	
-	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
@@ -530,7 +548,7 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 	// this directory has no parent.
 	ASSERT(ParentFcb != Fcb);
 	
-	Status = KeWaitForSingleObject(&ParentExt->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	Status = KeWaitForSingleObject(&ParentExt->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 	{
 		DbgPrint("TmpRemoveDir: Failed to acquire parent mutex: %s (%d)", RtlGetStatusString(Status), Status);
@@ -570,7 +588,7 @@ BSTATUS TmpMakeLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
 	if (!DirEntry)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, TIMEOUT_INFINITE, true, KeGetPreviousMode());
+	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
 	{
 		MmFreePool(DirEntry);
@@ -666,7 +684,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 		DirEntry->Name[sizeof DirEntry->Name - 1] = 0;
 		
 		PREP_EXT_PARENT;
-		Status = KeWaitForSingleObject(&ParentExt->Lock, false, TIMEOUT_INFINITE, MODE_KERNEL);
+		Status = KeWaitForSingleObject(&ParentExt->Lock, false, TMPFS_TIMEOUT, MODE_KERNEL);
 		ASSERT(SUCCEEDED(Status));
 		
 		InsertTailList(&ParentExt->ChildrenListHead, &DirEntry->ListEntry);
