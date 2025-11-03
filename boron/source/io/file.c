@@ -13,17 +13,6 @@ Author:
 ***/
 #include "iop.h"
 
-// Checks if this file is seekable.
-bool IoIsSeekable(PFCB Fcb)
-{
-	IO_SEEKABLE_METHOD Seekable = Fcb->DispatchTable->Seekable;
-	
-	if (!Seekable)
-		return false;
-	
-	return Seekable(Fcb);
-}
-
 // Create a file object from an FCB.
 BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {

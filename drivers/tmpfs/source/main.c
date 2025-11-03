@@ -12,9 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 1 November 2025
 ***/
-#include <ke.h>
-#include <io.h>
-#include <string.h>
+#include "tmpfs.h"
 
 static bool EndsWith(const char* What, const char* With)
 {
@@ -36,12 +34,6 @@ IO_DISPATCH_TABLE TmpfsDispatchTable =
 	//.ParseDir = Ext2ParseDir,
 	//.Seekable = Ext2Seekable,
 };
-
-BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
-{
-	// TODO
-	return STATUS_UNIMPLEMENTED;
-}
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
