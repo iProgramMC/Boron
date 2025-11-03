@@ -129,9 +129,10 @@ $(BUILD_DIR)/%.sys: FORCE
 
 $(BUILD_DIR)/%.tar: FORCE apps
 	@echo "[MK]\tBuilding initrd"
-	mkdir -p $(INITRD_DIR)/usr/include
-	cp -rf common/include $(INITRD_DIR)/usr
-	cp -rf user/include $(INITRD_DIR)/usr
-	tar -cf $@ -C $(INITRD_DIR) .
+	@rm -rf $(INITRD_DIR)/usr/include
+	@mkdir -p $(INITRD_DIR)/usr/include
+	@cp -rf common/include $(INITRD_DIR)/usr
+	@cp -rf user/include $(INITRD_DIR)/usr
+	@tar -cf $@ -C $(INITRD_DIR) .
 
 FORCE: ;

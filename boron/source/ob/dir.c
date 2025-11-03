@@ -32,10 +32,21 @@ void ObpLeaveDirectoryMutex(POBJECT_DIRECTORY Directory)
 POBJECT_DIRECTORY ObpRootDirectory;
 POBJECT_DIRECTORY ObpObjectTypesDirectory;
 
+POBJECT_DIRECTORY ObGetRootDirectory()
+{
+	return ObpRootDirectory;
+}
+
+POBJECT_DIRECTORY ObGetObjectTypeDirectory()
+{
+	return ObpObjectTypesDirectory;
+}
+
 BSTATUS ObLinkObject(
 	POBJECT_DIRECTORY Directory,
 	void* Object,
-	const char* Name)
+	const char* Name
+)
 {
 	ObpEnterDirectoryMutex(Directory);
 	
@@ -49,7 +60,10 @@ BSTATUS ObLinkObject(
 	if (!Header->ObjectName)
 	{
 		if (!Name)
+		{
+			ObpLeaveDirectoryMutex(Directory);
 			return STATUS_INVALID_PARAMETER;
+		}
 		
 		BSTATUS Status = ObpAssignName (Header, Name);
 		if (FAILED(Status))
@@ -59,10 +73,25 @@ BSTATUS ObLinkObject(
 		}
 	}
 	
-	// TODO: Check if the name already exists.
+	POBJECT_HEADER ObjectHeader = OBJECT_GET_HEADER(Object);
+	
+	// Check if the name already exists.
+	for (PLIST_ENTRY ListEntry = Directory->ListHead.Flink;
+		ListEntry != &Directory->ListHead;
+		ListEntry = ListEntry->Flink)
+	{
+		POBJECT_HEADER DirObject = CONTAINING_RECORD(ListEntry, OBJECT_HEADER, DirectoryListEntry);
+		ASSERT(DirObject->ObjectName);
+		
+		if (strcmp(DirObject->ObjectName, ObjectHeader->ObjectName) == 0)
+		{
+			ObpLeaveDirectoryMutex(Directory);
+			return STATUS_NAME_COLLISION;
+		}
+	}
 	
 	// Add it proper
-	InsertTailList(&Directory->ListHead, &OBJECT_GET_HEADER(Object)->DirectoryListEntry);
+	InsertTailList(&Directory->ListHead, &ObjectHeader->DirectoryListEntry);
 	Directory->Count++;
 	ObReferenceObjectByPointer(Directory);
 	
@@ -73,7 +102,7 @@ BSTATUS ObLinkObject(
 	return STATUS_SUCCESS;
 }
 
-// Same as ObpRemoveObjectFromDirectory, but with the root directory mutex entered
+// Same as ObUnlinkObject, but with the root directory mutex entered
 void ObpRemoveObjectFromDirectory(POBJECT_DIRECTORY Directory, void* Object)
 {
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);

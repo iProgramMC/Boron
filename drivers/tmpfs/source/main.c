@@ -23,18 +23,6 @@ static bool EndsWith(const char* What, const char* With)
 	return strcmp(What + WhatLength - WithLength, With) == 0;
 }
 
-IO_DISPATCH_TABLE TmpfsDispatchTable =
-{
-	//.CreateObject = Ext2CreateObject,
-	//.Reference = Ext2ReferenceInode,
-	//.Dereference = Ext2DereferenceInode,
-	//.Mount = Ext2Mount,
-	//.Read = Ext2Read,
-	//.ReadDir = Ext2ReadDir,
-	//.ParseDir = Ext2ParseDir,
-	//.Seekable = Ext2Seekable,
-};
-
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	BSTATUS Status;
