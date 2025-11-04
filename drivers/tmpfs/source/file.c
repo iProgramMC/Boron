@@ -15,6 +15,7 @@ Author:
 #include "tmpfs.h"
 
 #define TMPFS_TIMEOUT 2000
+#define TMPFS_MUTEX_LEVEL 3 // TODO: We may want to outright remove mutex levels.
 
 #define EXT(Fcb) ((PTMPFS_EXT) (Fcb)->Extension)
 
@@ -89,8 +90,6 @@ BSTATUS TmpBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset)
 		}
 		
 		Ext->PageList[Offset] = Pfn;
-		
-		DbgPrint("InitialAddress: %p   Length: %zu  Offset: %zu", Ext->InitialAddress, Ext->InitialLength, Offset * PAGE_SIZE);
 		
 		// Physical pages are initialized to zero automatically.
 		if (Ext->InitialAddress && Offset * PAGE_SIZE < Ext->InitialLength)
@@ -638,7 +637,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 	Fcb->FileLength = InitialLength;
 	
 	PREP_EXT;
-	KeInitializeMutex(&Ext->Lock, 0);
+	KeInitializeMutex(&Ext->Lock, TMPFS_MUTEX_LEVEL);
 	Ext->ReferenceCount = 1;
 	Ext->InitialAddress = InitialAddress;
 	Ext->InitialLength = InitialLength;
