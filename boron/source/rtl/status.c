@@ -75,6 +75,7 @@ static const char* const RtlpStatusCodes[] =
 	"The end of the file has been reached.",
 	"The operation would block the current thread, but the resource requested is non-blocking.",
 	"The specified directory is not empty.",
+	"The specified offset is located outside of the specified file's boundaries.",
 	
 	"Not enough virtual address space is available to complete the operation.",
 	"The virtual address requested is not located at the base of a reserved region.",

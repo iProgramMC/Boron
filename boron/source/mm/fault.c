@@ -144,6 +144,13 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 			Status = BackingMemory(&Iosb, Fcb, FileOffset);
 			if (FAILED(Status))
 			{
+				if (Status == STATUS_OUT_OF_FILE_BOUNDS)
+				{
+					// Outside of the file's boundaries.  We should handle this normally using the page cache.
+					BackingMemory = NULL;
+					goto NormalHandling;
+				}
+				
 				// TODO: If an I/O call was interrupted, then we should probably not throw a
 				// page fault related error, and we should send that signal instead.
 				
@@ -169,6 +176,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		}
 		else
 		{
+		NormalHandling:
 			Pfn = MmGetEntryCcb(PageCache, FileOffset / PAGE_SIZE);
 		}
 		

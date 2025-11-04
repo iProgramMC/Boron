@@ -57,7 +57,7 @@ BSTATUS TmpBackingMemory(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 	
 	if (Offset >= Fcb->FileLength)
-		return IOSB_STATUS(Iosb, STATUS_HARDWARE_IO_ERROR);
+		return IOSB_STATUS(Iosb, STATUS_OUT_OF_FILE_BOUNDS);
 	
 	BSTATUS Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
 	if (FAILED(Status))
