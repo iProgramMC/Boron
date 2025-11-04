@@ -320,7 +320,6 @@ void OSFreeHeap(POS_HEAP Heap, void* Memory)
 	if (Header->WasMapped)
 	{
 		RemoveEntryList(&Header->BlockListEntry);
-		RemoveEntryList(&Header->FreeListEntry);
 
 		HeapDbg("Unmapping large region %p", Memory);
 
