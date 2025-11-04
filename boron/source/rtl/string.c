@@ -165,6 +165,20 @@ int strcmp(const char* s1, const char* s2)
 	return 0;
 }
 
+int strncmp(const char *str1, const char *str2, size_t len)
+{
+	for (size_t i = 0; i < len; i++)
+	{
+		if (str1[i] != str2[i])
+			return str1[i] < str2[i] ? -1 : 1;
+
+		if (str1[i] == 0)
+			return 0;
+	}
+
+	return 0;
+}
+
 char* strchr(const char* str, int c)
 {
 	while (*str)
@@ -173,6 +187,17 @@ char* strchr(const char* str, int c)
 			return (char*) str;
 		
 		str++;
+	}
+	
+	return NULL;
+}
+
+char* strstr(const char* haystack, const char* needle)
+{
+	for (size_t i = 0; haystack[i] != 0; i++)
+	{
+		if (strncmp(haystack + i, needle, strlen(needle)) == 0)
+			return (char*) haystack + i;
 	}
 	
 	return NULL;

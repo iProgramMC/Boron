@@ -31,6 +31,7 @@ const char* PspInitialProcessEnvironment =
 	"PATH=/Root/bin:/Root:/\0"
 	"LIB_PATH=/Root/lib:/Root:/\0"
 	"SOMETHING=Something here\0"
+	"TerminalFramebuffer=/Devices/FrameBuffer0\0"
 	"\0";
 
 bool PsShouldStartInitialProcess()

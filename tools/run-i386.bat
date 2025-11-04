@@ -8,7 +8,7 @@ cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
 if exist %nspath%\vdiske2.vdi (
-	set DriveOptions=-cdrom %nspath%\build\image.i386.iso -drive id=nvm,file=%nspath%\vdiske2.vdi,if=none -device nvme,serial=deadbeef,drive=nvm
+	set DriveOptions=-cdrom %nspath%\build\image.i386.iso -drive id=nvm,file=%nspath%\vdiske2.vdi,if=none,format=raw -device nvme,serial=deadbeef,drive=nvm
 ) else (
 	set DriveOptions=-cdrom %nspath%\build\image.i386.iso
 )

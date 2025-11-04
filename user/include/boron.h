@@ -16,3 +16,6 @@
 #include "heap.h"
 #include "csect.h"
 #include "proc.h"
+#include "eb.h"
+#include "io.h"
+#include "env.h"
