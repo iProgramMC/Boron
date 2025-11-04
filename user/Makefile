@@ -8,6 +8,7 @@
 APPS := \
 	libboron \
 	libflanterm \
+	libCoreGraphics \
 	init \
 	FullScreenTerminal
 

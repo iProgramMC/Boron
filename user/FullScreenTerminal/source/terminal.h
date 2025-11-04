@@ -2,12 +2,12 @@
 
 #include <boron.h>
 #include <string.h>
+#include <cg/context.h>
+#include <cg/prims.h>
 
-extern IOCTL_FRAMEBUFFER_INFO FbInfo;
-extern uint8_t* FbAddress;
+extern PGRAPHICS_CONTEXT GraphicsContext;
 
 BSTATUS UseFramebuffer(const char* FramebufferPath);
-
 BSTATUS SetupTerminal();
 BSTATUS CreatePseudoterminal();
 BSTATUS LaunchProcess(const char* CommandLine);

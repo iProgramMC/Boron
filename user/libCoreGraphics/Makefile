@@ -1,11 +1,9 @@
 #              The Boron Operating System
 # Common makefile for all userland application targets
 
-APP_NAME  = FullScreenTerminal
+APP_NAME  = libCoreGraphics
 # DEBUG  = yes
 # DEBUG2 = no
-
-CPPFLAGS += -I../libflanterm/source -I../libCoreGraphics/include
-LDFLAGS = -lflanterm -lCoreGraphics
+IS_LIBRARY = yes
 
 include ../CommonMakefile

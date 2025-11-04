@@ -1,7 +1,7 @@
 #include "terminal.h"
+#include <cg/context.h>
 
-IOCTL_FRAMEBUFFER_INFO FbInfo;
-uint8_t* FbAddress;
+PGRAPHICS_CONTEXT GraphicsContext;
 
 BSTATUS UseFramebuffer(const char* FramebufferPath)
 {
@@ -20,6 +20,7 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		return Status;
 	}
 	
+	IOCTL_FRAMEBUFFER_INFO FbInfo;
 	Status = OSDeviceIoControl(
 		FramebufferHandle,
 		IOCTL_FRAMEBUFFER_GET_INFO,
@@ -35,11 +36,12 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		return Status;
 	}
 	
+	void* FbAddress = NULL;
 	size_t Size = FbInfo.Pitch * FbInfo.Height;
 	Status = OSMapViewOfObject(
 		CURRENT_PROCESS_HANDLE,
 		FramebufferHandle,
-		(void**) &FbAddress,
+		&FbAddress,
 		Size,
 		MEM_COMMIT,
 		0,
@@ -48,7 +50,24 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 	
 	if (FAILED(Status))
 	{
+		DbgPrint("Size: %zu", Size);
 		DbgPrint("ERROR: Failed to map %s. %s (%d)", FramebufferPath, RtlGetStatusString(Status), Status);
+		OSClose(FramebufferHandle);
+		return Status;
+	}
+	
+	GraphicsContext = CGCreateContextFromBuffer(
+		FbAddress,
+		(int) FbInfo.Width,
+		(int) FbInfo.Height,
+		FbInfo.Pitch,
+		FbInfo.Bpp,
+		FbInfo.ColorFormat
+	);
+	
+	if (!GraphicsContext)
+	{
+		DbgPrint("ERROR: Failed to create graphics context %s.", FramebufferPath);
 		OSClose(FramebufferHandle);
 		return Status;
 	}

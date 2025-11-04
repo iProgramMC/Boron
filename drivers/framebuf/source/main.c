@@ -26,7 +26,8 @@ typedef struct
 	uint32_t Width;
 	uint32_t Height;
 	uint32_t Pitch;
-	uint32_t Bpp;
+	short Bpp;
+	short ColorFormat;
 	size_t Size;
 }
 FCB_EXTENSION, *PFCB_EXTENSION;
@@ -186,7 +187,8 @@ BSTATUS FramebufferIoControl(
 			FbInfo->Width  = Ext->Width;
 			FbInfo->Height = Ext->Height;
 			FbInfo->Pitch  = Ext->Pitch;
-			FbInfo->Bpp    = (short) Ext->Bpp;
+			FbInfo->Bpp    = Ext->Bpp;
+			FbInfo->ColorFormat = Ext->ColorFormat;
 			
 			return STATUS_SUCCESS;
 		}
@@ -207,6 +209,63 @@ IO_DISPATCH_TABLE FramebufferDispatchTable = {
 int GetFrameBufferCount()
 {
 	return KeLoaderParameterBlock.FramebufferCount;
+}
+
+int FramebufferDetermineFormat(PLOADER_FRAMEBUFFER Framebuffer)
+{
+	// See ioctl.h for a complete list.
+	switch (Framebuffer->BitDepth)
+	{
+		case 32:
+		{
+			if (Framebuffer->RedMaskShift == 16 && Framebuffer->GreenMaskShift == 8 && Framebuffer->BlueMaskShift == 0)
+				return COLOR_FORMAT_ARGB8888;
+			
+			if (Framebuffer->RedMaskShift == 0 && Framebuffer->GreenMaskShift == 8 && Framebuffer->BlueMaskShift == 16)
+				return COLOR_FORMAT_ABGR8888;
+			
+			DbgPrint("Warning: unsupported 32-bit color format, returning COLOR_FORMAT_ARGB8888");
+			return COLOR_FORMAT_ARGB8888;
+		}
+		case 24:
+		{
+			if (Framebuffer->RedMaskShift == 16 && Framebuffer->GreenMaskShift == 8 && Framebuffer->BlueMaskShift == 0)
+				return COLOR_FORMAT_RGB888;
+			
+			if (Framebuffer->RedMaskShift == 0 && Framebuffer->GreenMaskShift == 8 && Framebuffer->BlueMaskShift == 16)
+				return COLOR_FORMAT_BGR888;
+			
+			DbgPrint("Warning: unsupported 24-bit color format, returning COLOR_FORMAT_RGB888");
+			return COLOR_FORMAT_RGB888;
+		}
+		case 16:
+		{
+			if (Framebuffer->RedMaskSize == 5 && Framebuffer->BlueMaskSize == 5 && Framebuffer->GreenMaskSize == 6)
+			{
+				if (Framebuffer->RedMaskShift == 11 && Framebuffer->GreenMaskShift == 5 && Framebuffer->BlueMaskShift == 0)
+					return COLOR_FORMAT_RGB565;
+				
+				if (Framebuffer->RedMaskShift == 0 && Framebuffer->GreenMaskShift == 5 && Framebuffer->BlueMaskShift == 11)
+					return COLOR_FORMAT_BGR565;
+			}
+			else
+			{
+				if (Framebuffer->RedMaskShift == 10 && Framebuffer->GreenMaskShift == 5 && Framebuffer->BlueMaskShift == 0)
+					return COLOR_FORMAT_ARGB1555;
+				
+				if (Framebuffer->RedMaskShift == 0 && Framebuffer->GreenMaskShift == 5 && Framebuffer->BlueMaskShift == 10)
+					return COLOR_FORMAT_ABGR1555;
+			}
+			
+			DbgPrint("Warning: unsupported 16-bit color format, returning COLOR_FORMAT_ARGB1555");
+			return COLOR_FORMAT_ARGB1555;
+		}
+		default:
+		{
+			DbgPrint("Warning: Unsupported %d-bit color format.  Returning COLOR_FORMAT_I1");
+			return COLOR_FORMAT_I1;
+		}
+	}
 }
 
 BSTATUS CreateFrameBufferObject(int Index)
@@ -255,11 +314,12 @@ BSTATUS CreateFrameBufferObject(int Index)
 	PREP_EXT;
 	
 	Ext->Address = FbAddress;
+	Ext->Size    = FbSize;
 	Ext->Width   = FbWidth;
 	Ext->Height  = FbHeight;
 	Ext->Pitch   = FbPitch;
-	Ext->Bpp     = FbBpp;
-	Ext->Size    = FbSize;
+	Ext->Bpp     = (short) FbBpp;
+	Ext->ColorFormat = FramebufferDetermineFormat(Framebuffer);
 	
 	// Register the framebuffer address as MMIO
 	MmRegisterMMIOAsMemory(FbAddress, FbSize);
