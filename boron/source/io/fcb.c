@@ -54,3 +54,14 @@ void IoDereferenceFcb(PFCB Fcb)
 	if (DerefMethod)
 		DerefMethod(Fcb);
 }
+
+// Checks if this file is seekable.
+bool IoIsSeekable(PFCB Fcb)
+{
+	IO_SEEKABLE_METHOD Seekable = Fcb->DispatchTable->Seekable;
+	
+	if (!Seekable)
+		return false;
+	
+	return Seekable(Fcb);
+}

@@ -73,11 +73,13 @@ enum
 	STATUS_NO_SUCH_DEVICES,     // No devices with specified properties found
 	STATUS_UNLOAD,              // Returned by the driver entry.  Tells the driver loader that this driver should be unloaded.
 	STATUS_NOT_A_DIRECTORY,     // Not a directory
+	STATUS_IS_A_DIRECTORY,      // Target is a directory
 	STATUS_HARDWARE_IO_ERROR,   // I/O error reported by backing hardware
 	STATUS_UNALIGNED_OPERATION, // Unaligned operation was attempted.  Use IoGetOperationAlignment to find the alignment required to write to this device.
 	STATUS_NOT_THIS_FILE_SYSTEM,// This file system does not exist on this volume
 	STATUS_END_OF_FILE,         // The end of this file has been reached.
 	STATUS_BLOCKING_OPERATION,  // The operation would block the running thread, and the resource is marked non-blocking.
+	STATUS_DIRECTORY_NOT_EMPTY, // The directory is not empty.
 	
 	// Memory manager error codes
 	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space

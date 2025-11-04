@@ -23,17 +23,21 @@ TARGETL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,
 
 ifeq ($(IS_LIBRARY),yes)
 	SUFFIX = so
+	TYPE = lib
 else
 	SUFFIX = exe
+	TYPE = bin
 endif
 
 # Path to Boron install directory
-INSTALL_DIR = ../../build
+INSTALL_DIR = ../../build/$(TARGETL)/initrd_root
 
 # This is the name that our final application executable will have.
 # Change as needed.
 override TARGET_FILE := $(BUILD_DIR)/$(APP_NAME).$(TARGETL).$(SUFFIX)
-override TARGET_INSTALL := $(INSTALL_DIR)/$(TARGETL)/$(APP_NAME).$(SUFFIX)
+override TARGET_INSTALL := $(INSTALL_DIR)/$(TYPE)/$(APP_NAME).$(SUFFIX)
+
+override LIBS_DIR := $(INSTALL_DIR)/lib
 
 # Convenience macro to reliably declare overridable command variables.
 define DEFAULT_VAR =
@@ -110,6 +114,7 @@ LDFLAGSBASE +=              \
 	-nostdlib               \
 	-z max-page-size=0x1000 \
 	-m $(LINK_ARCH)         \
+	-L$(LIBS_DIR)           \
 	$(ARCH_LDFLAGS)
 
 # Internal linker flags that should not be changed by the user.
@@ -127,9 +132,7 @@ endif
 	
 ifeq ($(INCLUDE_LIBBORON),no)
 else
-LDFLAGS +=                  \
-	-lboron                 \
-	-L../../build/$(TARGETL)
+	LDFLAGS += -lboron
 endif
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
@@ -185,5 +188,5 @@ clean:
 application: $(TARGET_FILE) install_application
 
 install_application:
-	@mkdir -p $(INSTALL_DIR)/$(TARGETL)
+	@mkdir -p $(dir $(TARGET_INSTALL))
 	@cp -f $(TARGET_FILE) $(TARGET_INSTALL)

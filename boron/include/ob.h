@@ -370,6 +370,12 @@ enum
 	__OB_BUILTIN_TYPE_COUNT
 };
 
+// Obtains the root directory of the object namespace.
+POBJECT_DIRECTORY ObGetRootDirectory();
+
+// Obtains the object types directory. (/ObjectTypes)
+POBJECT_DIRECTORY ObGetObjectTypeDirectory();
+
 #ifdef KERNEL
 
 // Creates a symbolic link to the root of the active installation.

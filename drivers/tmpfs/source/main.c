@@ -12,9 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 1 November 2025
 ***/
-#include <ke.h>
-#include <io.h>
-#include <string.h>
+#include "tmpfs.h"
 
 static bool EndsWith(const char* What, const char* With)
 {
@@ -23,24 +21,6 @@ static bool EndsWith(const char* What, const char* With)
 		return false;
 	
 	return strcmp(What + WhatLength - WithLength, With) == 0;
-}
-
-IO_DISPATCH_TABLE TmpfsDispatchTable =
-{
-	//.CreateObject = Ext2CreateObject,
-	//.Reference = Ext2ReferenceInode,
-	//.Dereference = Ext2DereferenceInode,
-	//.Mount = Ext2Mount,
-	//.Read = Ext2Read,
-	//.ReadDir = Ext2ReadDir,
-	//.ParseDir = Ext2ParseDir,
-	//.Seekable = Ext2Seekable,
-};
-
-BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
-{
-	// TODO
-	return STATUS_UNIMPLEMENTED;
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
