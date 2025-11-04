@@ -2,6 +2,6 @@
 	path = limine
 	url = https://codeberg.org/Limine/Limine.git
 	branch = v10.x-binary
-[submodule "drivers/halx86/source/flanterm"]
-	path = drivers/halx86/source/flanterm
+[submodule "external/flanterm"]
+	path = external/flanterm
 	url = https://codeberg.org/Mintsuki/Flanterm.git
