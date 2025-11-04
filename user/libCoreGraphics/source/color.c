@@ -3,7 +3,7 @@
 #include <cg/context.h>
 #include <cg/color.h>
 
-uint32_t CGConvertToNative(PGRAPHICS_CONTEXT Context, uint32_t Color)
+uint32_t CGConvertColorToNative(PGRAPHICS_CONTEXT Context, uint32_t Color)
 {
 	COLOR_ARGB8888 CGColor;
 	CGColor.n = Color;

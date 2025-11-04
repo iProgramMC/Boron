@@ -17,4 +17,4 @@ typedef union { struct { uint8_t i : 4; }; uint32_t n; } COLOR_I4;
 typedef union { struct { uint8_t p : 4; }; uint32_t n; } COLOR_P4;
 typedef union { struct { uint8_t i : 1; }; uint32_t n; } COLOR_I1;
 
-uint32_t CGConvertToNative(PGRAPHICS_CONTEXT Context, uint32_t Color);
+uint32_t CGConvertColorToNative(PGRAPHICS_CONTEXT Context, uint32_t Color);
