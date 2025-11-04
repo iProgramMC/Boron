@@ -56,4 +56,4 @@ BSTATUS OSDLLMapElfFile(
 
 // Opens a file by name, scanning the PATH environment variable.
 HIDDEN
-BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName);
+BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName, bool IsLibrary);

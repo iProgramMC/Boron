@@ -165,6 +165,19 @@ int strcmp(const char* s1, const char* s2)
 	return 0;
 }
 
+char* strchr(const char* str, int c)
+{
+	while (*str)
+	{
+		if (*str == c)
+			return (char*) str;
+		
+		str++;
+	}
+	
+	return NULL;
+}
+
 bool StringMatchesCaseInsensitive(const char* String1, const char* String2, size_t Length)
 {
 	while (Length--)

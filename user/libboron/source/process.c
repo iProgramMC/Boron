@@ -23,7 +23,7 @@ static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 static size_t OSDLLEnvironmentLength(const char* Environ)
 {
 	size_t Length = 2;
-	while (Environ[0] != '\0' && Environ[1] != '\0') {
+	while (Environ[0] != '\0' || Environ[1] != '\0') {
 		Environ++;
 		Length++;
 	}
@@ -211,7 +211,7 @@ BSTATUS OSCreateProcess(
 	}
 	
 	// Open the main image.
-	Status = OSDLLOpenFileByName(&FileHandle, ImageName);
+	Status = OSDLLOpenFileByName(&FileHandle, ImageName, false);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to open %s. %s (%d)", ImageName, RtlGetStatusString(Status), Status);
@@ -248,7 +248,7 @@ BSTATUS OSCreateProcess(
 		else
 		{
 			LdrDbgPrint("OSDLL: Opening interpreter %s.", Interpreter);
-			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter);
+			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter, true);
 		}
 		
 		//Status = OSDLLMapSelfIntoProcess(ProcessHandle, InterpreterFileHandle, PebSize, &EntryPoint);

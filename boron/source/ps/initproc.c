@@ -28,7 +28,8 @@ const char* PspInitialProcessCommandLine = "";
 
 // environment. temporary.
 const char* PspInitialProcessEnvironment =
-	"PATH=/Root/bin:/Root/lib:/Root:/:.\0"
+	"PATH=/Root/bin:/Root:/\0"
+	"LIB_PATH=/Root/lib:/Root:/\0"
 	"SOMETHING=Something here\0"
 	"\0";
 
@@ -43,7 +44,7 @@ bool PsShouldStartInitialProcess()
 static size_t PspEnvironmentLength(const char* Environ)
 {
 	size_t Length = 2;
-	while (Environ[0] != '\0' && Environ[1] != '\0') {
+	while (Environ[0] != '\0' || Environ[1] != '\0') {
 		Environ++;
 		Length++;
 	}

@@ -51,39 +51,6 @@ const char* OSDLLOffsetPathAway(const char* Name)
 	return Name;
 }
 
-HIDDEN
-BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName)
-{
-	BSTATUS Status;
-	OBJECT_ATTRIBUTES Attributes;
-	
-	// Try the current directory first.
-	// TODO: For known system shared libraries, do this last.  Or not at all.
-	Attributes.ObjectName = FileName;
-	Attributes.ObjectNameLength = strlen(FileName);
-	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = OSDLLGetCurrentDirectory();
-	
-	Status = OSOpenFile(Handle, &Attributes);
-	if (SUCCEEDED(Status))
-		return Status;
-	
-	LdrDbgPrint("OSDLL: OSDLLOpenFileByName cannot open %s from the current directory.  Trying to scan PATH.", FileName);
-	
-	char ImageName[IO_MAX_NAME];
-	snprintf(ImageName, sizeof ImageName, "/InitRoot/%s", FileName);
-	
-	// TODO: Scan the PATH environment variable for paths and load from there.
-	// Do not hardcode /InitRoot/%s.
-	
-	Attributes.ObjectName = ImageName;
-	Attributes.ObjectNameLength = strlen(ImageName);
-	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = HANDLE_NONE;
-	
-	return OSOpenFile(Handle, &Attributes);
-}
-
 // TODO: If we need to implement loading libraries at runtime,
 // we should protect this with a critical section!
 HIDDEN
@@ -501,7 +468,7 @@ BSTATUS OSDLLLoadDynamicLibrary(PPEB Peb, const char* FileName)
 	BSTATUS Status;
 	HANDLE Handle;
 	
-	Status = OSDLLOpenFileByName(&Handle, FileName);
+	Status = OSDLLOpenFileByName(&Handle, FileName, true);
 	if (FAILED(Status))
 	{
 		DbgPrint(
