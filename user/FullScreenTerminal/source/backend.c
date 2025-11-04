@@ -23,6 +23,16 @@ void DrawFrame()
 	}
 	
 	CGFillRectangle(GraphicsContext, 0xFF9944, Left, Top, Right - Left, Bottom - Top);
+	
+	CGDrawRectangle(GraphicsContext, 0x4499FF, 150, 100, 300, 200);
+	
+	CGFillRectangleGradient(GraphicsContext, 0x4499FF, 0xFF9944, true,  500, 100, 300, 200);
+	CGFillRectangleGradient(GraphicsContext, 0x4499FF, 0xFF9944, false, 500, 400, 300, 200);
+	
+	CGFillCircle(GraphicsContext, 0xFFCD12, 200, 300, 50);
+	
+	CGDrawLine(GraphicsContext, 0x81CBFF, 0, 0, GraphicsContext->Width, GraphicsContext->Height);
+	CGDrawLine(GraphicsContext, 0xFFCB81, GraphicsContext->Width, 0, 0, GraphicsContext->Height);
 }
 
 BSTATUS SetupTerminal()
