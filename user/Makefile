@@ -7,6 +7,7 @@
 # applications their dependencies!
 APPS := \
 	libboron \
+	libflanterm \
 	init \
 	FullScreenTerminal
 

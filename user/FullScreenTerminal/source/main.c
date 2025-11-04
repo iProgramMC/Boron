@@ -1,5 +1,4 @@
-#include <boron.h>
-#include <string.h>
+#include "terminal.h"
 
 IOCTL_FRAMEBUFFER_INFO FramebufferInfo;
 void* FramebufferMapAddress;
@@ -35,53 +34,39 @@ int _start()
 		return 1;
 	}
 	
-	OBJECT_ATTRIBUTES Attributes;
-	Attributes.ObjectName = FramebufferName;
-	Attributes.ObjectNameLength = strlen(FramebufferName);
-	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = HANDLE_NONE;
-	
-	HANDLE FramebufferHandle;
-	Status = OSOpenFile(&FramebufferHandle, &Attributes);
+	Status = UseFramebuffer(FramebufferName);
 	if (FAILED(Status))
 	{
-		DbgPrint("ERROR: Couldn't open framebuffer '%s'. %s (%d)", FramebufferName, RtlGetStatusString(Status), Status);
+		DbgPrint("ERROR: Frame buffer '%s' couldn't be used. %s", FramebufferName, RtlGetStatusString(Status));
 		return 1;
 	}
 	
-	Status = OSDeviceIoControl(
-		FramebufferHandle,
-		IOCTL_FRAMEBUFFER_GET_INFO,
-		NULL,
-		0,
-		&FramebufferInfo,
-		sizeof FramebufferInfo
-	);
+	Status = SetupTerminal();
 	if (FAILED(Status))
 	{
-		DbgPrint("ERROR: Failed to get framebuffer info from %s. %s (%d)", FramebufferName, RtlGetStatusString(Status), Status);
-		OSClose(FramebufferHandle);
+		DbgPrint("ERROR: Could not setup terminal. %s", RtlGetStatusString(Status));
 		return 1;
 	}
 	
-	size_t Size = FramebufferInfo.Pitch * FramebufferInfo.Height;
-	Status = OSMapViewOfObject(
-		CURRENT_PROCESS_HANDLE,
-		FramebufferHandle,
-		&FramebufferMapAddress,
-		Size,
-		MEM_COMMIT,
-		0,
-		PAGE_READ | PAGE_WRITE
-	);
-	
+	Status = CreatePseudoterminal();
 	if (FAILED(Status))
 	{
-		DbgPrint("ERROR: Failed to map %s. %s (%d)", FramebufferName, RtlGetStatusString(Status), Status);
-		OSClose(FramebufferHandle);
+		DbgPrint("ERROR: Could not create pseudoterminal. %s", RtlGetStatusString(Status));
 		return 1;
 	}
 	
+	const char* Arguments = OSDLLGetCurrentPeb()->CommandLine;
+	Status = LaunchProcess(Arguments);
+	if (FAILED(Status))
+	{
+		DbgPrint("ERROR: Could not create process according to arguments '%s'. %s", RtlGetStatusString(Status));
+		return 1;
+	}
+	
+	while (true)
+	{
+		UpdateLoop();
+	}
 	
 	return 0;
 }

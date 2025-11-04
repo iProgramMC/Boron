@@ -4,6 +4,8 @@
 APP_NAME  = FullScreenTerminal
 # DEBUG  = yes
 # DEBUG2 = no
-LDFLAGS = 
+
+CPPFLAGS += -I../libflanterm/source
+LDFLAGS = -lflanterm
 
 include ../CommonMakefile
