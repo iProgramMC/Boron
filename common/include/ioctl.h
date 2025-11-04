@@ -26,5 +26,6 @@ typedef struct
 	uint32_t Height;
 	uint32_t Pitch;
 	short    Bpp;
+	short    ColorFormat;
 }
 IOCTL_FRAMEBUFFER_INFO, *PIOCTL_FRAMEBUFFER_INFO;

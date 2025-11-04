@@ -3,8 +3,8 @@
 #include <boron.h>
 #include <string.h>
 
-extern IOCTL_FRAMEBUFFER_INFO FramebufferInfo;
-extern void* FramebufferMapAddress;
+extern IOCTL_FRAMEBUFFER_INFO FbInfo;
+extern uint8_t* FbAddress;
 
 BSTATUS UseFramebuffer(const char* FramebufferPath);
 

@@ -1,8 +1,5 @@
 #include "terminal.h"
 
-IOCTL_FRAMEBUFFER_INFO FramebufferInfo;
-void* FramebufferMapAddress;
-
 bool GetCommandLineArgument(const char* Key, char* ValueOut, size_t ValueOutSize)
 {
 	PPEB Peb = OSDLLGetCurrentPeb();

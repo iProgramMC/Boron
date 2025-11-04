@@ -1,5 +1,8 @@
 #include "terminal.h"
 
+IOCTL_FRAMEBUFFER_INFO FbInfo;
+uint8_t* FbAddress;
+
 BSTATUS UseFramebuffer(const char* FramebufferPath)
 {
 	BSTATUS Status;
@@ -22,8 +25,8 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		IOCTL_FRAMEBUFFER_GET_INFO,
 		NULL,
 		0,
-		&FramebufferInfo,
-		sizeof FramebufferInfo
+		&FbInfo,
+		sizeof FbInfo
 	);
 	if (FAILED(Status))
 	{
@@ -32,11 +35,11 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		return Status;
 	}
 	
-	size_t Size = FramebufferInfo.Pitch * FramebufferInfo.Height;
+	size_t Size = FbInfo.Pitch * FbInfo.Height;
 	Status = OSMapViewOfObject(
 		CURRENT_PROCESS_HANDLE,
 		FramebufferHandle,
-		&FramebufferMapAddress,
+		(void**) &FbAddress,
 		Size,
 		MEM_COMMIT,
 		0,
