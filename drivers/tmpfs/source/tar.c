@@ -65,8 +65,25 @@ BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
 	char Buffer[IO_MAX_NAME * 2];
 	char SecondBuffer[IO_MAX_NAME];
 	
-	PTAR_UNIT CurrentBlock = Module->Address;
-	PTAR_UNIT EndBlock = Module->Address + Module->Size;
+#ifdef IS_32_BIT
+	uint8_t* ModuleAddress = MmMapIoSpace(
+		(uintptr_t)Module->Address - MI_IDENTMAP_START,
+		Module->Size,
+		MM_PTE_READWRITE,
+		POOL_TAG("TarM")
+	);
+	
+	if (!ModuleAddress)
+	{
+		DbgPrint("Mapping tar file failed, out of memory?");
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+#else
+	uint8_t* ModuleAddress = Module->Address;
+#endif
+	
+	PTAR_UNIT CurrentBlock = (void*) ModuleAddress;
+	PTAR_UNIT EndBlock = (void*) ModuleAddress + Module->Size;
 	
 	const char* SanitizedPath = SanitizePath(Module->Path);
 	

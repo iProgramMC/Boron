@@ -34,6 +34,7 @@ DRIVERS_LIST = \
 	framebuf   \
 	i8042prt   \
 	ext2fs     \
+	tmpfs      \
 	test
 endif
 

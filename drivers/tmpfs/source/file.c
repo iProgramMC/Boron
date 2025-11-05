@@ -305,7 +305,7 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 		
 		// Retrack the pointer.
 		PLIST_ENTRY Entry = Ext->ChildrenListHead.Flink;
-		for (int i = 0; i < TOffset.FileIndex; i++)
+		for (unsigned i = 0; i < TOffset.FileIndex; i++)
 		{
 			Entry = Entry->Flink;
 			if (Entry == &Ext->ChildrenListHead)

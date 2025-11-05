@@ -61,7 +61,20 @@ static void* KiEarlyAllocateMemoryFromMemMap(size_t Size)
 }
 
 INIT
-static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
+static void KiAddAreaToMemMap(uintptr_t StartAddress, size_t Size, int Type)
+{
+	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
+	if (Lpb->MemoryRegionCount >= MAX_MEMORY_REGIONS)
+		return;
+	
+	PLOADER_MEMORY_REGION NewRegion = &KiMemoryRegions[Lpb->MemoryRegionCount++];
+	NewRegion->Type = Type;
+	NewRegion->Base = StartAddress;
+	NewRegion->Size = Size;
+}
+
+INIT
+static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size, int ReclaimableType)
 {
 	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
 	
@@ -147,6 +160,9 @@ static void KiRemoveAreaFromMemMap(uintptr_t StartAddress, size_t Size)
 		OtherRegion->Base = OrStart;
 		OtherRegion->Size = OrEnd - OrStart;
 	}
+	
+	if (ReclaimableType >= 0)
+		KiAddAreaToMemMap(StartAddress, Size, ReclaimableType);
 }
 
 INIT
@@ -261,7 +277,7 @@ static void KiInitializeMemoryRegions()
 		if (Mmap->type == MULTIBOOT_MEMORY_AVAILABLE)
 			continue;
 		
-		KiRemoveAreaFromMemMap(Mmap->addr, Mmap->len);
+		KiRemoveAreaFromMemMap(Mmap->addr, Mmap->len, -1);
 	}
 }
 
@@ -285,7 +301,7 @@ void KiInitLoaderParameterBlock()
 	
 	// Initialize the memory regions.
 	KiInitializeMemoryRegions();
-	KiRemoveAreaFromMemMap(0x100000, (size_t) KiKernelEnd - 0xC0100000);
+	KiRemoveAreaFromMemMap(0x100000, (size_t) KiKernelEnd - 0xC0100000, LOADER_MEM_LOADED_PROGRAM);
 	
 	// Initialize the kernel module.
 	Lpb->ModuleInfo.Kernel.Path   = "kernel.elf";
@@ -303,7 +319,7 @@ void KiInitLoaderParameterBlock()
 		// So their name has to be specified through the commandline.
 		// Wow, that sucks. Also Multiboot2 doesn't either.
 		multiboot_module_t* Module = P2V(KiMultibootInfo->mods_addr);
-		KiRemoveAreaFromMemMap(KiMultibootInfo->mods_addr, Lpb->ModuleInfo.Count * sizeof(multiboot_module_t));
+		KiRemoveAreaFromMemMap(KiMultibootInfo->mods_addr, Lpb->ModuleInfo.Count * sizeof(multiboot_module_t), LOADER_MEM_LOADER_RECLAIMABLE);
 
 		for (size_t i = 0; i < Lpb->ModuleInfo.Count; i++)
 		{
@@ -317,7 +333,7 @@ void KiInitLoaderParameterBlock()
 			
 			Mod->Path = P2V(Module->cmdline);
 			
-			KiRemoveAreaFromMemMap(Module->mod_start, Module->mod_end - Module->mod_start);
+			KiRemoveAreaFromMemMap(Module->mod_start, Module->mod_end - Module->mod_start, LOADER_MEM_LOADER_RECLAIMABLE);
 			Module++;
 		}
 	}

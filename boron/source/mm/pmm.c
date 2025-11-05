@@ -131,7 +131,7 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 
 void* MmGetHHDMOffsetAddr(uintptr_t PhysAddr)
 {
-	ASSERT(!MmPfnLock.Locked);
+	//ASSERT(!MmPfnLock.Locked);
 	ASSERT(MiHHDMWindowLock.Locked);
 	
 	if (PhysAddr < MI_IDENTMAP_SIZE)

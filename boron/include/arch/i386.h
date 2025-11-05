@@ -45,6 +45,8 @@ void KePortWriteDword(uint16_t portNo, uint32_t data);
 #define MI_PML1_LOC_END  ((uint64_t)0x100000000U)
 #define MI_PML_ADDRMASK  ((uintptr_t)0xFFFFF000U)
 
+#endif // KERNEL
+
 // MmGetHHDMOffsetAddr and other HHDM-related calls are implemented two-fold:
 //
 // - The first 256 MB of RAM are mapped in an offset identity mapping
@@ -69,8 +71,6 @@ typedef union
 	uintptr_t Long;
 }
 MMADDRESS_CONVERT;
-
-#endif // KERNEL
 
 #define MM_KERNEL_SPACE_BASE (0x80000000U)
 #define MM_USER_SPACE_END    (0x7FFFFFFFU)
