@@ -113,9 +113,7 @@ static uintptr_t RtlpResolveSymbolAddress(PELF_DYNAMIC_INFO DynInfo, int SymbolI
 	
 	return Address;
 #else
-	// TODO
-	DbgPrint("WARNING (Libboron): We don't know how to resolve external symbol %s right now", SymbolName);
-	return 0;
+	return OSDLLGetProcedureAddress(SymbolName);
 #endif
 }
 
