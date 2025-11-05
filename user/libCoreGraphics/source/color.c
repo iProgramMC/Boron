@@ -88,3 +88,25 @@ uint32_t CGConvertColorToNative(PGRAPHICS_CONTEXT Context, uint32_t Color)
 		}
 	}
 }
+
+void CGGetColorFormatInfo(int ColorFormat, int* RMSz, int* GMSz, int* BMSz, int* RMSh, int* GMSh, int* BMSh)
+{
+#define U(rsz, gsz, bsz, rsh, gsh, bsh) (void)(*RMSz = rsz, *GMSz = gsz, *BMSz = bsz, *RMSh = rsh, *GMSh = gsh, *BMSh = bsh)
+	switch (ColorFormat)
+	{
+		case COLOR_FORMAT_ARGB8888: return U(8, 8, 8, 16, 8, 0);
+		case COLOR_FORMAT_ABGR8888: return U(8, 8, 8, 0, 8, 16);
+		case COLOR_FORMAT_RGB888: return U(8, 8, 8, 16, 8, 0);
+		case COLOR_FORMAT_BGR888: return U(8, 8, 8, 0, 8, 16);
+		case COLOR_FORMAT_ARGB1555: return U(5, 5, 5, 10, 5, 0);
+		case COLOR_FORMAT_ABGR1555: return U(5, 5, 5, 0, 5, 10);
+		case COLOR_FORMAT_RGB565: return U(5, 6, 5, 11, 5, 0);
+		case COLOR_FORMAT_BGR565: return U(5, 6, 5, 0, 5, 11);
+		case COLOR_FORMAT_I8:
+		case COLOR_FORMAT_I4:
+		case COLOR_FORMAT_P8:
+		case COLOR_FORMAT_P4:
+		default: return U(0, 0, 0, 0, 0, 0);
+	}
+#undef U
+}

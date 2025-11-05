@@ -5,7 +5,7 @@ APP_NAME  = FullScreenTerminal
 # DEBUG  = yes
 # DEBUG2 = no
 
-CPPFLAGS += -I../libflanterm/source -I../libCoreGraphics/include
+CPPFLAGS += -I../libflanterm/source -I../libCoreGraphics/include -DFLANTERM_FB_DISABLE_BUMP_ALLOC
 LDFLAGS = -lflanterm -lCoreGraphics
 
 include ../CommonMakefile

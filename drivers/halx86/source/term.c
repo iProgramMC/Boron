@@ -19,9 +19,12 @@ Author:
 #include <mm.h>
 #include <ke.h>
 #include <ex.h>
-#include "font.h"
 #include "flanterm/src/flanterm.h"
 #include "flanterm/src/flanterm_backends/fb.h"
+
+static uint8_t HalpBuiltInFont[] = {
+#include "font.h"
+};
 
 // NOTE: Initialization done on the BSP. So no need to sync anything
 uint8_t* HalpTerminalMemory;

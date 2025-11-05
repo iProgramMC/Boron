@@ -29,3 +29,21 @@ void CGFreeContext(PGRAPHICS_CONTEXT Context)
 {
 	OSFree(Context);
 }
+
+PGRAPHICS_CONTEXT CGCreateSubContext(
+	PGRAPHICS_CONTEXT InitialContext,
+	int X,
+	int Y,
+	int Width,
+	int Height
+)
+{
+	return CGCreateContextFromBuffer(
+		InitialContext->BufferAddress + InitialContext->Pitch * Y + X * InitialContext->Bpp / 8,
+		Width,
+		Height,
+		InitialContext->Pitch,
+		InitialContext->Bpp,
+		InitialContext->ColorFormat
+	);
+}

@@ -27,4 +27,15 @@ PGRAPHICS_CONTEXT CGCreateContextFromBuffer(
 	short ColorFormat
 );
 
+// Creates a graphics context using another graphics context as its source,
+// with a specified offset.  Note that this DOES NOT perform any kind of
+// boundary checking.
+PGRAPHICS_CONTEXT CGCreateSubContext(
+	PGRAPHICS_CONTEXT InitialContext,
+	int X,
+	int Y,
+	int Width,
+	int Height
+);
+
 void CGFreeContext(PGRAPHICS_CONTEXT Context);
