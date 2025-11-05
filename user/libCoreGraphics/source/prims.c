@@ -271,7 +271,7 @@ void CGDrawRectangle(PGRAPHICS_CONTEXT Context, uint32_t Color, int X, int Y, in
 	CGDrawLine(Context, Color, X, Y, X + Width - 1, Y);
 	CGDrawLine(Context, Color, X, Y + Height - 1, X + Width - 1, Y + Height - 1);
 	CGDrawLine(Context, Color, X, Y, X, Y + Height - 1);
-	CGDrawLine(Context, Color, X + Width - 1, Y, X + Width - 1, Y + Height + 1);
+	CGDrawLine(Context, Color, X + Width - 1, Y, X + Width - 1, Y + Height - 1);
 }
 
 void CGFillRectangleGradient(
