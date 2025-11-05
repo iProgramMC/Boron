@@ -157,6 +157,8 @@ struct KREGISTERS_tag
 	uint32_t Ebp;
 	uint32_t Sfra; // stack frame return address
 	uint32_t OldIpl;
+	
+	uint16_t Gs, Fs, Es, Ds;
 	uint32_t Edx, Ecx, Eax;
 	
 	// Registers pushed by each trap handler

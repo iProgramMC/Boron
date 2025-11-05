@@ -56,11 +56,25 @@ KiTrapCommon:
 	push  ecx
 	push  edx
 	
+	mov   ax, ds
+	push  ax
+	mov   ax, es
+	push  ax
+	mov   ax, fs
+	push  ax
+	mov   ax, gs
+	push  ax
+	mov   ax, SEG_RING_0_DATA
+	mov   ds, ax
+	mov   es, ax
+	mov   fs, ax
+	mov   gs, ax
+	
 	; Check if we can enter the interrupt handler, based on the
 	; current interrupt number.  This interrupt number has an
 	; IPL associated with it; if it's lower than the current one,
 	; this function returns -1.
-	mov   eax, [esp + 12]
+	mov   eax, [esp + 20]
 	push  eax
 	call  KiTryEnterHardwareInterrupt
 	add   esp, 4
@@ -73,7 +87,7 @@ KiTrapCommon:
 	
 	; Get the pointer to the IP, because we want to construct a
 	; fake stack frame that includes it.
-	mov   ecx, [esp + 24]
+	mov   ecx, [esp + 32]
 	push  ecx
 	push  ebp
 	mov   ebp, esp
@@ -90,8 +104,8 @@ KiTrapCommon:
 	; to the new stack, so we'll load that instead of restoring state
 	; like usual.
 	
-	; Note: this 40 is carefully counted!
-	mov   ecx, [esp + 40]
+	; Note: this 48 is carefully counted!
+	mov   ecx, [esp + 48]
 	push  esp
 	call  [KiTrapCallList + ecx * 4]
 	mov   esp, eax
@@ -109,6 +123,14 @@ KiTrapCommon:
 	add   esp, 8 ; pop SFRA + old IPL
 	
 .returnEarly:
+	pop   ax
+	mov   gs, ax
+	pop   ax
+	mov   fs, ax
+	pop   ax
+	mov   es, ax
+	pop   ax
+	mov   ds, ax
 	pop   edx
 	pop   ecx
 	pop   eax
@@ -136,6 +158,13 @@ KeDescendIntoUserMode:
 	push dword 0x202               ; push RFLAGS
 	push dword SEG_RING_3_CODE | 3 ; push CS
 	push edi                       ; push RIP
+	
+	; load the data segments up
+	mov ax, SEG_RING_3_DATA | 3
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
 	
 	; clear all the registers
 	xor eax, eax
