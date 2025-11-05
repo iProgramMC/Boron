@@ -161,6 +161,27 @@ KiCallSoftwareInterrupt:
 	jmp [KiTrapCallList + eax * 4] ; jump to the specific trap
 	; note: the function will return directly to the return address
 
+global KiTestTrap0E
+KiTestTrap0E:
+	; Black Box
+	push eax
+	push ebx
+	mov  ebx, [KiPageFaultBlackBoxIndex]
+	lea  eax, [KiPageFaultBlackBox + ebx * 8]
+	inc  ebx
+	and  ebx, 0xFFF
+	mov  [KiPageFaultBlackBoxIndex], ebx
+	mov  ebx, [esp + 12]
+	mov  [eax + 0], ebx ; EIP
+	mov  ebx, cr2
+	mov  [eax + 4], ebx
+	pop  ebx
+	pop  eax
+	
+	; Normal interrupt handling
+	push dword 14
+	jmp KiTrapCommon
+
 section .bss
 global KiTrapIplList
 KiTrapIplList:
@@ -169,3 +190,7 @@ KiTrapIplList:
 global KiTrapCallList
 KiTrapCallList:
 	resq 256              ; Reserve a pointer for each vector
+
+section .bss
+KiPageFaultBlackBox: resb 8 * 4096
+KiPageFaultBlackBoxIndex: resb 4

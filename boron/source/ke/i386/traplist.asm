@@ -26,6 +26,7 @@ section .text
 extern KiTrapCommon
 
 %macro INT 2
+%ifnidn %1, 0E
 global KiTestTrap%1
 KiTestTrap%1:
 	%ifidn %2, N
@@ -33,6 +34,7 @@ KiTestTrap%1:
 	%endif
 	push dword 0x%1       ; Push the interrupt number
 	jmp  KiTrapCommon      ; Jump to the common trap handler
+%endif
 %endmacro
 
 %include "ke/i386/intlist.inc"
