@@ -10,7 +10,8 @@ APPS := \
 	libflanterm \
 	libCoreGraphics \
 	init \
-	FullScreenTerminal
+	FullScreenTerminal \
+	test
 
 ### Do not modify below ###
 

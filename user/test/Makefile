@@ -4,6 +4,5 @@
 APP_NAME  = test
 # DEBUG  = yes
 # DEBUG2 = no
-LDFLAGS = -ltest
 
 include ../CommonMakefile
