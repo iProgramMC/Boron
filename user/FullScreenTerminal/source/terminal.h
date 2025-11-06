@@ -6,7 +6,7 @@
 #include <cg/color.h>
 #include <cg/prims.h>
 
-#define DEFAULT_BUFFER_SIZE (16384*128)
+#define DEFAULT_BUFFER_SIZE (16384)
 
 struct flanterm_context;
 
