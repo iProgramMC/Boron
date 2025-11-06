@@ -176,6 +176,26 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 
 // ===== Pool Allocator =====
 
+#ifdef TARGET_AMD64
+
+// One PML4 entry can map up to 1<<39 (512GB) of memory.
+// Thus, our pool will be 512 GB in size.
+#define MI_POOL_LOG2_SIZE (39)
+
+#elif defined TARGET_I386
+
+// There will actually be two arenas of pool space:
+// 0x80000000 - 0xC0000000 and 0xD0000000 - 0xF0000000
+#define MI_POOL_LOG2_SIZE (30)
+
+#define MI_POOL_LOG2_SIZE_2ND (28)
+
+#else
+
+#error "Define the pool size for your platform!"
+
+#endif
+
 typedef struct MIPOOL_ENTRY_tag
 {
 	LIST_ENTRY ListEntry;

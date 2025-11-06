@@ -332,11 +332,31 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	if (!Vad)
 	{
 		// There is no VAD at this address.
-		
-		// TODO: But there might be a system wide file map going on!
 		MmUnlockVadList(VadList);
 		MmUnlockSpace(SpaceUnlockIpl, Va);
-		DbgPrint("MiNormalFault: Declaring access violation on VA %p because there is no VAD", Va);
+		
+		// However, check if this is a demand-page pool address.
+		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
+		uintptr_t PoolEnd = PoolStart + (1ULL << (MI_POOL_LOG2_SIZE - 12));
+		
+	#ifdef TARGET_I386
+		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
+		uintptr_t Pool2End = PoolStart + (1ULL << (MI_POOL_LOG2_SIZE_2ND - 12));
+	#endif
+		
+		if ((PoolStart <= Va && Va < PoolEnd)
+		#ifdef TARGET_I386
+			|| (Pool2Start <= Va && Va < Pool2End)
+		#endif
+			)
+		{
+			// Is in a pool area, so allocate a page of memory and map it there.
+			PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
+			if (*PtePtr & MM_DPTE_COMMITTED)
+				return MmpHandleFaultCommittedPage(PtePtr, 0);
+		}
+		
+		DbgPrint("MiNormalFault: Declaring access violation on VA %p. No VAD and not in a pool area", Va);
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
