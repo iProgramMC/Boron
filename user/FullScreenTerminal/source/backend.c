@@ -130,9 +130,10 @@ BSTATUS SetupTerminal()
 		104
 	);
 	
-	
-	while (true) OSSleep(1000);
-	
-	
 	return STATUS_SUCCESS;
+}
+
+void TerminalWrite(const char* Buffer, size_t Length)
+{
+	flanterm_write(FlantermContext, Buffer, Length);
 }

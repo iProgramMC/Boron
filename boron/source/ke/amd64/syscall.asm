@@ -25,6 +25,8 @@ extern OSCreateEvent
 extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
+extern OSCreateTerminal
+extern OSCreateTerminalIoHandles
 extern OSCreateThread
 extern OSDeviceIoControl
 extern OSDuplicateHandle
@@ -76,6 +78,8 @@ KiSystemServiceTable:
 	dq OSCreateMutex
 	dq OSCreatePipe
 	dq OSCreateProcess
+	dq OSCreateTerminal
+	dq OSCreateTerminalIoHandles
 	dq OSCreateThread
 	dq OSDeviceIoControl
 	dq OSDuplicateHandle

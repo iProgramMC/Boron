@@ -74,6 +74,8 @@ void TtyDeleteTerminal(void* ObjectV)
 	IoFreeFcb(Terminal->SessionFcb);
 }
 
+extern IO_DISPATCH_TABLE TtyHostDispatch, TtySessionDispatch;
+
 BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 {
 	BSTATUS Status;
@@ -87,6 +89,15 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	Status = IoCreatePipeObject(&Terminal->SessionToHostPipe, &Terminal->SessionToHostPipeFcb, NULL, InitContext->BufferSize);
 	if (FAILED(Status))
 		goto Fail1;
+	
+	DbgPrint("TtyInitializeTerminal: HostToSessionPipe = %p, SessionToHostPipe = %p, HTSPD = %p, STHPD = %p, THD = %p, TSD = %p",
+		Terminal->HostToSessionPipe,
+		Terminal->SessionToHostPipe,
+		Terminal->HostToSessionPipe->Fcb->DispatchTable,
+		Terminal->SessionToHostPipe->Fcb->DispatchTable,
+		&TtyHostDispatch,
+		&TtySessionDispatch
+	);
 	
 	Terminal->HostFcb = IoAllocateFcb(&TtyHostDispatch, sizeof(TERMINAL_HOST), false);
 	if (!Terminal->HostFcb)
@@ -107,6 +118,8 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	PTERMINAL_HOST Session = (PTERMINAL_HOST) Terminal->SessionFcb->Extension;
 	Host->Terminal = Terminal;
 	Session->Terminal = Terminal;
+	
+	return STATUS_SUCCESS;
 	
 Fail3:
 	IoFreeFcb(Terminal->HostFcb);

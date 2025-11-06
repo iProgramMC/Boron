@@ -52,17 +52,26 @@ int _start()
 		return 1;
 	}
 	
+	Status = CreateIOLoopThreads();
+	if (FAILED(Status))
+	{
+		DbgPrint("ERROR: Could not CreateIOLoopThreads. %s", RtlGetStatusString(Status));
+		return 1;
+	}
+	
 	const char* Arguments = OSDLLGetCurrentPeb()->CommandLine;
 	Status = LaunchProcess(Arguments);
 	if (FAILED(Status))
 	{
-		DbgPrint("ERROR: Could not create process according to arguments '%s'. %s", RtlGetStatusString(Status));
+		DbgPrint("ERROR: Could not create process according to arguments '%s'. %s", Arguments, RtlGetStatusString(Status));
 		return 1;
 	}
 	
 	while (true)
 	{
-		UpdateLoop();
+		Status = WaitOnIOLoopThreads();
+		if (FAILED(Status))
+			DbgPrint("ERROR: Could not wait on I/O loop threads. %s", RtlGetStatusString(Status));
 	}
 	
 	return 0;

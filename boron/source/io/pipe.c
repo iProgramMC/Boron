@@ -53,6 +53,8 @@ void IopInitializePipe(PPIPE Pipe, size_t BufferSize)
 	KeInitializeMutex(&Pipe->Mutex, 0);
 	KeInitializeEvent(&Pipe->QueueEmptyEvent, EVENT_NOTIFICATION, false);
 	KeInitializeEvent(&Pipe->QueueFullEvent,  EVENT_NOTIFICATION, false);
+	
+	DbgPrint("IopInitializePipe: %p created with RC 1", CONTAINING_RECORD(Pipe, FCB, Extension));
 }
 
 // Reads data from a pipe.
@@ -292,12 +294,14 @@ void IopReferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
 	
+	DbgPrint("IopReferencePipe: %p (RA: %p, %p) %zu", Fcb, __builtin_return_address(1), __builtin_return_address(2), Pipe->ReferenceCount + 1);
 	AtAddFetch(Pipe->ReferenceCount, 1);
 }
 
 void IopDereferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
+	DbgPrint("IopDereferencePipe: %p (RA: %p, %p) %zu", Fcb, __builtin_return_address(1), __builtin_return_address(2), Pipe->ReferenceCount - 1);
 	
 	if (AtAddFetch(Pipe->ReferenceCount, -1) == 0)
 	{

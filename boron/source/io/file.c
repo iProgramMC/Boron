@@ -46,14 +46,12 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, ui
 	FileObject->OpenFlags = OpenFlags;
 	
 	// Call the FCB's create object method, if it exists.
-	//
-	// This should add a reference to the FCB through the file system driver
-	// (FSD) -- the kernel does not actually manage FCBs' reference counts!
 	IO_CREATE_OBJ_METHOD CreateObjMethod = Fcb->DispatchTable->CreateObject;
 	
 	if (CreateObjMethod)
 		CreateObjMethod(Fcb, FileObject);
 	
+	IoReferenceFcb(Fcb);
 	return STATUS_SUCCESS;
 }
 

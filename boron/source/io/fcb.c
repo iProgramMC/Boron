@@ -41,7 +41,7 @@ void IoFreeFcb(PFCB Fcb)
 
 void IoReferenceFcb(PFCB Fcb)
 {
-	IO_REFERENCE_METHOD RefMethod = Fcb->DispatchTable->Dereference;
+	IO_REFERENCE_METHOD RefMethod = Fcb->DispatchTable->Reference;
 	
 	if (RefMethod)
 		RefMethod(Fcb);

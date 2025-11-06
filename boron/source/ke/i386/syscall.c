@@ -118,6 +118,8 @@ const void* const KiSystemServiceTable[] =
 	OSCreateMutex,
 	OSCreatePipe,
 	OSCreateProcess,
+	OSCreateTerminal,
+	OSCreateTerminalIoHandles,
 	OSCreateThread,
 	OSDeviceIoControl,
 	OSDuplicateHandle,

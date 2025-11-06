@@ -558,7 +558,7 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 	if (FAILED(Status))
 		return Status;
 	
-	Status = MmProbeAddress((void*) Buffer, Length, true, KeGetPreviousMode());
+	Status = MmProbeAddress((void*) Buffer, Length, Operation != IO_OP_WRITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	

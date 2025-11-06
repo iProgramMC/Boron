@@ -38,7 +38,7 @@ void TmpDereferenceFcb(PFCB Fcb)
 	PREP_EXT;
 	if (AtAddFetch(Ext->ReferenceCount, -1) == 0)
 	{
-		DbgPrint("TmpReferenceFcb(%p) DELETING!", Fcb);
+		DbgPrint("TmpDereferenceFcb(%p) DELETING!", Fcb);
 		IoFreeFcb(Fcb);
 	}
 }

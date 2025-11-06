@@ -33,6 +33,10 @@ BSTATUS OSCreateProcessInternal(
 
 #endif
 
+BSTATUS OSCreateTerminal(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize);
+
+BSTATUS OSCreateTerminalIoHandles(PHANDLE OutHostHandle, PHANDLE OutSessionHandle, HANDLE TerminalHandle);
+
 BSTATUS OSCreateThread(
 	PHANDLE OutHandle,
 	HANDLE ProcessHandle,

@@ -40,21 +40,30 @@ bool MmIsAddressCanonical(uintptr_t Address)
 
 bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode)
 {
-	// Size=0 is invalid.
-	if (Size == 0) {
-		DbgPrint("Size 0");
+	// Size == 0 is invalid.
+	if (Size == 0)
+	{
+		DbgPrint("MmProbeAddress: Size of buffer is 0");
 		return false;
 	}
 	
 	// Check for overflow.
 	uintptr_t AddressEnd = Address + Size;
-	if (AddressEnd < Address) {
-		DbgPrint("AddressEnd %p < Address %p", AddressEnd, Address);
+	if (AddressEnd < Address)
+	{
+		DbgPrint("MmProbeAddress: AddressEnd %p < Address %p", AddressEnd, Address);
 		return false;
 	}
 	
-	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END) {
-		DbgPrint("AccessMode==MODEUSER   AddressEnd %p  Address %p  Size: %zu  RA:%p", AddressEnd, Address, Size, CallerAddress());
+	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END)
+	{
+		DbgPrint(
+			"MmProbeAddress: AccessMode == MODE_USER, AddressEnd %p, Address %p, Size: %zu, RA:%p",
+			AddressEnd,
+			Address,
+			Size,
+			CallerAddress()
+		);
 		return false;
 	}
 	
