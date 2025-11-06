@@ -29,7 +29,7 @@ void PerformPipeTest()
 	
 	const size_t BufferSize = 4096;
 	
-	Status = OSCreatePipe(&Handle, NULL, BufferSize, false);
+	Status = OSCreatePipe(&Handle, NULL, BufferSize);
 	if (FAILED(Status))
 		KeCrash("Pipe: Failed to OSCreatePipe: %d (%s)", Status, RtlGetStatusString(Status));
 	

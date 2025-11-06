@@ -34,7 +34,6 @@ Author:
 typedef struct _PIPE
 {
 	size_t ReferenceCount;
-	bool   NonBlock;
 	KMUTEX Mutex;
 	KEVENT QueueEmptyEvent;
 	KEVENT QueueFullEvent;
@@ -45,13 +44,12 @@ typedef struct _PIPE
 }
 PIPE, *PPIPE;
 
-void IopInitializePipe(PPIPE Pipe, size_t BufferSize, bool NonBlock)
+void IopInitializePipe(PPIPE Pipe, size_t BufferSize)
 {
 	Pipe->BufferSize = BufferSize;
 	Pipe->Head = 0;
 	Pipe->Tail = 0;
 	Pipe->ReferenceCount = 1;
-	Pipe->NonBlock = NonBlock;
 	KeInitializeMutex(&Pipe->Mutex, 0);
 	KeInitializeEvent(&Pipe->QueueEmptyEvent, EVENT_NOTIFICATION, false);
 	KeInitializeEvent(&Pipe->QueueFullEvent,  EVENT_NOTIFICATION, false);
@@ -91,8 +89,12 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 				goto FinishRelease;
 			}
 			
-			// No data, need to wait for more.
-			if (Pipe->NonBlock)
+			// No data. Check if we need to wait for more.
+			// Either:
+			// - the full IO_RW_NONBLOCK is specified, at which point the operation will abort
+			// - IO_RW_NONBLOCK_UNLESS_EMPTY is specified.  in this case, wait only if the queue
+			//   was empty when we entered (so we didn't read any bytes)
+			if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && i != 0))
 			{
 				Iosb->Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
@@ -215,7 +217,7 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 			}
 			
 			// Full of data, need to wait to send more.
-			if (Pipe->NonBlock)
+			if (Flags & IO_RW_NONBLOCK)
 			{
 				Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
@@ -313,7 +315,7 @@ IO_DISPATCH_TABLE IopPipeDispatchTable =
 	.Write = IopWritePipe,
 };
 
-BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize)
 {
 	if (ObjectAttributes)
 	{
@@ -327,7 +329,7 @@ BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_AT
 	
 	// Initialize the pipe with the specified buffer size, create its corresponding
 	// file object, and then insert it into the handle table.
-	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize, NonBlock);
+	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize);
 	
 	BSTATUS Status = IoCreateFileObject(Fcb, OutFileObject, 0, 0);
 	if (FAILED(Status))
@@ -340,11 +342,11 @@ BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_AT
 	return Status;
 }
 
-BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize)
 {
 	PFCB Fcb = NULL;
 	PFILE_OBJECT FileObject = NULL;
-	BSTATUS Status = IoCreatePipeObject(&FileObject, &Fcb, ObjectAttributes, BufferSize, NonBlock);
+	BSTATUS Status = IoCreatePipeObject(&FileObject, &Fcb, ObjectAttributes, BufferSize);
 	
 	Status = ObInsertObject(FileObject, OutHandle, 0);
 	if (FAILED(Status))
@@ -354,12 +356,13 @@ BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 		return Status;
 	}
 	
+	IopDereferencePipe(Fcb);
 	ObDereferenceObject(FileObject);
 	return Status;
 }
 
 // See ExCreateObjectUserCall for an in-depth explanation on how this is structured.
-BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock)
+BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize)
 {
 	BSTATUS Status = STATUS_SUCCESS;
 	bool CopyAttrs = false;
@@ -390,7 +393,7 @@ BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 	}
 	
 	HANDLE Handle;
-	Status = IoCreatePipe(&Handle, ObjectAttributes ? &AttributesCopy : NULL, BufferSize, NonBlock);
+	Status = IoCreatePipe(&Handle, ObjectAttributes ? &AttributesCopy : NULL, BufferSize);
 	if (SUCCEEDED(Status))
 	{
 		Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);

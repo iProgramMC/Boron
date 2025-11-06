@@ -80,11 +80,11 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	PTERMINAL Terminal = TerminalV;
 	PTERMINAL_INIT_CONTEXT InitContext = Context;
 	
-	Status = IoCreatePipeObject(&Terminal->HostToSessionPipe, &Terminal->HostToSessionPipeFcb, NULL, InitContext->BufferSize, true);
+	Status = IoCreatePipeObject(&Terminal->HostToSessionPipe, &Terminal->HostToSessionPipeFcb, NULL, InitContext->BufferSize);
 	if (FAILED(Status))
 		return Status;
 	
-	Status = IoCreatePipeObject(&Terminal->SessionToHostPipe, &Terminal->SessionToHostPipeFcb, NULL, InitContext->BufferSize, true);
+	Status = IoCreatePipeObject(&Terminal->SessionToHostPipe, &Terminal->SessionToHostPipeFcb, NULL, InitContext->BufferSize);
 	if (FAILED(Status))
 		goto Fail1;
 	

@@ -423,24 +423,26 @@ BSTATUS IoReadFileMdl(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	PMDL Mdl,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 )
 {
 	uint64_t Unused;
-	return IopReadFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+	return IopReadFile(Iosb, FileObject, Mdl, Flags, FileOffset, Cached, &Unused);
 }
 
 BSTATUS IoWriteFileMdl(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	PMDL Mdl,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 )
 {
 	uint64_t Unused;
-	return IopWriteFile(Iosb, FileObject, Mdl, 0, FileOffset, Cached, &Unused);
+	return IopWriteFile(Iosb, FileObject, Mdl, Flags, FileOffset, Cached, &Unused);
 }
 
 BSTATUS IoReadFile(
@@ -457,7 +459,7 @@ BSTATUS IoReadFile(
 	
 	if (!FAILED(Status))
 	{
-		Status = IoReadFileMdl(Iosb, FileObject, Mdl, FileOffset, Cached);
+		Status = IoReadFileMdl(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}
 	
@@ -478,7 +480,7 @@ BSTATUS IoWriteFile(
 	
 	if (!FAILED(Status))
 	{
-		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, FileOffset, Cached);
+		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}	
 	
@@ -600,11 +602,17 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags)
 {
+	if (KeGetPreviousMode() == MODE_USER)
+		Flags &= ~IO_RW_USER_MODE_FORBIDDEN_FLAGS;
+	
 	return OSPerformOperationFileHandle(Iosb, Handle, ByteOffset, (uintptr_t) Buffer, Length, Flags, NULL, IO_OP_READ);
 }
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutFileSize)
 {
+	if (KeGetPreviousMode() == MODE_USER)
+		Flags &= ~IO_RW_USER_MODE_FORBIDDEN_FLAGS;
+	
 	return OSPerformOperationFileHandle(Iosb, Handle, ByteOffset, (uintptr_t) Buffer, Length, Flags, OutFileSize, IO_OP_WRITE);
 }
 

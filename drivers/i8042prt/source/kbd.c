@@ -222,10 +222,10 @@ BSTATUS KbdRead(
 			continue;
 		}
 		
-		if (Flags & IO_RW_NONBLOCK)
+		if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && i != 0))
 		{
 			// Can't block, so return now.
-			Iosb->Status = STATUS_SUCCESS;
+			Iosb->Status = STATUS_BLOCKING_OPERATION;
 			Iosb->BytesRead = i;
 			return STATUS_SUCCESS;
 		}

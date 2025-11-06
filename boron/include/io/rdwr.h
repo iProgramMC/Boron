@@ -44,6 +44,7 @@ BSTATUS IoReadFileMdl(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	PMDL Mdl,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 );
@@ -52,6 +53,7 @@ BSTATUS IoWriteFileMdl(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	PMDL Mdl,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 );

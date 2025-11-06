@@ -39,12 +39,12 @@ void TtyDeleteObjectSessionFile(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)
 BSTATUS TtyReadSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags)
 {
 	PREP_EXT;
-	(void) Flags;
 	
 	return IoReadFileMdl(
 		Iosb,
 		Session->Terminal->HostToSessionPipe,
 		MdlBuffer,
+		Flags,
 		Offset,
 		false
 	);
@@ -54,12 +54,12 @@ BSTATUS TtyReadSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMD
 BSTATUS TtyWriteSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags)
 {
 	PREP_EXT;
-	(void) Flags;
 	
 	return IoWriteFileMdl(
 		Iosb,
 		Session->Terminal->SessionToHostPipe,
 		MdlBuffer,
+		Flags,
 		Offset,
 		false
 	);

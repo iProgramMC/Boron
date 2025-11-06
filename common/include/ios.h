@@ -117,20 +117,35 @@ typedef struct _IO_DIRECTORY_ENTRY
 }
 IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 
-// Flags for IO_READ_METHOD and IO_WRITE_METHOD:
-
 // The operation may not block.  If a situation arises where this operation would block, it is immediately ended.
 #define IO_RW_NONBLOCK         (1 << 0)
+
+// This flag is set when the write operation is intended to append to the specified file instead of writing to a
+// certain position inside it.  It automatically puts the file offset at the end of the file.
+#define IO_RW_APPEND           (1 << 1)
+
+// This flag is set when the caller wants to block (if the stream is empty), and not block (if the stream has data).
+// Currently only supported for reading pipe devices.
+#define IO_RW_NONBLOCK_UNLESS_EMPTY (1 << 2)
+
+#ifdef KERNEL
+
+// Flags for IO_READ_METHOD and IO_WRITE_METHOD:
 
 // The FCB's rwlock is locked exclusively.  If there's a need for the current thread to own the rwlock exclusively,
 // and this isn't checked, then the routine must release the lock and re-acquire it exclusive.
 //
 // Ignored in user mode.
-#define IO_RW_LOCKEDEXCLUSIVE  (1 << 1)
+#define IO_RW_LOCKEDEXCLUSIVE  (1 << 29)
 
 // This is paging I/O.  This means memory might be very scarce or downright not available, so memory allocations
 // should be avoided.  This may make memory operations slower, but this is a worthy sacrifice considering the situation.
-#define IO_RW_PAGING           (1 << 2)
+#define IO_RW_PAGING           (1 << 30)
 
-// This flag is set when 
-#define IO_RW_APPEND           (1 << 3)
+// Forbidden flags for user mode.
+#define IO_RW_USER_MODE_FORBIDDEN_FLAGS (\
+	IO_RW_LOCKEDEXCLUSIVE | \
+	IO_RW_PAGING \
+)
+
+#endif
