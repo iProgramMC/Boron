@@ -53,8 +53,6 @@ void IopInitializePipe(PPIPE Pipe, size_t BufferSize)
 	KeInitializeMutex(&Pipe->Mutex, 0);
 	KeInitializeEvent(&Pipe->QueueEmptyEvent, EVENT_NOTIFICATION, false);
 	KeInitializeEvent(&Pipe->QueueFullEvent,  EVENT_NOTIFICATION, false);
-	
-	DbgPrint("IopInitializePipe: %p created with RC 1", CONTAINING_RECORD(Pipe, FCB, Extension));
 }
 
 // Reads data from a pipe.
@@ -76,10 +74,9 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 		goto Finish;
 	
 	size_t ByteCount = MdlBuffer->ByteCount;
-	for (size_t i = 0; i < ByteCount; )
+	size_t BytesRead = 0;
+	while (BytesRead < ByteCount)
 	{
-		Iosb->BytesRead = i;
-		
 		if (Pipe->Head == Pipe->Tail)
 		{
 			// If the pipe has only one owner, return prematurely, otherwise a deadlock will ensue.
@@ -96,7 +93,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			// - the full IO_RW_NONBLOCK is specified, at which point the operation will abort
 			// - IO_RW_NONBLOCK_UNLESS_EMPTY is specified.  in this case, wait only if the queue
 			//   was empty when we entered (so we didn't read any bytes)
-			if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && i != 0))
+			if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && BytesRead != 0))
 			{
 				Iosb->Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
@@ -129,7 +126,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			AvailableData = Pipe->Head + Pipe->BufferSize - Pipe->Tail;
 		}
 		
-		size_t ReadSize = ByteCount - i;
+		size_t ReadSize = ByteCount - BytesRead;
 		if (ReadSize > AvailableData)
 		{
 			// We can't consume all data in one go.
@@ -144,23 +141,26 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 		if (Pipe->Tail <= TailAfterRead)
 		{
 			// The tail can catch up to the head without overflowing.
-			MmCopyIntoMdl(MdlBuffer, i, Pipe->Buffer + Pipe->Tail, ReadSize);
+			MmCopyIntoMdl(MdlBuffer, BytesRead, Pipe->Buffer + Pipe->Tail, ReadSize);
 		}
 		else
 		{
 			// The data is split into two - tail->buffersize and 0->head
 			size_t TailSize = Pipe->BufferSize - Pipe->Tail;
-			ASSERT(TailSize < ReadSize);
-			ASSERT(TailSize < AvailableData);
+			ASSERT(TailSize <= ReadSize);
+			ASSERT(TailSize <= AvailableData);
 			size_t HeadSize = ReadSize - TailSize;
 			
-			MmCopyIntoMdl(MdlBuffer, i, Pipe->Buffer + Pipe->Tail, TailSize);
-			MmCopyIntoMdl(MdlBuffer, i + TailSize, Pipe->Buffer, HeadSize);
+			if (TailSize)
+				MmCopyIntoMdl(MdlBuffer, BytesRead, Pipe->Buffer + Pipe->Tail, TailSize);
+			
+			if (HeadSize)
+				MmCopyIntoMdl(MdlBuffer, BytesRead + TailSize, Pipe->Buffer, HeadSize);
 		}
 		
 		Pipe->Tail = TailAfterRead;
 		
-		i += ReadSize;
+		BytesRead += ReadSize;
 		
 		// Since some data was consumed, signal writers to write
 		KePulseEvent(&Pipe->QueueFullEvent, PIPE_INCREMENT);
@@ -173,6 +173,7 @@ FinishRelease:
 	
 Finish:
 	Iosb->Status = Status;
+	Iosb->BytesRead = BytesRead;
 	
 	// Relock the rwlock because the caller expects us to do so.
 	IoLockFcbShared(Fcb);
@@ -198,9 +199,10 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		goto Finish;
 	
 	size_t ByteCount = MdlBuffer->ByteCount;
-	for (size_t i = 0; i < ByteCount; )
+	size_t BytesWritten = 0;
+	while (BytesWritten < ByteCount)
 	{
-		Iosb->BytesWritten = i;
+		Iosb->BytesWritten = BytesWritten;
 		
 		size_t FreeSpace;
 		if (Pipe->Head >= Pipe->Tail)
@@ -239,7 +241,7 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		}
 		
 		// There is free space.
-		size_t WriteSize = ByteCount - i;
+		size_t WriteSize = ByteCount - BytesWritten;
 		if (WriteSize > FreeSpace)
 		{
 			// We can't write all the data in one go.
@@ -254,24 +256,27 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		if (Pipe->Head <= HeadAfterWrite)
 		{
 			// The head can catch up to the tail without overflowing.
-			MmCopyFromMdl(MdlBuffer, i, Pipe->Buffer + Pipe->Head, WriteSize);
+			MmCopyFromMdl(MdlBuffer, BytesWritten, Pipe->Buffer + Pipe->Head, WriteSize);
 		}
 		else
 		{
 			// The data is split into two - head->buffersize and 0->tail
 			size_t HeadSize = Pipe->BufferSize - Pipe->Head;
-			ASSERT(HeadSize < WriteSize);
-			ASSERT(HeadSize < FreeSpace);
+			ASSERT(HeadSize <= WriteSize);
+			ASSERT(HeadSize <= FreeSpace);
 			size_t TailSize = WriteSize - HeadSize;
 			
-			MmCopyFromMdl(MdlBuffer, i, Pipe->Buffer + Pipe->Head, HeadSize);
-			MmCopyFromMdl(MdlBuffer, i + HeadSize, Pipe->Buffer, TailSize);
+			if (HeadSize)
+				MmCopyFromMdl(MdlBuffer, BytesWritten, Pipe->Buffer + Pipe->Head, HeadSize);
+			
+			if (TailSize)
+				MmCopyFromMdl(MdlBuffer, BytesWritten + HeadSize, Pipe->Buffer, TailSize);
 		}
 		
 		Pipe->Head = HeadAfterWrite;
 		ASSERT(Pipe->Tail != Pipe->Head);
 		
-		i += WriteSize;
+		BytesWritten += WriteSize;
 		
 		// Since some data was written, signal readers to read
 		KePulseEvent(&Pipe->QueueEmptyEvent, PIPE_INCREMENT);
@@ -294,14 +299,12 @@ void IopReferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
 	
-	DbgPrint("IopReferencePipe: %p (RA: %p, %p) %zu", Fcb, __builtin_return_address(1), __builtin_return_address(2), Pipe->ReferenceCount + 1);
 	AtAddFetch(Pipe->ReferenceCount, 1);
 }
 
 void IopDereferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
-	DbgPrint("IopDereferencePipe: %p (RA: %p, %p) %zu", Fcb, __builtin_return_address(1), __builtin_return_address(2), Pipe->ReferenceCount - 1);
 	
 	if (AtAddFetch(Pipe->ReferenceCount, -1) == 0)
 	{
