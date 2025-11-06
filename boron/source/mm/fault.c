@@ -527,7 +527,8 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 // Returns: If the page fault failed to be handled, then the reason why.
 BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode)
 {
-	UNUSED bool IsKernelSpace = false;
+	bool IsKernelSpace = false;
+	bool IsUserModeCode = false;
 	BSTATUS Status = STATUS_SUCCESS;
 	PEPROCESS Process = PsGetAttachedProcess();
 	
@@ -537,7 +538,13 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		Process = &PsSystemProcess;
 	}
 	
-	if (KeGetPreviousMode() == MODE_USER && IsKernelSpace)
+	if (FaultPC < MM_KERNEL_SPACE_BASE)
+		IsUserModeCode = true;
+	
+	// TODO: Normally I'd use KeGetPreviousMode(). But it turns out we do take page faults
+	// from kernel mode during system calls, *on* kernel space addresses, so make sure that
+	// doesn't result in a crash.
+	if (IsUserModeCode && IsKernelSpace)
 	{
 		// No, no, no.  You cannot access kernel mode data from user mode.
 		return STATUS_ACCESS_VIOLATION;
@@ -556,7 +563,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	{
 		// If this is a user mode thread and it's trying to access kernel mode addresses,
 		// declare failure instantly.
-		if ((~*PtePtr & MM_PTE_USERACCESS) && KeGetPreviousMode() == MODE_USER)
+		if ((~*PtePtr & MM_PTE_USERACCESS) && IsUserModeCode)
 		{
 			Status = STATUS_ACCESS_VIOLATION;
 			MmUnlockSpace(OldIpl, FaultAddress);

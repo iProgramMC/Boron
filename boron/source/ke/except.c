@@ -77,7 +77,7 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	BSTATUS FaultReason = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();
 	
-	if (KeGetPreviousMode() == MODE_USER && FaultAddress > MM_USER_SPACE_END)
+	if (FaultPC <= MM_USER_SPACE_END && FaultAddress > MM_USER_SPACE_END)
 		FaultReason = STATUS_ACCESS_VIOLATION;
 	
 	if (KeGetIPL() >= IPL_DPC)
