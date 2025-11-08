@@ -8,32 +8,26 @@ extern void RunTest4();
 extern void RunTest5();
 extern void RunTest6();
 
-int _start()
+int _start(int ArgumentCount, char** Arguments)
 {
-	DbgPrint("Init is running!\n");
-	
-	//RunTest1();
-	//RunTest2();
-	//RunTest3();
-	//RunTest4();
-	//RunTest5();
-	//RunTest6();
+	DbgPrint("Init is running.");
 	
 	// TODO: Load environment variables from a config file
+	(void) ArgumentCount;
+	(void) Arguments;
 	
 	// Create the terminal process.
-	char TerminalCmdLine[IO_MAX_NAME + 200];
-	snprintf(TerminalCmdLine, sizeof TerminalCmdLine, "--framebuffer=%s", OSDLLGetEnvironmentVariable("TerminalFramebuffer"));
+	
+	// TODO: Allow specification of the framebuffer again.
 	
 	HANDLE ProcessHandle, ThreadHandle;
 	BSTATUS Status = OSCreateProcess(
 		&ProcessHandle,
 		&ThreadHandle,
 		NULL,  // ObjectAttributes
-		false, // InheritHandles
-		false, // CreateSuspended
+		0,     // ProcessFlags
 		"FullScreenTerminal.exe",
-		TerminalCmdLine,
+		"--framebuffer /Devices/FrameBuffer0",
 		NULL   // Environment
 	);
 	

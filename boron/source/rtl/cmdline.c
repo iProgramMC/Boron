@@ -46,6 +46,27 @@ size_t RtlEnvironmentLength(const char* Description)
 	return Length;
 }
 
+// Counts the number of entries in a command line or environment description.
+int RtlEnvironmentCount(const char* Description)
+{
+	int EntryCount = 0;
+	while (*Description)
+	{
+		// Skip over all of the data in the description.
+		// Obviously, we only care about the amount of entries.
+		while (*Description)
+			Description++;
+		
+		// Skip over this null character and increment the entry count.
+		//
+		// If the double null has been noticed at this point, the loop will break.
+		Description++;
+		EntryCount++;
+	}
+	
+	return EntryCount;
+}
+
 // Parses a command line string into a command line description.
 //
 // A command line description is a null-character-separated list of command

@@ -20,14 +20,33 @@ bool GetCommandLineArgument(const char* Key, char* ValueOut, size_t ValueOutSize
 	return true;
 }
 
-int _start()
+void Usage()
+{
+	DbgPrint("FullScreenTerminal - help");
+	DbgPrint("	--framebuffer [fileName]: The frame buffer device to which this terminal instance will output.");
+	
+	// TODO: implement these ...
+	DbgPrint("	--keyboard [fileName]:    The keyboard from which this terminal instance will read user input.");
+	DbgPrint("	--frameless:              Do not render a frame around the terminal.");
+	DbgPrint("	--title [title]:          The terminal frame's title.  Ignored if '--frameless' is specified.");
+}
+
+int _start(int ArgumentCount, char** ArgumentArray)
 {
 	BSTATUS Status;
 	
-	char FramebufferName[IO_MAX_NAME];
-	if (!GetCommandLineArgument("--framebuffer=", FramebufferName, sizeof(FramebufferName)))
+	char* FramebufferName = NULL;
+	
+	for (int i = 1; i < ArgumentCount; i++)
 	{
-		DbgPrint("ERROR: No framebuffer specified.  Use the command line `--framebuffer=[framebuffer device here]`.");
+		if (strcmp(ArgumentArray[i], "--framebuffer") == 0)
+			FramebufferName = ArgumentArray[i + 1];
+	}
+	
+	if (!FramebufferName)
+	{
+		DbgPrint("ERROR: No framebuffer specified.");
+		Usage();
 		return 1;
 	}
 	

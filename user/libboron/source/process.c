@@ -2,6 +2,7 @@
 #include <string.h>
 #include <rtl/elf.h>
 #include <rtl/assert.h>
+#include <rtl/cmdline.h>
 #include "pebteb.h"
 #include "dll.h"
 
@@ -17,26 +18,12 @@ static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 	return OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
 }
 
-// Unlike strlen(), this counts the amount of characters in an environment
-// variable description.  Environment variables are separated with "\0" and
-// the final environment variable finishes with two "\0" characters.
-static size_t OSDLLEnvironmentLength(const char* Environ)
-{
-	size_t Length = 2;
-	while (Environ[0] != '\0' || Environ[1] != '\0') {
-		Environ++;
-		Length++;
-	}
-	
-	return Length;
-}
-
 static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine, const char* Environment)
 {
 	size_t PebSize = sizeof(PEB);
 	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
-	PebSize += strlen(CommandLine) + 8 + sizeof(uintptr_t);
-	PebSize += OSDLLEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
+	PebSize += RtlEnvironmentLength(CommandLine) + 8 + sizeof(uintptr_t);
+	PebSize += RtlEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
 	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);	
 	return PebSize;
 }
@@ -60,15 +47,15 @@ static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const 
 	
 	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
 	Peb->CommandLine = AfterPeb;
-	Peb->CommandLineSize = strlen(CommandLine);
+	Peb->CommandLineSize = RtlEnvironmentLength(CommandLine);
 	AfterPeb += Peb->CommandLineSize + 1;
 	
 	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
 	Peb->Environment = AfterPeb;
-	Peb->EnvironmentSize = OSDLLEnvironmentLength(Environment);
+	Peb->EnvironmentSize = RtlEnvironmentLength(Environment);
 	
 	strcpy(Peb->ImageName, ImageName);
-	strcpy(Peb->CommandLine, CommandLine);
+	memcpy(Peb->CommandLine, CommandLine, Peb->CommandLineSize);
 	memcpy(Peb->Environment, Environment, Peb->EnvironmentSize);
 	
 	*OutPeb = Peb;
@@ -170,27 +157,44 @@ BSTATUS OSCreateProcess(
 	PHANDLE OutHandle,
 	PHANDLE OutMainThreadHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	bool InheritHandles,
-	bool CreateSuspended,
+	int ProcessFlags,
 	const char* ImageName,
 	const char* CommandLine,
 	const char* Environment
 )
 {
-	// Create the process
-	HANDLE ProcessHandle;
-	HANDLE FileHandle;
+	// Pointers/resources freed on failure
+	HANDLE ProcessHandle = HANDLE_NONE;
 	void *PebPtr = NULL;
-	ELF_ENTRY_POINT2 EntryPoint = NULL;
+	char *AllocatedCmdLine = NULL;
 	
-	BSTATUS Status = OSCreateProcessInternal(
+	BSTATUS Status = STATUS_SUCCESS;
+	HANDLE FileHandle;
+	OSDLL_ENTRY_POINT EntryPoint = NULL;
+	
+	// If the command line is in regular string form, convert it to environment
+	// description format.
+	if (~ProcessFlags & OS_PROCESS_CMDLINE_PARSED)
+	{
+		Status = RtlCommandLineStringToDescription(CommandLine, &AllocatedCmdLine);
+		if (FAILED(Status))
+		{
+			DbgPrint("OSDLL: Failed to parse command line for process. %s (%d)", RtlGetStatusString(Status), Status);
+			goto Fail;
+		}
+		
+		CommandLine = AllocatedCmdLine;
+	}
+	
+	// Create the process.
+	Status = OSCreateProcessInternal(
 		OutHandle,
 		ObjectAttributes,
 		CURRENT_PROCESS_HANDLE,
-		InheritHandles
+		ProcessFlags & OS_PROCESS_INHERIT_HANDLES
 	);
 	if (FAILED(Status))
-		return Status;
+		goto Fail;
 	
 	ProcessHandle = *OutHandle;
 	
@@ -204,10 +208,8 @@ BSTATUS OSCreateProcess(
 	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine, Environment);
 	if (FAILED(Status))
 	{
-	Fail:
-		if (Peb) OSFree(Peb);
-		OSClose(ProcessHandle);
-		return Status;
+		DbgPrint("OSDLL: Failed to create PEB for process. %s (%d)", RtlGetStatusString(Status), Status);
+		goto Fail;
 	}
 	
 	// Open the main image.
@@ -251,8 +253,6 @@ BSTATUS OSCreateProcess(
 			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter, true);
 		}
 		
-		//Status = OSDLLMapSelfIntoProcess(ProcessHandle, InterpreterFileHandle, PebSize, &EntryPoint);
-		
 		LdrDbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
 		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, FILE_KIND_INTERPRETER);
 		OSClose(InterpreterFileHandle);
@@ -264,17 +264,32 @@ BSTATUS OSCreateProcess(
 		}
 	}
 	
-	Status = OSDLLPreparePebForProcess(ProcessHandle, Peb, PebSize, &PebPtr, InheritHandles);
+	Status = OSDLLPreparePebForProcess(ProcessHandle, Peb, PebSize, &PebPtr, ProcessFlags & OS_PROCESS_INHERIT_HANDLES);
 	if (FAILED(Status))
 		goto Fail;
 	
+	// Free these resources earlier than necessary.
 	OSFree(Peb);
+	OSFree(AllocatedCmdLine);
 	Peb = NULL;
+	AllocatedCmdLine = NULL;
 	
 	LdrDbgPrint("OSDLL: Entry Point: %p", EntryPoint);
-	Status = OSDLLCreateMainThread(ProcessHandle, OutMainThreadHandle, EntryPoint, PebPtr, CreateSuspended);
+	Status = OSDLLCreateMainThread(
+		ProcessHandle,
+		OutMainThreadHandle,
+		EntryPoint,
+		PebPtr,
+		ProcessFlags & OS_PROCESS_CREATE_SUSPENDED
+	);
 	if (FAILED(Status))
 		goto Fail;
 	
 	return STATUS_SUCCESS;
+	
+Fail:
+	if (Peb) OSFree(Peb);
+	if (AllocatedCmdLine) OSFree(AllocatedCmdLine);
+	if (ProcessHandle) OSClose(ProcessHandle);
+	return Status;
 }

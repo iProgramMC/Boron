@@ -19,20 +19,14 @@ Author:
 #include <rtl/elf.h>
 #include <rtl/cmdline.h>
 
-// TODO: make these changeable
-
-// path to libboron.so. temporary
+// Starting environment.
+//
+// This is only so that libboron.so can find the initial program
+// and its dependencies.
 const char* PspBoronDllFileName = "/Root/lib/libboron.so";
-
-// path to init.exe and command line. temporary
-const char* PspInitialProcessCommandLine = "";
-
-// environment. temporary.
 const char* PspInitialProcessEnvironment =
 	"PATH=/Root/bin:/Root:/\0"
 	"LIB_PATH=/Root/lib:/Root:/\0"
-	"SOMETHING=Something here\0"
-	"TerminalFramebuffer=/Devices/FrameBuffer0\0"
 	"\0";
 
 bool PsShouldStartInitialProcess()
@@ -68,17 +62,24 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	ELF_HEADER ElfHeader;
 	const char* Func;
 	
-	// TODO: Make these changeable!
-	const char* BoronDllPath = PspBoronDllFileName;
+	Func = __func__;
 	
-	const char* ImageName = ExGetConfigValue("Init", NULL);
-	const char* CommandLine = PspInitialProcessCommandLine;
-	const char* Environment = PspInitialProcessEnvironment;
+	const char *BoronDllPath, *ImageName, *Environment;
+	
+	// Determine all the quickly determinable stuff
+	BoronDllPath = PspBoronDllFileName;
+	ImageName = ExGetConfigValue("Init", NULL);
+	Environment = PspInitialProcessEnvironment;
 	
 	if (!ImageName)
 		KeCrash("No initial program specified.  Add \"Init=[your initial program]\" to the boot command line.");
 	
-	Func = __func__;
+	// Determine the command line.
+	char* InitCommandLine = NULL;
+	const char* CommandLineConfig = ExGetConfigValue("InitArguments", "");
+	Status = RtlCommandLineStringToDescription(CommandLineConfig, &InitCommandLine);
+	if (FAILED(Status))
+		KeCrash("%s: Failed to parse arguments for initial process: %s (%d)", RtlGetStatusString(Status), Status);
 	
 	Status = OSCreateProcess(
 		&ProcessHandle,
@@ -88,7 +89,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	);
 	
 	if (FAILED(Status))
-		KeCrash("%s: Failed to create initial process: %d (%s)", Status, RtlGetStatusString(Status));
+		KeCrash("%s: Failed to create initial process: %s (%d)", RtlGetStatusString(Status), Status);
 	
 	PEPROCESS Process = NULL;
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
@@ -186,7 +187,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	// and the size of the command line and image name
 	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
-	PebSize += strlen(CommandLine) + 8 + sizeof(uintptr_t);
+	PebSize += RtlEnvironmentLength(InitCommandLine) + 8 + sizeof(uintptr_t);
 	PebSize += RtlEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
 	
 	// Now round it up to a page size
@@ -312,8 +313,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	// Copy the command line.
 	PPeb->CommandLine = AfterPeb;
-	PPeb->CommandLineSize = strlen(CommandLine);
-	strcpy(AfterPeb, CommandLine);
+	PPeb->CommandLineSize = RtlEnvironmentLength(InitCommandLine);
+	memcpy(AfterPeb, InitCommandLine, PPeb->CommandLineSize);
 	
 	AfterPeb += PPeb->CommandLineSize + 1;
 	
@@ -366,6 +367,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		LogMsg(ANSI_YELLOW "Info" ANSI_DEFAULT ": Init process has exited successfully.");
 	
 	OSClose(ProcessHandle);
+	MmFreePool(InitCommandLine);
 	PsTerminateThread();
 }
 

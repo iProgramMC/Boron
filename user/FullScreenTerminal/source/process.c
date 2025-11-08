@@ -2,48 +2,6 @@
 
 static HANDLE ProcessHandle;
 
-NO_RETURN
-void ProducerThread(UNUSED void* Context)
-{
-	int i = 1;
-	while (true)
-	{
-		OSSleep(1000);
-		
-		char Buffer[1024];
-		snprintf(
-			Buffer,
-			sizeof Buffer,
-			"\nHi there!  This message still came from FullScreenTerminal.exe, but this time it went "
-			"through the terminal object!  This is iteration # %d.\n",
-			i++
-		);
-		
-		IO_STATUS_BLOCK Iosb;
-		BSTATUS Status = OSWriteFile(
-			&Iosb,
-			TerminalSessionHandle,
-			0,   // FileOffset
-			Buffer,
-			strlen(Buffer),
-			0,   // Flags
-			NULL // OutFileSize
-		);
-		
-		if (IOFAILED(Status))
-		{
-			DbgPrint("ProducerThread: Output failed. %s (%d)", RtlGetStatusString(Status), Status);
-			continue;
-		}
-		
-		if (Status != STATUS_SUCCESS)
-		{
-			DbgPrint("ProducerThread: Output returned early. %s (%d)", RtlGetStatusString(Status), Status);
-			continue;
-		}
-	}
-}
-
 BSTATUS LaunchProcess(const char* CommandLine)
 {
 	// First of all, we should give ourselves the handle to the session
@@ -62,12 +20,11 @@ BSTATUS LaunchProcess(const char* CommandLine)
 	BSTATUS Status = OSCreateProcess(
 		&ProcessHandle,
 		&MainThreadHandle,
-		NULL,
-		false,
-		false,
+		NULL, // ObjectAttributes
+		0,    // Flags
 		"test.exe",
-		"",
-		NULL
+		"",   // CommandLine
+		NULL  // Environment
 	);
 	
 	return Status;

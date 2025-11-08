@@ -10,8 +10,7 @@ void RunTest5()
 		&Handle,
 		&ThreadHandle,
 		NULL,
-		true,
-		false,
+		OS_PROCESS_INHERIT_HANDLES,
 		Path,
 		"",
 		NULL

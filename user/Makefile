@@ -19,7 +19,7 @@ APPS := \
 
 all:
 	@for app in $(APPS); do \
-		$(MAKE) -C $$app $(MAKECMDGOALS); \
+		$(MAKE) -C $$app $(MAKECMDGOALS) || exit $$?; \
 	done
 
 # Other goals you might want

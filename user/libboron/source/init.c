@@ -2,6 +2,7 @@
 #include <elf.h>
 #include <string.h>
 #include <rtl/assert.h>
+#include <rtl/cmdline.h>
 #include "dll.h"
 #include "pebteb.h"
 
@@ -59,7 +60,7 @@ BSTATUS OSDLLMapElfFile(
 	HANDLE ProcessHandle,
 	HANDLE Handle,
 	const char* Name,
-	ELF_ENTRY_POINT2* OutEntryPoint,
+	OSDLL_ENTRY_POINT* OutEntryPoint,
 	int FileKind
 )
 {
@@ -457,7 +458,7 @@ EarlyExit:
 		OSFree(ProgramHeaders);
 	
 	if (SUCCEEDED(Status) && OutEntryPoint)
-		*OutEntryPoint = (ELF_ENTRY_POINT2)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
+		*OutEntryPoint = (OSDLL_ENTRY_POINT)(ImageBase + (uintptr_t)ElfHeader.EntryPoint);
 	
 	return Status;
 }
@@ -480,7 +481,7 @@ BSTATUS OSDLLLoadDynamicLibrary(PPEB Peb, const char* FileName)
 		return Status;
 	}
 	
-	ELF_ENTRY_POINT2 EntryPoint;
+	OSDLL_ENTRY_POINT EntryPoint;
 	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, FileName, &EntryPoint, FILE_KIND_DYNAMIC_LIBRARY);
 	OSClose(Handle);
 	if (FAILED(Status))
@@ -515,7 +516,7 @@ void OSDLLAddSelfToDllList()
 }
 
 HIDDEN
-BSTATUS OSDLLRunImage(PPEB Peb, ELF_ENTRY_POINT2* OutEntryPoint)
+BSTATUS OSDLLRunImage(PPEB Peb, OSDLL_ENTRY_POINT* OutEntryPoint)
 {
 	BSTATUS Status;
 	
@@ -707,7 +708,49 @@ uintptr_t OSDLLGetProcedureAddress(const char* ProcName)
 	return 0;
 }
 
-HIDDEN
+BSTATUS OSDLLSetupArgumentsAndEnvironment(PPEB Peb, int* OutArgumentCount, char*** OutArgumentArray, char*** OutEnvironmentArray)
+{
+	// Note: Argument count is biased by one because the image name is an argument.
+	int ArgumentCount = 1 + (Peb->CommandLine ? RtlEnvironmentCount(Peb->CommandLine) : 0);
+	int EnvironmentCount =   Peb->Environment ? RtlEnvironmentCount(Peb->Environment) : 0;
+	
+	char** ArgumentArray    = OSAllocate(sizeof(char*) * (ArgumentCount + 1));
+	char** EnvironmentArray = OSAllocate(sizeof(char*) * (EnvironmentCount + 1));
+	if (!ArgumentArray || !EnvironmentArray)
+	{
+		DbgPrint("OSDLL: Out of memory while allocating ArgumentArray or EnvironmentArray.");
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	// The first argument is the image's name.  The last item in
+	// the argument array is NULL.
+	ArgumentArray[0] = Peb->ImageName ? Peb->ImageName : "unknown";
+	ArgumentArray[ArgumentCount] = NULL;
+	
+	// The environment array is also terminated with NULL.
+	EnvironmentArray[EnvironmentCount] = NULL;
+	
+	char* ArgumentPointer = Peb->CommandLine;
+	for (int i = 1; i < ArgumentCount; i++)
+	{
+		ArgumentArray[i] = ArgumentPointer;
+		ArgumentPointer += strlen(ArgumentPointer) + 1;
+	}
+	
+	char* EnvironmentPointer = Peb->Environment;
+	for (int i = 0; i < EnvironmentCount; i++)
+	{
+		EnvironmentArray[i] = EnvironmentPointer;
+		EnvironmentPointer += strlen(EnvironmentPointer) + 1;
+	}
+	
+	*OutArgumentCount = ArgumentCount;
+	*OutArgumentArray = ArgumentArray;
+	*OutEnvironmentArray = EnvironmentArray;
+	return STATUS_SUCCESS;
+}
+
+NO_RETURN HIDDEN
 void DLLEntryPoint(PPEB Peb)
 {
 	OSDLLInitializeGlobalHeap();
@@ -724,15 +767,24 @@ void DLLEntryPoint(PPEB Peb)
 	LdrDbgPrint("OSDLL: Command Line: '%s'", Peb->CommandLine ? Peb->CommandLine : "(none)");
 	LdrDbgPrint("OSDLL: Environment:  '%s'", Peb->Environment ? Peb->Environment : "(none)");
 	
-	ELF_ENTRY_POINT2 EntryPoint = NULL;
+	OSDLL_ENTRY_POINT EntryPoint = NULL;
 	Status = OSDLLRunImage(Peb, &EntryPoint);
 	LdrDbgPrint("OSDLL: OSDLLRunImage exited with status %d (%s)", Status, RtlGetStatusString(Status));
 	
-	if (SUCCEEDED(Status))
+	if (FAILED(Status))
+		OSExitProcess(Status);
+	
+	int ArgumentCount;
+	char** ArgumentArray, **EnvironmentArray;
+	Status = OSDLLSetupArgumentsAndEnvironment(Peb, &ArgumentCount, &ArgumentArray, &EnvironmentArray);
+	if (FAILED(Status))
 	{
-		LdrDbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
-		Status = EntryPoint();
+		DbgPrint("OSDLL: Failed to set up arguments and environment: %s (%d)", RtlGetStatusString(Status), Status);
+		OSExitProcess(Status);
 	}
+	
+	LdrDbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
+	Status = EntryPoint(ArgumentCount, ArgumentArray, EnvironmentArray);
 	
 	LdrDbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);
 	OSExitProcess(Status);
