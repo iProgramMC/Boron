@@ -116,7 +116,7 @@ BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName, bool IsLibrary
 	Attributes.ObjectName = FileName;
 	Attributes.ObjectNameLength = strlen(FileName);
 	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = OSDLLGetCurrentDirectory();
+	Attributes.RootDirectory = OSGetCurrentDirectory();
 	
 	Status = OSOpenFile(Handle, &Attributes);
 	if (SUCCEEDED(Status))

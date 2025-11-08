@@ -1,27 +1,40 @@
 #include <boron.h>
 #include <string.h>
+#include "config.h"
 
-extern void RunTest1();
-extern void RunTest2();
-extern void RunTest3();
-extern void RunTest4();
-extern void RunTest5();
-extern void RunTest6();
+void Usage()
+{
+	DbgPrint("Init - Help");
+	DbgPrint("	--config [fileName]: System configuration file");
+	OSExitProcess(1);
+}
 
 int _start(int ArgumentCount, char** Arguments)
 {
+	BSTATUS Status;
 	DbgPrint("Init is running.");
 	
-	// TODO: Load environment variables from a config file
-	(void) ArgumentCount;
-	(void) Arguments;
+	if (ArgumentCount <= 1)
+		Usage();
+	
+	char* ConfigFile = NULL;
+	for (int i = 1; i < ArgumentCount; i++)
+	{
+		if (strcmp(Arguments[i], "--config") == 0)
+			ConfigFile = Arguments[i + 1];
+	}
+	
+	if (!ConfigFile)
+		Usage();
+	
+	Status = LoadConfigFile(ConfigFile);
 	
 	// Create the terminal process.
 	
 	// TODO: Allow specification of the framebuffer again.
 	
 	HANDLE ProcessHandle, ThreadHandle;
-	BSTATUS Status = OSCreateProcess(
+	Status = OSCreateProcess(
 		&ProcessHandle,
 		&ThreadHandle,
 		NULL,  // ObjectAttributes

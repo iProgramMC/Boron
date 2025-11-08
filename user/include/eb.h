@@ -1,5 +1,7 @@
 #pragma once
 
+#include <handle.h>
+
 typedef struct _TEB
 {
 	PPEB Peb;
@@ -17,4 +19,7 @@ PTEB OSDLLGetCurrentTeb();
 PPEB OSDLLGetCurrentPeb();
 
 // Gets the working directory of the current thread.
-HANDLE OSDLLGetCurrentDirectory();
+HANDLE OSGetCurrentDirectory();
+
+// Sets the current working directory of the current thread.
+void OSSetCurrentDirectory(HANDLE NewDirectory);
