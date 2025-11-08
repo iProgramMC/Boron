@@ -16,6 +16,7 @@ Author:
 #define NS64_STRING_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 // Include stb printf so we have definitions ready
 #define STB_SPRINTF_NOFLOAT
