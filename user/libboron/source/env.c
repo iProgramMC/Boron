@@ -1,5 +1,6 @@
 #include <boron.h>
 #include <string.h>
+#include <rtl/cmdline.h>
 #include "pebteb.h"
 #include "dll.h"
 
@@ -75,6 +76,33 @@ const char* OSDLLGetEnvironmentVariable(const char* Key)
 	}
 	
 	return NULL;
+}
+
+// Sets the current environment description.
+//
+// Notes:
+// - The environment description is entirely owned by the calling thread.
+//   This means that the calling thread is responsible for freeing the old
+//   description if they wish to update it again.
+//
+// - This is thread unsafe against OSDLLGetEnvironmentVariable. So avoid
+//   using the OSDLLGetEnvironmentVariable API in other threads while
+//   modifying the environment description.
+void OSDLLSetEnvironmentDescription(char* Description)
+{
+	PPEB Peb = OSDLLGetCurrentPeb();
+	
+	Peb->EnvironmentSize = RtlEnvironmentLength(Description);
+	Peb->Environment = Description;
+}
+
+// Obtains a pointer to the current environment description.
+//
+// Note that the initial environment description is part of the PEB, so it
+// cannot be freed like usual.  Do not free the first environment description.
+const char* OSDLLGetEnvironmentDescription()
+{
+	return OSDLLGetCurrentPeb()->Environment;
 }
 
 HIDDEN
