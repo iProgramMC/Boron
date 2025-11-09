@@ -3,5 +3,4 @@
 
 #include <status.h>
 
-BSTATUS LoadConfigFile(const char* File);
-
+BSTATUS InitLoadConfigFile(const char* File);

@@ -27,7 +27,7 @@ int _start(int ArgumentCount, char** Arguments)
 	if (!ConfigFile)
 		Usage();
 	
-	Status = LoadConfigFile(ConfigFile);
+	Status = InitLoadConfigFile(ConfigFile);
 	
 	// Create the terminal process.
 	
