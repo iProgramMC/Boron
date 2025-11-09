@@ -15,6 +15,8 @@ Author:
 #include "kbd.h"
 #include <hal.h>
 
+#define KEYBOARD_PRIORITY_BOOST 12
+
 #define MEASURE_LATENCIES
 
 static PDEVICE_OBJECT KbdDeviceObject;
@@ -117,7 +119,7 @@ static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* S
 	
 	if (Count != 0)
 	{
-		KeSetEvent(&KbdAvailableEvent, 1);
+		KeSetEvent(&KbdAvailableEvent, KEYBOARD_PRIORITY_BOOST);
 	}
 }
 
@@ -227,7 +229,7 @@ BSTATUS KbdRead(
 			// Can't block, so return now.
 			Iosb->Status = STATUS_BLOCKING_OPERATION;
 			Iosb->BytesRead = i;
-			return STATUS_SUCCESS;
+			return Iosb->Status;
 		}
 		
 		BSTATUS Status = KeWaitForSingleObject(&KbdAvailableEvent, true, TIMEOUT_INFINITE, MODE_KERNEL);
