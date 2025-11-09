@@ -1,7 +1,7 @@
 #              The Boron Operating System
 # Common makefile for all userland application targets
 
-APP_NAME  = FullScreenTerminal
+APP_NAME  = VideoTerminal
 # DEBUG  = yes
 # DEBUG2 = no
 
