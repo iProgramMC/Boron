@@ -172,6 +172,9 @@ BSTATUS OSCreateProcess(
 	HANDLE FileHandle;
 	OSDLL_ENTRY_POINT EntryPoint = NULL;
 	
+	if (!CommandLine)
+		CommandLine = "";
+	
 	// If the command line is in regular string form, convert it to environment
 	// description format.
 	if (~ProcessFlags & OS_PROCESS_CMDLINE_PARSED)

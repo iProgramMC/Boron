@@ -10,6 +10,6 @@ int _start()
 	while (true)
 	{
 		OSPrintf("Hello, world!  Number %d.\n", ++i);
-		//OSSleep(1000);
+		OSSleep(1000);
 	}
 }

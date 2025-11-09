@@ -5,6 +5,18 @@
 
 #define MAX_LINE_LENGTH 512
 
+// Currently the configuration file allows you to specify environment variables.
+//
+// Each line either:
+//
+// - Is blank
+//
+// - Is a comment, starting with '#'
+//
+// - Is an environment variable specification of the type `[key] = [value]`.
+//   Whitespace around the equals sign doesn't matter, so `KEY=VALUE`, `KEY=   VALUE`, and
+//   `KEY   =   VALUE` do the same thing.
+
 bool IsWhiteSpace(char Chr)
 {
 	return Chr == ' ' || Chr == '\t' || Chr == '\v' || Chr == '\r' || Chr == '\n';

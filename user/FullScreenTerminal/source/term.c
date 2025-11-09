@@ -10,6 +10,16 @@ BSTATUS CreatePseudoterminal()
 		return Status;
 	
 	Status = OSCreateTerminalIoHandles(&TerminalHostHandle, &TerminalSessionHandle, TerminalHandle);
+	if (FAILED(Status))
+		return Status;
+	
+	// Give ourselves the handle to the session for standard IO.
+	PPEB Peb = OSGetCurrentPeb();
+	
+	Peb->StandardIO[0] = TerminalSessionHandle;
+	Peb->StandardIO[1] = TerminalSessionHandle;
+	Peb->StandardIO[2] = TerminalSessionHandle;
+	
 	return Status;
 }
 

@@ -78,12 +78,22 @@ int _start(int ArgumentCount, char** ArgumentArray)
 		return 1;
 	}
 	
-	const char* Arguments = OSDLLGetCurrentPeb()->CommandLine;
-	Status = LaunchProcess(Arguments);
-	if (FAILED(Status))
+	const char* InteractiveShellName = OSDLLGetEnvironmentVariable("INTERACTIVE_SHELL");
+	const char* InteractiveShellArgs = OSDLLGetEnvironmentVariable("INTERACTIVE_SHELL_ARGS");
+	
+	if (InteractiveShellName)
 	{
-		DbgPrint("ERROR: Could not create process according to arguments '%s'. %s", Arguments, RtlGetStatusString(Status));
-		return 1;
+		Status = LaunchProcess(InteractiveShellName, InteractiveShellArgs);
+		if (FAILED(Status))
+		{
+			OSPrintf("ERROR: Could not run '%s'. %s\n", InteractiveShellName, RtlGetStatusString(Status));
+			DbgPrint("ERROR: Could not run '%s'. %s", InteractiveShellName, RtlGetStatusString(Status));
+		}
+	}
+	else
+	{
+		OSPrintf("ERROR: Interactive shell name not specified.\n");
+		DbgPrint("ERROR: Interactive shell name not specified.");
 	}
 	
 	while (true)

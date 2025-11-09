@@ -123,13 +123,6 @@ BSTATUS SetupTerminal()
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
-	// Write some testing text.
-	flanterm_write(
-		FlantermContext,
-		"Hi there! This is from the FullScreenTerminal.exe process, NOT from any process writing to a TTY. Yet.\n",
-		104
-	);
-	
 	return STATUS_SUCCESS;
 }
 

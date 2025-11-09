@@ -18,7 +18,7 @@ extern HANDLE TerminalHandle, TerminalHostHandle, TerminalSessionHandle;
 BSTATUS UseFramebuffer(const char* FramebufferPath);
 BSTATUS SetupTerminal();
 BSTATUS CreatePseudoterminal();
-BSTATUS LaunchProcess(const char* CommandLine);
+BSTATUS LaunchProcess(const char* FileName, const char* Arguments);
 BSTATUS CreateIOLoopThreads();
 BSTATUS WaitOnIOLoopThreads();
 

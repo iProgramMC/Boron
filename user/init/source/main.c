@@ -30,8 +30,13 @@ int _start(int ArgumentCount, char** Arguments)
 	Status = InitLoadConfigFile(ConfigFile);
 	
 	// Create the terminal process.
-	
-	// TODO: Allow specification of the framebuffer again.
+	const char* TerminalName = OSDLLGetEnvironmentVariable("TERMINAL");
+	const char* TerminalArguments = OSDLLGetEnvironmentVariable("TERMINAL_ARGS");
+	if (!TerminalName)
+	{
+		DbgPrint("Init: Terminal not specified.");
+		return STATUS_INVALID_PARAMETER;
+	}
 	
 	HANDLE ProcessHandle, ThreadHandle;
 	Status = OSCreateProcess(
@@ -39,15 +44,16 @@ int _start(int ArgumentCount, char** Arguments)
 		&ThreadHandle,
 		NULL,  // ObjectAttributes
 		0,     // ProcessFlags
-		"FullScreenTerminal.exe",
-		"--framebuffer /Devices/FrameBuffer0",
+		TerminalName,
+		TerminalArguments,
 		NULL   // Environment
 	);
 	
 	if (FAILED(Status))
 	{
 		DbgPrint(
-			"Init: Could not launch FullScreenTerminal.exe: %s (%d)",
+			"Init: Could not launch %s: %s (%d)",
+			TerminalName,
 			RtlGetStatusString(Status),
 			Status
 		);

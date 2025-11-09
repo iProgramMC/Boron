@@ -2,17 +2,10 @@
 
 static HANDLE ProcessHandle;
 
-BSTATUS LaunchProcess(const char* CommandLine)
+BSTATUS LaunchProcess(const char* FileName, const char* Arguments)
 {
-	// First of all, we should give ourselves the handle to the session
-	// for standard IO.
-	PPEB Peb = OSGetCurrentPeb();
-	
-	Peb->StandardIO[0] = TerminalSessionHandle;
-	Peb->StandardIO[1] = TerminalSessionHandle;
-	Peb->StandardIO[2] = TerminalSessionHandle;
-	
-	OSPrintf("Well, this is still from FullScreenTerminal.exe, but whatever.\n\n");
+	if (!FileName)
+		return STATUS_INVALID_PARAMETER;
 	
 	// Now creating the process should also give it the I/O handles.
 	// TODO: Currently just test.exe
@@ -22,10 +15,13 @@ BSTATUS LaunchProcess(const char* CommandLine)
 		&MainThreadHandle,
 		NULL, // ObjectAttributes
 		0,    // Flags
-		"test.exe",
-		"",   // CommandLine
+		FileName,
+		Arguments,
 		NULL  // Environment
 	);
+	
+	if (SUCCEEDED(Status))
+		OSClose(MainThreadHandle);
 	
 	return Status;
 }
