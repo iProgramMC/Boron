@@ -90,15 +90,6 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	if (FAILED(Status))
 		goto Fail1;
 	
-	DbgPrint("TtyInitializeTerminal: HostToSessionPipe = %p, SessionToHostPipe = %p, HTSPD = %p, STHPD = %p, THD = %p, TSD = %p",
-		Terminal->HostToSessionPipe,
-		Terminal->SessionToHostPipe,
-		Terminal->HostToSessionPipe->Fcb->DispatchTable,
-		Terminal->SessionToHostPipe->Fcb->DispatchTable,
-		&TtyHostDispatch,
-		&TtySessionDispatch
-	);
-	
 	Terminal->HostFcb = IoAllocateFcb(&TtyHostDispatch, sizeof(TERMINAL_HOST), false);
 	if (!Terminal->HostFcb)
 	{
