@@ -95,7 +95,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			//   was empty when we entered (so we didn't read any bytes)
 			if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && BytesRead != 0))
 			{
-				Iosb->Status = STATUS_BLOCKING_OPERATION;
+				Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
 			}
 			
