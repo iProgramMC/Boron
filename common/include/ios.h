@@ -125,8 +125,12 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 #define IO_RW_APPEND           (1 << 1)
 
 // This flag is set when the caller wants to block (if the stream is empty), and not block (if the stream has data).
-// Currently only supported for reading pipe devices.
+// Currently supported when reading pipes, terminal objects, and keyboards.
 #define IO_RW_NONBLOCK_UNLESS_EMPTY (1 << 2)
+
+// This flag is set when the caller wants the read operation to end early on a new line.  This is currently supported
+// for reading pipes and terminal objects.
+#define IO_RW_FINISH_ON_NEWLINE     (1 << 3)
 
 #ifdef KERNEL
 

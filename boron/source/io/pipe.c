@@ -134,9 +134,31 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			ReadSize = AvailableData;
 		}
 		
+		if (Flags & IO_RW_FINISH_ON_NEWLINE)
+		{
+			// The read operation wants to terminate on a newline character.
+			//
+			// Scan the pipe buffer (or at least, the bytes we're about to read), and
+			// finish the read operation on that first new line.
+			for (size_t i = 0, j = Pipe->Tail; i < ReadSize; i++, j++)
+			{
+				if (j >= Pipe->BufferSize)
+					j = 0;
+				
+				char Chr = Pipe->Buffer[j];
+				if (Chr != '\n' && Chr != '\r')
+					continue;
+				
+				// Update properties such as the read size and read count.
+				// Note that the read size should also include the newline in question.
+				ReadSize = i + 1;
+				ByteCount = BytesRead + ReadSize;
+			}
+		}
+		
 		size_t TailAfterRead = Pipe->Tail + ReadSize;
 		if (TailAfterRead >= Pipe->BufferSize)
-			TailAfterRead %= Pipe->BufferSize;
+			TailAfterRead -= Pipe->BufferSize;
 		
 		if (Pipe->Tail <= TailAfterRead)
 		{
