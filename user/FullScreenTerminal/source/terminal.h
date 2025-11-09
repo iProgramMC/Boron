@@ -10,12 +10,14 @@
 
 struct flanterm_context;
 
-extern PGRAPHICS_CONTEXT GraphicsContext;
 extern struct flanterm_context* FlantermContext;
+extern PGRAPHICS_CONTEXT GraphicsContext;
 extern HANDLE TerminalHandle, TerminalHostHandle, TerminalSessionHandle;
+extern HANDLE KeyboardHandle;
 
 // Initialization
 BSTATUS UseFramebuffer(const char* FramebufferPath);
+BSTATUS UseKeyboard(const char* KeyboardName);
 BSTATUS SetupTerminal();
 BSTATUS CreatePseudoterminal();
 BSTATUS LaunchProcess(const char* FileName, const char* Arguments);
@@ -23,4 +25,5 @@ BSTATUS CreateIOLoopThreads();
 BSTATUS WaitOnIOLoopThreads();
 
 // Inter-module operation
+char TranslateKeyCode(char KeyCode);
 void TerminalWrite(const char* Buffer, size_t Length);

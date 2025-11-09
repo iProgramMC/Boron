@@ -1,5 +1,7 @@
 #include "terminal.h"
 
+#define MAX_LINE_BUFFER (8192)
+
 HANDLE TerminalHandle, TerminalHostHandle, TerminalSessionHandle;
 HANDLE InputThread, OutputThread;
 
@@ -61,9 +63,63 @@ void InputLoop(UNUSED void* Context)
 NO_RETURN
 void OutputLoop(UNUSED void* Context)
 {
-	// TODO: Read from the keyboard and send data to the session.
+	BSTATUS Status;
+	IO_STATUS_BLOCK Iosb;
+	char Buffer[16];
+	
+	char LineBuffer[MAX_LINE_BUFFER];
+	
 	while (true)
-		OSSleep(1000);
+	{
+		Status = OSReadFile(
+			&Iosb,
+			KeyboardHandle,
+			0,
+			Buffer,
+			sizeof Buffer,
+			IO_RW_NONBLOCK_UNLESS_EMPTY
+		);
+		
+		if (IOFAILED(Status))
+		{
+			DbgPrint("Reading from keyboard failed. %s (%d)", RtlGetStatusString(Status), Status);
+			continue;
+		}
+		
+		if (Iosb.BytesRead == 0)
+		{
+			DbgPrint("Read 0 bytes!");
+			continue;
+		}
+		
+		size_t WriteCount = 0;
+		for (size_t i = 0; i < Iosb.BytesRead; i++)
+		{
+			LineBuffer[WriteCount] = TranslateKeyCode(Buffer[i]);
+			if (LineBuffer[WriteCount])
+				WriteCount++;
+		}
+		
+		// If there's nothing to write, don't even bother doing the system call.
+		if (!WriteCount)
+			continue;
+		
+		Status = OSWriteFile(
+			&Iosb,
+			TerminalHostHandle,
+			0,    // ByteOffset
+			LineBuffer,
+			WriteCount,
+			0,    // Flags
+			NULL  // OutFileSize
+		);
+		
+		if (IOFAILED(Status))
+		{
+			DbgPrint("Writing to session failed. %s (%d)", RtlGetStatusString(Status), Status);
+			continue;
+		}
+	}
 }
 
 BSTATUS CreateIOLoopThreads()

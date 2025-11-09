@@ -35,12 +35,14 @@ int _start(int ArgumentCount, char** ArgumentArray)
 {
 	BSTATUS Status;
 	
-	char* FramebufferName = NULL;
+	char* FramebufferName = NULL, *KeyboardName = NULL;
 	
 	for (int i = 1; i < ArgumentCount; i++)
 	{
 		if (strcmp(ArgumentArray[i], "--framebuffer") == 0)
 			FramebufferName = ArgumentArray[i + 1];
+		if (strcmp(ArgumentArray[i], "--keyboard") == 0)
+			KeyboardName = ArgumentArray[i + 1];
 	}
 	
 	if (!FramebufferName)
@@ -50,10 +52,24 @@ int _start(int ArgumentCount, char** ArgumentArray)
 		return 1;
 	}
 	
+	if (!KeyboardName)
+	{
+		DbgPrint("ERROR: No keyboard specified.");
+		Usage();
+		return 1;
+	}
+	
 	Status = UseFramebuffer(FramebufferName);
 	if (FAILED(Status))
 	{
 		DbgPrint("ERROR: Frame buffer '%s' couldn't be used. %s", FramebufferName, RtlGetStatusString(Status));
+		return 1;
+	}
+	
+	Status = UseKeyboard(KeyboardName);
+	if (FAILED(Status))
+	{
+		DbgPrint("ERROR: Keyboard '%s' couldn't be used. %s", KeyboardName, RtlGetStatusString(Status));
 		return 1;
 	}
 	
