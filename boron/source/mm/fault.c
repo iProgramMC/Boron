@@ -271,6 +271,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				// Need to throw away our hard work as someone finished it before us.
 				DbgPrint("%s: CCB entry was found to be assigned by the time IO was made (%p), refaulting (2)", __func__, Va);
 				Status = STATUS_REFAULT;
+				goto Exit;
 			}
 			else
 			{
@@ -282,6 +283,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 				ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
 				DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
 				Status = STATUS_REFAULT_SLEEP;
+				goto Exit;
 			}
 			
 			MmFreePhysicalPage(Pfn);
