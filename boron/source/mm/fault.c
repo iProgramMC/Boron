@@ -640,7 +640,7 @@ EarlyExit:
 		KeInitializeTimer(&Timer);
 		KeSetTimer(&Timer, MI_REFAULT_SLEEP_MS, NULL);
 		
-		BSTATUS Status = KeWaitForSingleObject(&Timer, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+		Status = KeWaitForSingleObject(&Timer, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 		if (FAILED(Status))
 		{
 			DbgPrint("MmPageFault: Failed to sleep?! %s (%d)", RtlGetStatusString(Status), Status);

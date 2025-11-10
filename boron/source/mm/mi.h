@@ -25,7 +25,7 @@ Author:
 #define PAGE_ALIGNED(x) (((x) & (PAGE_SIZE - 1)) == 0)
 
 // If out of memory, let other threads run on the system for this many milliseconds to hopefully free up some memory.
-#define MI_REFAULT_SLEEP_MS (50)
+#define MI_REFAULT_SLEEP_MS (500)
 
 // ===== Physical Memory Manager =====
 
