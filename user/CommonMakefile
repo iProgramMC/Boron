@@ -91,7 +91,6 @@ CFLAGS +=                   \
 	-fno-stack-protector    \
 	-fno-stack-check        \
 	-fno-lto                \
-	-fPIC                   \
 	-MMD                    \
 	-MP                     \
 	-I.                     \
@@ -129,6 +128,7 @@ ifeq ($(IS_LIBRARY),yes)
 LDFLAGS +=                  \
 	-shared -fPIC           \
 	-Bsymbolic
+CFLAGS += -fPIC
 endif
 	
 ifeq ($(INCLUDE_LIBBORON),no)
