@@ -2,9 +2,57 @@
 #include <boron.h>
 #include <elf.h>
 
+#ifdef __clang__
+
+// Clang workaround:
+//
+// There is a bug where using any optimization level causes a bad offset
+// to be added to the global offset table during dereference, causing a
+// bad access while calling this function.  This is the mitigation.
+//
+// Example of disassembly from a Clang-compiled libboron.so without this
+// workaround:
+//
+// RtlGetImageBase:
+//     ; build stack frame
+//     push ebp
+//     mov  ebp, esp
+//
+//     ; determine current EIP
+//     call _stuff
+// _stuff:
+//     pop  ecx
+//
+//     ; add the offset of the global offset table compared to said EIP
+//     add  ecx, (offset _GLOBAL_OFFSET_TABLE_ - offset _stuff)
+//
+//     ; into eax, load the address of _DYNAMIC
+//     lea  eax, (_DYNAMIC - _GLOBAL_OFFSET_TABLE_)[ecx]
+//
+//     ; buggy access. really not sure what's going on here
+//     ; this access seems random but it always ends with 0xB so probably
+//     ; *some* rhyme or reason even though it makes no sense for this to
+//     ; exist at all
+//     sub  eax, [ecx + 0x7CFB]
+//
+//     ; leave the function and return
+//     pop  ebp
+//     retn
+
+#define CLANG_WORKAROUND __attribute__((optnone))
+
+#endif // __clang__
+
+#ifndef CLANG_WORKAROUND
+#define CLANG_WORKAROUND
+#endif
+
+#define BUG_UNREACHABLE() __asm__ volatile("ud2":::"memory");
+
 extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
 extern HIDDEN void* _GLOBAL_OFFSET_TABLE_[];
 
+CLANG_WORKAROUND
 HIDDEN
 uintptr_t RtlGetImageBase()
 {
@@ -14,7 +62,7 @@ uintptr_t RtlGetImageBase()
 	return AddressRT - AddressLT;
 }
 
-extern NO_RETURN HIDDEN void DLLEntryPoint();
+extern NO_RETURN HIDDEN void DLLEntryPoint(PPEB Peb);
 
 // This allows the shared library to relocate itself automatically.
 //
@@ -29,7 +77,7 @@ extern NO_RETURN HIDDEN void DLLEntryPoint();
 // Thanks to https://github.com/managarm/mlibc for the inspiration.
 //
 // TODO: Consider using automated testing to check if this function
-// needs to be relocated.
+// contains relocations.
 //
 // This is the entry point of Libboron.so.
 //
@@ -73,7 +121,9 @@ void RelocateSelf(PPEB Peb)
 	{
 		PELF_RELA Rela = (PELF_RELA) (ImageBase + RelaOffset + i);
 		
-		uint32_t RelType = (uint32_t) Rela->Info;
+		uint32_t RelType = ELF_R_TYPE(Rela->Info);
+		if (ELF_R_SYM(Rela->Info))
+			BUG_UNREACHABLE();
 		
 	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
@@ -86,7 +136,7 @@ void RelocateSelf(PPEB Peb)
 			// different ways already, also cannot import things from
 			// other libraries.  As such, the only relocation type you
 			// should see is R_*_RELATIVE.
-			__builtin_trap();
+			BUG_UNREACHABLE();
 		
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rela->Offset);
 		*Reloc = ImageBase + Rela->Addend;
@@ -96,7 +146,11 @@ void RelocateSelf(PPEB Peb)
 	{
 		PELF_REL Rel = (PELF_REL) (ImageBase + RelOffset + i);
 		
-		uint32_t RelType = (uint32_t) Rel->Info;
+		uint32_t RelType = ELF_R_TYPE(Rel->Info);
+		if (ELF_R_SYM(Rel->Info)) {
+			// some symbol here has an info
+			BUG_UNREACHABLE();
+		}
 		
 	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
@@ -109,7 +163,7 @@ void RelocateSelf(PPEB Peb)
 			// different ways already, also cannot import things from
 			// other libraries.  As such, the only relocation type you
 			// should see is R_*_RELATIVE.
-			__builtin_trap();
+			BUG_UNREACHABLE();
 		
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rel->Offset);
 		*Reloc += ImageBase;
