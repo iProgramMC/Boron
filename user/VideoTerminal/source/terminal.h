@@ -25,5 +25,5 @@ BSTATUS CreateIOLoopThreads();
 BSTATUS WaitOnIOLoopThreads();
 
 // Inter-module operation
-char TranslateKeyCode(char KeyCode);
+void TranslateKeyCode(char* Input, uint8_t KeyCode);
 void TerminalWrite(const char* Buffer, size_t Length);

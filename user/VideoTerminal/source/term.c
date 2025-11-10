@@ -60,14 +60,20 @@ void InputLoop(UNUSED void* Context)
 	}
 }
 
+// One or more characters, but corresponds to one key press.
+// The Input string will never include more than one key press.
+void CharactersTyped(char* OutputBuffer, size_t* OutputBufferIndex, const char* Input)
+{
+	strcpy(OutputBuffer + *OutputBufferIndex, Input);
+	*OutputBufferIndex += strlen(Input);
+}
+
 NO_RETURN
 void OutputLoop(UNUSED void* Context)
 {
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	char Buffer[16];
-	
-	char LineBuffer[MAX_LINE_BUFFER];
 	
 	while (true)
 	{
@@ -92,24 +98,24 @@ void OutputLoop(UNUSED void* Context)
 			continue;
 		}
 		
-		size_t WriteCount = 0;
+		char OutputBuffer[256];
+		size_t OutputBufferLength = 0;
 		for (size_t i = 0; i < Iosb.BytesRead; i++)
 		{
-			LineBuffer[WriteCount] = TranslateKeyCode(Buffer[i]);
-			if (LineBuffer[WriteCount])
-				WriteCount++;
+			char InputBuffer[16];
+			TranslateKeyCode(InputBuffer, (uint8_t) Buffer[i]);
+			CharactersTyped(OutputBuffer, &OutputBufferLength, InputBuffer);
 		}
 		
-		// If there's nothing to write, don't even bother doing the system call.
-		if (!WriteCount)
+		if (OutputBufferLength == 0)
 			continue;
 		
 		Status = OSWriteFile(
 			&Iosb,
 			TerminalHostHandle,
 			0,    // ByteOffset
-			LineBuffer,
-			WriteCount,
+			OutputBuffer,
+			OutputBufferLength,
 			0,    // Flags
 			NULL  // OutFileSize
 		);
@@ -119,7 +125,7 @@ void OutputLoop(UNUSED void* Context)
 			DbgPrint("Writing to session failed. %s (%d)", RtlGetStatusString(Status), Status);
 			continue;
 		}
-	}
+}
 }
 
 BSTATUS CreateIOLoopThreads()
