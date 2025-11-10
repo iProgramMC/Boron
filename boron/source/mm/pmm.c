@@ -658,6 +658,7 @@ static void MmpAddPfnToList(PMMPFN First, PMMPFN Last, MMPFN Current)
 		MMPFDBE* pPF = MmGetPageFrameFromPFN(Current);
 		pPF->NextFrame = PFN_INVALID;
 		pPF->PrevFrame = PFN_INVALID;
+		return;
 	}
 	
 	PMMPFDBE pLastPFN = MmGetPageFrameFromPFN(*Last), pCurrPFN = MmGetPageFrameFromPFN(Current);
