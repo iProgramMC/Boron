@@ -41,8 +41,8 @@ ifeq ($(TARGETL), amd64)
 	
 else ifeq ($(TARGETL), i386)
 	# Compiler Toolchain
-	BCC  ?= clang
-	BCXX ?= clang++
+	BCC  ?= clang-22
+	BCXX ?= clang++-22
 	BLD  ?= ld
 	BASM ?= nasm
 	
