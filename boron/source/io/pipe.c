@@ -65,6 +65,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 	ASSERT(MdlBuffer->Flags & MDL_FLAG_WRITE);
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
 	
+	size_t BytesRead = 0;
 	Iosb->BytesRead = 0;
 	Iosb->Status = Status;
 	
@@ -74,7 +75,6 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 		goto Finish;
 	
 	size_t ByteCount = MdlBuffer->ByteCount;
-	size_t BytesRead = 0;
 	while (BytesRead < ByteCount)
 	{
 		if (Pipe->Head == Pipe->Tail)
@@ -212,6 +212,7 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 	ASSERT(~MdlBuffer->Flags & MDL_FLAG_WRITE);
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
 	
+	size_t BytesWritten = 0;
 	Iosb->BytesWritten = 0;
 	Iosb->Status = Status;
 	
@@ -221,7 +222,6 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		goto Finish;
 	
 	size_t ByteCount = MdlBuffer->ByteCount;
-	size_t BytesWritten = 0;
 	while (BytesWritten < ByteCount)
 	{
 		Iosb->BytesWritten = BytesWritten;

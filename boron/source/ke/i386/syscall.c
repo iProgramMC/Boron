@@ -19,6 +19,7 @@ Author:
 #include <ob.h>
 #include <ps.h>
 #include <io.h>
+#include <tty.h>
 
 //#define ENABLE_SYSCALL_TRACE
 

@@ -165,6 +165,7 @@ BSTATUS OSCreateProcess(
 {
 	// Pointers/resources freed on failure
 	HANDLE ProcessHandle = HANDLE_NONE;
+	PPEB Peb = NULL;
 	void *PebPtr = NULL;
 	char *AllocatedCmdLine = NULL;
 	
@@ -206,7 +207,6 @@ BSTATUS OSCreateProcess(
 		Environment = OSDLLGetCurrentPeb()->Environment;
 	
 	// Create the PEB for this process.
-	PPEB Peb = NULL;
 	size_t PebSize = 0;
 	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine, Environment);
 	if (FAILED(Status))

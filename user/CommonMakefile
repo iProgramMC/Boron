@@ -54,7 +54,8 @@ OPT = -O2
 
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
-	OPT = -g -O0
+	#OPT = -g -O0
+	OPT = -O3
 endif
 
 ifeq ($(DEBUG2), yes)
