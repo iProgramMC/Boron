@@ -195,6 +195,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	// TODO: not sure why I have to subtract 0x1000
 	BoronDllBase = MM_USER_SPACE_END + 1 - PebSize - Size - 0x1000;
+	DbgPrint("BoronDllBase: %p", BoronDllBase);
 	
 	bool IsDynamicLoaded = false;
 	uintptr_t BoronDllBaseOld = BoronDllBase;

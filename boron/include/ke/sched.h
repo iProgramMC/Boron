@@ -82,7 +82,7 @@ void KeSetPriorityThread(PKTHREAD Thread, int Priority);
 
 void KeSchedulerInitUP();
 
-void KeSchedulerInit();
+void KeSchedulerInit(void* IdleThreadStack);
 
 NO_RETURN void KeSchedulerCommit();
 

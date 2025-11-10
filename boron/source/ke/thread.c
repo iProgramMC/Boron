@@ -173,9 +173,9 @@ void KeSetTerminateMethodThread(PKTHREAD Thread, PKTHREAD_TERMINATE_METHOD Termi
 
 void KeYieldCurrentThread()
 {
-	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	(void) KeRaiseIPL(IPL_DPC);
 	KeGetCurrentThread()->QuantumUntil = 0;
-	KiHandleQuantumEnd(Ipl);
+	KiHandleQuantumEnd();
 }
 
 void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment)
