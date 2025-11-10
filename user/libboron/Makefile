@@ -8,6 +8,6 @@ APP_NAME  = libboron
 IS_LIBRARY = yes
 USER_DEFINES = -DIS_BORON_DLL
 INCLUDE_LIBBORON = no
-LDFLAGS = -e RelocateSelf
+LDFLAGS = -e RelocateSelf -Bsymbolic
 
 include ../CommonMakefile

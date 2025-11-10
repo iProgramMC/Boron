@@ -299,21 +299,20 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 		uintptr_t SymbolOffset = Symbol->Name;
 		const char* SymbolName = DynInfo->DynStrTable + SymbolOffset;
 		
-		uintptr_t SymbolAddress = 0;
-		
+		uintptr_t SymbolAddress;
+
+#ifdef KERNEL
+		// HACK: Keep old behavior.  If the kernel doesn't have this symbol,
+		// use the in-built value.
 		if (Symbol->Value)
 			SymbolAddress = LoadBase + Symbol->Value;
-		
-		// If this offset is zero then look it up.
-		if (!SymbolAddress)
-		{
-#ifdef KERNEL
+		else
 			SymbolAddress = DbgLookUpAddress(SymbolName);
 #else
-			SymbolAddress = OSDLLGetProcedureAddress(SymbolName);
+		// OSDLL simply scans all of the loaded modules in loading order.
+		SymbolAddress = OSDLLGetProcedureAddress(SymbolName);
 #endif
-		}
-		
+
 #ifdef KERNEL
 		if (!SymbolAddress)
 			KeCrashBeforeSMPInit("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);

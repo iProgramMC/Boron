@@ -125,12 +125,10 @@ LDFLAGS +=  \
 NASMFLAGS += $(ARCH_ASFLAGS)
 
 ifeq ($(IS_LIBRARY),yes)
-LDFLAGS +=                  \
-	-shared -fPIC           \
-	-Bsymbolic
+LDFLAGS += -shared -fPIC
 CFLAGS += -fPIC
 endif
-	
+
 ifeq ($(INCLUDE_LIBBORON),no)
 else
 	LDFLAGS += -lboron
