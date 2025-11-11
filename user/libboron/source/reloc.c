@@ -2,57 +2,11 @@
 #include <boron.h>
 #include <elf.h>
 
-#ifdef __clang__
-
-// Clang workaround:
-//
-// There is a bug where using any optimization level causes a bad offset
-// to be added to the global offset table during dereference, causing a
-// bad access while calling this function.  This is the mitigation.
-//
-// Example of disassembly from a Clang-compiled libboron.so without this
-// workaround:
-//
-// RtlGetImageBase:
-//     ; build stack frame
-//     push ebp
-//     mov  ebp, esp
-//
-//     ; determine current EIP
-//     call _stuff
-// _stuff:
-//     pop  ecx
-//
-//     ; add the offset of the global offset table compared to said EIP
-//     add  ecx, (offset _GLOBAL_OFFSET_TABLE_ - offset _stuff)
-//
-//     ; into eax, load the address of _DYNAMIC
-//     lea  eax, (_DYNAMIC - _GLOBAL_OFFSET_TABLE_)[ecx]
-//
-//     ; buggy access. really not sure what's going on here
-//     ; this access seems random but it always ends with 0xB so probably
-//     ; *some* rhyme or reason even though it makes no sense for this to
-//     ; exist at all
-//     sub  eax, [ecx + 0x7CFB]
-//
-//     ; leave the function and return
-//     pop  ebp
-//     retn
-
-#define CLANG_WORKAROUND __attribute__((optnone))
-
-#endif // __clang__
-
-#ifndef CLANG_WORKAROUND
-#define CLANG_WORKAROUND
-#endif
-
 #define BUG_UNREACHABLE() __asm__ volatile("ud2":::"memory");
 
 extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
-extern HIDDEN void* _GLOBAL_OFFSET_TABLE_[];
+extern void* _GLOBAL_OFFSET_TABLE_[];
 
-CLANG_WORKAROUND
 HIDDEN
 uintptr_t RtlGetImageBase()
 {
