@@ -450,6 +450,7 @@ BSTATUS IoReadFile(
 	PFILE_OBJECT FileObject,
 	void* Buffer,
 	size_t Size,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 )
@@ -459,7 +460,7 @@ BSTATUS IoReadFile(
 	
 	if (!FAILED(Status))
 	{
-		Status = IoReadFileMdl(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
+		Status = IoReadFileMdl(Iosb, FileObject, Mdl, Flags, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}
 	
@@ -471,6 +472,7 @@ BSTATUS IoWriteFile(
 	PFILE_OBJECT FileObject,
 	const void* Buffer,
 	size_t Size,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 )
@@ -480,7 +482,7 @@ BSTATUS IoWriteFile(
 	
 	if (!FAILED(Status))
 	{
-		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, 0, FileOffset, Cached);
+		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, Flags, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}	
 	

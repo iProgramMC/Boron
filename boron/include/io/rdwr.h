@@ -63,6 +63,7 @@ BSTATUS IoReadFile(
 	PFILE_OBJECT FileObject,
 	void* Buffer,
 	size_t Size,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 );
@@ -72,6 +73,7 @@ BSTATUS IoWriteFile(
 	PFILE_OBJECT FileObject,
 	const void* Buffer,
 	size_t Size,
+	uint32_t Flags,
 	uint64_t FileOffset,
 	bool Cached
 );

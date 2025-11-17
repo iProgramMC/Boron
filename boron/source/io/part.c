@@ -123,7 +123,7 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device, POBJECT_DIRECTO
 	uint8_t Header[512];
 	
 	IO_STATUS_BLOCK Iosb;
-	Status = IoReadFile(&Iosb, FileObject, Header, sizeof Header, 0, true);
+	Status = IoReadFile(&Iosb, FileObject, Header, sizeof Header, 0, 0, true);
 	if (FAILED(Status))
 		goto Done;
 	
