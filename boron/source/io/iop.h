@@ -50,7 +50,6 @@ BSTATUS IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON 
 void IopDeleteFile(void* Object);
 void IopCloseFile(void* Object, int HandleCount);
 BSTATUS IopParseFile(void* Object, const char** Name, void* Context, int LoopCount, void** OutObject);
-void* IopDuplicateFile(void* Object, int OpenReason);
 
 bool IopInitializeDevicesDir();
 bool IopInitializeDriversDir();

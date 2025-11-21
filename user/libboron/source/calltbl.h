@@ -33,8 +33,8 @@ CALL 30, 2, OSQueryMutex
 CALL 31, 4, OSReadDirectoryEntries
 //   32     OSReadFile
 CALL 33, 1, OSReleaseMutex
-CALL 34, 1, OSResetDirectoryReadHead
-CALL 35, 1, OSResetEvent
+CALL 34, 1, OSResetEvent
+//   35     OSSeekFile
 CALL 36, 1, OSSetCurrentPeb
 CALL 37, 1, OSSetCurrentTeb
 CALL 38, 1, OSSetEvent
@@ -52,9 +52,11 @@ CALL 48, 4, OSWriteVirtualMemory
 #ifdef IS_64_BIT
 CALL 23, 7, OSMapViewOfObject
 CALL 32, 6, OSReadFile
+CALL 35, 3, OSSeekFile
 CALL 47, 7, OSWriteFile
 #else
 CALL 23, 8, OSMapViewOfObject
 CALL 32, 7, OSReadFile
+CALL 35, 4, OSSeekFile
 CALL 47, 8, OSWriteFile
 #endif

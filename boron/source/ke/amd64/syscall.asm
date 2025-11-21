@@ -53,8 +53,8 @@ extern OSQueryMutex
 extern OSReadDirectoryEntries
 extern OSReadFile
 extern OSReleaseMutex
-extern OSResetDirectoryReadHead
 extern OSResetEvent
+extern OSSeekFile
 extern OSSetCurrentPeb
 extern OSSetCurrentTeb
 extern OSSetEvent
@@ -106,8 +106,8 @@ KiSystemServiceTable:
 	dq OSReadDirectoryEntries
 	dq OSReadFile
 	dq OSReleaseMutex
-	dq OSResetDirectoryReadHead
 	dq OSResetEvent
+	dq OSSeekFile
 	dq OSSetCurrentPeb
 	dq OSSetCurrentTeb
 	dq OSSetEvent

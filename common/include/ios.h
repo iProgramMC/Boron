@@ -132,6 +132,12 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 // for reading pipes and terminal objects.
 #define IO_RW_FINISH_ON_NEWLINE     (1 << 3)
 
+// This flag is set when the caller wants to use the kernel's built-in file offset instead of providing its own file
+// offset.  This is useful for POSIX compatibility, as two different processes expect to modify the same file offset
+// pointer, because the file description (and Boron's file object) is shared and both processes have references to
+// the same object.
+#define IO_RW_SHARED_FILE_OFFSET    (1 << 4)
+
 #ifdef KERNEL
 
 // Flags for IO_READ_METHOD and IO_WRITE_METHOD:

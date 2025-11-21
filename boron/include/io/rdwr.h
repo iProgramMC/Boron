@@ -104,6 +104,8 @@ BSTATUS IoDeviceIoControl(
 	size_t OutBufferSize
 );
 
+BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t NewOffset, int Whence);
+
 // ** SYSTEM SERVICES **
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
@@ -118,7 +120,7 @@ BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite);
 
 BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut);
 
-BSTATUS OSResetDirectoryReadHead(HANDLE FileHandle);
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewOffset, int Whence);
 
 BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t DirectoryEntryCount, PIO_DIRECTORY_ENTRY DirectoryEntries);
 

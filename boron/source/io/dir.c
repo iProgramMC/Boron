@@ -13,22 +13,6 @@ Author:
 ***/
 #include "iop.h"
 
-BSTATUS IoResetDirectoryReadHead(PFILE_OBJECT FileObject)
-{
-	BSTATUS Status;
-	PFCB Fcb = FileObject->Fcb;	
-	
-	Status = IoLockFcbShared(Fcb);
-	if (FAILED(Status))
-		return Status;
-	
-	FileObject->DirectoryOffset = 0;
-	FileObject->DirectoryVersion = 0;
-	
-	IoUnlockFcb(Fcb);
-	return STATUS_SUCCESS;
-}
-
 // NOTE: The DirectoryEntries pointer CAN be a userspace pointer and this is handled
 // automatically.
 //
@@ -54,12 +38,18 @@ BSTATUS IoReadDirectoryEntries(
 	Dispatch = Fcb->DispatchTable;
 	ASSERT(Dispatch);
 	
-	Status = IoLockFcbShared(Fcb);
+	Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
-	Offset  = FileObject->DirectoryOffset;
-	Version = FileObject->DirectoryVersion;
+	Status = IoLockFcbShared(Fcb);
+	if (FAILED(Status)) {
+		KeReleaseMutex(&FileObject->FileOffsetMutex);
+		return IOSB_STATUS(Iosb, Status);
+	}
+	
+	Offset  = FileObject->CurrentFileOffset;
+	Version = FileObject->CurrentDirectoryVersion;
 	
 	IO_READ_DIR_METHOD ReadDir = Dispatch->ReadDir;
 	if (ReadDir)
@@ -107,32 +97,17 @@ BSTATUS IoReadDirectoryEntries(
 	}
 	
 EarlyFail:
-	FileObject->DirectoryOffset  = Offset;
-	FileObject->DirectoryVersion = Version;
+	FileObject->CurrentFileOffset = Offset;
+	FileObject->CurrentDirectoryVersion = Version;
 	
 	IoUnlockFcb(Fcb);
+	KeReleaseMutex(&FileObject->FileOffsetMutex);
 	return Status;
 }
 
 BSTATUS IoReadDirectoryEntry(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PIO_DIRECTORY_ENTRY DirectoryEntry)
 {
 	return IoReadDirectoryEntries(Iosb, FileObject, 1, DirectoryEntry);
-}
-
-BSTATUS OSResetDirectoryReadHead(HANDLE FileHandle)
-{
-	BSTATUS Status;
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
-	if (FAILED(Status))
-		return Status;
-	
-	PFILE_OBJECT FileObject = FileObjectV;
-	
-	Status = IoResetDirectoryReadHead(FileObject);
-	ObDereferenceObject(FileObject);
-	
-	return STATUS_SUCCESS;
 }
 
 BSTATUS OSReadDirectoryEntries(

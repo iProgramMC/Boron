@@ -41,9 +41,11 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, ui
 	FileObject->Flags    = Flags;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
-	FileObject->DirectoryOffset  = 0;
-	FileObject->DirectoryVersion = 0;
+	FileObject->CurrentFileOffset = 0;
+	FileObject->CurrentDirectoryVersion = 0;
 	FileObject->OpenFlags = OpenFlags;
+	
+	KeInitializeMutex(&FileObject->FileOffsetMutex, 0);
 	
 	// Call the FCB's create object method, if it exists.
 	IO_CREATE_OBJ_METHOD CreateObjMethod = Fcb->DispatchTable->CreateObject;
@@ -81,33 +83,6 @@ void IopCloseFile(void* Object, int HandleCount)
 			KeCrash("IopCloseFile WARNING: FCB close routine returned status %d on object %p", Status, Object);
 	#endif
 	}
-}
-
-void* IopDuplicateFile(void* Object, UNUSED int OpenReason)
-{
-	DbgPrint("IopDuplicateFile(%p)", Object);
-	PFILE_OBJECT File = Object;
-	
-	// Increase the FCB's reference count by one.
-	IoReferenceFcb(File->Fcb);
-	
-	// Create a new file object to which this reference is transferred.
-	PFILE_OBJECT NewFile = NULL;
-	BSTATUS Status = IoCreateFileObject(File->Fcb, &NewFile, File->Flags, File->OpenFlags);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint(
-			"ERROR: IopDuplicateFile failed with status %d (%s). The file object won't be duplicated. "
-			"This behavior might not be desirable later.",
-			Status,
-			RtlGetStatusString(Status)
-		);
-		
-		return NULL;
-	}
-	
-	return NewFile;
 }
 
 void IopDeleteFile(void* Object)

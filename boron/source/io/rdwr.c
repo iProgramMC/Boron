@@ -75,7 +75,16 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
-static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
+// NOTE: Must have the FCB's rwlock acquired exclusive!
+static BSTATUS IopSetFileSize(PFCB Fcb, uint64_t NewFileSize)
+{
+	if (!Fcb->DispatchTable->Resize)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return Fcb->DispatchTable->Resize(Fcb, NewFileSize);
+}
+
+static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
 {
 	BSTATUS Status;
 	ASSERT(FileObject);
@@ -174,16 +183,7 @@ static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL 
 	return Status;
 }
 
-// NOTE: Must have the FCB's rwlock acquired exclusive!
-static BSTATUS IopSetFileSize(PFCB Fcb, uint64_t NewFileSize)
-{
-	if (!Fcb->DispatchTable->Resize)
-		return STATUS_UNSUPPORTED_FUNCTION;
-	
-	return Fcb->DispatchTable->Resize(Fcb, NewFileSize);
-}
-
-static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
+static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
 {
 	BSTATUS Status;
 	ASSERT(FileObject);
@@ -330,6 +330,54 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	}
 	
 	KeSetAddressMode(OldMode);
+	return Status;
+}
+
+static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
+{
+	BSTATUS Status;
+	
+	if (Flags & IO_RW_SHARED_FILE_OFFSET)
+	{
+		Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+		if (FAILED(Status))
+			return Status;
+		
+		Offset = FileObject->CurrentFileOffset;
+	}
+	
+	Status = IopReadFile2(Iosb, FileObject, Mdl, Flags, Offset, Cached, OutFileSize);
+	
+	if (Flags & IO_RW_SHARED_FILE_OFFSET)
+	{
+		FileObject->CurrentFileOffset += Iosb->BytesRead;
+		KeReleaseMutex(&FileObject->FileOffsetMutex);
+	}
+	
+	return Status;
+}
+
+static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
+{
+	BSTATUS Status;
+	
+	if (Flags & IO_RW_SHARED_FILE_OFFSET)
+	{
+		Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+		if (FAILED(Status))
+			return Status;
+		
+		Offset = FileObject->CurrentFileOffset;
+	}
+	
+	Status = IopWriteFile2(Iosb, FileObject, Mdl, Flags, Offset, Cached, OutFileSize);
+	
+	if (Flags & IO_RW_SHARED_FILE_OFFSET)
+	{
+		FileObject->CurrentFileOffset += Iosb->BytesRead;
+		KeReleaseMutex(&FileObject->FileOffsetMutex);
+	}
+	
 	return Status;
 }
 
@@ -715,4 +763,48 @@ EarlyExit:
 		MmFreePool(OutBufferCopy);
 	ObDereferenceObject(FileObject);
 	return Status;
+}
+
+BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t NewOffset, int Whence)
+{
+	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
+	if (FAILED(Status))
+		return Status;
+	
+	switch (Whence)
+	{
+		case IO_SEEK_CUR:
+			FileObject->CurrentFileOffset += NewOffset;
+			break;
+		
+		case IO_SEEK_END:
+			FileObject->CurrentFileOffset = FileObject->Fcb->FileLength + NewOffset;
+			break;
+		
+		case IO_SEEK_SET:
+			FileObject->CurrentFileOffset = NewOffset;
+			break;
+	}
+	
+	KeReleaseMutex(&FileObject->FileOffsetMutex);
+	return STATUS_SUCCESS;
+}
+
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewOffset, int Whence)
+{
+	if (Whence != IO_SEEK_CUR && Whence != IO_SEEK_SET && Whence != IO_SEEK_END)
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	Status = IoSeekFile(FileObject, NewOffset, Whence);
+	ObDereferenceObject(FileObject);
+	
+	return STATUS_SUCCESS;
 }

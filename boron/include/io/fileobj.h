@@ -14,12 +14,12 @@ Author:
 #pragma once
 
 typedef struct _IO_STATUS_BLOCK IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
-
+/*
 enum
 {
 	FILE_FLAG_APPEND_ONLY = (1 << 0),
 };
-
+*/
 typedef struct _FILE_OBJECT
 {
 	PFCB Fcb;
@@ -27,8 +27,9 @@ typedef struct _FILE_OBJECT
 	void* Context1;
 	void* Context2;
 	
-	uint64_t DirectoryOffset;
-	uint64_t DirectoryVersion;
+	KMUTEX FileOffsetMutex;
+	uint64_t CurrentFileOffset;
+	uint64_t CurrentDirectoryVersion;
 	
 	uint32_t Flags;
 	uint32_t OpenFlags;
