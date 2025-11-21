@@ -4,8 +4,24 @@
 
 #define BUG_UNREACHABLE() __asm__ volatile("ud2":::"memory");
 
+#ifdef TARGET_I386
+
+// Due to a Clang assembler bug, I cannot mark the GOT as hidden,
+// as it'll generate a bad offset access in RtlGetImageBase.
 extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
 extern void* _GLOBAL_OFFSET_TABLE_[];
+
+#else
+
+// Strangely enough there is ANOTHER issue in the SAME place! This
+// time in the GNU assembler. Not marking the GOT as hidden leads
+// to a bad relocation being generated.  This causes bad assembly
+// in the final executable (0xFFFFFFFF absolutely doesn't belong in
+// the instruction stream!)
+extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
+extern HIDDEN void* _GLOBAL_OFFSET_TABLE_[];
+
+#endif
 
 HIDDEN
 uintptr_t RtlGetImageBase()
