@@ -109,6 +109,8 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	Host->Terminal = Terminal;
 	Session->Terminal = Terminal;
 	
+	KeInitializeMutex(&Terminal->StateMutex, 0);
+	
 	// Initialize the terminal to a default state.
 	Terminal->State.Local.RawMode = 0;
 	Terminal->State.Local.InterruptOnBreak = 1;
@@ -121,9 +123,10 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	Terminal->State.Output.ConvertCRToNLOutput = 1;
 	
 #define CTRL(let) ((let) - '@')
+#define DISABLED -1
 	Terminal->State.Chars.EndOfFile = CTRL('D');
-	Terminal->State.Chars.EndOfLine = 0;
-	Terminal->State.Chars.EndOfLine2 = 0;
+	Terminal->State.Chars.EndOfLine = '\n';
+	Terminal->State.Chars.EndOfLine2 = DISABLED;
 	Terminal->State.Chars.Erase = '\x7F';
 	Terminal->State.Chars.Interrupt = CTRL('C');
 	Terminal->State.Chars.EraseLine = CTRL('U');
