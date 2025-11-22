@@ -182,7 +182,6 @@ void TranslateKeyCode(char* Input, uint8_t KeyCode)
 	}
 	
 	Input[Offset++] = 0;
-	return;
 }
 
 BSTATUS UseKeyboard(const char* KeyboardName)

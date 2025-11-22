@@ -166,8 +166,11 @@ static BSTATUS TtyFlushLineBuffer(PTERMINAL Terminal)
 	return STATUS_SUCCESS;
 }
 
-static bool TtyShouldTerminateEscapeCode(UNUSED PTERMINAL Terminal, char Character)
+static bool TtyShouldTerminateEscapeCode(PTERMINAL Terminal, char Character)
 {
+	if (Terminal->LineState.EscapeBufferLength <= 2 && Character == '[')
+		return false;
+	
 	// NOTE: The '\a' exception came from NanoShell. I don't remember why I added it.
 	return (Character >= '@' && Character <= '~') || Character == '\a';
 }
@@ -278,7 +281,7 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 		Terminal->LineState.EscapeMode = true;
 		Terminal->LineState.EscapeBuffer[0] = '\x1B';
 		Terminal->LineState.EscapeBufferLength = 1;
-		return TtyProcessCharacterHandleEcho(Terminal, Character);
+		return STATUS_SUCCESS;
 	}
 	
 	if (Terminal->LineState.EscapeMode)

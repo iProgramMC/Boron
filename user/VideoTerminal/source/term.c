@@ -125,7 +125,7 @@ void OutputLoop(UNUSED void* Context)
 			DbgPrint("Writing to session failed. %s (%d)", RtlGetStatusString(Status), Status);
 			continue;
 		}
-}
+	}
 }
 
 BSTATUS CreateIOLoopThreads()
