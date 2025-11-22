@@ -104,11 +104,46 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 		goto Fail3;
 	}
 	
-	// Creation succeeded, now initialize everything.
 	PTERMINAL_HOST Host = (PTERMINAL_HOST) Terminal->HostFcb->Extension;
 	PTERMINAL_HOST Session = (PTERMINAL_HOST) Terminal->SessionFcb->Extension;
 	Host->Terminal = Terminal;
 	Session->Terminal = Terminal;
+	
+	// Initialize the terminal to a default state.
+	Terminal->State.Local.RawMode = 0;
+	Terminal->State.Local.InterruptOnBreak = 1;
+	Terminal->State.Local.Echo = 1;
+	Terminal->State.Input.IgnoreCR = 0;
+	Terminal->State.Input.ConvertCRToNL = 0;
+	Terminal->State.Input.ConvertNLToCR = 0;
+	Terminal->State.Input.InputIsUTF8 = 0;
+	Terminal->State.Output.ConvertNLToCRNL = 1;
+	Terminal->State.Output.ConvertCRToNLOutput = 1;
+	
+#define CTRL(let) ((let) - '@')
+	Terminal->State.Chars.EndOfFile = CTRL('D');
+	Terminal->State.Chars.EndOfLine = 0;
+	Terminal->State.Chars.EndOfLine2 = 0;
+	Terminal->State.Chars.Erase = '\x7F';
+	Terminal->State.Chars.Interrupt = CTRL('C');
+	Terminal->State.Chars.EraseLine = CTRL('U');
+	Terminal->State.Chars.EraseWord = CTRL('W');
+	Terminal->State.Chars.Suspend = CTRL('Z');
+#undef CTRL
+
+	// Default bogus window width.  The terminal software should override this.
+	Terminal->Window.Width = 80;
+	Terminal->Window.Height = 25;
+	
+	Terminal->LineState.LineBufferPosition = 0;
+	Terminal->LineState.LineBufferLength = 0;
+	Terminal->LineState.TempBufferLength = 0;
+	
+#ifdef SECURE
+	// Theoretically the structure is initialized to zero anyway.
+	memset(Terminal->LineState.LineBuffer, 0, Terminal->LineState.LineBuffer);
+	memset(Terminal->LineState.TempBuffer, 0, Terminal->LineState.TempBuffer);
+#endif
 	
 	return STATUS_SUCCESS;
 	
