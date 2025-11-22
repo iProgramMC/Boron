@@ -139,6 +139,9 @@ static BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal)
 	);
 	
 	Terminal->LineState.TempBufferLength = 0;
+#ifdef SECURE
+	memset(Terminal->LineState.TempBuffer, 0, sizeof Terminal->LineState.TempBuffer);
+#endif
 	return Status;
 }
 
@@ -163,6 +166,9 @@ static BSTATUS TtyFlushLineBuffer(PTERMINAL Terminal)
 	
 	Terminal->LineState.LineBufferLength = 0;
 	Terminal->LineState.LineBufferPosition = 0;
+#ifdef SECURE
+	memset(Terminal->LineState.LineBuffer, 0, sizeof Terminal->LineState.LineBuffer);
+#endif
 	return STATUS_SUCCESS;
 }
 
@@ -183,8 +189,13 @@ static BSTATUS TtyProcessEscapeSequence(PTERMINAL Terminal)
 	memcpy(Buffer, Terminal->LineState.EscapeBuffer, Terminal->LineState.EscapeBufferLength);
 	DbgPrint("TtyProcessEscapeSequence(%s)", Buffer);
 	
+	// The only escape codes we actually care about are arrow keys, for now.
+	
 	Terminal->LineState.EscapeMode = false;
 	Terminal->LineState.EscapeBufferLength = 0;
+#ifdef SECURE
+	memset(Terminal->LineState.EscapeBuffer, 0, sizeof Terminal->LineState.EscapeBuffer);
+#endif
 	return STATUS_SUCCESS;
 }
 
@@ -338,6 +349,12 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 		char Buffer[32];
 		snprintf(Buffer, sizeof Buffer, "\x1B[%dD\x1B[K", Terminal->LineState.LineBufferPosition);
 		TtyWriteStringEcho(Terminal, Buffer);
+		
+		Terminal->LineState.LineBufferLength = 0;
+		Terminal->LineState.LineBufferPosition = 0;
+#ifdef SECURE
+		memset(Terminal->LineState.LineBuffer, 0, sizeof Terminal->LineState.LineBuffer);
+#endif
 		return STATUS_SUCCESS;
 	}
 	
@@ -372,6 +389,7 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 	{
 		// The end of file character is not added to the buffer.
 		// The line is submitted without a newline added to it.
+		Terminal->LineState.H2SIoFlags |= IO_RW_TERMINATE_READ;
 		TtyFlushLineBuffer(Terminal);
 		return STATUS_END_OF_FILE;
 	}
