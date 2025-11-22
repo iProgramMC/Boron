@@ -32,6 +32,29 @@ void* memcpy(void* dst, const void* src, size_t n)
 #endif
 }
 
+void* memmove(void* dst, const void* src, size_t n)
+{
+	char* dstchr = dst;
+	const char* srcchr = src;
+
+	if (dstchr <= srcchr)
+	{
+		while (n--)	
+			*(dstchr++) = *(srcchr++);
+		
+		return dst;
+	}
+	else
+	{
+		dstchr += n;
+		srcchr += n;
+		while (n--)
+			*(--dstchr) = *(--srcchr);
+
+		return dst;
+	}
+}
+
 void* memquadcpy(uint64_t* dst, const uint64_t* src, size_t n)
 {
 #ifdef TARGET_AMD64
