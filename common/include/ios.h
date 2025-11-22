@@ -140,6 +140,9 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 
 #ifdef KERNEL
 
+// This write should terminate the corresponding read operation.  Supported for pipe objects.
+#define IO_RW_TERMINATE_READ   (1 << 28)
+
 // Flags for IO_READ_METHOD and IO_WRITE_METHOD:
 
 // The FCB's rwlock is locked exclusively.  If there's a need for the current thread to own the rwlock exclusively,
@@ -154,6 +157,7 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 
 // Forbidden flags for user mode.
 #define IO_RW_USER_MODE_FORBIDDEN_FLAGS (\
+	IO_RW_TERMINATE_READ | \
 	IO_RW_LOCKEDEXCLUSIVE | \
 	IO_RW_PAGING \
 )

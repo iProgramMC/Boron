@@ -40,6 +40,7 @@ typedef struct _PIPE
 	size_t Head;
 	size_t Tail;
 	size_t BufferSize;
+	bool   EndReadNow;
 	char Buffer[];
 }
 PIPE, *PPIPE;
@@ -96,6 +97,14 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && BytesRead != 0))
 			{
 				Status = STATUS_BLOCKING_OPERATION;
+				goto FinishRelease;
+			}
+			
+			// If the writer requested that reads end here, then acknowledge this request.
+			if (Pipe->EndReadNow)
+			{
+				Pipe->EndReadNow = false;
+				Status = STATUS_END_OF_FILE;
 				goto FinishRelease;
 			}
 			
@@ -305,6 +314,14 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 	}
 	
 	Status = STATUS_SUCCESS;
+	
+	// Executive specific: If IO_RW_TERMINATE_READ is passed, the current pending read (if available)
+	// will return immediately after receiving the current data placed inside the pipe.
+	if (Flags & IO_RW_TERMINATE_READ)
+	{
+		Pipe->EndReadNow = true;
+		KePulseEvent(&Pipe->QueueEmptyEvent, PIPE_INCREMENT);
+	}
 	
 FinishRelease:
 	KeReleaseMutex(&Pipe->Mutex);
