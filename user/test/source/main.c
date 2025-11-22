@@ -11,11 +11,14 @@ int _start()
 		char Buffer[500];
 		IO_STATUS_BLOCK Iosb;
 		BSTATUS Status = OSReadFile(&Iosb, Peb->StandardInput, 0, Buffer, sizeof Buffer - 1, IO_RW_FINISH_ON_NEWLINE);
-		if (FAILED(Status))
+		if (IOFAILED(Status))
 		{
 			OSPrintf("FAILED to read: %s\n", RtlGetStatusString(Status));
 			OSSleep(2000);
 		}
+
+		if (FAILED(Status) && !IOFAILED(Status))
+			DbgPrint("Note: read finished early: %s", RtlGetStatusString(Status));
 		
 		Buffer[sizeof Buffer - 1] = 0;
 		Buffer[Iosb.BytesRead] = 0;

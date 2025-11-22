@@ -172,37 +172,24 @@ static BSTATUS TtyFlushLineBuffer(PTERMINAL Terminal)
 	return STATUS_SUCCESS;
 }
 
-static bool TtyShouldTerminateEscapeCode(PTERMINAL Terminal, char Character)
-{
-	if (Terminal->LineState.EscapeBufferLength <= 2 && Character == '[')
-		return false;
-	
-	// NOTE: The '\a' exception came from NanoShell. I don't remember why I added it.
-	return (Character >= '@' && Character <= '~') || Character == '\a';
-}
-
-static BSTATUS TtyProcessEscapeSequence(PTERMINAL Terminal)
-{
-	// TODO
-	char Buffer[ESCAPE_BUFFER_MAX + 1];
-	memset(Buffer, 0, sizeof Buffer);
-	memcpy(Buffer, Terminal->LineState.EscapeBuffer, Terminal->LineState.EscapeBufferLength);
-	DbgPrint("TtyProcessEscapeSequence(%s)", Buffer);
-	
-	// The only escape codes we actually care about are arrow keys, for now.
-	
-	Terminal->LineState.EscapeMode = false;
-	Terminal->LineState.EscapeBufferLength = 0;
-#ifdef SECURE
-	memset(Terminal->LineState.EscapeBuffer, 0, sizeof Terminal->LineState.EscapeBuffer);
-#endif
-	return STATUS_SUCCESS;
-}
-
-static BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character)
+static BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character, bool Escape)
 {
 	if (Terminal->LineState.TempBufferLength >= TEMP_BUFFER_MAX)
 		TtyFlushTempBuffer(Terminal);
+	
+	if (Escape)
+	{
+		if (Character == 127)
+		{
+			TtyWriteCharacterToTempBuffer(Terminal, '^', false);
+			Character = '?';
+		}
+		else if (Character >= 0 && Character <= 31)
+		{
+			TtyWriteCharacterToTempBuffer(Terminal, '^', false);
+			Character += '@';
+		}
+	}
 	
 	Terminal->LineState.TempBuffer[Terminal->LineState.TempBufferLength++] = Character;
 	return STATUS_SUCCESS;
@@ -215,7 +202,7 @@ static BSTATUS TtyProcessCharacterHandleEcho(PTERMINAL Terminal, char Character)
 		// Echo disabled.
 		return STATUS_SUCCESS;
 	
-	return TtyWriteCharacterToTempBuffer(Terminal, Character);
+	return TtyWriteCharacterToTempBuffer(Terminal, Character, true);
 }
 
 // Writes a string, typically an ANSI escape code, to the session->host pipe.
@@ -227,7 +214,7 @@ static BSTATUS TtyWriteStringEcho(PTERMINAL Terminal, const char* String)
 	
 	while (*String)
 	{
-		TtyWriteCharacterToTempBuffer(Terminal, *String);
+		TtyWriteCharacterToTempBuffer(Terminal, *String, false);
 		String++;
 	}
 	
@@ -242,7 +229,7 @@ static BSTATUS TtyWriteCurrentLineFromPosition(PTERMINAL Terminal, int Position)
 		return STATUS_SUCCESS;
 	
 	for (int i = Position; i < Terminal->LineState.LineBufferLength; i++)
-		TtyWriteCharacterToTempBuffer(Terminal, Terminal->LineState.LineBuffer[i]);
+		TtyWriteCharacterToTempBuffer(Terminal, Terminal->LineState.LineBuffer[i], true);
 
 	return STATUS_SUCCESS;
 }
@@ -262,6 +249,23 @@ static BSTATUS TtyWriteCharacter(PTERMINAL Terminal, char Character)
 	);
 }
 
+// Counts the amount of visible characters (i.e. on-screen characters) are found inside
+// of a range in the line buffer.  Normal characters are 1 on-screen character wide, while
+// control characters are 2 on-screen characters wide.
+static int TtyCountVisibleCharacters(PTERMINAL Terminal, int Start, int Length)
+{
+	int Count = Length;
+	
+	for (int i = Start; i < Start + Length; i++)
+	{
+		char Char = Terminal->LineState.LineBuffer[i];
+		if ((Char >= 0 && Char <= 31) || Char == 127)
+			Count++;
+	}
+	
+	return Count;
+}
+
 static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 {
 	BSTATUS Status;
@@ -277,46 +281,6 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 	{
 		// Not canonical mode, simply pass it along.
 		return TtyWriteCharacter(Terminal, Character);
-	}
-	
-	if (Character == '\x1B')
-	{
-		// This is the beginning of an escape sequence.
-		if (Terminal->LineState.EscapeMode)
-		{
-			Status = TtyProcessEscapeSequence(Terminal);
-			if (FAILED(Status))
-				return Status;
-		}
-		
-		Terminal->LineState.EscapeMode = true;
-		Terminal->LineState.EscapeBuffer[0] = '\x1B';
-		Terminal->LineState.EscapeBufferLength = 1;
-		return STATUS_SUCCESS;
-	}
-	
-	if (Terminal->LineState.EscapeMode)
-	{
-		// In escape character mode.
-		if (Terminal->LineState.EscapeBufferLength >= ESCAPE_BUFFER_MAX)
-		{
-			Status = TtyProcessEscapeSequence(Terminal);
-			if (FAILED(Status))
-				return Status;
-		}
-		
-		int Index = Terminal->LineState.EscapeBufferLength++;
-		Terminal->LineState.EscapeBuffer[Index] = Character;
-		
-		if (TtyShouldTerminateEscapeCode(Terminal, Character))
-		{
-			Status = TtyProcessEscapeSequence(Terminal);
-			if (FAILED(Status))
-				return Status;
-		}
-		
-		// NOTE: not echoing escape characters.
-		return STATUS_SUCCESS;
 	}
 	
 	if (Character == Terminal->State.Chars.Erase)
@@ -336,7 +300,9 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 		
 		if (Terminal->State.Local.Echo)
 		{
-			TtyWriteStringEcho(Terminal, "\b\x1B[K");
+			char Buffer[16];
+			snprintf(Buffer, sizeof Buffer, "\x1B[%dD\x1B[K", TtyCountVisibleCharacters(Terminal, Terminal->LineState.LineBufferPosition, 1));
+			TtyWriteStringEcho(Terminal, Buffer);
 			TtyWriteCurrentLineFromPosition(Terminal, Terminal->LineState.LineBufferPosition);
 		}
 		
@@ -346,8 +312,8 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 	if (Character == Terminal->State.Chars.EraseLine)
 	{
 		// Go back the required amount of characters, then erase the entire line.
-		char Buffer[32];
-		snprintf(Buffer, sizeof Buffer, "\x1B[%dD\x1B[K", Terminal->LineState.LineBufferPosition);
+		char Buffer[16];
+		snprintf(Buffer, sizeof Buffer, "\x1B[%dD\x1B[K", TtyCountVisibleCharacters(Terminal, 0, Terminal->LineState.LineBufferPosition));
 		TtyWriteStringEcho(Terminal, Buffer);
 		
 		Terminal->LineState.LineBufferLength = 0;

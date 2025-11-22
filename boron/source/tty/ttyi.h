@@ -61,16 +61,6 @@ typedef struct
 		// to host stream.
 		uint16_t TempBufferLength;
 		
-		char EscapeBuffer[ESCAPE_BUFFER_MAX];
-		
-		// The length of the contents of the escape character buffer.
-		// This buffer is built during a write operation.
-		uint16_t EscapeBufferLength;
-		
-		// If this byte is set, an escape character was received, and
-		// currently an escape character is being read.
-		bool EscapeMode;
-		
 		// Only used while processing terminal input. Flags used during
 		// I/O operations from host to session.
 		uint32_t H2SIoFlags;
