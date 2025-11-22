@@ -17,7 +17,7 @@ Author:
 
 #define KEYBOARD_PRIORITY_BOOST 12
 
-#define MEASURE_LATENCIES
+//#define MEASURE_LATENCIES
 
 static PDEVICE_OBJECT KbdDeviceObject;
 
