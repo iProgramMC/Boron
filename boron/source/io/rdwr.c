@@ -815,7 +815,7 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 	Status = IoSeekFile(FileObject, Offset, Whence, &OutNewOffset2);
 	ObDereferenceObject(FileObject);
 	
-	if (!FAILED(Status))
+	if (!FAILED(Status) && OutNewOffset)
 		Status = MmSafeCopy(OutNewOffset, &OutNewOffset2, sizeof(uint64_t), KeGetPreviousMode(), true);
 	
 	return STATUS_SUCCESS;
