@@ -54,15 +54,68 @@ BSTATUS TtyReadSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMD
 BSTATUS TtyWriteSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags)
 {
 	PREP_EXT;
+	PTERMINAL Terminal = Session->Terminal;
 	
-	return IoWriteFileMdl(
-		Iosb,
-		Session->Terminal->SessionToHostPipe,
-		MdlBuffer,
-		Flags,
-		Offset,
-		false
-	);
+	if (!Terminal->State.Output.ConvertNLToCRNL &&
+		!Terminal->State.Output.ConvertCRToNLOutput)
+	{
+		// Simple pass through.
+		return IoWriteFileMdl(
+			Iosb,
+			Session->Terminal->SessionToHostPipe,
+			MdlBuffer,
+			Flags,
+			Offset,
+			false
+		);
+	}
+	
+	BSTATUS Status = KeWaitForSingleObject(&Terminal->StateMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
+	if (FAILED(Status))
+	{
+		Iosb->Status = Status;
+		return Status;
+	}
+	
+	void* ReadAddress = NULL;
+	Status = MmMapPinnedPagesMdl(MdlBuffer, &ReadAddress);
+	if (FAILED(Status))
+	{
+		Iosb->Status = Status;
+		KeReleaseMutex(&Terminal->StateMutex);
+		return Status;
+	}
+	
+	Terminal->LineState.H2SIoFlags = 0;
+	Terminal->LineState.S2HIoFlags = Flags;
+	char* Chars = ReadAddress;
+	size_t BytesWritten = 0;
+	for (size_t i = 0; i < MdlBuffer->ByteCount; i++)
+	{
+		char Char = Chars[i];
+		if (Terminal->State.Output.ConvertCRToNLOutput && Char == '\r')
+			Char = '\n';
+		
+		if (Terminal->State.Output.ConvertNLToCRNL && Char == '\n')
+		{
+			Status = TtyWriteCharacterToTempBuffer(Terminal, '\r', false);
+			if (FAILED(Status))
+				break;
+		}
+		
+		Status = TtyWriteCharacterToTempBuffer(Terminal, Char, false);
+		if (FAILED(Status))
+			break;
+		
+		BytesWritten = i;
+	}
+	
+	Iosb->BytesWritten = BytesWritten;
+	Iosb->Status = Status;
+	TtyFlushTempBuffer(Terminal);
+	MmUnmapPagesMdl(MdlBuffer);
+	KeReleaseMutex(&Terminal->StateMutex);
+	return Status;
 }
 
 IO_DISPATCH_TABLE TtySessionDispatch =

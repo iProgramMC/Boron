@@ -120,7 +120,7 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 	Terminal->State.Input.ConvertNLToCR = 0;
 	Terminal->State.Input.InputIsUTF8 = 0;
 	Terminal->State.Output.ConvertNLToCRNL = 1;
-	Terminal->State.Output.ConvertCRToNLOutput = 1;
+	Terminal->State.Output.ConvertCRToNLOutput = 0;
 	
 #define CTRL(let) ((let) - '@')
 #define DISABLED -1

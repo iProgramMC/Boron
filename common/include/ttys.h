@@ -42,12 +42,12 @@ typedef struct
 		// If set, carriage return characters are ignored entirely.
 		unsigned IgnoreCR : 1;
 		
-		// If set, carriage return (ASCII 10) characters are turned into line feed
-		// (ASCII 13) characters.
+		// If set, carriage return (ASCII 13) characters are turned into line feed
+		// (ASCII 10) characters.
 		unsigned ConvertCRToNL : 1;
 		
-		// If set, line feed (ASCII 13) characters are turned into carriage return
-		// (ASCII 10) characters.
+		// If set, line feed (ASCII 10) characters are turned into carriage return
+		// (ASCII 13) characters.
 		unsigned ConvertNLToCR : 1;
 		
 		// If set, input is treated as UTF-8, and UTF-8 codepoints are erased completely.
@@ -61,8 +61,8 @@ typedef struct
 	struct
 	{
 		// ==== Output Flags ====
-		// If set, line feed (ASCII 13) characters are mapped to a combination of the
-		// carriage return (ASCII 10) and the line feed (ASCII 13) characters.
+		// If set, line feed (ASCII 10) characters are mapped to a combination of the
+		// carriage return (ASCII 13) and the line feed (ASCII 10) characters.
 		unsigned ConvertNLToCRNL : 1;
 		
 		// If set, carriage return (ASCII 10) characters are turned into line feed

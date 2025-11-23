@@ -15,6 +15,64 @@ Author:
 #include "ttyi.h"
 #include <string.h>
 
+// Flushes the temporary buffer used to accumulate writes.
+BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal)
+{
+	if (Terminal->LineState.TempBufferLength == 0)
+		return STATUS_SUCCESS;
+	
+	IO_STATUS_BLOCK Ignored;
+	BSTATUS Status = IoWriteFile(
+		&Ignored,
+		Terminal->SessionToHostPipe,
+		Terminal->LineState.TempBuffer,
+		Terminal->LineState.TempBufferLength,
+		Terminal->LineState.S2HIoFlags,
+		0,     // FileOffset
+		false  // Cached
+	);
+	
+	Terminal->LineState.TempBufferLength = 0;
+#ifdef SECURE
+	memset(Terminal->LineState.TempBuffer, 0, sizeof Terminal->LineState.TempBuffer);
+#endif
+	return Status;
+}
+
+BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character, bool Escape)
+{
+	BSTATUS Status;
+	if (Terminal->LineState.TempBufferLength >= TEMP_BUFFER_MAX)
+	{
+		Status = TtyFlushTempBuffer(Terminal);
+		if (FAILED(Status))
+			return Status;
+	}
+	
+	if (Escape)
+	{
+		if (Character == 127)
+		{
+			Status = TtyWriteCharacterToTempBuffer(Terminal, '^', false);
+			if (FAILED(Status))
+				return Status;
+			
+			Character = '?';
+		}
+		else if (Character >= 0 && Character <= 31)
+		{
+			Status = TtyWriteCharacterToTempBuffer(Terminal, '^', false);
+			if (FAILED(Status))
+				return Status;
+			
+			Character += '@';
+		}
+	}
+	
+	Terminal->LineState.TempBuffer[Terminal->LineState.TempBufferLength++] = Character;
+	return STATUS_SUCCESS;
+}
+
 #define PREP_EXT PTERMINAL_HOST Host = (PTERMINAL_HOST) Fcb->Extension
 
 bool TtyIsSeekableHostFile(UNUSED PFCB Fcb)
@@ -52,7 +110,6 @@ BSTATUS TtyReadHostFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL M
 }
 
 static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character);
-static BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal);
 
 // The host calls write, this means that it's sending information to the session.
 BSTATUS TtyWriteHostFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags)
@@ -95,7 +152,9 @@ BSTATUS TtyWriteHostFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL 
 		return Status;
 	}
 	
+	// TODO: what if they requested non-block IO?
 	Terminal->LineState.H2SIoFlags = Flags;
+	Terminal->LineState.S2HIoFlags = 0;
 	char* Chars = ReadAddress;
 	for (size_t i = 0; i < MdlBuffer->ByteCount; i++)
 	{
@@ -117,31 +176,6 @@ BSTATUS TtyWriteHostFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL 
 	TtyFlushTempBuffer(Terminal);
 	MmUnmapPagesMdl(MdlBuffer);
 	KeReleaseMutex(&Terminal->StateMutex);
-	return Status;
-}
-
-// Flushes the temporary buffer used to accumulate writes.
-static BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal)
-{
-	if (Terminal->LineState.TempBufferLength == 0)
-		return STATUS_SUCCESS;
-	
-	// TODO: what if they requested non-block I/O?
-	IO_STATUS_BLOCK Ignored;
-	BSTATUS Status = IoWriteFile(
-		&Ignored,
-		Terminal->SessionToHostPipe,
-		Terminal->LineState.TempBuffer,
-		Terminal->LineState.TempBufferLength,
-		0,     // Flags
-		0,     // FileOffset
-		false  // Cached
-	);
-	
-	Terminal->LineState.TempBufferLength = 0;
-#ifdef SECURE
-	memset(Terminal->LineState.TempBuffer, 0, sizeof Terminal->LineState.TempBuffer);
-#endif
 	return Status;
 }
 
@@ -170,39 +204,6 @@ static BSTATUS TtyFlushLineBuffer(PTERMINAL Terminal)
 	memset(Terminal->LineState.LineBuffer, 0, sizeof Terminal->LineState.LineBuffer);
 #endif
 	return STATUS_SUCCESS;
-}
-
-static BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character, bool Escape)
-{
-	if (Terminal->LineState.TempBufferLength >= TEMP_BUFFER_MAX)
-		TtyFlushTempBuffer(Terminal);
-	
-	if (Escape)
-	{
-		if (Character == 127)
-		{
-			TtyWriteCharacterToTempBuffer(Terminal, '^', false);
-			Character = '?';
-		}
-		else if (Character >= 0 && Character <= 31)
-		{
-			TtyWriteCharacterToTempBuffer(Terminal, '^', false);
-			Character += '@';
-		}
-	}
-	
-	Terminal->LineState.TempBuffer[Terminal->LineState.TempBufferLength++] = Character;
-	return STATUS_SUCCESS;
-}
-
-// Writes the current character, if echo is enabled, to the session->host pipe.
-static BSTATUS TtyProcessCharacterHandleEcho(PTERMINAL Terminal, char Character)
-{
-	if (!Terminal->State.Local.Echo)
-		// Echo disabled.
-		return STATUS_SUCCESS;
-	
-	return TtyWriteCharacterToTempBuffer(Terminal, Character, true);
 }
 
 // Writes a string, typically an ANSI escape code, to the session->host pipe.
@@ -343,7 +344,9 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 		Character == Terminal->State.Chars.EndOfLine ||
 		Character == Terminal->State.Chars.EndOfLine2)
 	{
-		TtyProcessCharacterHandleEcho(Terminal, Character);
+		if (Terminal->State.Local.Echo)
+			TtyWriteCharacterToTempBuffer(Terminal, Character, false);
+		
 		TtyFlushTempBuffer(Terminal);
 		
 		Status = TtyFlushLineBuffer(Terminal);

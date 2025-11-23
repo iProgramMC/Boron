@@ -64,6 +64,10 @@ typedef struct
 		// Only used while processing terminal input. Flags used during
 		// I/O operations from host to session.
 		uint32_t H2SIoFlags;
+		
+		// Only used while processing terminal output. Flags used during
+		// I/O operations from session to host.
+		uint32_t S2HIoFlags;
 	}
 	LineState;
 	
@@ -103,3 +107,7 @@ typedef struct
 TERMINAL_INIT_CONTEXT, *PTERMINAL_INIT_CONTEXT;
 
 BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context);
+
+BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal);
+
+BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character, bool Escape);
