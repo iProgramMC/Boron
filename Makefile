@@ -38,6 +38,19 @@ DRIVERS_LIST = \
 	test
 endif
 
+# Decide on a sysroot path.
+#
+# Amd64 has a special sysroot path since we'll be porting mlibc using it. 32-bit currently
+# doesn't get such a thing. Yet.
+# Note that if the path is missing (not in an environment variable), it'll just redundantly
+# copy the `root` directory again. Bad, but I don't know how to disable commands inside of rules.
+ifeq ($(TARGETL),amd64)
+	BORON_SYSROOT_AMD64_PATH ?= root
+	BORON_SYSROOT_PATH = $(BORON_SYSROOT_AMD64_PATH)
+else
+	BORON_SYSROOT_PATH = root
+endif
+
 # The build directory
 BUILD_DIR = build/$(TARGETL)
 
@@ -133,6 +146,7 @@ $(BUILD_DIR)/%.tar: FORCE apps
 	@rm -rf $(INITRD_DIR)/usr/include
 	@mkdir -p $(INITRD_DIR)/usr/include
 	@cp -rf root/* $(INITRD_DIR)
+	@cp -rf $(BORON_SYSROOT_PATH)/* $(INITRD_DIR)
 	@cp -rf common/include $(INITRD_DIR)/usr
 	@cp -rf user/include $(INITRD_DIR)/usr
 	@tar -cf $@ -C $(INITRD_DIR) .

@@ -30,7 +30,12 @@ else
 endif
 
 # Path to Boron install directory
-INSTALL_DIR = ../../build/$(TARGETL)/initrd_root
+ifeq ($(TARGETL),amd64)
+	BORON_SYSROOT_AMD64_PATH ?= ../../build/$(TARGETL)/initrd_root
+	INSTALL_DIR = $(BORON_SYSROOT_AMD64_PATH)
+else
+	INSTALL_DIR = ../../build/$(TARGETL)/initrd_root
+endif
 
 # This is the name that our final application executable will have.
 # Change as needed.
@@ -54,7 +59,6 @@ OPT = -O2
 
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
-	#OPT = -g -O0
 	OPT = -O3
 endif
 
