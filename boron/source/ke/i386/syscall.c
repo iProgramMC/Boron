@@ -146,6 +146,7 @@ const void* const KiSystemServiceTable[] =
 	OSQueryMutex,
 	OSReadDirectoryEntries,
 	OSReadFile_Call,
+	OSReadVirtualMemory,
 	OSReleaseMutex,
 	OSResetEvent,
 	OSSeekFile,

@@ -48,6 +48,13 @@ BSTATUS OSWriteVirtualMemory(
 	size_t ByteCount
 );
 
+BSTATUS OSReadVirtualMemory(
+	HANDLE ProcessHandle,
+	void* TargetAddress,
+	const void* SourceAddress,
+	size_t ByteCount
+);
+
 BSTATUS OSGetMappedFileHandle(
 	PHANDLE OutHandle,
 	HANDLE ProcessHandle,

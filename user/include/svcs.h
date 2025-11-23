@@ -114,6 +114,8 @@ BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t 
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
 
+BSTATUS OSReadVirtualMemory(HANDLE ProcessHandle, void* DestinationAddress, const void* SourceAddress, size_t ByteCount);
+
 BSTATUS OSReleaseMutex(HANDLE MutexHandle);
 
 BSTATUS OSResetEvent(HANDLE EventHandle);
@@ -150,7 +152,7 @@ BSTATUS OSWaitForSingleObject(HANDLE Handle, bool Alertable, int TimeoutMS);
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
 
-BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* Source, size_t ByteCount);
+BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* DestinationAddress, const void* SourceAddress, size_t ByteCount);
 
 #ifdef __cplusplus
 }

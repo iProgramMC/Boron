@@ -52,6 +52,7 @@ extern OSQueryEvent
 extern OSQueryMutex
 extern OSReadDirectoryEntries
 extern OSReadFile
+extern OSReadVirtualMemory
 extern OSReleaseMutex
 extern OSResetEvent
 extern OSSeekFile
@@ -105,6 +106,7 @@ KiSystemServiceTable:
 	dq OSQueryMutex
 	dq OSReadDirectoryEntries
 	dq OSReadFile
+	dq OSReadVirtualMemory
 	dq OSReleaseMutex
 	dq OSResetEvent
 	dq OSSeekFile

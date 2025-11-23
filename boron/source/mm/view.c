@@ -192,7 +192,9 @@ ReturnEarly:
 	return Status;
 }
 
-BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* Source, size_t ByteCount)
+// Copies data from the current process' VA space and the SourceAddress pointer,
+// into a process' virtual address space at TargetAddress.
+BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* SourceAddress, size_t ByteCount)
 {
 	BSTATUS Status;
 	
@@ -206,7 +208,7 @@ BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const vo
 	TargetProcess = TargetProcessV;
 	
 	// Allocate an MDL for the current process' source memory.
-	PMDL Mdl = MmAllocateMdl((uintptr_t) Source, ByteCount);
+	PMDL Mdl = MmAllocateMdl((uintptr_t) SourceAddress, ByteCount);
 	if (!Mdl)
 	{
 		Status = STATUS_INSUFFICIENT_MEMORY;
@@ -218,14 +220,62 @@ BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const vo
 		goto Fail1;
 	
 	// Map this MDL into system memory.
-	void* SourceAddress = NULL;
-	Status = MmMapPinnedPagesMdl(Mdl, &SourceAddress);
+	void* SourceAddressMapped = NULL;
+	Status = MmMapPinnedPagesMdl(Mdl, &SourceAddressMapped);
 	if (FAILED(Status))
 		goto Fail2;
 	
 	// Now perform the copy.
 	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
-	Status = MmSafeCopy(TargetAddress, SourceAddress, ByteCount, KeGetPreviousMode(), true);
+	Status = MmSafeCopy(TargetAddress, SourceAddressMapped, ByteCount, KeGetPreviousMode(), true);
+	PsSetAttachedProcess(OldProcess);
+	
+	MmUnmapPagesMdl(Mdl);
+Fail2:
+	MmUnpinPagesMdl(Mdl);
+Fail1:
+	MmFreeMdl(Mdl);
+Fail0:
+	ObDereferenceObject(TargetProcess);
+	return Status;
+}
+
+// Copies data from a process' VA space at the SourceAddress, to the current process'
+// VA space at the TargetAddress.
+BSTATUS OSReadVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* SourceAddress, size_t ByteCount)
+{
+	BSTATUS Status;
+	
+	// Reference the current process handle.
+	void* TargetProcessV;
+	PEPROCESS TargetProcess;
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	TargetProcess = TargetProcessV;
+	
+	// Allocate an MDL for the current process' destination memory.
+	PMDL Mdl = MmAllocateMdl((uintptr_t) TargetAddress, ByteCount);
+	if (!Mdl)
+	{
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Fail0;
+	}
+	
+	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), false);
+	if (FAILED(Status))
+		goto Fail1;
+	
+	// Map this MDL into system memory.
+	void* DestinationAddress = NULL;
+	Status = MmMapPinnedPagesMdl(Mdl, &DestinationAddress);
+	if (FAILED(Status))
+		goto Fail2;
+	
+	// Now perform the copy.
+	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
+	Status = MmSafeCopy(DestinationAddress, SourceAddress, ByteCount, KeGetPreviousMode(), false);
 	PsSetAttachedProcess(OldProcess);
 	
 	MmUnmapPagesMdl(Mdl);

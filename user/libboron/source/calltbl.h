@@ -32,31 +32,32 @@ CALL 29, 2, OSQueryEvent
 CALL 30, 2, OSQueryMutex
 CALL 31, 4, OSReadDirectoryEntries
 //   32     OSReadFile
-CALL 33, 1, OSReleaseMutex
-CALL 34, 1, OSResetEvent
-//   35     OSSeekFile
-CALL 36, 1, OSSetCurrentPeb
-CALL 37, 1, OSSetCurrentTeb
-CALL 38, 1, OSSetEvent
-CALL 39, 1, OSSetExitCode
-CALL 40, 2, OSSetPebProcess
-CALL 41, 2, OSSetSuspendedThread
-CALL 42, 1, OSSleep
-CALL 43, 1, OSTerminateThread
-CALL 44, 1, OSTouchFile
-CALL 45, 5, OSWaitForMultipleObjects
-CALL 46, 3, OSWaitForSingleObject
-//   47     OSWriteFile
-CALL 48, 4, OSWriteVirtualMemory
+CALL 33, 4, OSReadVirtualMemory
+CALL 34, 1, OSReleaseMutex
+CALL 35, 1, OSResetEvent
+//   36     OSSeekFile
+CALL 37, 1, OSSetCurrentPeb
+CALL 38, 1, OSSetCurrentTeb
+CALL 39, 1, OSSetEvent
+CALL 30, 1, OSSetExitCode
+CALL 41, 2, OSSetPebProcess
+CALL 42, 2, OSSetSuspendedThread
+CALL 43, 1, OSSleep
+CALL 44, 1, OSTerminateThread
+CALL 45, 1, OSTouchFile
+CALL 46, 5, OSWaitForMultipleObjects
+CALL 47, 3, OSWaitForSingleObject
+//   48     OSWriteFile
+CALL 49, 4, OSWriteVirtualMemory
 
 #ifdef IS_64_BIT
 CALL 23, 7, OSMapViewOfObject
 CALL 32, 6, OSReadFile
-CALL 35, 4, OSSeekFile
-CALL 47, 7, OSWriteFile
+CALL 36, 4, OSSeekFile
+CALL 48, 7, OSWriteFile
 #else
 CALL 23, 8, OSMapViewOfObject
 CALL 32, 7, OSReadFile
-CALL 35, 5, OSSeekFile
-CALL 47, 8, OSWriteFile
+CALL 36, 5, OSSeekFile
+CALL 48, 8, OSWriteFile
 #endif
