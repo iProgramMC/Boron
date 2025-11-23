@@ -25,8 +25,8 @@ Author:
 // and its dependencies.
 const char* PspBoronDllFileName = "/Root/lib/libboron.so";
 const char* PspInitialProcessEnvironment =
-	"PATH=/Root/bin:/Root:/\0"
-	"LIB_PATH=/Root/lib:/Root:/\0"
+	"PATH=/bin:/\0"
+	"LIB_PATH=/lib:/\0"
 	"\0";
 
 bool PsShouldStartInitialProcess()

@@ -190,7 +190,7 @@ BSTATUS UseKeyboard(const char* KeyboardName)
 	OBJECT_ATTRIBUTES Attributes;
 	Attributes.ObjectName = KeyboardName;
 	Attributes.ObjectNameLength = strlen(KeyboardName);
-	Attributes.OpenFlags = 0;
+	Attributes.OpenFlags = OB_OPEN_OBJECT_NAMESPACE;
 	Attributes.RootDirectory = HANDLE_NONE;
 	
 	Status = OSOpenFile(&KeyboardHandle, &Attributes);

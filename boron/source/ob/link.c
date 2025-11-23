@@ -15,6 +15,8 @@ Author:
 #include "obp.h"
 #include <ex.h>
 
+void* ObpFileSystemRootLink;
+
 BSTATUS ObpParseSymbolicLink(
 	void* SymLinkObject,
 	UNUSED const char** Name,
@@ -185,6 +187,6 @@ bool ObLinkRootDirectory()
 		return false;
 	}
 	
-	ObDereferenceObject(Object);
+	ObpFileSystemRootLink = Object;
 	return true;
 }

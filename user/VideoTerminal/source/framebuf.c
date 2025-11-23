@@ -138,7 +138,7 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 	OBJECT_ATTRIBUTES Attributes;
 	Attributes.ObjectName = FramebufferPath;
 	Attributes.ObjectNameLength = strlen(FramebufferPath);
-	Attributes.OpenFlags = 0;
+	Attributes.OpenFlags = OB_OPEN_OBJECT_NAMESPACE;
 	Attributes.RootDirectory = HANDLE_NONE;
 	
 	HANDLE FramebufferHandle;

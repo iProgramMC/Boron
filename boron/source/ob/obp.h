@@ -73,6 +73,9 @@ BSTATUS ObpLookUpObjectPath(
 	void** FoundObject
 );
 
+// The root of the file system.
+extern void* ObpFileSystemRootLink;
+
 // Initialization steps
 bool ObpInitializeBasicMutexes();
 bool ObpInitializeBasicTypes();

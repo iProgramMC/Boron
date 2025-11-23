@@ -16,6 +16,7 @@ Author:
 
 extern POBJECT_TYPE ObDirectoryType;
 extern POBJECT_TYPE ObSymbolicLinkType;
+extern POBJECT_TYPE IoFileType;
 
 KMUTEX ObpRootDirectoryMutex;
 
@@ -249,7 +250,17 @@ BSTATUS ObpLookUpObjectPath(
 	// mistake.
 	if (!InitialParseObject)
 	{
-		InitialParseObject = ObpRootDirectory;
+		bool IsUserMode = OpenFlags & OB_OPEN_USER_MODE;
+		bool IsObjectNamespace = OpenFlags & OB_OPEN_OBJECT_NAMESPACE;
+		
+		// If the user is trying to open a file, then by default we open the file
+		// starting from the root directory, unless they specified otherwise.
+		//
+		// Kernel mode always sees the root directory.
+		if (ExpectedType == IoFileType && ObpFileSystemRootLink && IsUserMode && !IsObjectNamespace)
+			InitialParseObject = ObpFileSystemRootLink;
+		else
+			InitialParseObject = ObpRootDirectory;
 		
 		if (*ObjectName != OB_PATH_SEPARATOR)
 			return STATUS_PATH_INVALID;
@@ -268,8 +279,11 @@ BSTATUS ObpLookUpObjectPath(
 			*ObjectName == '\0')
 			return STATUS_PATH_INVALID;
 		
-		// Check if the parse object is actually a directory.
-		if (ObpGetObjectType(InitialParseObject) != ObDirectoryType)
+		// Check if the parse object is actually a directory, a symbolic link,
+		// or a file object.
+		if (ObpGetObjectType(InitialParseObject) != ObDirectoryType &&
+			ObpGetObjectType(InitialParseObject) != ObSymbolicLinkType &&
+			ObpGetObjectType(InitialParseObject) != IoFileType)
 			return STATUS_PATH_INVALID;
 	}
 	

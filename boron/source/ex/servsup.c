@@ -14,6 +14,7 @@ Author:
 ***/
 #include "exp.h"
 #include <ps.h>
+#include <io.h>
 
 BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
 {
@@ -238,6 +239,9 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	{
 		Attributes = *ObjectAttributes;
 	}
+	
+	if (KeGetPreviousMode() == MODE_USER)
+		Attributes.OpenFlags |= OB_OPEN_USER_MODE;
 	
 	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
 	
