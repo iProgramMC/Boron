@@ -118,7 +118,7 @@ BSTATUS OSReleaseMutex(HANDLE MutexHandle);
 
 BSTATUS OSResetEvent(HANDLE EventHandle);
 
-BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewOffset, int Whence);
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* NewOutOffset);
 
 BSTATUS OSSetCurrentPeb(void* Ptr);
 

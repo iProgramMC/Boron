@@ -765,32 +765,40 @@ EarlyExit:
 	return Status;
 }
 
-BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t NewOffset, int Whence)
+BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)
 {
 	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
+	int64_t ResultOffset = 0;
 	switch (Whence)
 	{
 		case IO_SEEK_CUR:
-			FileObject->CurrentFileOffset += NewOffset;
+			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
 			break;
 		
 		case IO_SEEK_END:
-			FileObject->CurrentFileOffset = FileObject->Fcb->FileLength + NewOffset;
+			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
 			break;
 		
 		case IO_SEEK_SET:
-			FileObject->CurrentFileOffset = NewOffset;
+			ResultOffset = Offset;
 			break;
 	}
 	
+	if (ResultOffset < 0) {
+		Status = STATUS_INVALID_PARAMETER;
+	}
+	else {
+		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
+	}
+	
 	KeReleaseMutex(&FileObject->FileOffsetMutex);
-	return STATUS_SUCCESS;
+	return Status;
 }
 
-BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewOffset, int Whence)
+BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutNewOffset)
 {
 	if (Whence != IO_SEEK_CUR && Whence != IO_SEEK_SET && Whence != IO_SEEK_END)
 		return STATUS_INVALID_PARAMETER;
@@ -803,8 +811,12 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t NewOffset, int Whence)
 	
 	PFILE_OBJECT FileObject = FileObjectV;
 	
-	Status = IoSeekFile(FileObject, NewOffset, Whence);
+	uint64_t OutNewOffset2 = 0;
+	Status = IoSeekFile(FileObject, Offset, Whence, &OutNewOffset2);
 	ObDereferenceObject(FileObject);
+	
+	if (!FAILED(Status))
+		Status = MmSafeCopy(OutNewOffset, &OutNewOffset2, sizeof(uint64_t), KeGetPreviousMode(), true);
 	
 	return STATUS_SUCCESS;
 }
