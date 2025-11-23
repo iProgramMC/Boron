@@ -239,12 +239,30 @@ BSTATUS OSCreateProcess(
 	if (Peb->Loader.Interpreter)
 	{
 		// There is an interpreter.
-		const char* Interpreter = Peb->Loader.Interpreter;
+		const size_t MaxSize = 32;
+		const char* InterpreterSrc = Peb->Loader.Interpreter;
+		char* InterpreterCopy = OSAllocate(MaxSize);
+		if (!InterpreterCopy)
+		{
+			DbgPrint("OSDLL: Failed to allocate memory for interpreter string.");
+			Status = STATUS_INSUFFICIENT_MEMORY;
+			goto Fail;
+		}
+		
+		Status = OSReadVirtualMemory(ProcessHandle, InterpreterCopy, InterpreterSrc, MaxSize);
+		if (FAILED(Status))
+		{
+			DbgPrint("OSDLL: Failed to copy the interpreter string into memory.");
+			OSFree(InterpreterCopy);
+			goto Fail;
+		}
+		
+		InterpreterCopy[MaxSize - 1] = 0;
 		
 		HANDLE InterpreterFileHandle = HANDLE_NONE;
-		if (strcmp(Interpreter, "libboron.so") == 0)
+		if (strcmp(InterpreterCopy, "libboron.so") == 0)
 		{
-			LdrDbgPrint("OSDLL: The executable demands libboron.so, so map that.", Interpreter);
+			LdrDbgPrint("OSDLL: The executable demands libboron.so, so map that.", InterpreterCopy);
 			
 			// This is libboron.so, so no meaning in scanning for anything
 			// because we can just open ourselves.
@@ -252,19 +270,29 @@ BSTATUS OSCreateProcess(
 		}
 		else
 		{
-			LdrDbgPrint("OSDLL: Opening interpreter %s.", Interpreter);
-			Status = OSDLLOpenFileByName(&InterpreterFileHandle, Interpreter, true);
+			LdrDbgPrint("OSDLL: Opening interpreter %s.", InterpreterCopy);
+			Status = OSDLLOpenFileByName(&InterpreterFileHandle, InterpreterCopy, true);
 		}
 		
-		LdrDbgPrint("OSCreateProcess: Mapping interpreter %s.", Interpreter);
-		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, Interpreter, &EntryPoint, FILE_KIND_INTERPRETER);
+		LdrDbgPrint("OSCreateProcess: Mapping interpreter %s.", InterpreterCopy);
+		
+		if (FAILED(Status))
+		{
+			OSFree(InterpreterCopy);
+			goto Fail;
+		}
+		
+		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, InterpreterCopy, &EntryPoint, FILE_KIND_INTERPRETER);
 		OSClose(InterpreterFileHandle);
 		
 		if (FAILED(Status))
 		{
-			DbgPrint("OSDLL: Failed to map the interpreter %s. %s (%d)", Interpreter, RtlGetStatusString(Status), Status);
+			DbgPrint("OSDLL: Failed to map the interpreter %s. %s (%d)", InterpreterCopy, RtlGetStatusString(Status), Status);
+			OSFree(InterpreterCopy);
 			goto Fail;
 		}
+		
+		OSFree(InterpreterCopy);
 	}
 	
 	Status = OSDLLPreparePebForProcess(ProcessHandle, Peb, PebSize, &PebPtr, ProcessFlags & OS_PROCESS_INHERIT_HANDLES);
