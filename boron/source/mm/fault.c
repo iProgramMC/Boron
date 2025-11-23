@@ -339,11 +339,11 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		
 		// However, check if this is a demand-page pool address.
 		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
-		uintptr_t PoolEnd = PoolStart + (1ULL << (MI_POOL_LOG2_SIZE - 12));
+		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
 		
 	#ifdef TARGET_I386
 		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
-		uintptr_t Pool2End = PoolStart + (1ULL << (MI_POOL_LOG2_SIZE_2ND - 12));
+		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
 	#endif
 		
 		if ((PoolStart <= Va && Va < PoolEnd)
@@ -461,10 +461,31 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	if (!Vad)
 	{
 		// There is no VAD at this address.
+		MmUnlockVadList(VadList);
+		
+		// However, check if this is a demand-page pool address.
+		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
+		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
+		
+	#ifdef TARGET_I386
+		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
+		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
+	#endif
+		
+		if ((PoolStart <= Va && Va < PoolEnd)
+		#ifdef TARGET_I386
+			|| (Pool2Start <= Va && Va < Pool2End)
+		#endif
+			)
+		{
+			// Is in a pool area, so allocate a page of memory and map it there.
+			PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
+			*PtePtr |= MM_PTE_READWRITE;
+			return STATUS_SUCCESS;
+		}
 		
 		// TODO: But there might be a system wide file map going on!
-		MmUnlockVadList(VadList);
-		DbgPrint("MiWriteFault: Declaring access violation on VA %p because there is no VAD", Va);
+		DbgPrint("MiWriteFault: Declaring access violation on VA %p. No VAD and not in a pool area. PoolStart:%p PoolEnd:%p", Va, PoolStart, PoolEnd);
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
