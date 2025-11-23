@@ -14,6 +14,11 @@ user/*.dll
 keep/*
 limine/*
 
+root/bin/*
+root/lib/*
+root/include/*
+root/usr/*
+
 vdiske2.img
 vdiske2.vdi
 vdiske2.vmdk
