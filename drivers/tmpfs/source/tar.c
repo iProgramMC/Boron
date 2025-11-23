@@ -195,7 +195,7 @@ BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
 		
 		if (FileType == FILE_TYPE_UNKNOWN)
 		{
-			DbgPrint("File %s has unknown type character '%c', skipping.", CurrentBlock->Type);
+			DbgPrint("File %s has unknown type character '%c', skipping.", SecondBuffer, CurrentBlock->Type);
 			goto Skip;
 		}
 		
