@@ -205,3 +205,11 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 	OSClose(FramebufferHandle);
 	return STATUS_SUCCESS;
 }
+
+void TerminalGetDimensions(int* Width, int* Height)
+{
+	size_t Cols = 1, Rows = 1;
+	flanterm_get_dimensions(FlantermContext, &Cols, &Rows);
+	*Width = (int) Cols;
+	*Height = (int) Rows;
+}

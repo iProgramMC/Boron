@@ -90,3 +90,10 @@ typedef struct
 	Chars;
 }
 TERMINAL_STATE, *PTERMINAL_STATE;
+
+typedef struct
+{
+	int Width;
+	int Height;
+}
+TERMINAL_WINDOW_SIZE, *PTERMINAL_WINDOW_SIZE;

@@ -135,8 +135,8 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context)
 #undef CTRL
 
 	// Default bogus window width.  The terminal software should override this.
-	Terminal->Window.Width = 80;
-	Terminal->Window.Height = 25;
+	Terminal->WindowSize.Width = 80;
+	Terminal->WindowSize.Height = 25;
 	
 	Terminal->LineState.LineBufferPosition = 0;
 	Terminal->LineState.LineBufferLength = 0;

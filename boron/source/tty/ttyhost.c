@@ -381,6 +381,12 @@ static BSTATUS TtyProcessCharacter(PTERMINAL Terminal, char Character)
 	return STATUS_SUCCESS;
 }
 
+BSTATUS TtyIoControlHostFile(PFCB Fcb, int IoControlCode, const void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize)
+{
+	PREP_EXT;
+	return TtyDeviceIoControl(Host->Terminal, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
+}
+
 IO_DISPATCH_TABLE TtyHostDispatch =
 {
 	.CreateObject = TtyCreateObjectHostFile,
@@ -388,4 +394,5 @@ IO_DISPATCH_TABLE TtyHostDispatch =
 	.Read = TtyReadHostFile,
 	.Write = TtyWriteHostFile,
 	.Seekable = TtyIsSeekableHostFile,
+	.IoControl = TtyIoControlHostFile,
 };

@@ -22,6 +22,11 @@ BSTATUS CreatePseudoterminal()
 	Peb->StandardIO[1] = TerminalSessionHandle;
 	Peb->StandardIO[2] = TerminalSessionHandle;
 	
+	// Initialize the default window size.
+	TERMINAL_WINDOW_SIZE WindowSize;
+	TerminalGetDimensions(&WindowSize.Width, &WindowSize.Height);
+	Status = OSDeviceIoControl(TerminalHostHandle, IOCTL_TERMINAL_SET_WINDOW_SIZE, &WindowSize, sizeof WindowSize, NULL, 0);
+	
 	return Status;
 }
 

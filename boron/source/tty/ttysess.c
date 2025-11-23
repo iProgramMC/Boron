@@ -118,6 +118,12 @@ BSTATUS TtyWriteSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PM
 	return Status;
 }
 
+BSTATUS TtyIoControlSessionFile(PFCB Fcb, int IoControlCode, const void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize)
+{
+	PREP_EXT;
+	return TtyDeviceIoControl(Session->Terminal, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
+}
+
 IO_DISPATCH_TABLE TtySessionDispatch =
 {
 	.CreateObject = TtyCreateObjectSessionFile,
@@ -125,4 +131,5 @@ IO_DISPATCH_TABLE TtySessionDispatch =
 	.Read = TtyReadSessionFile,
 	.Write = TtyWriteSessionFile,
 	.Seekable = TtyIsSeekableSessionFile,
+	.IoControl = TtyIoControlSessionFile,
 };

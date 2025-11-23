@@ -27,3 +27,4 @@ BSTATUS WaitOnIOLoopThreads();
 // Inter-module operation
 void TranslateKeyCode(char* Input, uint8_t KeyCode);
 void TerminalWrite(const char* Buffer, size_t Length);
+void TerminalGetDimensions(int* Width, int* Height);

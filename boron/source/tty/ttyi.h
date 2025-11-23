@@ -41,6 +41,7 @@ typedef struct
 	
 	KMUTEX StateMutex;
 	TERMINAL_STATE State;
+	TERMINAL_WINDOW_SIZE WindowSize;
 	
 	struct
 	{
@@ -70,13 +71,6 @@ typedef struct
 		uint32_t S2HIoFlags;
 	}
 	LineState;
-	
-	struct
-	{
-		int Width;
-		int Height;
-	}
-	Window;
 }
 TERMINAL, *PTERMINAL;
 
@@ -111,3 +105,5 @@ BSTATUS TtyInitializeTerminal(void* TerminalV, void* Context);
 BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal);
 
 BSTATUS TtyWriteCharacterToTempBuffer(PTERMINAL Terminal, char Character, bool Escape);
+
+BSTATUS TtyDeviceIoControl(PTERMINAL Terminal, int IoControlCode, const void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);
