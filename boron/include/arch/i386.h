@@ -176,6 +176,14 @@ struct KREGISTERS_tag
 	uint32_t Ss;
 };
 
+// Arch-specific context
+typedef struct
+{
+	// TODO
+	int Dummy;
+}
+KTHREAD_ARCH_CONTEXT;
+
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
 
@@ -306,3 +314,5 @@ KARCH_DATA, *PKARCH_DATA;
 #define MSI_LEVELASSERT    (1 << 14)
 
 #include <arch.h>
+#include <arch/x86cpuid.h>
+#include <arch/x86cr.h>

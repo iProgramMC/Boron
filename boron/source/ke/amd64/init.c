@@ -37,6 +37,7 @@ INIT
 void KeInitArchUP()
 {
 	KiSetupIdt();
+	KiSetupCpuid();
 	
 	// Initialize interrupt vectors for certain things
 	KiVectorCrash        = KeAllocateInterruptVector(IPL_NOINTS);

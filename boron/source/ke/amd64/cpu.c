@@ -169,6 +169,20 @@ void KeInitCPU()
 	
 	// Set the mask to disable interrupts on syscall.
 	KeSetMSR(MSR_IA32_FMASK, 0x200);
+	
+	// Setup FPU and SIMD.
+	uintptr_t Cr0 = KiReadCR0();
+	Cr0 &= ~CR0_EM;
+	Cr0 |= CR0_MP | CR0_NE;
+	KiWriteCR0(Cr0);
+	
+	uintptr_t Cr4 = KiReadCR4();
+	Cr4 |= CR4_OSFXSR | CR4_OSXMMEXCPT;
+	KiWriteCR4(Cr4);
+	
+	ASM("fninit":::"memory");
+	
+	// TODO: enable xsave
 }
 
 extern uintptr_t KiSystemServiceTable[];
@@ -190,3 +204,13 @@ void KePrintSystemServiceDebug(size_t Syscall)
 	DbgPrint("SYSCALL: %p - %d %s", KeGetCurrentThread(), (int) Syscall, FunctionName);
 }
 
+void KeCpuid(PCPUID_OUTPUT Output, uint32_t Eax);
+
+CPUID_EAX01H_OUTPUT KiCpuidEax01h;
+
+void KiSetupCpuid()
+{
+	CPUID_OUTPUT Cpuid;
+	KeCpuid(&Cpuid, 0x1);
+	KiCpuidEax01h = Cpuid.Eax01H;
+}

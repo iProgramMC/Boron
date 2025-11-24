@@ -186,3 +186,37 @@ KepLoadTss:
 	mov ax, di
 	ltr ax
 	ret
+
+; void KeCpuid(PCPUID_OUTPUT Output, uint32_t Eax)
+global KeCpuid
+KeCpuid:
+	push rbx
+	
+	mov eax, esi
+	cpuid
+	
+	mov  dword [rdi + 0],  eax
+	mov  dword [rdi + 4],  ebx
+	mov  dword [rdi + 8],  ecx
+	mov  dword [rdi + 12], edx
+	
+	pop  rbx
+	ret
+
+; void KiFxsave()
+global KiFxsave
+KiFxsave:
+	fxsave [KiFxsaveData]
+	ret
+
+; void KiFxrstor()
+global KiFxrstor
+KiFxrstor:
+	fxrstor [KiFxsaveData]
+	ret
+
+section .bss
+; NOTE: fxsave and fxrstor is guarded by the dispatcher lock.
+align 16
+global KiFxsaveData
+KiFxsaveData:	resb 512

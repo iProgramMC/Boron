@@ -174,6 +174,14 @@ struct KREGISTERS_tag
 	uint64_t ss;
 };
 
+// Arch-specific context
+typedef struct
+{
+	// Fxsave context.
+	uint8_t Data[512];
+}
+KTHREAD_ARCH_CONTEXT;
+
 // IDT
 #define C_IDT_MAX_ENTRIES (0x100)
 
@@ -281,5 +289,7 @@ KARCH_DATA, *PKARCH_DATA;
 #define MSI_LEVELASSERT    (1 << 14)
 
 #include <arch.h>
+#include <arch/x86cpuid.h>
+#include <arch/x86cr.h>
 
 #endif//NS64_ARCH_AMD64_H

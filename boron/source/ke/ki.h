@@ -111,4 +111,6 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 
 bool KiCancelTimer(PKTIMER Timer);
 
+void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread);
+
 #endif//BORON_KE_KI_H

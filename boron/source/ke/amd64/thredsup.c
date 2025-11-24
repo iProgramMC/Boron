@@ -15,6 +15,7 @@ Author:
 #include <arch.h>
 #include <ke.h>
 #include <string.h>
+#include "../ki.h"
 
 NO_RETURN void KiThreadEntryPoint();
 
@@ -35,4 +36,23 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	*(--StackPointer) = 0; // Set R15
 	
 	Thread->StackPointer = StackPointer;
+	
+	memset(&Thread->ArchContext, 0, sizeof Thread->ArchContext);
+}
+
+void KiFxsave();
+void KiFxrstor();
+
+extern uint8_t KiFxsaveData[];
+
+void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread)
+{
+	if (!OldThread)
+		return;
+	
+	KiAssertOwnDispatcherLock();
+	KiFxsave();
+	memcpy(OldThread->ArchContext.Data, KiFxsaveData, 512);
+	memcpy(KiFxsaveData, NewThread->ArchContext.Data, 512);
+	KiFxrstor();
 }

@@ -147,6 +147,9 @@ struct KTHREAD_tag
 	// The timer used for the OSSleep system call.
 	KTIMER SleepTimer;
 	
+	// Architecture-specific context.
+	KTHREAD_ARCH_CONTEXT ArchContext;
+	
 #ifdef DEBUG
 	// How many spin locks a thread is holding.
 	// This is used when initiating a wait at high IPL

@@ -16,6 +16,8 @@ Author:
 
 #include <arch.h>
 
+extern CPUID_EAX01H_OUTPUT KiCpuidEax01h;
+
 extern
 int KiVectorCrash,
     KiVectorTlbShootdown,
@@ -28,3 +30,5 @@ PKREGISTERS KiHandleTlbShootdownIpi(PKREGISTERS Regs);
 PKREGISTERS KiHandleTlbShootdownIpiA(PKREGISTERS Regs);
 
 void KiInitializeInterruptSystem();
+void KiSetupCpuid();
+void KiSetupSimd();

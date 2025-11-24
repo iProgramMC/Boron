@@ -702,6 +702,9 @@ void KiSwitchToNextThread()
 	
 	Thread->TickScheduledAt = HalGetTickCount();
 	
+	// Switch to the next thread's architecture specific context.
+	KiSwitchArchSpecificContext(Thread, OldThread);
+	
 	// Switch to thread's process' address space.
 	PKPROCESS DestProcess = KepGetProcessToSwitchAddressSpaceTo(Thread);
 	

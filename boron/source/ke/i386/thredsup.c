@@ -34,3 +34,10 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	
 	Thread->StackPointer = StackPointer;
 }
+
+void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread)
+{
+	// TODO
+	(void) NewThread;
+	(void) OldThread;
+}
