@@ -94,6 +94,7 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		if (Lock->ExclusiveOwner.OwnerThread == CurrentThread)
 		{
 			// Yoink!
+			Lock->ExclusiveOwner.Locked += 1;
 			Lock->HeldCount += 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
