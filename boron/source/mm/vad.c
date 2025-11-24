@@ -116,7 +116,7 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 	
 	BSTATUS Status;
 
-	if (StartAddress)
+	if (AllocationType & MEM_FIXED)
 		Status = MmAllocateAddressRange(&Process->Heap, (uintptr_t) StartAddress, SizePages, &AddrNode);
 	else
 		Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
@@ -142,7 +142,7 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** InOutAddress, int Alloca
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN))
+	if (AllocationType & ~(MEM_RESERVE | MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
 	
 	void* StartVa = *InOutAddress;

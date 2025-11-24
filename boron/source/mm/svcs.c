@@ -61,7 +61,7 @@ BSTATUS OSAllocateVirtualMemory(
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (AllocationType & ~(MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN | MEM_SHARED))
+	if (AllocationType & ~(MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN | MEM_SHARED | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
 	
 	// One of these needs to be set.
@@ -76,9 +76,12 @@ BSTATUS OSAllocateVirtualMemory(
 	size_t RegionSize = 0;
 	BSTATUS Status;
 	
-	Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
-	if (FAILED(Status))
-		return Status;
+	if (AllocationType & MEM_FIXED)
+	{
+		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
+		if (FAILED(Status))
+			return Status;
+	}
 	
 	Status = MmSafeCopy(&RegionSize, RegionSizeInOut, sizeof(size_t), KeGetPreviousMode(), false);
 	if (FAILED(Status))
@@ -105,7 +108,7 @@ BSTATUS OSAllocateVirtualMemory(
 		ProcessRestore = PsSetAttachedProcess(Process);
 	}
 	
-	bool HasAddressPointer = BaseAddress != NULL;
+	bool HasAddressPointer = (AllocationType & MEM_FIXED) != 0;
 	
 	if (AllocationType & MEM_RESERVE)
 	{
@@ -263,7 +266,7 @@ BSTATUS OSMapViewOfObject(
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
-	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW))
+	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
 	
 	if (!ViewSize)

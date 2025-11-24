@@ -26,6 +26,8 @@ enum
 	MEM_DECOMMIT = 0x0010, // The memory range will be decommitted.
 	MEM_RELEASE  = 0x0020, // The memory range will be released.
 	MEM_COW      = 0x0040, // The memory will be copied on write, instead of any writes being committed to the backing file.
+	MEM_FIXED    = 0x0080, // The requested memory mapping operation must occur at the specified offset.
+	MEM_OVERRIDE = 0x0100, // The requested memory mapping operation will override any extant allocations.
 };
 
 enum ACCESS_FLAG
