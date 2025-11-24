@@ -344,7 +344,7 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 
 	if ((AllocationType & (MEM_FIXED | MEM_OVERRIDE)) == (MEM_FIXED | MEM_OVERRIDE))
 		Status = MmOverrideAddressRange(Process, (uintptr_t) StartAddress, SizePages, &AddrNode);
-	if (AllocationType & MEM_FIXED)
+	else if (AllocationType & MEM_FIXED)
 		Status = MmAllocateAddressRange(&Process->Heap, (uintptr_t) StartAddress, SizePages, &AddrNode);
 	else
 		Status = MmAllocateAddressSpace(&Process->Heap, SizePages, AllocationType & MEM_TOP_DOWN, &AddrNode);
