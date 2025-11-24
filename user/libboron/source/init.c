@@ -306,7 +306,7 @@ BSTATUS OSDLLMapElfFile(
 						ProcessHandle,
 						&Address,
 						&MapSize,
-						MEM_COMMIT | MEM_RESERVE,
+						MEM_FIXED | MEM_COMMIT | MEM_RESERVE,
 						Protection
 					);
 					
@@ -339,7 +339,7 @@ BSTATUS OSDLLMapElfFile(
 					Handle,
 					&Address,
 					ElfProgramHeader.SizeInMemory,
-					MEM_COMMIT | CowFlag,
+					MEM_COMMIT | MEM_FIXED | CowFlag,
 					ElfProgramHeader.Offset,
 					Protection
 				);
