@@ -80,8 +80,9 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 	{
 		Lock->HeldCount = 1;
 		
-		Lock->ExclusiveOwner.Locked = true;
+		Lock->ExclusiveOwner.Locked = 1;
 		Lock->ExclusiveOwner.OwnerThread = CurrentThread;
+		
 		// Won't initialize the list entry because it's not part of a list.
 		
 		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
@@ -95,7 +96,6 @@ BSTATUS ExAcquireExclusiveRwLock(PEX_RW_LOCK Lock, bool DontBlock, bool Alertabl
 		{
 			// Yoink!
 			Lock->ExclusiveOwner.Locked += 1;
-			Lock->HeldCount += 1;
 			
 			KeReleaseSpinLock(&Lock->GuardLock, Ipl);
 			DbgPrintA("EXCL(%p): Acquired via exclusive recursive case", CurrentThread);
