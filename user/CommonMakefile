@@ -114,7 +114,6 @@ CXXFLAGS +=                 \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \
-	--dynamic-linker libboron.so \
 	-nostdlib               \
 	-z max-page-size=0x1000 \
 	-m $(LINK_ARCH)         \
@@ -129,8 +128,10 @@ LDFLAGS +=  \
 NASMFLAGS += $(ARCH_ASFLAGS)
 
 ifeq ($(IS_LIBRARY),yes)
-LDFLAGS += -shared -fPIC
+LDFLAGS += -shared
 CFLAGS += -fPIC
+else
+LDFLAGS += --dynamic-linker libboron.so
 endif
 
 ifeq ($(INCLUDE_LIBBORON),no)
