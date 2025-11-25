@@ -20,6 +20,7 @@ bits 64
 
 ; *** SYSTEM SERVICE TABLE ***
 extern OSAllocateVirtualMemory
+extern OSCheckIsTerminalFile
 extern OSClose
 extern OSCreateEvent
 extern OSCreateMutex
@@ -74,6 +75,7 @@ global KiSystemServiceTable
 global KiSystemServiceTableEnd
 KiSystemServiceTable:
 	dq OSAllocateVirtualMemory
+	dq OSCheckIsTerminalFile
 	dq OSClose
 	dq OSCreateEvent
 	dq OSCreateMutex

@@ -81,6 +81,7 @@ enum
 	STATUS_BLOCKING_OPERATION,  // The operation would block the running thread, and the resource is marked non-blocking.
 	STATUS_DIRECTORY_NOT_EMPTY, // The directory is not empty.
 	STATUS_OUT_OF_FILE_BOUNDS,  // The specified offset is located outside of this file's boundaries.
+	STATUS_NOT_A_TERMINAL,      // The specified file is not a terminal
 	
 	// Memory manager error codes
 	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space

@@ -14,6 +14,8 @@ BSTATUS OSAllocateVirtualMemory(
 	int Protection
 );
 
+BSTATUS OSCheckIsTerminalFile(HANDLE FileHandle);
+
 BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);

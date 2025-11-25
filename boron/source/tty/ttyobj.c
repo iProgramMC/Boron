@@ -160,3 +160,22 @@ Fail1:
 	IoFreeFcb(Terminal->SessionToHostPipeFcb);
 	return Status;
 }
+
+BSTATUS OSCheckIsTerminalFile(HANDLE FileHandle)
+{
+	BSTATUS Status;
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	if (FileObject->Fcb->DispatchTable != &TtyHostDispatch &&
+		FileObject->Fcb->DispatchTable != &TtySessionDispatch)
+	{
+		Status = STATUS_NOT_A_TERMINAL;
+	}
+	
+	ObDereferenceObject(FileObjectV);
+	return Status;
+}

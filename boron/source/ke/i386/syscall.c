@@ -114,6 +114,7 @@ typedef int(*KI_SYSCALL_HANDLER)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_
 const void* const KiSystemServiceTable[] =
 {
 	OSAllocateVirtualMemory,
+	OSCheckIsTerminalFile,
 	OSClose,
 	OSCreateEvent,
 	OSCreateMutex,
