@@ -3,8 +3,8 @@
 #include <rtl/elf.h>
 
 #ifdef DEBUG2
-#endif
 #define LOADER_DEBUG
+#endif
 
 #ifdef LOADER_DEBUG
 #define LdrDbgPrint(...) DbgPrint(__VA_ARGS__)
