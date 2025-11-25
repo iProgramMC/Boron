@@ -143,10 +143,10 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 	
 	// Unmap and/or shrink each VAD inside this range.
 	for (PRBTREE_ENTRY VadTreeEntry = GetFirstEntryRbTree(&VadList->Tree);
-		VadTreeEntry != NULL;
-		VadTreeEntry = GetNextEntryRbTree(VadTreeEntry))
+		VadTreeEntry != NULL;)
 	{
 		PMMVAD Vad = CONTAINING_RECORD(VadTreeEntry, MMVAD, Node.Entry);
+		VadTreeEntry = GetNextEntryRbTree(VadTreeEntry);
 		
 		// Check if there is any overlap.
 		if (EndAddress <= Vad->Node.StartVa || Node_EndVa(&Vad->Node) <= StartAddress)
@@ -273,13 +273,13 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 	
 	// Remove or shrink each item in the heap.
 	for (PRBTREE_ENTRY HeapTreeEntry = GetFirstEntryRbTree(&Process->Heap.Tree);
-		HeapTreeEntry != NULL;
-		HeapTreeEntry = GetNextEntryRbTree(HeapTreeEntry))
+		HeapTreeEntry != NULL;)
 	{
 		// Note that I'm not simply using MmAllocateAddressRange because this causes
 		// additional allocations which I'm not too fond of doing.
 		
 		PMMADDRESS_NODE Node = CONTAINING_RECORD(HeapTreeEntry, MMADDRESS_NODE, Entry);
+		HeapTreeEntry = GetNextEntryRbTree(HeapTreeEntry);
 		
 		// Check if there is any overlap.
 		if (EndAddress <= Node->StartVa || Node_EndVa(Node) <= StartAddress)
