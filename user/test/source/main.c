@@ -73,9 +73,8 @@ int _start()
 	CHECK_FAILURE();
 	DbgPrint("Full overlap succeeded. BaseAddress5: %p", BaseAddress5);
 	
-	// how about remapping the entire region PLUS some free space?
-	void* BaseAddress6 = BaseAddress;
-	size_t RegionSize6 = RegionSize1 + 512 * 1024;
+	// well this isn't what I meant to test at first, but this caught a bug so
+	// I am keeping it.
 	Status = OSAllocateVirtualMemory(
 		CURRENT_PROCESS_HANDLE,
 		&BaseAddress5,
@@ -84,10 +83,23 @@ int _start()
 		PAGE_READ | PAGE_WRITE
 	);
 	CHECK_FAILURE();
-	DbgPrint("Full overlap + free space succeeded. BaseAddress5: %p", BaseAddress5);
+	DbgPrint("Remap the same memory succeeded. BaseAddress5: %p", BaseAddress5);
+	
+	// how about remapping the entire region PLUS some free space?
+	void* BaseAddress6 = BaseAddress;
+	size_t RegionSize6 = RegionSize1 + 512 * 1024;
+	Status = OSAllocateVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		&BaseAddress6,
+		&RegionSize6,
+		MEM_COMMIT | MEM_RESERVE | MEM_FIXED | MEM_OVERRIDE,
+		PAGE_READ | PAGE_WRITE
+	);
+	CHECK_FAILURE();
+	DbgPrint("Full overlap + free space succeeded. BaseAddress6: %p   RegionSize6: %zu", BaseAddress6, RegionSize6);
 	
 	memset(BaseAddress6, 0, RegionSize6);
-	DbgPrint("Memset of the entire region succeeded. BaseAddress3: %p", BaseAddress4);
+	DbgPrint("Memset of the entire region succeeded. BaseAddress6: %p", BaseAddress6);
 	
 	PPEB Peb = OSGetCurrentPeb();
 	while (true)
