@@ -107,7 +107,7 @@ BSTATUS TtyWriteSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PM
 		if (FAILED(Status))
 			break;
 		
-		BytesWritten = i;
+		BytesWritten = i + 1;
 	}
 	
 	Iosb->BytesWritten = BytesWritten;
