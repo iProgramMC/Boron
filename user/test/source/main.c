@@ -24,6 +24,7 @@ int _start()
 	CHECK_FAILURE();
 	DbgPrint("OSAllocateVirtualMemory returned base address %p.", BaseAddress);
 	
+#if 0
 	// split the range in two
 	void* BaseAddress2 = (uint8_t*)BaseAddress + 32 * 1024;
 	size_t RegionSize2 = 960 * 1024;
@@ -36,6 +37,35 @@ int _start()
 	);
 	CHECK_FAILURE();
 	DbgPrint("Split succeeded. BaseAddress2: %p", BaseAddress2);
+#else
+	// test the partial free
+	void* BaseAddress2 = (uint8_t*)BaseAddress + 32 * 1024;
+	size_t RegionSize2 = 960 * 1024;
+	Status = OSFreeVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		BaseAddress2,
+		RegionSize2,
+		MEM_RELEASE | MEM_PARTIAL
+	);
+	CHECK_FAILURE();
+	DbgPrint("Split succeeded.");
+	
+	// the forbidden memset
+	//memset(BaseAddress2, 0, RegionSize2);
+	
+	// reallocate this mapping
+	BaseAddress2 = (uint8_t*)BaseAddress + 32 * 1024;
+	RegionSize2 = 960 * 1024;
+	Status = OSAllocateVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		&BaseAddress2,
+		&RegionSize2,
+		MEM_COMMIT | MEM_RESERVE | MEM_FIXED | MEM_OVERRIDE,
+		PAGE_READ | PAGE_WRITE
+	);
+	CHECK_FAILURE();
+	DbgPrint("Split succeeded. BaseAddress2: %p", BaseAddress2);
+#endif
 	
 	// override the newly allocated range on either side
 	size_t RegionSize3 = 64 * 1024, RegionSize4 = 64 * 1024;
