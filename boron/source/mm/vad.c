@@ -302,10 +302,14 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			TempVad3->Node.StartVa = EndAddress;
 			TempVad3->Node.Size = (Node_EndVa(Node) - EndAddress) / PAGE_SIZE;
 			Node->Size = (StartAddress - Node->StartVa) / PAGE_SIZE;
-			InsertItemRbTree(&Process->Heap.Tree, &TempVad3->Node.Entry);
+			MmFreeAddressSpace(&Process->Heap, &TempVad3->Node);
 			
 			// Set TempVad3 to NULL so it won't be freed after its insertion into the tree.
 			TempVad3 = NULL;
+			
+			// It's kind of dangerous to continue, because the node may have been merged,
+			// and the next node may have been freed. Restart the tree walk.
+			HeapTreeEntry = GetFirstEntryRbTree(&Process->Heap.Tree);
 			continue;
 		}
 		
@@ -370,6 +374,25 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 	
 	*OutVad = Vad;
 	*OutVadList = &Process->VadList;
+	return Status;
+}
+
+BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages)
+{
+	PEPROCESS Process = PsGetAttachedProcess();
+	PMMADDRESS_NODE AddrNode;
+	
+	BSTATUS Status = MmOverrideAddressRange(Process, StartAddress, SizePages, &AddrNode);
+	if (FAILED(Status))
+	{
+		// I know it's kind of unintuitive that a memory map operation can fail
+		// because of out of memory, but whatever. It's not like we have a choice.
+		return Status;
+	}
+	
+	Status = MmFreeAddressSpace(&Process->Heap, AddrNode);
+	ASSERT(SUCCEEDED(Status));
+	
 	return Status;
 }
 

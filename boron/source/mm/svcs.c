@@ -27,7 +27,8 @@ Author:
 //
 //     RegionSizeInOut  - The region's size.
 //
-//     AllocationType   - A combination of flags: MEM_COMMIT, MEM_RESERVE, MEM_TOP_DOWN and/or MEM_SHARED.
+//     AllocationType   - A combination of flags: MEM_COMMIT, MEM_RESERVE, MEM_TOP_DOWN,
+//                        MEM_FIXED, MEM_OVERRIDE, and/or MEM_SHARED.
 //
 //     Protection       - The protection applied to the pages to be committed.
 //
@@ -66,6 +67,10 @@ BSTATUS OSAllocateVirtualMemory(
 	
 	// One of these needs to be set.
 	if (!(AllocationType & (MEM_COMMIT | MEM_RESERVE)))
+		return STATUS_INVALID_PARAMETER;
+	
+	// You must have passed MEM_FIXED if you passed MEM_OVERRIDE.
+	if ((AllocationType & MEM_OVERRIDE) && !(AllocationType & MEM_FIXED))
 		return STATUS_INVALID_PARAMETER;
 	
 	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
@@ -155,7 +160,8 @@ BSTATUS OSAllocateVirtualMemory(
 //
 //     RegionSizeInOut  - The region's size.
 //
-//     FreeType         - One of MEM_DECOMMIT or MEM_RELEASE.
+//     FreeType         - One of MEM_DECOMMIT or MEM_RELEASE, optionally combined within
+//                        MEM_PARTIAL.
 //
 // Operation:
 //   BaseAddressInOut and RegionSizeInOut may not be NULL.
@@ -178,7 +184,7 @@ BSTATUS OSFreeVirtualMemory(
 )
 {
 	// Check parameters.
-	if (FreeType & ~(MEM_DECOMMIT | MEM_RELEASE))
+	if (FreeType & ~(MEM_DECOMMIT | MEM_RELEASE | MEM_PARTIAL))
 		return STATUS_INVALID_PARAMETER;
 	
 	// One of these must be set.
@@ -188,6 +194,13 @@ BSTATUS OSFreeVirtualMemory(
 	// But not both.
 	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == (MEM_DECOMMIT | MEM_RELEASE))
 		return STATUS_INVALID_PARAMETER;
+	
+	// You must have passed MEM_RELEASE if you passed MEM_PARTIAL.
+	if ((FreeType & MEM_PARTIAL) && !(FreeType & MEM_RELEASE))
+		return STATUS_INVALID_PARAMETER;
+	
+	bool IsPartial = FreeType & MEM_PARTIAL;
+	FreeType &= ~MEM_PARTIAL;
 	
 	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
 	if (!ProcessHandle)
@@ -214,11 +227,18 @@ BSTATUS OSFreeVirtualMemory(
 		ProcessRestore = PsSetAttachedProcess(Process);
 	}
 	
-	Status = MmDecommitVirtualMemory((uintptr_t) BaseAddress, SizePages);
-	if (SUCCEEDED(Status))
+	if (IsPartial)
 	{
-		if (FreeType == MEM_RELEASE)
-			Status = MmReleaseVirtualMemory(BaseAddress);
+		Status = MiUnmapVirtualMemoryPartial((uintptr_t) BaseAddress, SizePages);
+	}
+	else
+	{
+		Status = MmDecommitVirtualMemory((uintptr_t) BaseAddress, SizePages);
+		if (SUCCEEDED(Status))
+		{
+			if (FreeType == MEM_RELEASE)
+				Status = MmReleaseVirtualMemory(BaseAddress);
+		}
 	}
 	
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
@@ -245,7 +265,7 @@ BSTATUS OSFreeVirtualMemory(
 //     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
 //                size of the view after its creation.
 //
-//     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
+//     AllocationType - The type of allocation.
 //
 //     SectionOffset - The offset within the file or section.  If this isn't aligned to a page boundary,
 //                     then neither will the output base address.
@@ -267,6 +287,10 @@ BSTATUS OSMapViewOfObject(
 		return STATUS_INVALID_PARAMETER;
 	
 	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW | MEM_FIXED | MEM_OVERRIDE))
+		return STATUS_INVALID_PARAMETER;
+	
+	// You must have passed MEM_FIXED if you passed MEM_OVERRIDE.
+	if ((AllocationType & MEM_OVERRIDE) && !(AllocationType & MEM_FIXED))
 		return STATUS_INVALID_PARAMETER;
 	
 	if (!ViewSize)

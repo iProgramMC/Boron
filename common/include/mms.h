@@ -19,15 +19,47 @@ Author:
 // Allocation Types
 enum
 {
-	MEM_RESERVE  = 0x0001, // The memory range will be reserved.
-	MEM_COMMIT   = 0x0002, // The memory range will be committed.
-	MEM_SHARED   = 0x0004, // The memory range will be shared and will be passed down in forks.
-	MEM_TOP_DOWN = 0x0008, // Addresses near the top of the user address space are preferred.
-	MEM_DECOMMIT = 0x0010, // The memory range will be decommitted.
-	MEM_RELEASE  = 0x0020, // The memory range will be released.
-	MEM_COW      = 0x0040, // The memory will be copied on write, instead of any writes being committed to the backing file.
-	MEM_FIXED    = 0x0080, // The requested memory mapping operation must occur at the specified offset.
-	MEM_OVERRIDE = 0x0100, // The requested memory mapping operation will override any extant allocations.
+	// The memory range will be reserved, so it won't be allocated again.
+	MEM_RESERVE  = 0x0001,
+	
+	// The memory range will be committed.  It must have been reserved first.
+	MEM_COMMIT   = 0x0002,
+	
+	// The memory range will be shared and will be passed down as-is in duplicated
+	// processes. If this flag isn't set, then when the process is duplicated, the
+	// memory range will be duplicated with copy-on-write.
+	MEM_SHARED   = 0x0004, 
+	
+	// This is a hint for the allocator to place the memory range near the top of
+	// the user address space.
+	MEM_TOP_DOWN = 0x0008,
+	
+	// The memory range will be decommitted, but not released.
+	// Note that for releasing you must only set MEM_RELEASE, *not* the combination
+	// MEM_DECOMMIT | MEM_RELEASE, which is deemed invalid by the operating system.
+	MEM_DECOMMIT = 0x0010,
+	
+	// The memory range will be decommitted (if it was previously committed) and released.
+	MEM_RELEASE  = 0x0020,
+	
+	// The file-backed mapped memory allows writing, but any writes to the memory
+	// will not be committed to the backing file.
+	MEM_COW      = 0x0040,
+	
+	// The requested memory mapping operation must be performed at the specified range.
+	// By default, STATUS_CONFLICTING_ADDRESSES will be returned if the specified range
+	// overlaps any existing ranges of memory.
+	MEM_FIXED    = 0x0080,
+	
+	// This flag must be provided alongside MEM_FIXED.  Instead of returning the status
+	// STATUS_CONFLICTING_ADDRESSES, the existing memory ranges will be replaced with the
+	// requested memory map.
+	MEM_OVERRIDE = 0x0100,
+	
+	// This flag must be provided alongside MEM_RELEASE.  Instead of returning the status
+	// STATUS_CONFLICTING_ADDRESSES, any overlapping memory ranges will be shrunk, or 
+	// removed entirely.
+	MEM_PARTIAL  = 0x0200,
 };
 
 enum ACCESS_FLAG

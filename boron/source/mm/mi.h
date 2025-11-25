@@ -379,6 +379,9 @@ void MiReleaseVad(PMMVAD Vad);
 // uncommitted and certain code paths are skipped.
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages, bool SetDecommittedPTE);
 
+// Unmaps a range of virtual memory regardless of the existing ranges underneath.
+BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
+
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT
 void MiInitializeBaseIdentityMapping();

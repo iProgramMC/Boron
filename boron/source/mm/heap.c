@@ -285,6 +285,7 @@ BSTATUS MmFreeAddressSpace(PMMHEAP Heap, PMMADDRESS_NODE Node)
 
 	// If the node couldn't be inserted, this is an error.
 	if (!Inserted) {
+		DbgPrint("MmFreeAddressSpace: Could not insert the node into the address space! This is an error!");
 		KeReleaseMutex(&Heap->Mutex);
 		return STATUS_INVALID_PARAMETER;
 	}
