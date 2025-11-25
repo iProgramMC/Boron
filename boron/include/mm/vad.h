@@ -32,19 +32,19 @@ typedef union
 		// If true, any page fault inside this range refers to a "committed"
 		// address. Otherwise, the PTEs have to be specifically marked "committed"
 		// to be committed.
-		int Committed : 1;
+		unsigned Committed : 1;
 		
 		// Protection flags, see the ACCESS_FLAG enum.
-		int Protection : 3;
+		unsigned Protection : 3;
 		
 		// If this region is private (so, not duplicated across forks for example)
-		int Private : 1;
+		unsigned Private : 1;
 		
 		// If this region is marked as "copy on write"
-		int Cow : 1;
+		unsigned Cow : 1;
 		
 		// If this region is a file object, as opposed to a section object, or nothing.
-		int IsFile : 1;
+		unsigned IsFile : 1;
 	};
 	
 	uint32_t LongFlags;

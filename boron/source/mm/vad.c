@@ -271,6 +271,8 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		KeCrash("MmOverrideAddressRange: Unhandled case (1)");
 	}
 	
+	MmUnlockVadList(VadList);
+	
 	// Remove or shrink each item in the heap.
 	for (PRBTREE_ENTRY HeapTreeEntry = GetFirstEntryRbTree(&Process->Heap.Tree);
 		HeapTreeEntry != NULL;)
@@ -338,7 +340,6 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 	
 	*OutAddrNode = &TempVad1->Node;
 	
-	MmUnlockVadList(VadList);
 	MmUnlockSpace(Ipl, 0);
 	
 	if (TempVad2) MmFreePool(TempVad2);
