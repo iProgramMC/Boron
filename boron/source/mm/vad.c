@@ -205,7 +205,7 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			// Note that any extant page faults will be waiting on either the VAD lock
 			// or the address space lock, both of which we own, so they won't see this
 			// intermediate state.
-			MiDecommitVad(VadList, Vad, StartAddress, SizePages);
+			MiDecommitVad(VadList, Vad, StartAddress, SizePages, false);
 			
 			// Then shrink this VAD.
 			Vad->Node.Size = (StartAddress - Vad->Node.StartVa) / PAGE_SIZE;
@@ -238,7 +238,7 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			
 			// Decommit the specified region.
 			MiLockVadList(VadList);
-			MiDecommitVad(VadList, Vad, StartAddress, (Node_EndVa(&Vad->Node) - StartAddress) / PAGE_SIZE);
+			MiDecommitVad(VadList, Vad, StartAddress, (Node_EndVa(&Vad->Node) - StartAddress) / PAGE_SIZE, false);
 			
 			// Resize the VAD.
 			Vad->Node.Size = (StartAddress - Vad->Node.StartVa) / PAGE_SIZE;
@@ -249,8 +249,7 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		
 		if (StartAddress <= Vad->Node.StartVa && EndAddress < Node_EndVa(&Vad->Node))
 		{
-			// Overlap on the right size.
-			
+			// Overlap on the right side.
 			bool WasCommitted = Vad->Flags.Committed;
 			Vad->Flags.Committed = false;
 			
@@ -258,7 +257,7 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			
 			// Decommit the specified region.
 			MiLockVadList(VadList);
-			MiDecommitVad(VadList, Vad, Vad->Node.StartVa, Offset / PAGE_SIZE);
+			MiDecommitVad(VadList, Vad, Vad->Node.StartVa, Offset / PAGE_SIZE, false);
 			
 			Vad->Node.StartVa += Offset;
 			Vad->Node.Size -= Offset / PAGE_SIZE;
@@ -540,7 +539,7 @@ void MmDumpVadList(PMMVAD_LIST VadList)
 	for (; Entry != NULL; Entry = GetNextEntryRbTree(Entry))
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		DbgPrint("\tStart: %p\tEnd: %zu", (void*)Vad->Node.StartVa, Vad->Node.Size);
+		DbgPrint("\tStart: %p\tSize: %zu", (void*)Vad->Node.StartVa, Vad->Node.Size);
 	}
 
 	MmUnlockVadList(VadList);
@@ -551,5 +550,5 @@ void MmDumpVadList(PMMVAD_LIST VadList)
 void MiDecommitVadInSystemSpace(PMMVAD Vad)
 {
 	MiLockVadList(&MiSystemVadList);
-	MiDecommitVad(&MiSystemVadList, Vad, Vad->Node.StartVa, Vad->Node.Size);
+	MiDecommitVad(&MiSystemVadList, Vad, Vad->Node.StartVa, Vad->Node.Size, true);
 }

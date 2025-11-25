@@ -155,7 +155,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	return STATUS_SUCCESS;
 }
 
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages, bool SetDecommittedPTE);
 
 // Decommits a range of virtual memory.
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
@@ -179,13 +179,13 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 		return STATUS_CONFLICTING_ADDRESSES;
 	}
 	
-	MiDecommitVad(VadList, Vad, StartVa, SizePages);
+	MiDecommitVad(VadList, Vad, StartVa, SizePages, true);
 	return STATUS_SUCCESS;
 }
 
 // This part of MmDecommitVirtualMemory has been split into a separate function because
 // this is also referenced by MmTearDownVadList().
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages)
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages, bool SetDecommittedPTE)
 {
 	// Check if the range can be entirely decommitted.
 	if (Vad->Node.StartVa == StartVa && Vad->Node.Size == SizePages)
@@ -217,7 +217,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 			// to mark the page as decommitted.  I am slightly embarrassed about this,
 			// but it turns out that with some WinDbg magic I realized that Windows XP
 			// does this exact same thing. So it'll be fine here too.
-			if (!MmCheckPteLocation(CurrentVa, IsVadCommitted))
+			if (!MmCheckPteLocation(CurrentVa, IsVadCommitted && SetDecommittedPTE))
 			{
 				// If the VAD isn't committed, then nothing to decommit, skip this page of
 				// PTEs entirely and try again.
@@ -227,7 +227,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 				i += (CurrentVa - OldVa) / PAGE_SIZE;
 				
 			#ifdef DEBUG
-				if (IsVadCommitted)
+				if (IsVadCommitted && SetDecommittedPTE)
 					DbgPrint("Warning: VAD is committed but can't allocate a PT to mark pages as decommitted... :(");
 			#endif
 				
@@ -250,10 +250,13 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 		{
 			// If the pte is not zero, then it must have been committed. 
 			// Otherwise it's an unknown type which we don't know how to handle.
-			ASSERT(*Pte & MM_DPTE_COMMITTED);
+			ASSERT((*Pte & MM_DPTE_COMMITTED) || (*Pte == MM_DPTE_DECOMMITTED));
 		}
 		
-		*Pte = MM_DPTE_DECOMMITTED;
+		if (SetDecommittedPTE)
+			*Pte = MM_DPTE_DECOMMITTED;
+		else
+			*Pte = 0;
 		
 		Pte++;
 		CurrentVa += PAGE_SIZE;

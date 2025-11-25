@@ -36,7 +36,7 @@ void MmTearDownProcess(PEPROCESS Process)
 		// and having the two internal calls unlock it.
 		
 		MmLockVadList();
-		MiDecommitVad(&Process->VadList, Vad, Vad->Node.StartVa, Vad->Node.Size);
+		MiDecommitVad(&Process->VadList, Vad, Vad->Node.StartVa, Vad->Node.Size, false);
 		
 		MmLockVadList();
 		MiReleaseVad(Vad);

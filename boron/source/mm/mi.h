@@ -377,7 +377,7 @@ void MiReleaseVad(PMMVAD Vad);
 // Decommits a range of virtual memory by unmapping the region.
 // If the region covers the provided VAD, then the VAD is marked
 // uncommitted and certain code paths are skipped.
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages, bool SetDecommittedPTE);
 
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT
