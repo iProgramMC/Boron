@@ -285,6 +285,16 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		if (EndAddress <= Node->StartVa || Node_EndVa(Node) <= StartAddress)
 			continue;
 		
+		// There is some overlap.  Is it a complete overlap?
+		if (StartAddress <= Node->StartVa && Node_EndVa(Node) <= EndAddress)
+		{
+			// Complete overlap, so the whole heap entry will be removed.
+			RemoveItemRbTree(&Process->Heap.Tree, &Node->Entry);
+			MmFreePool(Node);
+			continue;
+		}
+		
+		// There is partial overlap.
 		if (Node->StartVa < StartAddress && EndAddress < Node_EndVa(Node))
 		{
 			// Clean split into two.
