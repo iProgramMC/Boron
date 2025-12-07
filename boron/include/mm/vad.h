@@ -37,7 +37,7 @@ typedef union
 		// Protection flags, see the ACCESS_FLAG enum.
 		unsigned Protection : 3;
 		
-		// If this region is private (so, not duplicated across forks for example)
+		// If this region is private (so, copy-on-write duplicated across forks for example)
 		unsigned Private : 1;
 		
 		// If this region is marked as "copy on write"
