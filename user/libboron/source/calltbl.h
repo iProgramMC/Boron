@@ -38,7 +38,7 @@ CALL 36, 1, OSResetEvent
 //   37     OSSeekFile
 CALL 38, 1, OSSetCurrentPeb
 CALL 39, 1, OSSetCurrentTeb
-CALL 30, 1, OSSetEvent
+CALL 40, 1, OSSetEvent
 CALL 41, 1, OSSetExitCode
 CALL 42, 2, OSSetPebProcess
 CALL 43, 2, OSSetSuspendedThread
