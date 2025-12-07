@@ -30,6 +30,11 @@ void MmInitializeSla(PMMSLA Sla)
 		Sla->Indirect[i] = PFN_INVALID;
 }
 
+void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
+{
+	DbgPrint("TODO: MmDeinitializeSla(%p, %p)", Sla, FreeEntryFunc);
+}
+
 static MMPFN MmpAllocatePhysicalPageSlaInitialized()
 {
 	MMPFN Pfn = MmAllocatePhysicalPage();
@@ -59,8 +64,8 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 	uint64_t EntryIndex,
 	bool Modify,
 	MMSLA_ENTRY NewValue,
-	uintptr_t* OutPrototypePtePointer,
-	MM_SLA_REFERENCE_ENTRY EntryReferenceFunc
+	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer,
+	MM_SLA_REFERENCE_ENTRY_FUNC EntryReferenceFunc
 )
 {
 	// Direct Lookup
@@ -75,7 +80,7 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 			#ifdef IS_32_BIT
 				*OutPrototypePtePointer = MM_VIRTUAL_PROTO_PTE_PTR(&Sla->Direct[EntryIndex]);
 			#else
-				*OutPrototypePtePointer = (uintptr_t) &Sla->Direct[EntryIndex];
+				*OutPrototypePtePointer = (MM_PROTOTYPE_PTE_PTR) &Sla->Direct[EntryIndex];
 			#endif
 			}
 		}
@@ -157,9 +162,9 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 			if (OutPrototypePtePointer)
 			{
 			#ifdef IS_32_BIT
-				*OutPrototypePtePointer = (uintptr_t) BaseAddress + (sizeof(MMSLA_ENTRY) * CurrentIndex);
+				*OutPrototypePtePointer = (MM_PROTOTYPE_PTE_PTR)(BaseAddress + (sizeof(MMSLA_ENTRY) * CurrentIndex));
 			#else
-				*OutPrototypePtePointer = (uintptr_t) &Entries[CurrentIndex];
+				*OutPrototypePtePointer = &Entries[CurrentIndex];
 			#endif
 			}
 		}
@@ -181,7 +186,7 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 MMSLA_ENTRY MmLookUpEntrySlaEx(
 	PMMSLA Sla,
 	uint64_t EntryIndex,
-	MM_SLA_REFERENCE_ENTRY EntryReferenceFunc
+	MM_SLA_REFERENCE_ENTRY_FUNC EntryReferenceFunc
 )
 {
 	return MmpLookUpEntrySlaPlusModify(Sla, EntryIndex, false, 0, NULL, EntryReferenceFunc);
@@ -191,7 +196,7 @@ MMSLA_ENTRY MmAssignEntrySlaEx(
 	PMMSLA Sla,
 	uint64_t EntryIndex,
 	MMSLA_ENTRY NewValue,
-	uintptr_t* OutPrototypePtePointer
+	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
 )
 {
 	return MmpLookUpEntrySlaPlusModify(Sla, EntryIndex, true, NewValue, OutPrototypePtePointer, NULL);

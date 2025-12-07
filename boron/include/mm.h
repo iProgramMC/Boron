@@ -28,6 +28,7 @@ Author:
 #include <mm/pt.h>
 #include <mm/probe.h>
 #include <mm/mdl.h>
+#include <mm/sla.h>
 #include <mm/cache.h>
 #include <mm/section.h>
 #include <mm/vad.h>

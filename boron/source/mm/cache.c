@@ -22,17 +22,14 @@ void MmInitializeCcb(PCCB Ccb)
 	memset(Ccb, 0, sizeof *Ccb);
 	
 	KeInitializeMutex(&Ccb->Mutex, MM_CCB_MUTEX_LEVEL);
-	
-	for (int i = 0; i < MM_DIRECT_PAGE_COUNT; i++)
-		Ccb->Direct[i] = PFN_INVALID;
-	
-	Ccb->Level1Indirect = PFN_INVALID;
-	Ccb->Level2Indirect = PFN_INVALID;
-	Ccb->Level3Indirect = PFN_INVALID;
-	Ccb->Level4Indirect = PFN_INVALID;
-#if MM_INDIRECTION_LEVELS == 5
-	Ccb->Level5Indirect = PFN_INVALID;
-#endif
+	MmInitializeSla(&Ccb->Sla);
+}
+
+static void MmpCcbFreeEntrySla(MMSLA_ENTRY Entry)
+{
+	// TODO: remove this page from the standby list if it's there,
+	// and put it on the free list.
+	(void) Entry;
 }
 
 void MmTearDownCcb(PCCB Ccb)
@@ -43,278 +40,80 @@ void MmTearDownCcb(PCCB Ccb)
 	
 	// TODO
 	DbgPrint("TODO: MmTearDownCcb(%p)", Ccb);
+	MmDeinitializeSla(&Ccb->Sla, MmpCcbFreeEntrySla);
 }
 
-static MMPFN MiNextEntryCache(MMPFN PfnIndirection, uint64_t* PageOffset, bool AllocateIndirection)
+static void MmpCcbReferenceSlaEntry(PMMSLA_ENTRY Entry)
 {
-	if (IS_BAD_PFN(PfnIndirection))
-		return PFN_INVALID;
-	
-	size_t InPageOffset = *PageOffset & (MM_INDIRECTION_COUNT - 1);
-	*PageOffset /= MM_INDIRECTION_COUNT;
-	
-	// This is slower than it probably should be.
+	// Acquire the PFDB lock to prevent page reclamation.
 	//
-	// However, we have to guard against the PFN getting reclaimed
-	// from under our nose before we get to add our own reference to it.
-	MmBeginUsingHHDM();
-	PMMPFN Indirection = MmGetHHDMOffsetAddrPfn(PfnIndirection);
-	
+	// This is the only case where the entry may be modified from right
+	// under our noses.
 	KIPL Ipl = MiLockPfdb();
-	MMPFN Pfn = Indirection[InPageOffset];
 	
-	if (Pfn == PFN_INVALID && AllocateIndirection)
+	// If there is no data after locking, that probably just means
+	// this page was reclaimed, or never existed in the first place,
+	// so just return.
+	if (*Entry == MM_SLA_NO_DATA)
 	{
-		bool IsZeroed;
-		Pfn = MiAllocatePhysicalPageWithPfdbLocked(&IsZeroed);
-		if (Pfn == PFN_INVALID)
-		{
-			// still invalid, so no dice.
-			MiUnlockPfdb(Ipl);
-			MmEndUsingHHDM();
-			return MM_PFN_OUTOFMEMORY;
-		}
-		
-		// PFN is valid, so clear it
-		memset(MmGetHHDMOffsetAddrPfn(Pfn), 0xFF, PAGE_SIZE);
-		Indirection[InPageOffset] = Pfn;
+		MiUnlockPfdb(Ipl);
+		return;
 	}
 	
-	if (Pfn != PFN_INVALID)
-		MiPageAddReferenceWithPfdbLocked(Pfn);
+	// Reference this page to prevent it from being reclaimed through the
+	// standby list.
+	MMPFN Page = (MMPFN) *Entry;
+	MiPageAddReferenceWithPfdbLocked(Page);
 	
 	MiUnlockPfdb(Ipl);
-	MmEndUsingHHDM();
-	return Pfn;
-}
-
-// Input: PfnIndirection - the PFN of the indirection to store to, PageOffset - the offset inside this indirection
-static BSTATUS MiAssignEntryToCache(
-	PMMPFN Pointer,
-	MMPFN Pfn,
-	bool IsHhdm,
-	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
-)
-{
-	// If we're trying to set a PFN, and a PFN is already set:
-	if (!IS_BAD_PFN(*Pointer))
-		return STATUS_CONFLICTING_ADDRESSES;
-	
-	// Assign the entry now.
-	if (!IS_BAD_PFN(Pfn))
-	{
-		*Pointer = Pfn;
-
-		MM_PROTOTYPE_PTE_PTR ProtoPtePtr;
-		
-	#ifdef IS_32_BIT
-		if (IsHhdm)
-			ProtoPtePtr = MmGetHHDMOffsetFromAddr(Pointer);
-		else
-			ProtoPtePtr = MM_VIRTUAL_PROTO_PTE_PTR(Pointer);
-	#else
-		(void) IsHhdm;
-		ProtoPtePtr = Pointer;
-	#endif
-		
-		MmSetPrototypePtePfn(Pfn, ProtoPtePtr);
-		
-		if (OutPrototypePtePointer)
-			*OutPrototypePtePointer = ProtoPtePtr;
-	}
-	
-	return STATUS_SUCCESS;
-}
-
-static BSTATUS MiAssignEntryToCacheIndirect(
-	MMPFN PfnIndirection,
-	uint64_t PageOffset,
-	MMPFN Pfn,
-	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
-)
-{
-	MmBeginUsingHHDM();
-	
-	PMMPFN Indirection = MmGetHHDMOffsetAddrPfn(PfnIndirection);
-	BSTATUS Result = MiAssignEntryToCache(Indirection + PageOffset, Pfn, false, OutPrototypePtePointer);
-	
-	MmEndUsingHHDM();
-	return Result;
-}
-
-static bool MmpEnsureIndirectionExists(PMMPFN Indirection, bool AllocateIndirection)
-{
-	if (!IS_BAD_PFN(*Indirection))
-		return true;
-	
-	if (!AllocateIndirection)
-		return false;
-	
-	*Indirection = MmAllocatePhysicalPage();
-	
-	MmBeginUsingHHDM();
-	PMMPFN Memory = MmGetHHDMOffsetAddrPfn(*Indirection);
-	memset(Memory, 0xFF, PAGE_SIZE);
-	MmEndUsingHHDM();
-	
-	return !IS_BAD_PFN(*Indirection);
-}
-
-// Takes in the page offset as passed into MmGetEntryCcb and MmSetEntryCcb.
-// However, this does nothing if PageOffset < MM_DIRECT_PAGE_COUNT.
-static MMPFN MiWalkCacheUntilIndirection(PCCB Ccb, uint64_t* PageOffset, bool AllocateIndirection)
-{
-#ifdef DEBUG
-	uint64_t OriginalPageOffset = *PageOffset;
-#endif
-	const MMPFN Failure = AllocateIndirection ? MM_PFN_OUTOFMEMORY : PFN_INVALID;
-	
-	ASSERT(*PageOffset >= MM_DIRECT_PAGE_COUNT);
-	*PageOffset -= MM_DIRECT_PAGE_COUNT;
-	
-	// Level 1
-	if (*PageOffset < MM_DIRECT_PAGE_COUNT)
-	{
-		if (!MmpEnsureIndirectionExists(&Ccb->Level1Indirect, AllocateIndirection))
-			return Failure;
-		
-		// Well, this is trivial.
-		MmPageAddReference(Ccb->Level1Indirect);
-		return Ccb->Level1Indirect;
-	}
-	
-	// Level 2
-	*PageOffset -= MM_DIRECT_PAGE_COUNT;
-	if (*PageOffset < MM_INDIRECTION_COUNT)
-	{
-		if (!MmpEnsureIndirectionExists(&Ccb->Level2Indirect, AllocateIndirection))
-			return Failure;
-		
-		// This is also kind of trivial although less so.
-		return MiNextEntryCache(Ccb->Level2Indirect, PageOffset, AllocateIndirection);
-	}
-	
-	// Level 3
-	*PageOffset -= MM_INDIRECTION_COUNT;
-	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
-	{
-		if (!MmpEnsureIndirectionExists(&Ccb->Level3Indirect, AllocateIndirection))
-			return Failure;
-		
-		MMPFN Pfn3 = MiNextEntryCache(Ccb->Level3Indirect, PageOffset, AllocateIndirection);
-		if (IS_BAD_PFN(Pfn3))
-			return Pfn3;
-		
-		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn3);
-		return Pfn2;
-	}
-	
-	// Level 4
-	*PageOffset -= MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT;
-	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
-	{
-		if (!MmpEnsureIndirectionExists(&Ccb->Level4Indirect, AllocateIndirection))
-			return Failure;
-		
-		MMPFN Pfn4 = MiNextEntryCache(Ccb->Level4Indirect, PageOffset, AllocateIndirection);
-		if (IS_BAD_PFN(Pfn4))
-			return Pfn4;
-		
-		MMPFN Pfn3 = MiNextEntryCache(Pfn4, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn4);
-		if (IS_BAD_PFN(Pfn3))
-			return Pfn3;
-		
-		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn3);
-		return Pfn2;
-	}
-	
-#if MM_INDIRECTION_LEVELS == 5
-	// Level 5
-	*PageOffset -= MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT;
-	if (*PageOffset < MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT * MM_INDIRECTION_COUNT)
-	{
-		if (!MmpEnsureIndirectionExists(&Ccb->Level5Indirect, AllocateIndirection))
-			return Failure;
-		
-		MMPFN Pfn5 = MiNextEntryCache(Ccb->Level5Indirect, PageOffset, AllocateIndirection);
-		if (IS_BAD_PFN(Pfn5))
-			return Pfn4;
-		
-		MMPFN Pfn4 = MiNextEntryCache(Pfn5, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn5);
-		if (IS_BAD_PFN(Pfn4))
-			return Pfn4;
-		
-		MMPFN Pfn3 = MiNextEntryCache(Pfn4, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn4);
-		if (IS_BAD_PFN(Pfn3))
-			return Pfn3;
-		
-		MMPFN Pfn2 = MiNextEntryCache(Pfn3, PageOffset, AllocateIndirection);
-		MmFreePhysicalPage(Pfn3);
-		return Pfn2;
-	}
-#endif
-
-	DbgPrint("MiWalkCacheUntilIndirection: Page offset %zu is outside of the supported range.", OriginalPageOffset);
-	return PFN_INVALID;
 }
 
 MMPFN MmGetEntryCcb(PCCB Ccb, uint64_t PageOffset)
 {
-	MMPFN Pfn = PFN_INVALID;
 	MmLockCcb(Ccb);
 	
-	if (PageOffset < MM_DIRECT_PAGE_COUNT)
-	{
-		KIPL Ipl = MiLockPfdb();
-		Pfn = Ccb->Direct[PageOffset];
-		
-		if (!IS_BAD_PFN(Pfn))
-			MiPageAddReferenceWithPfdbLocked(Pfn);
-		
-		MiUnlockPfdb(Ipl);
-		goto Done;
-	}
+	MMSLA_ENTRY SlaEntry = MmLookUpEntrySlaEx(
+		&Ccb->Sla,
+		PageOffset,
+		MmpCcbReferenceSlaEntry
+	);
 	
-	Pfn = MiWalkCacheUntilIndirection(Ccb, &PageOffset, false);
-	if (!IS_BAD_PFN(Pfn))
-	{
-		MMPFN Pfn2 = Pfn;
-		Pfn = MiNextEntryCache(Pfn2, &PageOffset, false);
-		MmFreePhysicalPage(Pfn2);
-	}
-	
-	if (IS_BAD_PFN(Pfn))
-		Pfn = PFN_INVALID;
-	
-Done:
 	MmUnlockCcb(Ccb);
+	
+	if (SlaEntry == MM_SLA_NO_DATA)
+		return PFN_INVALID;
+	
+	MMPFN Pfn = (MMPFN) SlaEntry;
 	return Pfn;
 }
 
 BSTATUS MmSetEntryCcb(PCCB Ccb, uint64_t PageOffset, MMPFN InPfn, PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer)
 {
-	BSTATUS Status = STATUS_INSUFFICIENT_MEMORY;
 	MmLockCcb(Ccb);
 	
-	if (PageOffset < MM_DIRECT_PAGE_COUNT)
-	{
-		Status = MiAssignEntryToCache(&Ccb->Direct[PageOffset], InPfn, false, OutPrototypePtePointer);
-		goto Exit;
-	}
+	MMSLA_ENTRY SlaEntry = (MMSLA_ENTRY) InPfn;
 	
-	MMPFN Pfn = MiWalkCacheUntilIndirection(Ccb, &PageOffset, true);
-	if (!IS_BAD_PFN(Pfn))
-	{
-		Status = MiAssignEntryToCacheIndirect(Pfn, PageOffset, InPfn, OutPrototypePtePointer);
-		MmFreePhysicalPage(Pfn);
-	}
+	if (InPfn == PFN_INVALID)
+		SlaEntry = MM_SLA_NO_DATA;
 	
-Exit:
+	MMSLA_ENTRY ReturnValue = MmAssignEntrySlaEx(
+		&Ccb->Sla,
+		PageOffset,
+		SlaEntry,
+		OutPrototypePtePointer
+	);
+	
 	MmUnlockCcb(Ccb);
-	return Status;
+	
+	if (ReturnValue == MM_SLA_OUT_OF_MEMORY) {
+		DbgPrint("MmSetEntryCcb: MmAssignEntrySlaEx returned MM_SLA_OUT_OF_MEMORY!");
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	if (ReturnValue == MM_SLA_NO_DATA && SlaEntry != MM_SLA_NO_DATA) {
+		DbgPrint("MmSetEntryCcb: MmAssignEntrySlaEx(%p) returned MM_SLA_NO_DATA!  InPfn: %d", PageOffset, InPfn);
+		return STATUS_INVALID_PARAMETER;
+	}
+	
+	return STATUS_SUCCESS;
 }

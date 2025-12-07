@@ -15,25 +15,11 @@ Author:
 #pragma once
 
 #include <ke.h>
+#include "sla.h"
 
 #define MM_CCB_MUTEX_LEVEL    4
 
-#define MM_INDIRECTION_LEVELS 4
-#define MM_DIRECT_PAGE_COUNT  (16 - MM_INDIRECTION_LEVELS)
-
-// Levels of indirection and the amount of extra bytes it would help access, in addition to previous levels:
-// L0:  48 KiB (if MM_INDIRECTION_LEVELS==4), 44 KiB (if MM_INDIRECTION_LEVELS == 5)
-// L1:   2 MiB
-// L2:   1 GiB
-// L3: 512 GiB
-// L4: 256 TiB
-// L5: 128 PiB
-
-// I will go for 4 levels of indirection for now.
-
 typedef struct _FCB FCB, *PFCB;
-
-#define MM_INDIRECTION_COUNT (PAGE_SIZE / sizeof(MMPFN))
 
 typedef struct _CCB
 {
@@ -46,18 +32,7 @@ typedef struct _CCB
 	// the physical page it describes from being freed during the
 	// operation.
 	KMUTEX Mutex;
-	
-	uint64_t FirstModifiedPage;
-	uint64_t LastModifiedPage;
-	
-	MMPFN Direct[MM_DIRECT_PAGE_COUNT];
-	MMPFN Level1Indirect;
-	MMPFN Level2Indirect;
-	MMPFN Level3Indirect;
-	MMPFN Level4Indirect;
-#if MM_INDIRECTION_LEVELS == 5
-	MMPFN Level5Indirect;
-#endif
+	MMSLA Sla;
 }
 CCB, *PCCB;
 

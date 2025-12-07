@@ -109,8 +109,8 @@ MMPFDBE, *PMMPFDBE;
 
 #ifdef IS_64_BIT
 
-#define PFDBE_PrototypePte(Pfdbe) ((MMPFN*) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
-#define PFDBE_Fcb(Pfdbe)          ((PFCB)   (0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
+#define PFDBE_PrototypePte(Pfdbe) ((MM_PROTOTYPE_PTE_PTR) (0xFFFF000000000000ULL | (Pfdbe)->FileCache._PrototypePte))
+#define PFDBE_Fcb(Pfdbe)          ((PFCB)(0xFFFF000000000000ULL | (Pfdbe)->FileCache._Fcb))
 
 #else
 

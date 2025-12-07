@@ -19,7 +19,7 @@ Author:
 
 #ifdef IS_64_BIT
 
-typedef MMPFN *MM_PROTOTYPE_PTE_PTR, **PMM_PROTOTYPE_PTE_PTR;
+typedef uintptr_t *MM_PROTOTYPE_PTE_PTR, **PMM_PROTOTYPE_PTE_PTR;
 #define MM_PROTOTYPE_PTE_PTR_NONE (NULL)
 
 #else

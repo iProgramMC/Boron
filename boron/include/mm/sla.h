@@ -68,16 +68,16 @@ typedef struct _MMSLA
 }
 MMSLA, *PMMSLA;
 
-typedef void(*MM_SLA_REFERENCE_ENTRY)(PMMSLA_ENTRY Entry);
+typedef void(*MM_SLA_REFERENCE_ENTRY_FUNC)(PMMSLA_ENTRY Entry);
 
-typedef void(*MM_SLA_FREE_ENTRY)(MMSLA_ENTRY Entry);
+typedef void(*MM_SLA_FREE_ENTRY_FUNC)(MMSLA_ENTRY Entry);
 
 // Initializes the sparse linear array data structure.
 void MmInitializeSla(PMMSLA Sla);
 
 // De-initializes the SLA data structure by freeing every entry
 // and removing all indirections from memory.
-void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY FreeEntry);
+void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc);
 
 // Looks up an entry from the SLA.  Returns MM_SLA_NO_DATA if the
 // entry doesn't exist.
@@ -93,7 +93,7 @@ void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY FreeEntry);
 MMSLA_ENTRY MmLookUpEntrySlaEx(
 	PMMSLA Sla,
 	uint64_t EntryIndex,
-	MM_SLA_REFERENCE_ENTRY EntryReferenceFunc
+	MM_SLA_REFERENCE_ENTRY_FUNC EntryReferenceFunc
 );
 
 // Assigns an entry to the SLA.  Returns MM_SLA_OUT_OF_MEMORY if the
@@ -108,7 +108,7 @@ MMSLA_ENTRY MmAssignEntrySlaEx(
 	PMMSLA Sla,
 	uint64_t EntryIndex,
 	MMSLA_ENTRY NewValue,
-	uintptr_t* OutPrototypePtePointer
+	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
 );
 
 

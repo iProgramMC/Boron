@@ -703,19 +703,19 @@ static void MmpInitializePfn(PMMPFDBE Pfdbe)
 		
 #ifdef IS_64_BIT
 
-		AtStore(*Ptr, 0);
+		AtStore(*Ptr, MM_SLA_NO_DATA);
 
 #else
 		if (Ptr & MM_PROTO_PTE_PTR_IS_VIRTUAL)
 		{
 			// Virtual
-			AtStore(*(PMMPFN)(Ptr & ~MM_PROTO_PTE_PTR_IS_VIRTUAL), 0);
+			AtStore(*(uintptr_t*)(Ptr & ~MM_PROTO_PTE_PTR_IS_VIRTUAL), MM_SLA_NO_DATA);
 		}
 		else
 		{
 			// Physical
 			MmBeginUsingHHDM();
-			AtStore(*(PMMPFN)MmGetHHDMOffsetAddr(Ptr), 0);
+			AtStore(*(uintptr_t*)MmGetHHDMOffsetAddr(Ptr), MM_SLA_NO_DATA);
 			MmEndUsingHHDM();
 		}
 #endif
