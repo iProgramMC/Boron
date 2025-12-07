@@ -30,7 +30,7 @@ Author:
 ***/
 #include "mi.h"
 
-void MmDeleteOverlayObject(void* ObjectV)
+void MmDeleteOverlayObject(UNUSED void* ObjectV)
 {
 	// TODO
 }

@@ -30,6 +30,7 @@ Author:
 #include <mm/mdl.h>
 #include <mm/sla.h>
 #include <mm/cache.h>
+#include <mm/mappable.h>
 #include <mm/section.h>
 #include <mm/vad.h>
 #include <mm/heap.h>

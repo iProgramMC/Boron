@@ -64,6 +64,8 @@ typedef struct _MMVAD_ENTRY
 		void* Object;
 		PFILE_OBJECT FileObject;
 		PMMSECTION SectionObject;
+		//PMMOVERLAY OverlayObject;
+		PMAPPABLE_HEADER MappableObject;
 	}
 	Mapped;
 	
