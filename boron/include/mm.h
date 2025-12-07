@@ -37,8 +37,13 @@ Author:
 #include <mm/services.h>
 
 #ifdef KERNEL
+
 // Initialize the allocators.
 void MmInitAllocators();
+
+// Initialize the object types.
+bool MmInitSystem();
+
 #endif
 
 #endif//NS64_MM_H

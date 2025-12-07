@@ -50,6 +50,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	if (!ExInitSystem())
 		KeCrash("Could not initialize executive");
 	
+	if (!MmInitSystem())
+		KeCrash("Could not initialize memory manager");
+	
 	if (!PsInitSystem())
 		KeCrash("Could not initialize process manager");
 	

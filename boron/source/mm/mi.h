@@ -387,6 +387,11 @@ BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 void MiInitializeBaseIdentityMapping();
 #endif
 
+// ===== Section & Cel Objects =====
+void MmDeleteSectionObject(void* ObjectV);
+
+void MmDeleteOverlayObject(void* ObjectV);
+
 // ===== Hardware Specific =====
 
 #if defined TARGET_I386 || defined TARGET_AMD64
