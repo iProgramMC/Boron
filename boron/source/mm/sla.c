@@ -29,9 +29,66 @@ void MmInitializeSla(PMMSLA Sla)
 		Sla->Indirect[i] = PFN_INVALID;
 }
 
+FORCE_INLINE
+void MmpFreeSlaFinalLevel(MMPFN Pfn, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
+{
+	uintptr_t PhysAddr = MmPFNToPhysPage(Pfn);
+	
+	for (size_t i = 0; i < SLA_ENTRIES_PER_PAGE; i++)
+	{
+		// TODO: avoid the HHDM or something
+		MmBeginUsingHHDM();
+		PMMSLA_ENTRY Page = MmGetHHDMOffsetAddr(PhysAddr);
+		MMSLA_ENTRY Entry = Page[i];
+		Page[i] = MM_SLA_NO_DATA;
+		MmEndUsingHHDM();
+		
+		FreeEntryFunc(Entry);
+	}
+}
+
+static void MmpFreeSlaIntermediateLevel(MMPFN Pfn, int LevelNumber, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
+{
+	uintptr_t PhysAddr = MmPFNToPhysPage(Pfn);
+	
+	if (Pfn == PFN_INVALID)
+		return;
+	
+	if (LevelNumber == 0)
+	{
+		MmpFreeSlaFinalLevel(Pfn, FreeEntryFunc);
+		return;
+	}
+	
+	for (size_t i = 0; i < PFN_ENTRIES_PER_PAGE; i++)
+	{
+		// TODO: avoid the HHDM or something
+		MmBeginUsingHHDM();
+		PMMPFN Page = MmGetHHDMOffsetAddr(PhysAddr);
+		MMPFN Entry = Page[i];
+		Page[i] = PFN_INVALID;
+		MmEndUsingHHDM();
+		
+		if (Entry != PFN_INVALID)
+		{
+			MmpFreeSlaIntermediateLevel(Entry, LevelNumber - 1, FreeEntryFunc);
+		}
+		
+		MmFreePhysicalPage(Entry);
+	}
+}
+
 void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
 {
-	DbgPrint("TODO: MmDeinitializeSla(%p, %p)", Sla, FreeEntryFunc);
+	for (int i = 0; i < MM_SLA_DIRECT_ENTRY_COUNT; i++)
+	{
+		FreeEntryFunc(Sla->Direct[i]);
+	}
+	
+	for (int i = 0; i < MM_SLA_INDIRECT_LEVELS; i++)
+	{
+		MmpFreeSlaIntermediateLevel(Sla->Indirect[i], i, FreeEntryFunc);
+	}
 }
 
 static MMPFN MmpAllocatePhysicalPageSlaInitialized()
