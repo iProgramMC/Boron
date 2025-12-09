@@ -35,7 +35,7 @@ static BSTATUS MmpMapViewOfObject(
 	if (AllocationType & MEM_COW)
 	{
 		PMMOVERLAY Overlay = NULL;
-		Status = MmCreateOverlayObject(&Overlay, MappableObject, SectionOffset);
+		Status = MmCreateOverlayObject(&Overlay, MappableObject, 0);
 		if (FAILED(Status))
 			return Status;
 		
@@ -188,18 +188,23 @@ BSTATUS OSGetMappedFileHandle(
 	if (!Vad)
 	{
 		Status = STATUS_MEMORY_NOT_RESERVED;
+	ReturnEarlyUnlockDetach:
 		MmUnlockVadList(VadList);
 		PsSetAttachedProcess(OldProcess);
 		goto ReturnEarly;
 	}
 	
-	void* FileObject = Vad->MappedObject;
+	void* FileObject;
+	Status = MiResolveBackingStoreForOverlay(Vad->MappedObject, &FileObject);
+	if (FAILED(Status))
+		goto ReturnEarlyUnlockDetach;
+	
 	if (ObGetObjectType(FileObject) != IoFileType)
 	{
+		// Okay, maybe it is a CoW overlay.
+		
 		Status = STATUS_TYPE_MISMATCH;
-		MmUnlockVadList(VadList);
-		PsSetAttachedProcess(OldProcess);
-		goto ReturnEarly;
+		goto ReturnEarlyUnlockDetach;
 	}
 	
 	ObReferenceObjectByPointer(FileObject);

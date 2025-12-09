@@ -150,6 +150,7 @@ static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffs
 	}
 	
 	ASSERT(NewEntry == SlaEntry.Entry);
+	KeReleaseMutex(&Overlay->Mutex);
 	return STATUS_SUCCESS;
 }
 
@@ -170,11 +171,30 @@ void MmDeleteOverlayObject(UNUSED void* ObjectV)
 void MmInitializeOverlayObject(PMMOVERLAY Overlay, void* ParentMappable, uint64_t SectionOffset)
 {
 	MmInitializeMappableHeader(&Overlay->Mappable, &MmpOverlayObjectMappableDispatch);
-	KeInitializeMutex(&Overlay->Mutex, 0);
+	KeInitializeMutex(&Overlay->Mutex, 4);
 	MmInitializeSla(&Overlay->Sla);
 	ObReferenceObjectByPointer(ParentMappable);
 	Overlay->Parent = ParentMappable;
 	Overlay->SectionOffset = SectionOffset;
+}
+
+// NOTE: Does NOT reference the new object! You must do that yourself.
+// However, if you have the VAD lock, this is safe to do.
+//
+// NOTE: Does nothing if you don't pass an overlay, just returns the original
+// pointer. However, it still checks if the object is mappable!
+BSTATUS MiResolveBackingStoreForOverlay(void* Object, void** OutFileOrSectionObject)
+{
+	MmVerifyMappableHeader(Object);
+	
+	while (ObGetObjectType(Object) == MmOverlayObjectType)
+	{
+		PMMOVERLAY Overlay = Object;
+		Object = Overlay->Parent;
+	}
+	
+	*OutFileOrSectionObject = Object;
+	return STATUS_SUCCESS;
 }
 
 BSTATUS MmCreateOverlayObject(

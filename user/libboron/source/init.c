@@ -264,9 +264,14 @@ BSTATUS OSDLLMapElfFile(
 				int Protection = 0;
 				int CowFlag = 0;
 				
-				if (ElfProgramHeader.Flags & 1) Protection |= PAGE_EXECUTE;
-				if (ElfProgramHeader.Flags & 4) Protection |= PAGE_READ;
-				if (ElfProgramHeader.Flags & 2) CowFlag = MEM_COW;
+				if (ElfProgramHeader.Flags & ELF_PHDR_EXEC) Protection |= PAGE_EXECUTE;
+				if (ElfProgramHeader.Flags & ELF_PHDR_READ) Protection |= PAGE_READ;
+				
+				if (true) // TODO: (ElfProgramHeader.Flags & ELF_PHDR_WRITE)
+				{
+					Protection |= PAGE_WRITE;
+					CowFlag = MEM_COW;
+				}
 				
 				if (Protection == 0)
 				{

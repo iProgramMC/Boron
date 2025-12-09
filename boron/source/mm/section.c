@@ -115,7 +115,7 @@ void MmDeleteSectionObject(UNUSED void* ObjectV)
 void MmInitializeSectionObject(PMMSECTION Section)
 {
 	MmInitializeMappableHeader(&Section->Mappable, &MmpSectionObjectMappableDispatch);
-	KeInitializeMutex(&Section->Mutex, 0);
+	KeInitializeMutex(&Section->Mutex, 4);
 	MmInitializeSla(&Section->Sla);
 	Section->MaxSizePages = 0;
 }
@@ -137,10 +137,7 @@ static BSTATUS MmpInitializeSectionObject(void* Object, void* Context)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS MmCreateAnonymousSectionObject(
-	PMMSECTION* OutSection,
-	uint64_t MaxSize
-)
+BSTATUS MmCreateAnonymousSectionObject(PMMSECTION* OutSection, uint64_t MaxSize)
 {
 	void* OutObject;
 	BSTATUS Status;

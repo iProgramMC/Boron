@@ -218,9 +218,16 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 			(uintptr_t) BaseAddress + ProgramHeader->SizeInMemory >= (uintptr_t) DynamicBaseAddress + DynamicPhdr->SizeInMemory)
 			IsDynamicLoaded = true;
 		
-		int Protection = 0, Flags = MEM_COW | MEM_FIXED;
-		if (ProgramHeader->Flags & ELF_PHDR_EXEC)  Protection |= PAGE_EXECUTE;
-		if (ProgramHeader->Flags & ELF_PHDR_READ)  Protection |= PAGE_READ;
+		int Protection = 0, Flags = MEM_FIXED;
+		
+		if (ProgramHeader->Flags & ELF_PHDR_EXEC) Protection |= PAGE_EXECUTE;
+		if (ProgramHeader->Flags & ELF_PHDR_READ) Protection |= PAGE_READ;
+		
+		if (true) // TODO: (ProgramHeader->Flags & ELF_PHDR_WRITE)
+		{
+			Protection |= PAGE_WRITE;
+			Flags |= MEM_COW;
+		}
 		
 		BSTATUS Status = OSMapViewOfObject(
 			ProcessHandle,

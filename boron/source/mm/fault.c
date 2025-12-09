@@ -313,7 +313,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		#endif
 			)
 		{
-			// Is in a pool area, so allocate a page of memory and map it there.
+			// Is in a pool area, make the existing PTE read-write
 			PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
 			*PtePtr |= MM_PTE_READWRITE;
 			return STATUS_SUCCESS;
@@ -331,46 +331,58 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
-	// Write allowed, so tell the mapped object that it should prepare for writes.
-	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
-	uint64_t SectionOffset = ((Va & PageMask) - Vad->Node.StartVa + Vad->SectionOffset) / PAGE_SIZE;
-	
-	BSTATUS Status = MmPrepareWriteMappable(Vad->MappedObject, SectionOffset);
-	if (FAILED(Status))
+	if (Vad->MappedObject != NULL)
 	{
-		DbgPrint(
-			"%s: Cannot make VA %p writable because MmPrepareWriteMappable returned status %d. %s",
-			__func__,
-			Va,
-			Status,
-			RtlGetStatusString(Status)
-		);
-		MmUnlockVadList(VadList);
-		return Status;
+		// Write allowed, so tell the mapped object that it should prepare for writes.
+		const uintptr_t PageMask = ~(PAGE_SIZE - 1);
+		uint64_t SectionOffset = ((Va & PageMask) - Vad->Node.StartVa + Vad->SectionOffset) / PAGE_SIZE;
+		
+		PFDbgPrint("%s: Calling MmPrepareWriteMappable.", __func__);
+		BSTATUS Status = MmPrepareWriteMappable(Vad->MappedObject, SectionOffset);
+		if (FAILED(Status))
+		{
+			DbgPrint(
+				"%s: Cannot make VA %p writable because MmPrepareWriteMappable returned status %d. %s",
+				__func__,
+				Va,
+				Status,
+				RtlGetStatusString(Status)
+			);
+			MmUnlockVadList(VadList);
+			return Status;
+		}
+		
+		PFDbgPrint("%s: Calling MmGetPageMappable.", __func__);
+		MMPFN NewPfn = PFN_INVALID;
+		Status = MmGetPageMappable(Vad->MappedObject, SectionOffset, &NewPfn);
+		
+		if (FAILED(Status))
+		{
+			// NOTE: A normal fault should've been handled first, to bring the page's data
+			// in from the backing store.
+			DbgPrint(
+				"%s: Cannot make VA %p writable because MmGetPageMappable returned status %d. %s",
+				__func__,
+				Va,
+				Status,
+				RtlGetStatusString(Status)
+			);
+			MmUnlockVadList(VadList);
+			return Status;
+		}
+		
+		PFDbgPrint("%s: Using PFN %d.", __func__, NewPfn);
+		*PtePtr =
+			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
+			MM_PTE_READWRITE |
+			(NewPfn * PAGE_SIZE);
 	}
-	
-	MMPFN NewPfn = PFN_INVALID;
-	Status = MmGetPageMappable(Vad->MappedObject, SectionOffset, &NewPfn);
-	
-	if (FAILED(Status))
+	else
 	{
-		// NOTE: A normal fault should've been handled first, to bring the page's data
-		// in from the backing store.
-		DbgPrint(
-			"%s: Cannot make VA %p writable because MmGetPageMappable returned status %d. %s",
-			__func__,
-			Va,
-			Status,
-			RtlGetStatusString(Status)
-		);
-		MmUnlockVadList(VadList);
-		return Status;
+		// Anonymous memory, so just upgrade permissions
+		PFDbgPrint("%s: Upgrading permissions because this is anonymous memory.", __func__);
+		*PtePtr |= MM_PTE_READWRITE;
 	}
-	
-	*PtePtr =
-		(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
-		MM_PTE_READWRITE |
-		(NewPfn * PAGE_SIZE);
 	
 	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);
