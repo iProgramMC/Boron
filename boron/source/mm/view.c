@@ -17,8 +17,8 @@ Author:
 #include <io.h>
 
 // NOTE: AllocationType and Protection have been validated.
-BSTATUS MmMapViewOfFile(
-	PFILE_OBJECT FileObject,
+static BSTATUS MmpMapViewOfObject(
+	void* MappableObject,
 	void** BaseAddressInOut,
 	size_t ViewSize,
 	int AllocationType,
@@ -26,9 +26,7 @@ BSTATUS MmMapViewOfFile(
 	int Protection
 )
 {
-	// You cannot map files that are not seekable.
-	if (!IoIsSeekable(FileObject->Fcb))
-		return STATUS_UNSUPPORTED_FUNCTION;
+	MmVerifyMappableHeader(MappableObject);
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
@@ -46,14 +44,29 @@ BSTATUS MmMapViewOfFile(
 	
 	// Vad Protection and Private are filled in by MmReserveVirtualMemoryVad.
 	Vad->Flags.Committed = 1;
-	Vad->Flags.IsFile = 1;
-	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
+	Vad->MappedObject = ObReferenceObjectByPointer(MappableObject);
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
 	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
 	
 	return STATUS_SUCCESS;
+}
+
+BSTATUS MmpMapViewOfFile(
+	PFILE_OBJECT FileObject,
+	void** BaseAddressInOut,
+	size_t ViewSize,
+	int AllocationType,
+	uint64_t SectionOffset,
+	int Protection
+)
+{
+	// You cannot map files that are not seekable.
+	if (!IoIsSeekable(FileObject->Fcb))
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MmpMapViewOfObject(FileObject, BaseAddressInOut, ViewSize, AllocationType, SectionOffset, Protection);
 }
 
 //
@@ -96,46 +109,38 @@ BSTATUS MmMapViewOfObject(
 		return STATUS_INVALID_PARAMETER;
 	
 	BSTATUS Status;
-	PFILE_OBJECT FileObject = NULL;
-	//PMMSECTION SectionObject = NULL;
+	void* MappableObject = NULL;
 	
-	Status = ObReferenceObjectByHandle(MappedObject, IoFileType, (void**) &FileObject);
+	Status = ObReferenceObjectByHandle(MappedObject, IoFileType, &MappableObject);
 	if (SUCCEEDED(Status))
 	{
-		Status = MmMapViewOfFile(
-			FileObject,
-			BaseAddressInOut,
-			ViewSize,
-			AllocationType,
-			SectionOffset,
-			Protection
-		);
-		
-		ObDereferenceObject(FileObject);
-		return Status;
+		// You cannot map files that are not seekable.
+		PFILE_OBJECT FileObject = MappableObject;
+		if (!IoIsSeekable(FileObject->Fcb))
+		{
+			ObDereferenceObject(FileObject);
+			return STATUS_UNSUPPORTED_FUNCTION;
+		}
 	}
-	
-	/*
-	TODO:
-	
-	Status = ObReferenceObjectByHandle(MappedObject, MmSectionType, (void**) &FileObject);
-	if (SUCCEEDED(Status))
+	else if (Status == STATUS_TYPE_MISMATCH)
 	{
-		Status = MmMapViewOfSection(
-			FileObject,
-			BaseAddressInOut,
-			ViewSizeInOut,
-			AllocationType,
-			SectionOffset,
-			Protection
-		);
-		
-		ObDereferenceObject(FileObject);
-		return Status;
+		Status = ObReferenceObjectByHandle(MappedObject, MmSectionObjectType, &MappableObject);
 	}
-	*/
 	
-	return STATUS_TYPE_MISMATCH;
+	if (FAILED(Status))
+		return Status;
+	
+	Status = MmpMapViewOfObject(
+		MappableObject,
+		BaseAddressInOut,
+		ViewSize,
+		AllocationType,
+		SectionOffset,
+		Protection
+	);
+	
+	ObDereferenceObject(MappableObject);
+	return Status;
 }
 
 // Allows the duplication of a file handle based on the address it is mapped at.
@@ -159,7 +164,7 @@ BSTATUS OSGetMappedFileHandle(
 	PMMVAD_LIST VadList = MmLockVadList();
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Address);
 	
-	if (!Vad || !Vad->Flags.IsFile)
+	if (!Vad)
 	{
 		Status = STATUS_MEMORY_NOT_RESERVED;
 		MmUnlockVadList(VadList);
@@ -167,7 +172,15 @@ BSTATUS OSGetMappedFileHandle(
 		goto ReturnEarly;
 	}
 	
-	void* FileObject = Vad->Mapped.FileObject;
+	void* FileObject = Vad->MappedObject;
+	if (ObGetObjectType(FileObject) != IoFileType)
+	{
+		Status = STATUS_TYPE_MISMATCH;
+		MmUnlockVadList(VadList);
+		PsSetAttachedProcess(OldProcess);
+		goto ReturnEarly;
+	}
+	
 	ObReferenceObjectByPointer(FileObject);
 	
 	MmUnlockVadList(VadList);

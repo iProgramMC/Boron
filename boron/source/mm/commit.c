@@ -293,7 +293,7 @@ void MmDebugDumpVad()
 			(Vad->Flags.Protection & PAGE_READ)    ? 'R' : '-',
 			(Vad->Flags.Protection & PAGE_WRITE)   ? 'W' : '-',
 			(Vad->Flags.Protection & PAGE_EXECUTE) ? 'X' : '-',
-			Vad->Mapped.Object
+			Vad->MappedObject
 		);
 		
 		Entry = GetNextEntryRbTree(Entry);

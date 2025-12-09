@@ -63,8 +63,7 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	
 	// Vad Protection and Private are filled in by MiInitializeAndInsertVad.
 	Vad->Flags.Committed = 1;
-	Vad->Flags.IsFile = 1;
-	Vad->Mapped.FileObject = ObReferenceObjectByPointer(FileObject);
+	Vad->MappedObject = ObReferenceObjectByPointer(FileObject);
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
 	
@@ -106,7 +105,7 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 	// Remove the VAD from the FCB's view cache.
 	if (RemoveFromFcbViewCache)
 	{
-		PFILE_OBJECT FileObject = Vad->Mapped.FileObject;
+		PFILE_OBJECT FileObject = Vad->MappedObject;
 		ASSERT(ObGetObjectType(FileObject) == IoFileType);
 		
 		PFCB Fcb = FileObject->Fcb;

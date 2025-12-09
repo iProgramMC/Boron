@@ -90,7 +90,7 @@ BSTATUS MiInitializeAndInsertVad(
 	
 	// Clear all the fields in the VAD.
 	Vad->Flags.LongFlags  = 0;
-	Vad->Mapped.Object    = NULL;
+	Vad->MappedObject     = NULL;
 	Vad->SectionOffset    = 0;
 	Vad->Flags.Cow        =  (AllocationType & MEM_COW) != 0;
 	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
@@ -175,11 +175,11 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			
 			// Copy properties from the VAD.
 			TempVad2->Flags = Vad->Flags;
-			TempVad2->Mapped.Object = Vad->Mapped.Object;
+			TempVad2->MappedObject = Vad->MappedObject;
 			
-			if (Vad->Mapped.Object)
+			if (Vad->MappedObject)
 			{
-				ObReferenceObjectByPointer(Vad->Mapped.Object);
+				ObReferenceObjectByPointer(Vad->MappedObject);
 			
 				// Calculate a new section offset.
 				TempVad2->SectionOffset = Vad->SectionOffset + (EndAddress - Vad->Node.StartVa);
@@ -261,7 +261,7 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 			
 			Vad->Node.StartVa += Offset;
 			Vad->Node.Size -= Offset / PAGE_SIZE;
-			if (Vad->Mapped.Object)
+			if (Vad->MappedObject)
 				Vad->SectionOffset += Offset;
 			
 			Vad->Flags.Committed = WasCommitted;
@@ -460,10 +460,10 @@ void MiCleanUpVad(PMMVAD Vad)
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	
 	// Remove the reference to the object if needed.
-	if (Vad->Mapped.Object)
+	if (Vad->MappedObject)
 	{
-		ObDereferenceObject(Vad->Mapped.Object);
-		Vad->Mapped.Object = NULL;
+		ObDereferenceObject(Vad->MappedObject);
+		Vad->MappedObject = NULL;
 	}
 }
 

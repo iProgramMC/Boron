@@ -252,9 +252,9 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	}
 	
 	// Check if there is an object to read from.
-	if (Vad->Mapped.Object)
+	if (Vad->MappedObject)
 	{
-		void* Object = ObReferenceObjectByPointer(Vad->Mapped.Object);
+		void* Object = ObReferenceObjectByPointer(Vad->MappedObject);
 		uintptr_t VaBase = Vad->Node.StartVa;
 		uint32_t VadFlagsLong = Vad->Flags.LongFlags;
 		uint64_t VadMappedOffset = Vad->SectionOffset;

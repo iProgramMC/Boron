@@ -42,9 +42,6 @@ typedef union
 		
 		// If this region is marked as "copy on write"
 		unsigned Cow : 1;
-		
-		// If this region is a file object, as opposed to a section object, or nothing.
-		unsigned IsFile : 1;
 	};
 	
 	uint32_t LongFlags;
@@ -58,16 +55,7 @@ typedef struct _MMVAD_ENTRY
 	MMVAD_FLAGS Flags;
 	
 	// Note: Ref count is increased by 1 because of this reference.
-	// This is a PFILE_OBJECT if IsFile is true.
-	union
-	{
-		void* Object;
-		PFILE_OBJECT FileObject;
-		PMMSECTION SectionObject;
-		//PMMOVERLAY OverlayObject;
-		PMAPPABLE_HEADER MappableObject;
-	}
-	Mapped;
+	void* MappedObject;
 	
 	// If this is a file or section, then the offset within it.
 	uint64_t SectionOffset;

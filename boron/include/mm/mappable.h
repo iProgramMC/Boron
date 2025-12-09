@@ -65,6 +65,21 @@ MAPPABLE_HEADER, *PMAPPABLE_HEADER;
 
 #define MM_MAPPABLE_DEBUG_SIGNATURE (0x42726E636F6F6C21) // 'Brnscool!'
 
+#ifdef DEBUG
+
+FORCE_INLINE
+void MmVerifyMappableHeader(void* MappableObject)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+}
+
+#else
+
+#define MmVerifyMappableHeader(x)
+
+#endif
+
 FORCE_INLINE
 void MmInitializeMappableHeader(PMAPPABLE_HEADER Header, PMAPPABLE_DISPATCH_TABLE DispatchTable)
 {
@@ -78,7 +93,7 @@ FORCE_INLINE
 BSTATUS MmGetPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
-	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+	MmVerifyMappableHeader(Header);
 	
 	return Header->Dispatch->GetPage(MappableObject, SectionOffset, OutPfn);
 }
@@ -87,7 +102,7 @@ FORCE_INLINE
 BSTATUS MmReadPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
-	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+	MmVerifyMappableHeader(Header);
 	
 	if (Header->Dispatch->ReadPage)
 	{
@@ -101,7 +116,7 @@ FORCE_INLINE
 BSTATUS MmPrepareWriteMappable(void* MappableObject, uint64_t SectionOffset)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
-	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+	MmVerifyMappableHeader(Header);
 	
 	return Header->Dispatch->PrepareWrite(MappableObject, SectionOffset);
 }
