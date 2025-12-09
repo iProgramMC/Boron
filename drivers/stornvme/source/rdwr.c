@@ -51,7 +51,7 @@ BSTATUS NvmePerformIoOperation(
 	PDEVICE_EXTENSION DeviceExtension = FcbExtension->DeviceExtension;
 	
 	int BlockSizeLog = DeviceExtension->BlockSizeLog;
-	int PrpPfn = PFN_INVALID;
+	MMPFN PrpPfn = PFN_INVALID;
 	
 	uint64_t Prp[2];
 	

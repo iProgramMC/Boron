@@ -84,7 +84,7 @@ void PerformCopyOnWriteTest()
 	uintptr_t Va2 = Va1 + PAGE_SIZE;
 	
 	// Allocate 1 singular physical page, and add an extra reference to it.
-	int Pfn = MmAllocatePhysicalPage();
+	MMPFN Pfn = MmAllocatePhysicalPage();
 	ASSERT(Pfn != PFN_INVALID);
 	MmPageAddReference(Pfn);
 	

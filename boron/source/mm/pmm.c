@@ -453,7 +453,7 @@ void MiInitPMM()
 	
 	PmmDbgPrint("Initializing the PFN database.", sizeof(MMPFDBE));
 	// pass 2: Initting the PFN database
-	int lastPfnOfPrevBlock = PFN_INVALID;
+	MMPFN lastPfnOfPrevBlock = PFN_INVALID;
 	
 	int TotalPageCount = 0, FreePageCount = 0, ReclaimPageCount = 0;
 	
@@ -734,7 +734,7 @@ static MMPFN MmpAllocateFromFreeList(PMMPFN First, PMMPFN Last)
 	if (*First == PFN_INVALID)
 		return PFN_INVALID;
 	
-	int currPFN = *First;
+	MMPFN currPFN = *First;
 	PMMPFDBE pPF = MmGetPageFrameFromPFN(*First);
 	
 	MmpRemovePfnFromList(First, Last, *First);

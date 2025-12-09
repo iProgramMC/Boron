@@ -217,8 +217,8 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	
 	AtStore(Controller->AdminQueueAttributes, Aqa);
 	
-	int PfnSubQueue = MmAllocatePhysicalPage();
-	int PfnComQueue = MmAllocatePhysicalPage();
+	MMPFN PfnSubQueue = MmAllocatePhysicalPage();
+	MMPFN PfnComQueue = MmAllocatePhysicalPage();
 	
 	if (PfnSubQueue == PFN_INVALID || PfnComQueue == PFN_INVALID)
 	{

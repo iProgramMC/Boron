@@ -89,7 +89,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 			continue;
 		}
 		
-		int Pfn = MmAllocatePhysicalPage();
+		MMPFN Pfn = MmAllocatePhysicalPage();
 		if (Pfn == PFN_INVALID)
 			KeCrashBeforeSMPInit("Out of memory trying to map program header!");
 		

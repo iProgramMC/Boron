@@ -19,11 +19,11 @@ Author:
 
 // Page frame number.
 //
-// TODO: An 'int' PFN is sufficient for now. It allows up to 16 TB
+// TODO: A 32-bit PFN is sufficient for now. It allows up to 16 TB
 // of physical memory to be represented right now, which is 1024 times
 // what's in my computer.  But if needed, you should change this to
 // a uintptr_t.
-typedef int MMPFN, *PMMPFN;
+typedef uint32_t MMPFN, *PMMPFN;
 
 // Page frame database entry structure.
 //

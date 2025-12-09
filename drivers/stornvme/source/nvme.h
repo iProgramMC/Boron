@@ -479,7 +479,7 @@ typedef struct
 	
 	// This is used for paging I/O.  In paging I/O situations, especially write operations,
 	// it is forbidden to allocate new memory.
-	int    ReserveIoPagePfn;
+	MMPFN  ReserveIoPagePfn;
 	KMUTEX ReserveIoMutex;
 }
 DEVICE_EXTENSION, *PDEVICE_EXTENSION;

@@ -44,7 +44,7 @@ static PMMVAD_LIST MmpLockVadListByAddress(PEPROCESS Process, uintptr_t Va)
 static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 {
 	// This PTE is demand paged.  Allocate a page.
-	int Pfn = MmAllocatePhysicalPage();
+	MMPFN Pfn = MmAllocatePhysicalPage();
 	
 	if (Pfn == PFN_INVALID)
 	{
@@ -113,6 +113,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	MMPFN Pfn = PFN_INVALID;
 	
 	// First, check if the page even exists.
+	PFDbgPrint("%s: For VA %p, calling MmGetPageMappable", __func__, Va);
 	Status = MmGetPageMappable(MappedObject, SectionOffset, &Pfn);
 	
 	if (Status == STATUS_MORE_PROCESSING_REQUIRED)
@@ -121,6 +122,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 		MmUnlockSpace(SpaceUnlockIpl, Va);
 		SpaceUnlockIpl = -1;
 		
+		PFDbgPrint("%s: For VA %p, calling MmReadPageMappable", __func__, Va);
 		Status = MmReadPageMappable(MappedObject, SectionOffset, &Pfn);
 		if (FAILED(Status))
 		{
@@ -133,6 +135,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	
 	ASSERT(Pfn != PFN_INVALID);
 	
+	PFDbgPrint("%s: For VA %p, calling MmpAssignPfnToAddress(%d)", __func__, Va, Pfn);
 	Status = MmpAssignPfnToAddress(Va, Pfn);
 	if (FAILED(Status))
 	{
@@ -337,7 +340,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		const uintptr_t PageMask = ~(PAGE_SIZE - 1);
 		uint64_t SectionOffset = ((Va & PageMask) - Vad->Node.StartVa + Vad->SectionOffset) / PAGE_SIZE;
 		
-		PFDbgPrint("%s: Calling MmPrepareWriteMappable.", __func__);
+		PFDbgPrint("%s: For VA %p, calling MmPrepareWriteMappable.", __func__, Va);
 		BSTATUS Status = MmPrepareWriteMappable(Vad->MappedObject, SectionOffset);
 		if (FAILED(Status))
 		{
@@ -352,7 +355,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			return Status;
 		}
 		
-		PFDbgPrint("%s: Calling MmGetPageMappable.", __func__);
+		PFDbgPrint("%s: For VA %p, calling MmGetPageMappable.", __func__, Va);
 		MMPFN NewPfn = PFN_INVALID;
 		Status = MmGetPageMappable(Vad->MappedObject, SectionOffset, &NewPfn);
 		
@@ -371,7 +374,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 			return Status;
 		}
 		
-		PFDbgPrint("%s: Using PFN %d.", __func__, NewPfn);
+		PFDbgPrint("%s: For VA %p, using PFN %d.", __func__, Va, NewPfn);
 		*PtePtr =
 			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
 			MM_PTE_READWRITE |

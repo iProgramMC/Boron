@@ -84,7 +84,7 @@ HPAGEMAP MiCreatePageMapping()
 {
 	// Allocate the PML4.
 	HPAGEMAP OldPageMapping = KeGetCurrentPageTable();
-	int NewPageMappingPFN = MmAllocatePhysicalPage();
+	MMPFN NewPageMappingPFN = MmAllocatePhysicalPage();
 	if (NewPageMappingPFN == PFN_INVALID)
 	{
 		LogMsg("Error, can't create a new page mapping.  Can't allocate PML4");
@@ -122,7 +122,7 @@ bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 {
 	New[Index] = 0;
 	
-	int PageForThisLevelPFN = MmAllocatePhysicalPage();
+	MMPFN PageForThisLevelPFN = MmAllocatePhysicalPage();
 	if (PageForThisLevelPFN == PFN_INVALID)
 		return false;
 	
@@ -259,7 +259,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			if (!AllocateMissingPMLs)
 				return NULL;
 			
-			int pfn = MmAllocatePhysicalPage();
+			MMPFN pfn = MmAllocatePhysicalPage();
 			if (pfn == PFN_INVALID)
 			{
 				DbgPrint("MiGetPTEPointer: Ran out of memory trying to allocate PTEs along the PML path");
@@ -354,7 +354,7 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 			// is vacant, so free it
 			*ParentEntryPointer = 0;
 			
-			int pfn = MmPhysPageToPFN(CurrentLevel);
+			MMPFN pfn = MmPhysPageToPFN(CurrentLevel);
 			MmFreePhysicalPage(pfn);
 		}
 		
@@ -414,7 +414,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	
     if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
-		int pfn = MmAllocatePhysicalPage();
+		MMPFN pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
 			//DbgPrint("MiMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);

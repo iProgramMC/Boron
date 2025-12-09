@@ -52,7 +52,7 @@ BSTATUS NvmeIdentify(PCONTROLLER_EXTENSION ContExtension, void* IdentifyBuffer, 
 	QueueEntry.Sub.NamespaceId = NamespaceId;
 	
 	// Allocate a memory page to receive identification information.
-	int Page = MmAllocatePhysicalPage();
+	MMPFN Page = MmAllocatePhysicalPage();
 	if (Page == PFN_INVALID)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
@@ -111,8 +111,8 @@ BSTATUS NvmeAllocateIoQueues(PCONTROLLER_EXTENSION ContExtension, size_t QueueCo
 // Initializes a queue control block as an I/O queue. The admin queue is initialized in a different place.
 BSTATUS NvmeInitializeIoQueue(PCONTROLLER_EXTENSION ContExtension, PQUEUE_CONTROL_BLOCK Qcb, size_t Id)
 {
-	int SubQueuePfn = MmAllocatePhysicalPage();
-	int ComQueuePfn = MmAllocatePhysicalPage();
+	MMPFN SubQueuePfn = MmAllocatePhysicalPage();
+	MMPFN ComQueuePfn = MmAllocatePhysicalPage();
 	
 	if (SubQueuePfn == PFN_INVALID || ComQueuePfn == PFN_INVALID)
 	{

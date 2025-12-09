@@ -185,7 +185,7 @@ void KeInitSMP()
 		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", MpInfo->Count, ProcessorLimit);
 	
 #ifdef CONFIG_SMP
-	int cpuListPFN = MmAllocatePhysicalPage();
+	MMPFN cpuListPFN = MmAllocatePhysicalPage();
 	if (cpuListPFN == PFN_INVALID)
 		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
 	
@@ -210,7 +210,7 @@ void KeInitSMP()
 		bool bIsBSP = KeBootstrapLapicId == LoaderAp->HardwareId;
 		
 		// Allocate space for the CPU struct.
-		int PrcbPfn = MmAllocatePhysicalPage();
+		MMPFN PrcbPfn = MmAllocatePhysicalPage();
 		if (PrcbPfn == PFN_INVALID)
 		{
 			KeCrashBeforeSMPInit("Error, can't initialize CPUs, we don't have enough memory");
