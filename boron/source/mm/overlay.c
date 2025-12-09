@@ -138,13 +138,37 @@ static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffs
 		return STATUS_SUCCESS;
 	}
 	
+	// We still need a new PFN, so allocate it here.
+	MMPFN NewPfn = MmAllocatePhysicalPage();
+	if (NewPfn == PFN_INVALID)
+	{
+		MmFreePhysicalPage(Pfn);
+		KeReleaseMutex(&Overlay->Mutex);
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	// Copy all the data over.
+#ifdef IS_64_BIT
+	// On 64 bit we can do this directly
+	memcpy(
+		MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn)),
+		MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn)),
+		PAGE_SIZE
+	);
+#else
+	// On 32-bit this is a bit more complicated so we'll implement it later
+	#error TODO
+#endif
+	
+	MmFreePhysicalPage(Pfn);
+	
 	// No data here, so assign it now.
 	SlaEntry.Entry = 0;
-	SlaEntry.Data.Pfn = Pfn;
+	SlaEntry.Data.Pfn = NewPfn;
 	MMSLA_ENTRY NewEntry = MmAssignEntrySla(&Overlay->Sla, SectionOffset, SlaEntry.Entry);
 	if (NewEntry == MM_SLA_OUT_OF_MEMORY)
 	{
-		MmFreePhysicalPage(Pfn);
+		MmFreePhysicalPage(NewPfn);
 		KeReleaseMutex(&Overlay->Mutex);
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
