@@ -68,3 +68,6 @@ void IoScanForFileSystems();
 
 // Create a partition from a block device.
 BSTATUS IoCreatePartition(PDEVICE_OBJECT* OutDevice, PDEVICE_OBJECT InDevice, uint64_t Offset, uint64_t Size, size_t Number);
+
+// File object mappable
+extern MAPPABLE_DISPATCH_TABLE IopFileObjectMappableDispatch;

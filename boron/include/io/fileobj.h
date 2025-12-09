@@ -14,14 +14,11 @@ Author:
 #pragma once
 
 typedef struct _IO_STATUS_BLOCK IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
-/*
-enum
-{
-	FILE_FLAG_APPEND_ONLY = (1 << 0),
-};
-*/
+
 typedef struct _FILE_OBJECT
 {
+	MAPPABLE_HEADER Mappable;
+	
 	PFCB Fcb;
 	
 	void* Context1;

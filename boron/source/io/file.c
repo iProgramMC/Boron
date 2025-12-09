@@ -37,6 +37,7 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, ui
 	*OutObject = Object;
 	
 	// Initialize the file object.
+	FileObject->Mappable.Dispatch = &IopFileObjectMappableDispatch;
 	FileObject->Fcb      = Fcb;
 	FileObject->Flags    = Flags;
 	FileObject->Context1 = NULL;
