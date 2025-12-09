@@ -81,7 +81,7 @@ MmProbeAddressSub:
 	add  rdi, 4096        ; Add a page size to rdi.
 	cmp  rdi, r8          ; Check if the end address has been reached.
 	jb   .StartLoop       ; If not, then probe another page.
-	xor  rax, rax         ; Return with an exit code of zero (STATUS_SUCCESS)
+	xor  eax, eax         ; Return with an exit code of zero (STATUS_SUCCESS)
 	ret
 	
 ; void MmProbeAddressSubEarlyReturn()
@@ -96,7 +96,7 @@ MmSafeCopySub:
 	cld               ; we don't want the copy the other way
 	mov rcx, rdx      ; set the count register
 	rep movsb         ; repeats "move single byte" RCX times
-	xor rax, rax      ; return zero for no error
+	xor eax, eax      ; return zero for no error
 	ret
 
 ; void KiSwitchThreadStack(void** OldStack, void** NewStack)
@@ -131,7 +131,7 @@ KiPopEverythingAndReturn:
 	pop  r12
 	pop  rbx
 	pop  rbp
-	xor  rax, rax
+	xor  eax, eax
 	
 	; Pop RFLAGS and return
 	popfq
@@ -144,7 +144,7 @@ extern KiUnlockDispatcher
 ; r12 - Thread context.
 global KiThreadEntryPoint
 KiThreadEntryPoint:
-	xor  rdi, rdi
+	xor  edi, edi
 	call KiUnlockDispatcher
 	mov  rdi, r12
 	jmp  rbx

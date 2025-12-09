@@ -152,7 +152,7 @@ KiHandleTlbShootdownIpiA:
 	
 	; also mark the end of the interrupt
 	mov  rax, [MmHHDMBase]
-	xor  rcx, rcx
+	xor  ecx, ecx
 	mov  rcx, 0x00000000FEE00000
 	add  rax, rcx
 	mov  dword [rax + 0xB0], 0
@@ -172,8 +172,8 @@ KeDescendIntoUserMode:
 	push rdi                       ; push RIP
 	
 	; clear all the registers
-	xor rax, rax
-	xor rbp, rbp
+	xor eax, eax
+	xor ebp, ebp
 	mov rdi, rdx
 	CLEAR_REGS
 	
