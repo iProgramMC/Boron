@@ -15,6 +15,7 @@ Author:
 	iProgramInCpp - 7 December 2025
 ***/
 #include "mi.h"
+#include <ex.h>
 
 typedef union
 {
@@ -31,22 +32,15 @@ MMSECTION_SLA_ENTRY, *PMMSECTION_SLA_ENTRY;
 
 static void MmpFreeEntrySectionObject(MMSLA_ENTRY Entry)
 {
-	// TODO
-	(void) Entry;
+	MMSECTION_SLA_ENTRY SectionEntry;
+	SectionEntry.Entry = Entry;
+	
+	MMPFN Pfn = SectionEntry.Data.Pfn;
+	if (Pfn != PFN_INVALID)
+		MmFreePhysicalPage(Pfn);
 }
 
-void MmDeleteSectionObject(UNUSED void* ObjectV)
-{
-	PMMSECTION Section = ObjectV;
-	MmDeinitializeSla(&Section->Sla, MmpFreeEntrySectionObject);
-}
-
-void MmInitializeSectionObject(PMMSECTION Section)
-{
-	KeInitializeMutex(&Section->Mutex, 0);
-}
-
-BSTATUS MmGetPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
+static BSTATUS MmpGetPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMMSECTION Section = MappableObject;
 	
@@ -86,11 +80,111 @@ BSTATUS MmGetPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN Ou
 	return STATUS_SUCCESS;
 }
 
-BSTATUS MmPrepareWriteSection(void* MappableObject, uint64_t Section)
+static BSTATUS MmpReadPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	(void) MappableObject;
-	(void) Section;
+	(void) SectionOffset;
+	(void) OutPfn;
+	
+	// There is nothing to page in. (for now!)
+	return STATUS_HARDWARE_IO_ERROR;
+}
+
+static BSTATUS MmpPrepareWriteSection(void* MappableObject, uint64_t SectionOffset)
+{
+	(void) MappableObject;
+	(void) SectionOffset;
 	
 	// Sections are shared, so no special programming needed.
 	return STATUS_SUCCESS;
+}
+
+static MAPPABLE_DISPATCH_TABLE MmpSectionObjectMappableDispatch =
+{
+	.GetPage = MmpGetPageSection,
+	.ReadPage = MmpReadPageSection,
+	.PrepareWrite = MmpPrepareWriteSection
+};
+
+void MmDeleteSectionObject(UNUSED void* ObjectV)
+{
+	PMMSECTION Section = ObjectV;
+	MmDeinitializeSla(&Section->Sla, MmpFreeEntrySectionObject);
+}
+
+void MmInitializeSectionObject(PMMSECTION Section)
+{
+	KeInitializeMutex(&Section->Mutex, 0);
+	MmInitializeSla(&Section->Sla);
+	Section->Mappable.Dispatch = &MmpSectionObjectMappableDispatch;
+	Section->MaxSizePages = 0;
+}
+
+typedef struct
+{
+	uint64_t MaxSize;
+}
+SECTION_CREATE_CONTEXT;
+
+static BSTATUS MmpInitializeSectionObject(void* Object, void* Context)
+{
+	PMMSECTION Section = Object;
+	SECTION_CREATE_CONTEXT* CreateContext = Context;
+	
+	MmInitializeSectionObject(Section);
+	Section->MaxSizePages = (CreateContext->MaxSize + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	return STATUS_SUCCESS;
+}
+
+BSTATUS MmCreateAnonymousSectionObject(
+	PMMSECTION* OutSection,
+	uint64_t MaxSize
+)
+{
+	void* OutObject;
+	BSTATUS Status;
+	
+	Status = ObCreateObject(
+		&OutObject,
+		NULL, // ParentDirectory
+		MmSectionObjectType,
+		NULL, // ObjectName
+		OB_FLAG_NO_DIRECTORY,
+		NULL, // ParseContext
+		sizeof(MMSECTION)
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	SECTION_CREATE_CONTEXT CreateContext;
+	CreateContext.MaxSize = MaxSize;
+	
+	Status = MmpInitializeSectionObject(OutObject, &CreateContext);
+	ASSERT(SUCCEEDED(Status));
+	
+	*OutSection = OutObject;
+	return STATUS_SUCCESS;
+}
+
+BSTATUS OSCreateSectionObject(
+	PHANDLE OutSectionHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	uint64_t MaxSize
+)
+{
+	SECTION_CREATE_CONTEXT CreateContext;
+	CreateContext.MaxSize = MaxSize;
+	
+	return ExCreateObjectUserCall(
+		OutSectionHandle,
+		ObjectAttributes,
+		MmSectionObjectType,
+		sizeof(MMSECTION),
+		MmpInitializeSectionObject,
+		&CreateContext,
+		0,
+		false
+	);
 }

@@ -32,6 +32,7 @@ Author:
 #include <mm/cache.h>
 #include <mm/mappable.h>
 #include <mm/section.h>
+#include <mm/overlay.h>
 #include <mm/vad.h>
 #include <mm/heap.h>
 #include <mm/view.h>

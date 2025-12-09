@@ -18,10 +18,18 @@ Author:
 // is not being modified.  The page frame number returned will have a new reference
 // to it which must be freed if the page turns out not to be used.
 //
-// Returns PFN_INVALID if the page needs to be read from disk.
+// Returns STATUS_MORE_PROCESSING_REQUIRED if the page needs to be read from disk,
+// STATUS_OUT_OF_FILE_BOUNDS if the section's maximum size was reached.
 //
 // Note: SectionOffset is given in *pages*, not in *bytes*.
 typedef BSTATUS(*MM_MAPPABLE_GET_PAGE_FUNC)(
+	void* MappableObject,
+	uint64_t SectionOffset,
+	PMMPFN OutPfn
+);
+
+// Reads a page from a file in memory.  This is used solely for files.
+typedef BSTATUS(*MM_MAPPABLE_READ_PAGE_FUNC)(
 	void* MappableObject,
 	uint64_t SectionOffset,
 	PMMPFN OutPfn
@@ -38,6 +46,8 @@ typedef struct
 {
 	MM_MAPPABLE_GET_PAGE_FUNC GetPage;
 	
+	MM_MAPPABLE_READ_PAGE_FUNC ReadPage;
+	
 	MM_MAPPABLE_PREPARE_WRITE_FUNC PrepareWrite;
 }
 MAPPABLE_DISPATCH_TABLE, *PMAPPABLE_DISPATCH_TABLE;
@@ -47,3 +57,34 @@ typedef struct
 	PMAPPABLE_DISPATCH_TABLE Dispatch;
 }
 MAPPABLE_HEADER, *PMAPPABLE_HEADER;
+
+#ifdef KERNEL
+
+FORCE_INLINE
+BSTATUS MmGetPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	return Header->Dispatch->GetPage(MappableObject, SectionOffset, OutPfn);
+}
+
+FORCE_INLINE
+BSTATUS MmReadPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	
+	if (Header->Dispatch->ReadPage)
+	{
+		return Header->Dispatch->ReadPage(MappableObject, SectionOffset, OutPfn);
+	}
+	
+	return STATUS_UNSUPPORTED_FUNCTION;
+}
+
+FORCE_INLINE
+BSTATUS MmPrepareWriteMappable(void* MappableObject, uint64_t SectionOffset)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	return Header->Dispatch->PrepareWrite(MappableObject, SectionOffset);
+}
+
+#endif

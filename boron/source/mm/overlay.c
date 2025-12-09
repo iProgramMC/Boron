@@ -30,7 +30,145 @@ Author:
 ***/
 #include "mi.h"
 
+typedef union
+{
+	struct
+	{
+		MMPFN Pfn : 32;
+	}
+	PACKED
+	Data;
+	
+	MMSLA_ENTRY Entry;
+}
+MMOVERLAY_SLA_ENTRY, *PMMOVERLAY_SLA_ENTRY;
+
+static void MmpFreeEntryOverlayObject(MMSLA_ENTRY Entry)
+{
+	MMOVERLAY_SLA_ENTRY OverlayEntry;
+	OverlayEntry.Entry = Entry;
+	
+	MMPFN Pfn = OverlayEntry.Data.Pfn;
+	if (Pfn != PFN_INVALID)
+		MmFreePhysicalPage(Pfn);
+}
+
+static BSTATUS MmpGetPageOverlay(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
+{
+	PMMOVERLAY Overlay = MappableObject;
+	
+	BSTATUS Status = KeWaitForSingleObject(&Overlay->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+	
+	// N.B. Unlike page caches, we don't need to worry about anything modifying the list while
+	// it's locked with a mutex.
+	MMOVERLAY_SLA_ENTRY SlaEntry;
+	SlaEntry.Entry = MmLookUpEntrySla(&Overlay->Sla, SectionOffset);
+	if (SlaEntry.Entry != MM_SLA_NO_DATA)
+	{
+		// The CoW overlay has its own page here, so return that.
+		MmPageAddReference(SlaEntry.Data.Pfn);
+		KeReleaseMutex(&Overlay->Mutex);
+		*OutPfn = SlaEntry.Data.Pfn;
+		return STATUS_SUCCESS;
+	}
+	
+	KeReleaseMutex(&Overlay->Mutex);
+	return MmGetPageMappable(Overlay->Parent, SectionOffset, OutPfn);
+}
+
+static BSTATUS MmpReadPageOverlay(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
+{
+	PMMOVERLAY Overlay = MappableObject;
+	return MmReadPageMappable(Overlay->Parent, SectionOffset, OutPfn);
+}
+
+static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffset)
+{
+	PMMOVERLAY Overlay = MappableObject;
+	
+	BSTATUS Status = KeWaitForSingleObject(&Overlay->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+	
+	MMOVERLAY_SLA_ENTRY SlaEntry;
+	SlaEntry.Entry = MmLookUpEntrySla(&Overlay->Sla, SectionOffset);
+	if (SlaEntry.Entry != MM_SLA_NO_DATA)
+	{
+		// There is already data here, so just succeed.
+		KeReleaseMutex(&Overlay->Mutex);
+		return STATUS_SUCCESS;
+	}
+	
+	// There is no data here.  We need to fetch the page from the parent.
+	KeReleaseMutex(&Overlay->Mutex);
+	
+	MMPFN Pfn = PFN_INVALID;
+	Status = MmGetPageMappable(Overlay->Parent, SectionOffset, &Pfn);
+	if (Status == STATUS_HARDWARE_IO_ERROR)
+	{
+		// Need to call ReadPage.  This will return the page after being
+		// read into memory.
+		Status = MmReadPageMappable(Overlay->Parent, SectionOffset, &Pfn);
+	}
+	
+	if (FAILED(Status))
+	{	
+		DbgPrint(
+			"MmpPrepareWriteOverlay: MmGetPageMappable(%p, %llu) failed! %s",
+			Overlay->Parent,
+			SectionOffset,
+			RtlGetStatusString(Status)
+		);
+		return Status;
+	}
+	
+	Status = KeWaitForSingleObject(&Overlay->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+	
+	SlaEntry.Entry = MmLookUpEntrySla(&Overlay->Sla, SectionOffset);
+	if (SlaEntry.Entry != MM_SLA_NO_DATA)
+	{
+		// There is already data here, so just succeed.  There was another call to
+		// this function with the exact same offset that did this too.
+		MmFreePhysicalPage(Pfn);
+		KeReleaseMutex(&Overlay->Mutex);
+		return STATUS_SUCCESS;
+	}
+	
+	// No data here, so assign it now.
+	SlaEntry.Entry = 0;
+	SlaEntry.Data.Pfn = Pfn;
+	MMSLA_ENTRY NewEntry = MmAssignEntrySla(&Overlay->Sla, SectionOffset, SlaEntry.Entry);
+	if (NewEntry == MM_SLA_OUT_OF_MEMORY)
+	{
+		MmFreePhysicalPage(Pfn);
+		KeReleaseMutex(&Overlay->Mutex);
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	ASSERT(NewEntry == SlaEntry.Entry);
+	return STATUS_SUCCESS;
+}
+
+static MAPPABLE_DISPATCH_TABLE MmpOverlayObjectMappableDispatch =
+{
+	.GetPage = MmpGetPageOverlay,
+	.ReadPage = MmpReadPageOverlay,
+	.PrepareWrite = MmpPrepareWriteOverlay
+};
+
 void MmDeleteOverlayObject(UNUSED void* ObjectV)
 {
-	// TODO
+	PMMOVERLAY Overlay = ObjectV;
+	MmDeinitializeSla(&Overlay->Sla, MmpFreeEntryOverlayObject);
+	ObDereferenceObject(Overlay->Parent);
+}
+
+void MmInitializeOverlayObject(PMMOVERLAY Overlay, void* ParentMappable)
+{
+	KeInitializeMutex(&Overlay->Mutex, 0);
+	MmInitializeSla(&Overlay->Sla);
+	ObReferenceObjectByPointer(ParentMappable);
+	Overlay->Parent = ParentMappable;
+	Overlay->Mappable.Dispatch = &MmpOverlayObjectMappableDispatch;
 }

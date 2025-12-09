@@ -388,6 +388,9 @@ void MiInitializeBaseIdentityMapping();
 #endif
 
 // ===== Section & Cel Objects =====
+extern POBJECT_TYPE MmSectionObjectType;
+extern POBJECT_TYPE MmOverlayObjectType;
+
 void MmDeleteSectionObject(void* ObjectV);
 
 void MmDeleteOverlayObject(void* ObjectV);

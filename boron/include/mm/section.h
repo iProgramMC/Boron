@@ -13,10 +13,24 @@ Author:
 ***/
 #pragma once
 
+#include <obs.h>
+
 typedef struct
 {
 	MAPPABLE_HEADER Mappable;
 	KMUTEX Mutex;
 	MMSLA Sla;
+	uint64_t MaxSizePages;
 }
 MMSECTION, *PMMSECTION;
+
+BSTATUS MmCreateAnonymousSectionObject(
+	PMMSECTION* OutSection,
+	uint64_t MaxSize
+);
+
+BSTATUS OSCreateSectionObject(
+	PHANDLE OutSectionHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	uint64_t MaxSize
+);
