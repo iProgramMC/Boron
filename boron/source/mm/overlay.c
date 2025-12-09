@@ -56,6 +56,7 @@ static void MmpFreeEntryOverlayObject(MMSLA_ENTRY Entry)
 static BSTATUS MmpGetPageOverlay(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMMOVERLAY Overlay = MappableObject;
+	SectionOffset += Overlay->SectionOffset;
 	
 	BSTATUS Status = KeWaitForSingleObject(&Overlay->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(SUCCEEDED(Status));
@@ -80,12 +81,14 @@ static BSTATUS MmpGetPageOverlay(void* MappableObject, uint64_t SectionOffset, P
 static BSTATUS MmpReadPageOverlay(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMMOVERLAY Overlay = MappableObject;
+	SectionOffset += Overlay->SectionOffset;
 	return MmReadPageMappable(Overlay->Parent, SectionOffset, OutPfn);
 }
 
 static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffset)
 {
 	PMMOVERLAY Overlay = MappableObject;
+	SectionOffset += Overlay->SectionOffset;
 	
 	BSTATUS Status = KeWaitForSingleObject(&Overlay->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(SUCCEEDED(Status));
@@ -164,11 +167,45 @@ void MmDeleteOverlayObject(UNUSED void* ObjectV)
 	ObDereferenceObject(Overlay->Parent);
 }
 
-void MmInitializeOverlayObject(PMMOVERLAY Overlay, void* ParentMappable)
+void MmInitializeOverlayObject(PMMOVERLAY Overlay, void* ParentMappable, uint64_t SectionOffset)
 {
 	MmInitializeMappableHeader(&Overlay->Mappable, &MmpOverlayObjectMappableDispatch);
 	KeInitializeMutex(&Overlay->Mutex, 0);
 	MmInitializeSla(&Overlay->Sla);
 	ObReferenceObjectByPointer(ParentMappable);
 	Overlay->Parent = ParentMappable;
+	Overlay->SectionOffset = SectionOffset;
+}
+
+BSTATUS MmCreateOverlayObject(
+	PMMOVERLAY* OutOverlay,
+	void* ParentMappable,
+	uint64_t SectionOffset
+)
+{
+	ASSERT(ParentMappable != NULL && "CoW Overlay objects cannot function without a parent.");
+	
+	MmVerifyMappableHeader(ParentMappable);
+	
+	void* OutObject;
+	BSTATUS Status;
+	
+	Status = ObCreateObject(
+		&OutObject,
+		NULL, // ParentDirectory
+		MmOverlayObjectType,
+		NULL, // ObjectName
+		OB_FLAG_NO_DIRECTORY,
+		NULL, // ParseContext
+		sizeof(MMOVERLAY)
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	PMMOVERLAY Overlay = OutObject;
+	MmInitializeOverlayObject(Overlay, ParentMappable, SectionOffset);
+	
+	*OutOverlay = Overlay;
+	return STATUS_SUCCESS;
 }

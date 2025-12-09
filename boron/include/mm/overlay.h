@@ -19,5 +19,6 @@ typedef struct
 	PMAPPABLE_HEADER Parent;
 	KMUTEX Mutex;
 	MMSLA Sla;
+	uint64_t SectionOffset;
 }
 MMOVERLAY, *PMMOVERLAY;
