@@ -64,7 +64,7 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, uint32_t VadFlagsLong)
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn)
 {
 	MMPTE SupervisorBit = Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS;
 	
@@ -74,12 +74,6 @@ static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, uint32_t VadFlagsL
 	
 	MMPTE NewPte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit | MmPFNToPhysPage(Pfn);
 	
-	MMVAD_FLAGS VadFlags;
-	VadFlags.LongFlags = VadFlagsLong;
-	
-	if (VadFlags.Cow)
-		NewPte |= MM_PTE_COW;
-	
 	*PtePtr = NewPte;
 	
 	return STATUS_SUCCESS;
@@ -88,7 +82,6 @@ static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, uint32_t VadFlagsL
 static BSTATUS MmpHandleFaultCommittedMappedPage(
 	uintptr_t Va,
 	uintptr_t VaBase,
-	uint32_t VadFlagsLong,
 	uint64_t MappedOffset,
 	void* MappedObject,
 	KIPL SpaceUnlockIpl
@@ -140,7 +133,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	
 	ASSERT(Pfn != PFN_INVALID);
 	
-	Status = MmpAssignPfnToAddress(Va, Pfn, VadFlagsLong);
+	Status = MmpAssignPfnToAddress(Va, Pfn);
 	if (FAILED(Status))
 	{
 		MmFreePhysicalPage(Pfn);
@@ -256,14 +249,13 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	{
 		void* Object = ObReferenceObjectByPointer(Vad->MappedObject);
 		uintptr_t VaBase = Vad->Node.StartVa;
-		uint32_t VadFlagsLong = Vad->Flags.LongFlags;
 		uint64_t VadMappedOffset = Vad->SectionOffset;
 		
 		// (Access to the VAD is no longer required now)
 		MmUnlockVadList(VadList);
 		
 		// There is.  Handle this page fault separately.
-		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadFlagsLong, VadMappedOffset, Object, SpaceUnlockIpl);
+		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadMappedOffset, Object, SpaceUnlockIpl);
 	}
 	
 	// Now the PTE is here and we can commit it.
@@ -328,82 +320,57 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		}
 		
 		// TODO: But there might be a system wide file map going on!
-		DbgPrint("MiWriteFault: Declaring access violation on VA %p. No VAD and not in a pool area. PoolStart:%p PoolEnd:%p", Va, PoolStart, PoolEnd);
+		DbgPrint("%s: Declaring access violation on VA %p. No VAD and not in a pool area. PoolStart:%p PoolEnd:%p", __func__, Va, PoolStart, PoolEnd);
 		return STATUS_ACCESS_VIOLATION;
-	}
-	
-	// TODO: Remove the MM_PTE_COW flag.
-	if ((*PtePtr & MM_PTE_COW) || Vad->Flags.Cow)
-	{
-		// Lock the PFDB to check the reference count of the page.
-		//
-		// The page, normally, would only be copied if the page has a reference count of more than one.
-		// However, the page may actually be part of a page cache which the caller definitely didn't
-		// want to overwrite.
-		KIPL Ipl = MiLockPfdb();
-		MMPFN Pfn = PFN_INVALID;
-		
-		if (*PtePtr & MM_PTE_ISFROMPMM)
-		{
-			Pfn = (*PtePtr & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
-			ASSERT(MiGetReferenceCountPfn(Pfn) > 0);
-		}
-		
-		// The page has to be duplicated.
-		MiUnlockPfdb(Ipl);
-		
-		MMPFN NewPfn = MmAllocatePhysicalPage();
-		if (NewPfn == PFN_INVALID)
-		{
-			// TODO: This is probably bad
-			MmUnlockVadList(VadList);
-			return STATUS_REFAULT_SLEEP;
-		}
-		
-		MmBeginUsingHHDM();
-		void* Address = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
-		memcpy(Address, (void*)(Va & ~(PAGE_SIZE - 1)), PAGE_SIZE);
-		MmEndUsingHHDM();
-		
-		// Now assign the new PFN.
-		*PtePtr =
-			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
-			MM_PTE_READWRITE |
-			(NewPfn * PAGE_SIZE);
-		
-		// Finally, free the reference to the old page frame.
-		if (Pfn != PFN_INVALID)
-			MmFreePhysicalPage(Pfn);
-		
-		MmUnlockVadList(VadList);
-		return STATUS_SUCCESS;
 	}
 	
 	if (~Vad->Flags.Protection & PAGE_WRITE)
 	{
-		DbgPrint("MiWriteFault: Declaring access violation on VA %p because this page isn't mapped writable. PTE: %p", Va, *PtePtr);
+		DbgPrint("%s: Declaring access violation on VA %p because this page isn't mapped writable. PTE: %p", __func__, Va, *PtePtr);
 		MmUnlockVadList(VadList);
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
-	// This is a dirty page.  Its permissions need to be upgraded, and the
-	// page frame should be marked modified.
-	KIPL Ipl = MiLockPfdb();
+	// Write allowed, so tell the mapped object that it should prepare for writes.
+	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
+	uint64_t SectionOffset = ((Va & PageMask) - Vad->Node.StartVa + Vad->SectionOffset) / PAGE_SIZE;
 	
-	MMPTE Pte = *PtePtr;
-	if (~Pte & MM_PTE_PRESENT)
+	BSTATUS Status = MmPrepareWriteMappable(Vad->MappedObject, SectionOffset);
+	if (FAILED(Status))
 	{
-		// PTE vanished.  Refault.
-		MiUnlockPfdb(Ipl);
+		DbgPrint(
+			"%s: Cannot make VA %p writable because MmPrepareWriteMappable returned status %d. %s",
+			__func__,
+			Va,
+			Status,
+			RtlGetStatusString(Status)
+		);
 		MmUnlockVadList(VadList);
-		return STATUS_REFAULT;
+		return Status;
 	}
 	
-	MiSetModifiedPageWithPfdbLocked((Pte & MM_PTE_ADDRESSMASK) / PAGE_SIZE);
+	MMPFN NewPfn = PFN_INVALID;
+	Status = MmGetPageMappable(Vad->MappedObject, SectionOffset, &NewPfn);
 	
-	*PtePtr = Pte | MM_PTE_READWRITE;
+	if (FAILED(Status))
+	{
+		// NOTE: A normal fault should've been handled first, to bring the page's data
+		// in from the backing store.
+		DbgPrint(
+			"%s: Cannot make VA %p writable because MmGetPageMappable returned status %d. %s",
+			__func__,
+			Va,
+			Status,
+			RtlGetStatusString(Status)
+		);
+		MmUnlockVadList(VadList);
+		return Status;
+	}
 	
-	MiUnlockPfdb(Ipl);
+	*PtePtr =
+		(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
+		MM_PTE_READWRITE |
+		(NewPfn * PAGE_SIZE);
 	
 	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);

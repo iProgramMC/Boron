@@ -39,9 +39,6 @@ typedef union
 		
 		// If this region is private (so, copy-on-write duplicated across forks for example)
 		unsigned Private : 1;
-		
-		// If this region is marked as "copy on write"
-		unsigned Cow : 1;
 	};
 	
 	uint32_t LongFlags;

@@ -81,6 +81,9 @@ MMPFN MmAllocatePhysicalPage(void);
 // Adds a reference to a PFN.
 void MmPageAddReference(MMPFN Pfn);
 
+// Sets a referenced PFN as modified.
+void MmSetModifiedPage(MMPFN Pfn);
+
 // Assign a prototype PTE address to the page frame.
 void MmSetPrototypePtePfn(MMPFN Pfn, MM_PROTOTYPE_PTE_PTR PrototypePte);
 

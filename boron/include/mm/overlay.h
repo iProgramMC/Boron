@@ -22,3 +22,9 @@ typedef struct
 	uint64_t SectionOffset;
 }
 MMOVERLAY, *PMMOVERLAY;
+
+BSTATUS MmCreateOverlayObject(
+	PMMOVERLAY* OutOverlay,
+	void* ParentMappable,
+	uint64_t SectionOffset
+);

@@ -92,7 +92,6 @@ BSTATUS MiInitializeAndInsertVad(
 	Vad->Flags.LongFlags  = 0;
 	Vad->MappedObject     = NULL;
 	Vad->SectionOffset    = 0;
-	Vad->Flags.Cow        =  (AllocationType & MEM_COW) != 0;
 	Vad->Flags.Committed  =  (AllocationType & MEM_COMMIT) != 0;
 	Vad->Flags.Private    = (~AllocationType & MEM_SHARED) != 0;
 	Vad->Flags.Protection = Protection;

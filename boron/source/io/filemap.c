@@ -183,10 +183,19 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 
 static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 {
-	(void) MappableObject;
-	(void) SectionOffset;
+	// Files are shared, so the only special programming required is to
+	// mark modified pages as modified so that they're properly written
+	// back to disk.
+	PFILE_OBJECT FileObject = MappableObject;
+	PFCB Fcb = FileObject->Fcb;
+	PCCB PageCache = &Fcb->PageCache;
 	
-	// Files are shared, so no special programming needed.
+	MMPFN Pfn = MmGetEntryCcb(PageCache, SectionOffset);
+	ASSERT(Pfn != PFN_INVALID && "IopPrepareWriteFile: The PFN should be present at this offset.");
+	
+	MmSetModifiedPage(Pfn);
+	MmFreePhysicalPage(Pfn);
+	
 	return STATUS_SUCCESS;
 }
 

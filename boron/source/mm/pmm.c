@@ -1082,6 +1082,17 @@ void MiSetModifiedPageWithPfdbLocked(MMPFN Pfn)
 	PageFrame->Modified = true;
 }
 
+void MmSetModifiedPage(MMPFN Pfn)
+{
+	ASSERT(Pfn != PFN_INVALID);
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	MiSetModifiedPageWithPfdbLocked(Pfn);
+	
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
 void MmPageAddReference(MMPFN Pfn)
 {
 #ifdef PMMDEBUG

@@ -26,7 +26,22 @@ static BSTATUS MmpMapViewOfObject(
 	int Protection
 )
 {
+	BSTATUS Status;
+
 	MmVerifyMappableHeader(MappableObject);
+	
+	// If the allocation type is MEM_COW, then we have to create a copy-on-write overlay
+	// object, set it up using this mappable object, and map that one instead.
+	if (AllocationType & MEM_COW)
+	{
+		PMMOVERLAY Overlay = NULL;
+		Status = MmCreateOverlayObject(&Overlay, MappableObject, SectionOffset);
+		if (FAILED(Status))
+			return Status;
+		
+		MappableObject = Overlay;
+		AllocationType &= ~MEM_COW;
+	}
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
@@ -37,14 +52,20 @@ static BSTATUS MmpMapViewOfObject(
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
+	// Increment the reference count of the mappable object.
+	ObReferenceObjectByPointer(MappableObject);
+	
 	// Reserve the region, and then mark it as committed ourselves.
-	BSTATUS Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
+	Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
 	if (FAILED(Status))
+	{
+		ObDereferenceObject(MappableObject);
 		return Status;
+	}
 	
 	// Vad Protection and Private are filled in by MmReserveVirtualMemoryVad.
 	Vad->Flags.Committed = 1;
-	Vad->MappedObject = ObReferenceObjectByPointer(MappableObject);
+	Vad->MappedObject = MappableObject;
 	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
 	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
