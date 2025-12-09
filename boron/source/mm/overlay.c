@@ -166,9 +166,9 @@ void MmDeleteOverlayObject(UNUSED void* ObjectV)
 
 void MmInitializeOverlayObject(PMMOVERLAY Overlay, void* ParentMappable)
 {
+	MmInitializeMappableHeader(&Overlay->Mappable, &MmpOverlayObjectMappableDispatch);
 	KeInitializeMutex(&Overlay->Mutex, 0);
 	MmInitializeSla(&Overlay->Sla);
 	ObReferenceObjectByPointer(ParentMappable);
 	Overlay->Parent = ParentMappable;
-	Overlay->Mappable.Dispatch = &MmpOverlayObjectMappableDispatch;
 }

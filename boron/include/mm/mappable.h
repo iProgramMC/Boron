@@ -54,16 +54,32 @@ MAPPABLE_DISPATCH_TABLE, *PMAPPABLE_DISPATCH_TABLE;
 
 typedef struct
 {
+#ifdef DEBUG
+	uint64_t DebugSignature;
+#endif
 	PMAPPABLE_DISPATCH_TABLE Dispatch;
 }
 MAPPABLE_HEADER, *PMAPPABLE_HEADER;
 
 #ifdef KERNEL
 
+#define MM_MAPPABLE_DEBUG_SIGNATURE (0x42726E636F6F6C21) // 'Brnscool!'
+
+FORCE_INLINE
+void MmInitializeMappableHeader(PMAPPABLE_HEADER Header, PMAPPABLE_DISPATCH_TABLE DispatchTable)
+{
+#ifdef DEBUG
+	Header->DebugSignature = MM_MAPPABLE_DEBUG_SIGNATURE;
+#endif
+	Header->Dispatch = DispatchTable;
+}
+
 FORCE_INLINE
 BSTATUS MmGetPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
+	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+	
 	return Header->Dispatch->GetPage(MappableObject, SectionOffset, OutPfn);
 }
 
@@ -71,6 +87,7 @@ FORCE_INLINE
 BSTATUS MmReadPageMappable(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
+	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
 	
 	if (Header->Dispatch->ReadPage)
 	{
@@ -84,6 +101,8 @@ FORCE_INLINE
 BSTATUS MmPrepareWriteMappable(void* MappableObject, uint64_t SectionOffset)
 {
 	PMAPPABLE_HEADER Header = MappableObject;
+	ASSERT(Header->DebugSignature == MM_MAPPABLE_DEBUG_SIGNATURE);
+	
 	return Header->Dispatch->PrepareWrite(MappableObject, SectionOffset);
 }
 

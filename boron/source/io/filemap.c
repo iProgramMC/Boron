@@ -14,6 +14,14 @@ Author:
 ***/
 #include "iop.h"
 
+//#define FILE_PAGE_FAULT_DEBUG
+
+#ifdef FILE_PAGE_FAULT_DEBUG
+#define FPFDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define FPFDbgPrint(...)
+#endif
+
 // would name it IopGetPageFile but this may make people think I'm talking
 // about page files which aren't yet a thing
 static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
@@ -30,22 +38,31 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 		
 		if (FAILED(Status))
 		{
-			DbgPrint(
-				"IopGetPageFromFile: Backing memory doesn't work for FCB %p and offset %llu! %s",
-				Fcb,
-				SectionOffset,
-				RtlGetStatusString(Status)
-			);
-			return Status;
+			if (Status != STATUS_OUT_OF_FILE_BOUNDS)
+			{
+				DbgPrint(
+					"IopGetPageFromFile: Backing memory doesn't work for FCB %p and offset %llu! %s",
+					Fcb,
+					SectionOffset,
+					RtlGetStatusString(Status)
+				);
+				return Status;
+			}
+			
+			// Outside of the file's boundaries.  We should handle this normally using the
+			// page cache.  This is because the temporary file system implements files using
+			// the BackingMemory call, and sometimes ELF mappings can reach outside the file.
 		}
-		
-		// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
-		// with the page frame database! (e.g. via MmRegisterMMIOAsMemory).
-		//
-		// NOTE: The BackingMemory call MUST increasethe reference count of the physical page
-		// by one before returning to the caller.
-		*OutPfn = MmPhysPageToPFN(Iosb.BackingMemory.PhysicalAddress);
-		return STATUS_SUCCESS;
+		else
+		{
+			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
+			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory).
+			//
+			// NOTE: The BackingMemory call MUST increasethe reference count of the physical page
+			// by one before returning to the caller.
+			*OutPfn = MmPhysPageToPFN(Iosb.BackingMemory.PhysicalAddress);
+			return STATUS_SUCCESS;
+		}
 	}
 	
 	MMPFN Pfn = PFN_INVALID;
@@ -60,7 +77,7 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 		MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, SectionOffset * PAGE_SIZE);
 		*OutPfn = Pfn;
 		
-		DbgPrint("%s: hooray! request for offset %llu fulfilled by cached fetch", __func__, SectionOffset);
+		FPFDbgPrint("%s: hooray! request for offset %llu fulfilled by cached fetch", __func__, SectionOffset);
 		return STATUS_SUCCESS;
 	}
 	
@@ -78,19 +95,19 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	BSTATUS Status = MmSetEntryCcb(PageCache, SectionOffset, PFN_INVALID, NULL);
 	if (FAILED(Status))
 	{
+		if (Status == STATUS_CONFLICTING_ADDRESSES)
+		{
+		RedirectToGetPage:
+			FPFDbgPrint("%s: Redirecting to GetPage", __func__);
+			return IopGetPageFromFile(MappableObject, SectionOffset, OutPfn);
+		}
+		
 		DbgPrint(
 			"%s: Failed to set empty entry to CCB at %lld: %s",
 			__func__,
 			SectionOffset,
 			RtlGetStatusString(Status)
 		);
-		
-		if (Status == STATUS_CONFLICTING_ADDRESSES)
-		{
-		RedirectToGetPage:
-			DbgPrint("%s: Redirecting to GetPage", __func__);
-			return IopGetPageFromFile(MappableObject, SectionOffset, OutPfn);
-		}
 		
 		return Status;
 	}
@@ -120,7 +137,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	{
 		// Ran out of memory trying to read this file, or a hardware I/O error occurred.
 		DbgPrint(
-			"%s: cannot answer page fault because I/O failed with code %d (%s)",
+			"%s: cannot fulfill request because I/O failed with code %d (%s)",
 			__func__,
 			Status,
 			RtlGetStatusString(Status)
@@ -160,7 +177,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, SectionOffset * PAGE_SIZE);
 	*OutPfn = Pfn;
 	
-	DbgPrint("%s: hooray! request fulfilled by I/O read", __func__);
+	FPFDbgPrint("%s: hooray! request fulfilled by I/O read", __func__);
 	return STATUS_SUCCESS;
 }
 
@@ -175,7 +192,7 @@ static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 
 MAPPABLE_DISPATCH_TABLE IopFileObjectMappableDispatch =
 {
-	.GetPage = IopReadPageFromFile,
+	.GetPage = IopGetPageFromFile,
 	.ReadPage = IopReadPageFromFile,
 	.PrepareWrite = IopPrepareWriteFile,
 };

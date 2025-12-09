@@ -114,9 +114,9 @@ void MmDeleteSectionObject(UNUSED void* ObjectV)
 
 void MmInitializeSectionObject(PMMSECTION Section)
 {
+	MmInitializeMappableHeader(&Section->Mappable, &MmpSectionObjectMappableDispatch);
 	KeInitializeMutex(&Section->Mutex, 0);
 	MmInitializeSla(&Section->Sla);
-	Section->Mappable.Dispatch = &MmpSectionObjectMappableDispatch;
 	Section->MaxSizePages = 0;
 }
 

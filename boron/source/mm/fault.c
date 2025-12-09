@@ -64,7 +64,7 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, bool SetCacheDetails, uint32_t VadFlagsLong, PFILE_OBJECT FileObject, uint64_t FileOffset)
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, uint32_t VadFlagsLong)
 {
 	MMPTE SupervisorBit = Va >= MM_KERNEL_SPACE_BASE ? 0 : MM_PTE_USERACCESS;
 	
@@ -82,9 +82,6 @@ static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, bool SetCacheDetai
 	
 	*PtePtr = NewPte;
 	
-	if (SetCacheDetails)
-		MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, FileOffset);
-	
 	return STATUS_SUCCESS;
 }
 
@@ -93,8 +90,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	uintptr_t VaBase,
 	uint32_t VadFlagsLong,
 	uint64_t MappedOffset,
-	void* Object,
-	bool IsFile,
+	void* MappedObject,
 	KIPL SpaceUnlockIpl
 )
 {
@@ -119,198 +115,46 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	BSTATUS Status;
 	
 	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
-	uint64_t FileOffset = (Va & PageMask) - VaBase + MappedOffset;
+	uint64_t SectionOffset = ((Va & PageMask) - VaBase + MappedOffset) / PAGE_SIZE;
 	
-	// Is this a section?
-	if (!IsFile)
+	MMPFN Pfn = PFN_INVALID;
+	
+	// First, check if the page even exists.
+	Status = MmGetPageMappable(MappedObject, SectionOffset, &Pfn);
+	
+	if (Status == STATUS_MORE_PROCESSING_REQUIRED)
 	{
-		// TODO: Implement sections.  Note, they could probably
-		// share a lot of code with the file I/O cache stuff.
-		Status = STATUS_UNIMPLEMENTED;
-	}
-	else
-	{
-		MMPFN Pfn = PFN_INVALID;
-		PFILE_OBJECT FileObject = (PFILE_OBJECT) Object;
-		
-		// First, check if the BackingMemory call is supported.
-		IO_STATUS_BLOCK Iosb;
-		PFCB Fcb = FileObject->Fcb;
-		IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
-		PCCB PageCache = &Fcb->PageCache;
-		
-		if (BackingMemory)
-		{
-			Status = BackingMemory(&Iosb, Fcb, FileOffset);
-			if (FAILED(Status))
-			{
-				if (Status == STATUS_OUT_OF_FILE_BOUNDS)
-				{
-					// Outside of the file's boundaries.  We should handle this normally using the page cache.
-					BackingMemory = NULL;
-					goto NormalHandling;
-				}
-				
-				// TODO: If an I/O call was interrupted, then we should probably not throw a
-				// page fault related error, and we should send that signal instead.
-				
-				DbgPrint(
-					"%s: BackingMemory call on FCB %p and offset %llu failed with status %s (%d)",
-					__func__,
-					Fcb,
-					FileOffset,
-					RtlGetStatusString(Status),
-					Status
-				);
-				goto Exit;
-			}
-			
-			uintptr_t Address = Iosb.BackingMemory.PhysicalAddress;
-			
-			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
-			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory).
-			//
-			// UPDATE 2025/11/03: The BackingMemory call MUST bias the reference count of the
-			// physical page by one before returning to the caller.
-			Pfn = MmPhysPageToPFN(Address);
-		}
-		else
-		{
-		NormalHandling:
-			Pfn = MmGetEntryCcb(PageCache, FileOffset / PAGE_SIZE);
-		}
-		
-		// Did we find the PFN already?
-		if (Pfn != PFN_INVALID)
-		{
-			Status = MmpAssignPfnToAddress(Va, Pfn, BackingMemory == NULL, VadFlagsLong, FileObject, FileOffset);
-			if (FAILED(Status))
-			{
-				MmFreePhysicalPage(Pfn);
-				
-				DbgPrint("%s: out of memory because PTE couldn't be allocated (1)", __func__);
-				ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
-				Status = STATUS_REFAULT_SLEEP;
-				goto Exit;
-			}
-			
-			PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, Va);
-			goto Exit;
-		}
-		
-		// No, we didn't find the PFN already.
+		// It doesn't exist, so we need to fetch it manually.
 		MmUnlockSpace(SpaceUnlockIpl, Va);
 		SpaceUnlockIpl = -1;
 		
-		// BackingMemory should've already handled this if it existed
-		ASSERT(!BackingMemory);
-		
-		// First, ensure the CCB entry can be there.
-		int SetResult = MmSetEntryCcb(PageCache, FileOffset / PAGE_SIZE, PFN_INVALID, NULL);
-		if (SetResult == STATUS_INSUFFICIENT_MEMORY)
-		{
-			// Out of memory.
-			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (1)", __func__);
-			Status = STATUS_REFAULT_SLEEP;
-			goto Exit;
-		}
-		
-		if (SetResult == STATUS_CONFLICTING_ADDRESSES)
-		{
-			// Already assigned.
-			DbgPrint("%s: CCB entry was found to be assigned, refaulting", __func__);
-			Status = STATUS_REFAULT;
-			goto Exit;
-		}
-		
-		// Allocate a PFN now, do a read, and then put it into the CCB.
-		Pfn = MmAllocatePhysicalPage();
-		if (Pfn == PFN_INVALID)
-		{
-			// Out of memory.
-			DbgPrint("%s: out of memory because a page frame couldn't be allocated", __func__);
-			Status = STATUS_REFAULT_SLEEP;
-			goto Exit;
-		}
-		
-		// Okay.  Let's perform the IO on this PFN.
-		MDL_ONEPAGE Mdl;
-		MmInitializeSinglePageMdl(&Mdl, Pfn, MDL_FLAG_WRITE);
-		
-		Status = IoPerformPagingRead(
-			&Iosb,
-			FileObject,
-			&Mdl.Base,
-			FileOffset
-		);
-		
-		MmFreeMdl(&Mdl.Base);
-		
+		Status = MmReadPageMappable(MappedObject, SectionOffset, &Pfn);
 		if (FAILED(Status))
 		{
-			// Ran out of memory trying to read this file.
-			DbgPrint("%s: cannot answer page fault because I/O failed with code %d", __func__, Status);
-			MmFreePhysicalPage(Pfn);
-			
-			if (Status == STATUS_INSUFFICIENT_MEMORY)
-			{
-				// Let the MM know we need more memory.
-				Status = STATUS_REFAULT_SLEEP;
-			}
-			
+			DbgPrint("%s: MmReadPageMappable failed to fulfill request with code %d", __func__, Status);
 			goto Exit;
 		}
 		
-		// The I/O operation has succeeded.
-		// It's time to put this in the CCB and then map.
-		Status = MmSetEntryCcb(PageCache, FileOffset / PAGE_SIZE, Pfn, NULL);
-		if (FAILED(Status))
-		{
-			if (Status == STATUS_CONFLICTING_ADDRESSES)
-			{
-				// Need to throw away our hard work as someone finished it before us.
-				DbgPrint("%s: CCB entry was found to be assigned by the time IO was made (%p), refaulting (2)", __func__, Va);
-				Status = STATUS_REFAULT;
-				goto Exit;
-			}
-			else
-			{
-				// Out of memory.  Did someone remove our prior allocation?
-				// Well, we've got almost no choice but to throw away our result.
-				//
-				// (We could instead beg the memory manager for more memory, but
-				// I don't feel like writing that right now.)
-				ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
-				DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
-				Status = STATUS_REFAULT_SLEEP;
-				goto Exit;
-			}
-			
-			MmFreePhysicalPage(Pfn);
-			goto Exit;
-		}
-		
-		// Success! This is the right PFN, so assign it.
-		
-		// Acquire the address space lock now.
 		SpaceUnlockIpl = MmLockSpaceExclusive(Va);
+	}
+	
+	ASSERT(Pfn != PFN_INVALID);
+	
+	Status = MmpAssignPfnToAddress(Va, Pfn, VadFlagsLong);
+	if (FAILED(Status))
+	{
+		MmFreePhysicalPage(Pfn);
 		
-		Status = MmpAssignPfnToAddress(Va, Pfn, true, VadFlagsLong, FileObject, FileOffset);
-		if (FAILED(Status))
-		{
-			DbgPrint("%s: out of memory because PTE couldn't be allocated (2)", __func__);
-			MmFreePhysicalPage(Pfn);
-			Status = STATUS_REFAULT_SLEEP;
-			goto Exit;
-		}
-		
-		PFDbgPrint("%s: hooray! page fault fulfilled by I/O read", __func__);
-		Status = STATUS_SUCCESS;
+		DbgPrint("%s: out of memory because PTE couldn't be allocated (1)", __func__);
+		ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
+		Status = STATUS_REFAULT_SLEEP;
 		goto Exit;
 	}
 	
+	PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, Va);
+	
 Exit:
-	ObDereferenceObject(Object);
+	ObDereferenceObject(MappedObject);
 	
 	if (SpaceUnlockIpl >= 0)
 		MmUnlockSpace(SpaceUnlockIpl, Va);
@@ -411,7 +255,6 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	if (Vad->Mapped.Object)
 	{
 		void* Object = ObReferenceObjectByPointer(Vad->Mapped.Object);
-		bool IsFile = Vad->Flags.IsFile;
 		uintptr_t VaBase = Vad->Node.StartVa;
 		uint32_t VadFlagsLong = Vad->Flags.LongFlags;
 		uint64_t VadMappedOffset = Vad->SectionOffset;
@@ -420,7 +263,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		MmUnlockVadList(VadList);
 		
 		// There is.  Handle this page fault separately.
-		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadFlagsLong, VadMappedOffset, Object, IsFile, SpaceUnlockIpl);
+		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadFlagsLong, VadMappedOffset, Object, SpaceUnlockIpl);
 	}
 	
 	// Now the PTE is here and we can commit it.
