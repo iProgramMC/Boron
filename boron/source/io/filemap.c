@@ -41,7 +41,8 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 			if (Status != STATUS_OUT_OF_FILE_BOUNDS)
 			{
 				DbgPrint(
-					"IopGetPageFromFile: Backing memory doesn't work for FCB %p and offset %llu! %s",
+					"%s: Backing memory doesn't work for FCB %p and offset %llu! %s",
+					__func__,
 					Fcb,
 					SectionOffset,
 					RtlGetStatusString(Status)
@@ -190,7 +191,33 @@ static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 	PFCB Fcb = FileObject->Fcb;
 	PCCB PageCache = &Fcb->PageCache;
 	
-	MMPFN Pfn = MmGetEntryCcb(PageCache, SectionOffset);
+	MMPFN Pfn = PFN_INVALID;
+	IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
+	if (BackingMemory)
+	{
+		IO_STATUS_BLOCK Iosb;
+		BSTATUS Status = BackingMemory(&Iosb, Fcb, SectionOffset * PAGE_SIZE);
+		
+		if (FAILED(Status) && Status != STATUS_OUT_OF_FILE_BOUNDS)
+		{
+			DbgPrint(
+				"%s: Backing memory doesn't work for FCB %p and offset %llu! %s",
+				__func__,
+				Fcb,
+				SectionOffset,
+				RtlGetStatusString(Status)
+			);
+			return Status;
+		}
+		
+		if (SUCCEEDED(Status))
+			Pfn = MmPhysPageToPFN(Iosb.BackingMemory.PhysicalAddress);
+	}
+	
+	if (Pfn == PFN_INVALID) {
+		Pfn = MmGetEntryCcb(PageCache, SectionOffset);
+	}
+	
 	ASSERT(Pfn != PFN_INVALID && "IopPrepareWriteFile: The PFN should be present at this offset.");
 	
 	MmSetModifiedPage(Pfn);
