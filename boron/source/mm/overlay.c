@@ -30,6 +30,13 @@ Author:
 ***/
 #include "mi.h"
 
+#ifdef IS_32_BIT
+
+// TODO: optimize this!
+static uint8_t MmpCowOverlayBuffer[PAGE_SIZE];
+
+#endif
+
 typedef union
 {
 	struct
@@ -156,8 +163,16 @@ static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffs
 		PAGE_SIZE
 	);
 #else
-	// On 32-bit this is a bit more complicated so we'll implement it later
-	#error TODO
+	// On 32-bit this is a bit more complicated, needs optimization.
+	MmBeginUsingHHDM();
+	
+	void* OldMem = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
+	memcpy(MmpCowOverlayBuffer, OldMem, PAGE_SIZE);
+	
+	void* NewMem = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPfn));
+	memcpy(NewMem, MmpCowOverlayBuffer, PAGE_SIZE);
+	
+	MmEndUsingHHDM();
 #endif
 	
 	MmFreePhysicalPage(Pfn);
