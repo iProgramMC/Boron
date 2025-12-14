@@ -236,7 +236,7 @@ typedef struct
 }
 PageMapLevel;
 
-#define PTE_ADDRESS(pte) ((pte) & MM_PTE_ADDRESSMASK)
+#define PTE_ADDRESS(pte) MmPFNToPhysPage(MM_PTE_PFN(pte))
 
 INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)

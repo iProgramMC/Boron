@@ -35,7 +35,7 @@ void MiReclaimInitText()
 		// mode, a TLB shootdown will be performed anyway.
 		*PtePtr = 0;
 		
-		MMPFN Pfn = (MMPFN)((Pte & MM_PTE_ADDRESSMASK) >> 12);
+		MMPFN Pfn = MM_PTE_PFN(Pte);
 		MmFreePhysicalPage(Pfn);
 		Reclaimed++;
 	}

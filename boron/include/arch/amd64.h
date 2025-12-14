@@ -89,6 +89,8 @@ MMADDRESS_CONVERT;
 	// 62..59 - protection key (unused)
 	// 58..52 - more available bits
 
+#define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
+
 // Disabled PTE (present bit is zero):
 // bits 0..2 and 63 - Permission bits as usual
 // bit  3           - Is decommitted (was previously committed but is no longer)

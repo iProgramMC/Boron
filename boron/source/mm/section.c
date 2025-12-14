@@ -40,6 +40,21 @@ static void MmpFreeEntrySectionObject(MMSLA_ENTRY Entry)
 		MmFreePhysicalPage(Pfn);
 }
 
+BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN Pfn)
+{
+	MMSECTION_SLA_ENTRY SlaEntry;
+	SlaEntry.Entry = 0;
+	SlaEntry.Data.Pfn = Pfn;
+	
+	MMSLA_ENTRY NewEntry = MmAssignEntrySla(&Section->Sla, SectionOffset, SlaEntry.Entry);
+	if (NewEntry == MM_SLA_OUT_OF_MEMORY)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	// Now add a reference to it.
+	MmPageAddReference(Pfn);
+	return STATUS_SUCCESS;
+}
+
 static BSTATUS MmpGetPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMMSECTION Section = MappableObject;

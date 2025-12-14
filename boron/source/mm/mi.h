@@ -397,6 +397,8 @@ void MmDeleteOverlayObject(void* ObjectV);
 
 BSTATUS MiResolveBackingStoreForOverlay(void* Object, void** OutFileOrSectionObject);
 
+BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN Pfn);
+
 // ===== Hardware Specific =====
 
 #if defined TARGET_I386 || defined TARGET_AMD64

@@ -95,6 +95,8 @@ MMADDRESS_CONVERT;
 
 #define MM_PTE_ADDRESSMASK (0xFFFFF000U)
 
+#define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
+
 // Disabled PTE (present bit is zero):
 // bits 0..2 - Permission bits as usual
 // bit  3   - Is decommitted (was previously committed but is no longer)

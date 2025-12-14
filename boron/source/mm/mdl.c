@@ -261,7 +261,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			ASSERT(Pte & MM_PTE_PRESENT);
 			
 			// Fetch the page frame number.
-			int Pfn = (Pte & MM_PTE_ADDRESSMASK) / PAGE_SIZE;
+			int Pfn = MM_PTE_PFN(Pte);
 			
 			// Let the PF database know that the page was pinned.
 			//
