@@ -305,6 +305,18 @@ static BSTATUS MmpReplicateCommitPtesIfNeeded(PEPROCESS DestinationProcess, PMMV
 	return STATUS_SUCCESS;
 }
 
+// This function clones the current process' address space to another process' address space.
+// This is done by iterating through the process' VADs and determining how the new process
+// should reference them.
+//
+// In particular, the following processes are performed:
+// - Copy heap and VAD items to the destination process
+// - Transparently morph every private anonymous non-object mapping into a copy-on-write mapping
+//   of an anonymous section
+// - For every private mapping of a section or file object, create a copy-on-write overlay on top
+//   of the actual object for both the source and destination processes separately
+// - Replicate the committed state of each mapping for each VAD
+//
 // NOTE: For now, you CANNOT clone an arbitrary process. This always clones the CURRENT
 // process. So before attempting to clone, the caller must attach the process they're
 // trying to clone, if they aren't cloning their current process.

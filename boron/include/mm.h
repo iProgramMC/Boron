@@ -37,6 +37,7 @@ Author:
 #include <mm/heap.h>
 #include <mm/view.h>
 #include <mm/services.h>
+#include <mm/forksup.h>
 
 #ifdef KERNEL
 
