@@ -350,7 +350,7 @@ BSTATUS ObClose(HANDLE Handle);
 POBJECT_TYPE ObGetObjectType(void* Object);
 
 // Duplicates a handle table managed by the Object Manager.
-BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable);
+BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable, int OpenReason);
 
 // Deletes a handle table and closes every handle.
 BSTATUS ObKillHandleTable(void* HandleTable);

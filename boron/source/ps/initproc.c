@@ -85,6 +85,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		&ProcessHandle,
 		NULL,
 		CURRENT_PROCESS_HANDLE,
+		false,
 		false
 	);
 	

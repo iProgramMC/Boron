@@ -121,7 +121,7 @@ BSTATUS ObpInsertObject(PEPROCESS Process, void* Object, PHANDLE OutHandle, OB_O
 	HandleItem.Pointer = 0;
 	HandleItem.U.AddressBits = (uintptr_t)Object >> 3;
 	
-	if (OpenFlags & OB_OPEN_INHERIT)
+	if (~OpenFlags & OB_OPEN_NO_INHERIT)
 		HandleItem.U.Inherit = 1;
 	
 	Status = ExCreateHandle(Process->HandleTable, HandleItem.Pointer, OutHandle);
@@ -286,9 +286,8 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 	return HandleItem.Pointer;
 }
 
-BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable)
+BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable, int OpenReason)
 {
-	int OpenReason = OB_INHERIT_HANDLE;
 	return ExDuplicateHandleTable(NewHandleTable, OldHandleTable, ObpDuplicateHandle, &OpenReason);
 }
 

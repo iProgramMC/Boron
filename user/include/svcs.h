@@ -30,7 +30,8 @@ BSTATUS OSCreateProcessInternal(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ParentProcessHandle,
-	bool InheritHandles
+	bool InheritHandles,
+	bool DeepCloneHandles
 );
 
 #endif

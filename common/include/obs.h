@@ -22,8 +22,8 @@ Author:
 // Object open flags:
 enum
 {
-	// Handle may be inherited by child processes.
-	OB_OPEN_INHERIT = (1 << 0),
+	// Handle may not be inherited by child processes.
+	OB_OPEN_NO_INHERIT = (1 << 0),
 	
 	// No other process may open this handle while the current process maintains a handle.
 	// Unimplemented: OB_OPEN_EXCLUSIVE = (1 << 1),

@@ -1,10 +1,15 @@
+// Num  - System Call Number
+// AC   - Argument Count
+// Name - System Call Export Name
+//
+//   Num AC Name
 CALL 0,  5, OSAllocateVirtualMemory
 CALL 1,  1, OSCheckIsTerminalFile
 CALL 2,  1, OSClose
 CALL 3,  4, OSCreateEvent
 CALL 4,  2, OSCreateMutex
 CALL 5,  4, OSCreatePipe
-CALL 6,  4, OSCreateProcessInternal
+CALL 6,  5, OSCreateProcessInternal
 CALL 7,  3, OSCreateTerminal
 CALL 8,  3, OSCreateTerminalIoHandles
 CALL 9,  6, OSCreateThread

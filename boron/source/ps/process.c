@@ -68,6 +68,7 @@ typedef struct
 	PEPROCESS Process;
 	PEPROCESS ParentProcess;
 	bool InheritHandles;
+	bool DeepCloneHandles;
 }
 PROCESS_INIT_CONTEXT;
 
@@ -78,6 +79,7 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	BSTATUS Status;
 	PROCESS_INIT_CONTEXT* Pic = Context;
 	bool InheritHandles = Pic->InheritHandles;
+	bool DeepCloneHandles = Pic->DeepCloneHandles;
 	PEPROCESS ParentProcess = Pic->ParentProcess;
 	
 	Process->Pcb.PageMap = 0;
@@ -105,9 +107,14 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	ExInitializeRwLock(&Process->AddressLock);
 	
 	// Initialize the handle table.
-	if (InheritHandles)
+	if (InheritHandles || DeepCloneHandles)
 	{
-		Status = ObDuplicateHandleTable(&Process->HandleTable, ParentProcess->HandleTable);
+		Status = ObDuplicateHandleTable(
+			&Process->HandleTable,
+			ParentProcess->HandleTable,
+			DeepCloneHandles ? OB_DUPLICATE_HANDLE : OB_INHERIT_HANDLE
+		);
+		
 		if (FAILED(Status))
 			goto Fail;
 	}
@@ -138,18 +145,21 @@ BSTATUS OSCreateProcess(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	HANDLE ParentProcessHandle,
-	bool InheritHandles)
+	bool InheritHandles,
+	bool DeepCloneHandles
+)
 {
 	BSTATUS Status = STATUS_SUCCESS;
 	PROCESS_INIT_CONTEXT Pic;
 	Pic.InheritHandles = InheritHandles;
+	Pic.DeepCloneHandles = DeepCloneHandles;
 	Pic.ParentProcess = NULL;
 	Pic.Process = NULL;
 	
 	// If we are inheriting handles yet we have no parent to inherit from, this is
 	// invalid, as we do not allow inheritance from the system process, to which
 	// processes without a parent process handle get added.
-	if (InheritHandles && !ParentProcessHandle)
+	if ((InheritHandles || DeepCloneHandles) && !ParentProcessHandle)
 		return STATUS_INVALID_PARAMETER;
 	
 	

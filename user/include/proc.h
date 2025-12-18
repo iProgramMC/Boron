@@ -17,6 +17,12 @@ enum
 	// in environment description format (entries separated by
 	// null characters and the list terminating with 2 null chars)
 	OS_PROCESS_CMDLINE_PARSED = 1 << 2,
+	
+	// If the created process should deeply clone all the handles
+	// instead of simply inheriting them. This also copies object
+	// references opened with OB_FLAG_NO_INHERIT. This is used by
+	// the POSIX fork support implementation.
+	OS_PROCESS_DEEP_CLONE_HANDLES = 1 << 3,
 };
 
 BSTATUS OSCreateProcess(

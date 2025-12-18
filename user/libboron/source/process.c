@@ -100,6 +100,8 @@ static BSTATUS OSDLLPreparePebForProcess(
 	PPEB CurrentPeb = OSDLLGetCurrentPeb();
 	if (InheritHandles)
 	{
+		// N.B.  These handles shouldn't be opened with OB_FLAG_NO_INHERIT!  Otherwise, the child
+		// process will try to mess with invalid handles, or even worse.
 		for (int i = 0; i < 3; i++)
 			Peb->StandardIO[i] = CurrentPeb->StandardIO[i];
 	}
@@ -195,7 +197,8 @@ BSTATUS OSCreateProcess(
 		OutHandle,
 		ObjectAttributes,
 		CURRENT_PROCESS_HANDLE,
-		ProcessFlags & OS_PROCESS_INHERIT_HANDLES
+		ProcessFlags & OS_PROCESS_INHERIT_HANDLES,
+		ProcessFlags & OS_PROCESS_DEEP_CLONE_HANDLES
 	);
 	if (FAILED(Status))
 		goto Fail;
@@ -295,7 +298,13 @@ BSTATUS OSCreateProcess(
 		OSFree(InterpreterCopy);
 	}
 	
-	Status = OSDLLPreparePebForProcess(ProcessHandle, Peb, PebSize, &PebPtr, ProcessFlags & OS_PROCESS_INHERIT_HANDLES);
+	Status = OSDLLPreparePebForProcess(
+		ProcessHandle,
+		Peb,
+		PebSize,
+		&PebPtr,
+		ProcessFlags & (OS_PROCESS_INHERIT_HANDLES | OS_PROCESS_DEEP_CLONE_HANDLES)
+	);
 	if (FAILED(Status))
 		goto Fail;
 	
