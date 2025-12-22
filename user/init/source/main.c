@@ -12,31 +12,6 @@ void Usage()
 int _start(int ArgumentCount, char** Arguments)
 {
 	BSTATUS Status;
-	DbgPrint("Init is running.");
-	
-	DbgPrint("I'm about to fork.");
-	
-	HANDLE ChildProcessHandle;
-	Status = OSForkProcess(&ChildProcessHandle);
-	if (Status == STATUS_IS_CHILD_PROCESS) {
-		DbgPrint(">> Hey, I'm the child process!");
-		Status = STATUS_SUCCESS;
-	}
-	else if (FAILED(Status)) {
-		DbgPrint("Failed to fork: %s (%d)", RtlGetStatusString(Status), Status);
-		OSExitProcess(Status);
-	}
-	else {
-		DbgPrint(">> Hey, I'm the parent process!");
-		OSWaitForSingleObject(ChildProcessHandle, false, WAIT_TIMEOUT_INFINITE);
-		OSClose(ChildProcessHandle);
-	}
-	
-	DbgPrint("This is shared behavior!");
-	OSExitProcess(Status);
-	
-	
-	/*
 	if (ArgumentCount <= 1)
 		Usage();
 	
@@ -90,5 +65,4 @@ int _start(int ArgumentCount, char** Arguments)
 	OSClose(ProcessHandle);
 	
 	OSExitProcess(0);
-	*/
 }
