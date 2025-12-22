@@ -39,7 +39,7 @@ void PspUserThreadStart(void* ContextV)
 	PsGetCurrentThread()->Tcb.IsUserThread = true;
 	
 	KeGetCurrentThread()->Mode = MODE_USER;
-	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext);
+	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext, 0);
 }
 
 void PsOnTerminateUserThread()

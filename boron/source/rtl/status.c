@@ -86,6 +86,7 @@ static const char* const RtlpStatusCodes[] =
 	
 	"The executable file is invalid.",
 	"The executable file is valid, but for a machine type other than the current machine.",
+	"The current process is created as a result of an OSForkProcess() operation.",
 	
 	"The process is still running.",
 };

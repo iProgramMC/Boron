@@ -204,7 +204,7 @@ void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment);
 void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended);
 
 // Switch this thread into user mode.
-NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext);
+NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, void* UserContext, uintptr_t ReturnCode);
 
 // Gets the current userspace TEB pointer.  This directly matches up with usermode's FS base on x86 and amd64.
 void* OSGetCurrentTeb();

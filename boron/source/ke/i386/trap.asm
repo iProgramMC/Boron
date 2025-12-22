@@ -143,6 +143,7 @@ KeDescendIntoUserMode:
 	mov edi, [esp + 4]
 	mov esi, [esp + 8]
 	mov edx, [esp + 12]
+	mov eax, [esp + 16]
 	
 	; put edx onto the stack, as well as a fake return address
 	; this is so that parameter passing through this function works
@@ -160,14 +161,15 @@ KeDescendIntoUserMode:
 	push edi                       ; push RIP
 	
 	; load the data segments up
+	push eax
 	mov ax, SEG_RING_3_DATA | 3
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
 	mov gs, ax
+	pop eax
 	
 	; clear all the registers
-	xor eax, eax
 	xor ebp, ebp
 	xor ebx, ebx
 	xor ecx, ecx
@@ -175,7 +177,7 @@ KeDescendIntoUserMode:
 	xor esi, esi
 	xor edi, edi
 	
-	; finally, swap gs and return to user mode.
+	; finally, return to user mode.
 	cli
 	iretd
 

@@ -64,6 +64,8 @@ NO_RETURN void OSExitProcess(int ExitCode);
 
 NO_RETURN void OSExitThread();
 
+BSTATUS OSForkProcessInternal(PHANDLE OutChildHandle);
+
 BSTATUS OSFreeVirtualMemory(
 	HANDLE ProcessHandle,
 	void* BaseAddress,
