@@ -12,6 +12,8 @@ void Usage()
 int _start(int ArgumentCount, char** Arguments)
 {
 	BSTATUS Status;
+	DbgPrint("Init is running.");
+	
 	if (ArgumentCount <= 1)
 		Usage();
 	
