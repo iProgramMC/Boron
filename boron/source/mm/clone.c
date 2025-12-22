@@ -125,7 +125,7 @@ static void MmpReferenceMappedObjects(PMMVAD_LIST VadList)
 	}
 }
 
-static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList)
+static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 {
 	BSTATUS Status = STATUS_SUCCESS;
 	PRBTREE_ENTRY FailedEntry = NULL;
@@ -176,15 +176,17 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList)
 		if (!Vad->Flags.Private)
 			continue;
 		
+		DbgPrint("private VAD %p-%p", Vad->Node.StartVa, Vad->Node.StartVa + Vad->Node.Size * PAGE_SIZE);
 		MMPTE CommittedButNotFaultedInPte = 0;
 		if (!Vad->Flags.Committed)
 			CommittedButNotFaultedInPte = MM_DPTE_COMMITTED;
 		
 		// Now go through each page and put all of the allocated PFNs inside.
-		for (size_t i = 0; i < Vad->Node.Size; i++)
+		for (size_t i = 0; WritePTEs && i < Vad->Node.Size; i++)
 		{
 			uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
 			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
+			DbgPrint("	overwriting PTE for addr %p, PTE ptr %p", Address, PtePtr);
 			
 			if (!PtePtr)
 			{
@@ -218,10 +220,18 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList)
 		}
 	}
 	
+	if (WritePTEs) {
+		KeFlushTLB();
+	}
+	
 	return Status;
 	
 Rollback:
 	MmpUndoAddedOverlays(VadList, FailedEntry);
+	if (WritePTEs) {
+		KeFlushTLB();
+	}
+	
 	return Status;
 }
 
@@ -375,11 +385,11 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 	MmpReferenceMappedObjects(DestVadList);
 	
 	// Add overlays inside both the source and destination.
-	Status = MmpAddOverlaysIfNeeded(SrcVadList);
+	Status = MmpAddOverlaysIfNeeded(SrcVadList, true);
 	if (FAILED(Status))
 		goto Exit3;
 	
-	Status = MmpAddOverlaysIfNeeded(DestVadList);
+	Status = MmpAddOverlaysIfNeeded(DestVadList, false);
 	if (FAILED(Status))
 		goto Exit3;
 	

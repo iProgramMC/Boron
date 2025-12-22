@@ -46,6 +46,7 @@ void KeInvalidatePage(void* Page);
 void KeSetCPUPointer(void* CpuPointer);
 void* KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);
+void KeFlushTLB(void);
 void KeSetCurrentPageTable(uintptr_t PageTable);
 bool KeDisableInterrupts(); // returns old state
 void KeRestoreInterrupts(bool OldState);

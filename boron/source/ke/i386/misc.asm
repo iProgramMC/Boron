@@ -43,6 +43,13 @@ KeSetCurrentPageTable:
 	mov cr3, eax
 	ret
 
+; void KeFlushTLB()
+global KeFlushTLB
+KeFlushTLB:
+	mov eax, cr3
+	mov cr3, eax
+	ret
+
 ; int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 global MmProbeAddressSub
 MmProbeAddressSub:
