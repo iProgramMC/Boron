@@ -572,7 +572,7 @@ void MmDumpVadList(PMMVAD_LIST VadList)
 	for (; Entry != NULL; Entry = GetNextEntryRbTree(Entry))
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		DbgPrint("\tStart: %p\tSize: %zu", (void*)Vad->Node.StartVa, Vad->Node.Size);
+		DbgPrint("\tAddr: %p\tStart: %p\tSize: %zu", Vad, (void*)Vad->Node.StartVa, Vad->Node.Size);
 	}
 
 	MmUnlockVadList(VadList);

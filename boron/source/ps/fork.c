@@ -39,13 +39,11 @@ void PspUserThreadStartFork(void* ContextV)
 	OSClose(Context->CloseProcessHandle);
 	MmFreePool(Context);
 	
-	DbgPrint("%s: Calling KeDescendIntoUserMode with ReturnPC: %p  ReturnSP: %p", __func__, ReturnPC, ReturnSP);
 	KeDescendIntoUserMode(ReturnPC, ReturnSP, NULL, STATUS_IS_CHILD_PROCESS);
 }
 
 BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildReturnSP)
 {
-	DbgPrint("%s:  ReturnPC: %p  ReturnSP: %p", __func__, ChildReturnPC, ChildReturnSP);
 	BSTATUS Status;
 	
 	FORK_ENTRY_CONTEXT* ForkEntryContext = MmAllocatePool(POOL_PAGED, sizeof(FORK_ENTRY_CONTEXT));
@@ -139,8 +137,6 @@ BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildRe
 	// Also don't close the child process handle on behalf of the parent process.
 	// Note that we wrote the value of the handle back to userspace earlier.
 	ChildProcessHandle = HANDLE_NONE;
-	
-	DbgPrint("AFTER FORK Status: %d", Status);
 	
 	ObClose(ThreadHandle);
 Fail3:

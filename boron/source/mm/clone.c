@@ -176,7 +176,6 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 		if (!Vad->Flags.Private)
 			continue;
 		
-		DbgPrint("private VAD %p-%p", Vad->Node.StartVa, Vad->Node.StartVa + Vad->Node.Size * PAGE_SIZE);
 		MMPTE CommittedButNotFaultedInPte = 0;
 		if (!Vad->Flags.Committed)
 			CommittedButNotFaultedInPte = MM_DPTE_COMMITTED;
@@ -186,7 +185,6 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 		{
 			uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
 			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
-			DbgPrint("	overwriting PTE for addr %p, PTE ptr %p", Address, PtePtr);
 			
 			if (!PtePtr)
 			{
@@ -364,6 +362,12 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 		goto Exit;
 	}
 	
+	// Remove the only entry inside the destination heap's tree, if there is any.
+	PMMADDRESS_NODE DestHeapOnlyNode = CONTAINING_RECORD(GetFirstEntryRbTree(&DestHeap->Tree), MMADDRESS_NODE, Entry);
+	if (DestHeapOnlyNode) {
+		RemoveItemRbTree(&DestHeap->Tree, &DestHeapOnlyNode->Entry);
+	}
+	
 	// We need to prepare the source process for symmetric copy-on-write.  To do this, we must ensure
 	// that every anonymous memory VAD is turned into a mappable object referencing VAD.
 	Status = MmpChangeAnonymousMemoryIntoSections(SrcVadList);
@@ -398,8 +402,11 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 	if (FAILED(Status))
 		goto Exit3;
 	
-	
 	// Success
+	if (DestHeapOnlyNode) {
+		MmFreePool(DestHeapOnlyNode);
+	}
+	
 	goto Exit;
 	
 Exit3:
@@ -414,7 +421,7 @@ Exit3:
 	}
 	
 	MmpUndoAddedOverlays(SrcVadList, NULL);
-	
+
 Exit2:
 	// Free every VAD and heap item.
 	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&DestVadList->Tree);
@@ -433,6 +440,11 @@ Exit2:
 		PMMADDRESS_NODE AddrNode = CONTAINING_RECORD(Entry, MMADDRESS_NODE, Entry);
 		RemoveItemRbTree(&DestHeap->Tree, &AddrNode->Entry);
 		MmFreePool(AddrNode);
+	}
+	
+	// Also reinsert the old heap node, reverting the change we made.
+	if (DestHeapOnlyNode) {
+		InsertItemRbTree(&DestHeap->Tree, &DestHeapOnlyNode->Entry);
 	}
 	
 Exit:
