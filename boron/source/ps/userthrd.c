@@ -61,7 +61,7 @@ void PspUserThreadStart(void* ContextV)
 	Status = MmSafeCopy(StackBottom, &EntryData, sizeof EntryData, MODE_USER, true);
 	if (FAILED(Status))
 	{
-		DbgPrint("Failed to write entry context for thread, just exiting.");
+		DbgPrint("Failed to write entry context for the new thread, just exiting.");
 		OSExitThread();
 	}
 #endif

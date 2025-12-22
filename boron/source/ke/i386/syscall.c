@@ -131,7 +131,6 @@ BSTATUS OSForkProcess_Call(
 	void* Esp
 )
 {
-	DbgPrint("OSForkProcess: Eip: %p  Esp: %p", Eip, Esp);
 	return OSForkProcess(
 		OutChildProcessHandle,
 		Eip,
