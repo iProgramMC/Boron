@@ -142,14 +142,7 @@ global KeDescendIntoUserMode
 KeDescendIntoUserMode:
 	mov edi, [esp + 4]
 	mov esi, [esp + 8]
-	mov edx, [esp + 12]
-	mov eax, [esp + 16]
-	
-	; put edx onto the stack, as well as a fake return address
-	; this is so that parameter passing through this function works
-	sub esi, 8
-	mov dword [esi], 0
-	mov dword [esi + 4], edx
+	mov eax, [esp + 12]
 	
 	; EDI - Initial program counter
 	; ESI - Initial stack pointer

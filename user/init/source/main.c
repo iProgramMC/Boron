@@ -29,8 +29,10 @@ int _start(int ArgumentCount, char** Arguments)
 	else {
 		DbgPrint(">> Hey, I'm the parent process!");
 		OSWaitForSingleObject(ChildProcessHandle, false, WAIT_TIMEOUT_INFINITE);
+		OSClose(ChildProcessHandle);
 	}
 	
+	DbgPrint("This is shared behavior!");
 	OSExitProcess(Status);
 	
 	

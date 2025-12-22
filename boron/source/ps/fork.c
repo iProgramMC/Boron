@@ -39,7 +39,11 @@ void PspUserThreadStartFork(void* ContextV)
 	OSClose(Context->CloseProcessHandle);
 	MmFreePool(Context);
 	
+#ifdef TARGET_I386
+	KeDescendIntoUserMode(ReturnPC, ReturnSP, STATUS_IS_CHILD_PROCESS);
+#else
 	KeDescendIntoUserMode(ReturnPC, ReturnSP, NULL, STATUS_IS_CHILD_PROCESS);
+#endif
 }
 
 BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildReturnSP)
