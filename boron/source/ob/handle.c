@@ -23,11 +23,13 @@ typedef union
 	{
 	#ifdef IS_64_BIT
 		uintptr_t Inherit     : 1;
-		uintptr_t Spare       : 2;
+		uintptr_t Duplicate   : 1;
+		uintptr_t Spare       : 1;
 		uintptr_t AddressBits : 61;
 	#else
 		uintptr_t Inherit     : 1;
-		uintptr_t Spare       : 2;
+		uintptr_t Duplicate   : 1;
+		uintptr_t Spare       : 1;
 		uintptr_t AddressBits : 29;
 	#endif
 	} U;
@@ -123,6 +125,9 @@ BSTATUS ObpInsertObject(PEPROCESS Process, void* Object, PHANDLE OutHandle, OB_O
 	
 	if (~OpenFlags & OB_OPEN_NO_INHERIT)
 		HandleItem.U.Inherit = 1;
+	
+	if (OpenFlags & OB_OPEN_DUPLICATE_ON_FORK)
+		HandleItem.U.Duplicate = 1;
 	
 	Status = ExCreateHandle(Process->HandleTable, HandleItem.Pointer, OutHandle);
 	if (FAILED(Status))
@@ -251,14 +256,25 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	PNONPAGED_OBJECT_HEADER NPHeader = Header->NonPagedObjectHeader;
 	
-	// If this object has a duplicate function, call it.
-	OBJ_DUPLICATE_FUNC DuplicateMethod = NPHeader->ObjectType->TypeInfo.Duplicate;
-	if (DuplicateMethod)
+	if (HandleItem.U.Duplicate == 1 && OpenReason == OB_DUPLICATE_HANDLE)
 	{
-		NewObject = DuplicateMethod(Object, OpenReason);
+		// If this object has a duplicate function, call it.
+		OBJ_DUPLICATE_FUNC DuplicateMethod = NPHeader->ObjectType->TypeInfo.Duplicate;
+		if (DuplicateMethod)
+		{
+			NewObject = DuplicateMethod(Object, OpenReason);
+			
+			if (!NewObject)
+				NewObject = Object;
+		}
 		
-		if (!NewObject)
-			NewObject = Object;
+		if (NewObject == Object)
+		{
+			// TODO: should we use a status here? not provide anything at all?
+			// provide the same object?  This can happen if, for example, we're
+			// running out of memory.
+			DbgPrint("WARNING: Could not duplicate object %p.  Things won't work as expected.", Object);
+		}
 	}
 	
 	if (NewObject == Object)

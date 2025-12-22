@@ -155,6 +155,16 @@ BSTATUS ExCreateObjectUserCall(
 			goto Fail;
 	}
 	
+	if ((Attributes.OpenFlags & OB_OPEN_DUPLICATE_ON_FORK) && ObjectType->TypeInfo.Duplicate == NULL)
+	{
+		DbgPrint(
+			"Attempting to create a duplicate-on-fork object but type %s doesn't support Duplicate.",
+			ObjectType->TypeName
+		);
+		Status = STATUS_UNSUPPORTED_FUNCTION;
+		goto Fail;
+	}
+	
 	void* OutObject = NULL;
 	Status = ObCreateObject(
 		&OutObject,
@@ -244,6 +254,16 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		Attributes.OpenFlags |= OB_OPEN_USER_MODE;
 	
 	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
+	
+	if ((Attributes.OpenFlags & OB_OPEN_DUPLICATE_ON_FORK) && ObjectType->TypeInfo.Duplicate == NULL)
+	{
+		DbgPrint(
+			"Attempting to open a duplicate-on-fork object but type %s doesn't support Duplicate.",
+			ObjectType->TypeName
+		);
+		Status = STATUS_UNSUPPORTED_FUNCTION;
+		goto Fail;
+	}
 	
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObOpenObjectByName(

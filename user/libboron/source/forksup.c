@@ -18,7 +18,5 @@ BSTATUS OSForkProcess(PHANDLE OutChildProcessHandle)
 HIDDEN
 void OSDLLForkEntry()
 {
-	DbgPrint("OSDLLForkEntry: entered");
-	
-	// TODO: create new critical section events
+	// TODO: Anything needed here?  Maybe add support for on-fork hooks?
 }

@@ -26,9 +26,12 @@ BSTATUS OSInitializeCriticalSectionWithSpinCount(POS_CRITICAL_SECTION CriticalSe
 	CriticalSection->Locked = 0;
 	CriticalSection->MaxSpins = MaxSpins;
 
+	OBJECT_ATTRIBUTES Attributes = {};
+	Attributes.OpenFlags = OB_OPEN_DUPLICATE_ON_FORK;
+
 	BSTATUS Status = OSCreateEvent(
 		&CriticalSection->EventHandle,
-		NULL,
+		&Attributes,
 		MULTIPLE_WAITERS_WAKEUP ? EVENT_NOTIFICATION : EVENT_SYNCHRONIZATION,
 		false
 	);
