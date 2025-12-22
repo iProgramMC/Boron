@@ -43,7 +43,7 @@ BSTATUS OSCreateProcess(
 );
 
 // POSIX fork support.
-typedef void(*PFORK_ENTRY_FUNC)(void* Pc, void* Sp);
+BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildReturnSP);
 
 #ifdef KERNEL
 extern EPROCESS PsSystemProcess;
