@@ -93,6 +93,7 @@ enum
 	// Execution error codes
 	STATUS_INVALID_EXECUTABLE,  // The executable file is invalid.
 	STATUS_INVALID_ARCHITECTURE,// The executable file is valid, but for a machine type other than the current machine.
+	STATUS_IS_CHILD_PROCESS,    // After an OSForkProcess() operation is performed, the child process sees this as the return value and the parent sees STATUS_SUCCESS.
 	
 	// Process error codes.
 	STATUS_STILL_RUNNING,       // The process is still running

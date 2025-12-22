@@ -34,6 +34,7 @@ extern OSDuplicateHandle
 extern OSExitProcess
 extern OSExitThread
 extern OSFreeVirtualMemory
+extern OSForkProcess
 extern OSGetAlignmentFile
 extern OSGetCurrentPeb
 extern OSGetCurrentTeb
@@ -125,6 +126,7 @@ KiSystemServiceTable:
 	dq OSWaitForSingleObject
 	dq OSWriteFile
 	dq OSWriteVirtualMemory
+	dq OSForkProcessA
 KiSystemServiceTableEnd:
 	nop
 
@@ -209,6 +211,14 @@ KiSystemServiceHandler:
 	; Invalid system call, return with the status of STATUS_INVALID_PARAMETER (1)
 	mov  rax, 1
 	o64 sysret
+
+; BSTATUS OSForkProcessA(PHANDLE OutChildHandle);
+OSForkProcessA:
+	; rdi has the correct parameters anyway.
+	; this offset was calculated from the system service handler:
+	mov rsi, [rsp + 48] ; user RIP
+	mov rdx, [rsp + 56] ; user RSP
+	jmp OSForkProcess
 
 %ifdef ENABLE_SYSCALL_TRACE
 

@@ -35,6 +35,18 @@ BSTATUS OSCreateProcess(
 	const char* Environment
 );
 
+// Clones the current process exactly into a new process.
+//
+// The parent will:
+// - See STATUS_SUCCESS
+// - Receive a handle to the child process in OutChildProcessHandle
+//
+// The child will:
+// - See STATUS_IS_CHILD_PROCESS
+// - While OutChildProcessHandle will be modified, the handle WILL NOT be valid.
+//   It would be useless anyway as you can just use CURRENT_PROCESS_HANDLE.
+BSTATUS OSForkProcess(PHANDLE OutChildProcessHandle);
+
 #ifdef __cplusplus
 }
 #endif

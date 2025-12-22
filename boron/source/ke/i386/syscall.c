@@ -109,7 +109,34 @@ BSTATUS OSWriteFile_Call(
 }
 
 // N.B. extra arguments will be ignored by the called function.
-typedef int(*KI_SYSCALL_HANDLER)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+typedef int(*KI_SYSCALL_HANDLER)(
+	uintptr_t p1,
+	uintptr_t p2,
+	uintptr_t p3,
+	uintptr_t p4,
+	uintptr_t p5,
+	uintptr_t p6,
+	uintptr_t ip,
+	uintptr_t sp
+);
+
+BSTATUS OSForkProcess_Call(
+	PHANDLE OutChildProcessHandle,
+	UNUSED uint32_t Unused1,
+	UNUSED uint32_t Unused2,
+	UNUSED uint32_t Unused3,
+	UNUSED uint32_t Unused4,
+	UNUSED uint32_t Unused5,
+	void* Eip,
+	void* Esp
+)
+{
+	return OSForkProcess(
+		OutChildProcessHandle,
+		Eip,
+		Esp
+	);
+}
 
 const void* const KiSystemServiceTable[] =
 {
@@ -164,6 +191,7 @@ const void* const KiSystemServiceTable[] =
 	OSWaitForSingleObject,
 	OSWriteFile_Call,
 	OSWriteVirtualMemory,
+	OSForkProcess_Call,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)
@@ -184,8 +212,11 @@ PKREGISTERS KiSystemServiceHandler(PKREGISTERS Regs)
 #endif
 	
 	// Now call the function.
+	//
+	// Note: Most system call handlers completely ignore the 7th and 8th parameters, except for
+	// the OSForkProcess handler.
 	KI_SYSCALL_HANDLER Handler = KiSystemServiceTable[Regs->Eax];
-	int Return = Handler(Regs->Ebx, Regs->Ecx, Regs->Edx, Regs->Esi, Regs->Edi, Regs->Ebp);
+	int Return = Handler(Regs->Ebx, Regs->Ecx, Regs->Edx, Regs->Esi, Regs->Edi, Regs->Ebp, Regs->Eip, Regs->Esp);
 	Regs->Eax = Return;
 	
 	KiCheckTerminatedUserMode();

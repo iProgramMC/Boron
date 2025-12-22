@@ -18,6 +18,32 @@ POBJECT_TYPE
 	ExSemaphoreObjectType,
 	ExTimerObjectType;
 
+void* ExpDuplicateEvent(void* EventV, UNUSED int OpenReason)
+{
+	BSTATUS Status;
+	PKEVENT Event = EventV;
+	
+	void* NewObject = NULL;
+	Status = ObCreateObject(
+		&NewObject,
+		NULL, // ParentDirectory
+		ExEventObjectType,
+		NULL, // ObjectName
+		OB_FLAG_NO_DIRECTORY,
+		NULL, // ParseContext
+		sizeof(KEVENT) // BodySize
+	);
+	
+	if (FAILED(Status)) {
+		DbgPrint("ExpDuplicateEvent: Failed to duplicate event: %s (%d)", RtlGetStatusString(Status), Status);
+		return NULL;
+	}
+	
+	KeInitializeEvent((PKEVENT) NewObject, Event->Type, Event->Header.Signaled != 0);
+	
+	return NewObject;
+}
+
 bool ExpCreateEventType()
 {
 	OBJECT_TYPE_INFO ObjectInfo;
@@ -25,6 +51,8 @@ bool ExpCreateEventType()
 	
 	ObjectInfo.NonPagedPool = true;
 	ObjectInfo.MaintainHandleCount = true;
+	
+	ObjectInfo.Duplicate = ExpDuplicateEvent;
 	
 	BSTATUS Status = ObCreateObjectType(
 		"Event",

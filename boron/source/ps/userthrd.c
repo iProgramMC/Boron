@@ -33,13 +33,45 @@ void PspUserThreadStart(void* ContextV)
 	);
 	
 	ASSERT(SUCCEEDED(Status) && "TODO: What happens if this fails? Maybe should have set it up earlier?!");
+	if (FAILED(Status)) {
+		PsTerminateThread();
+	}
 	
 	PsGetCurrentThread()->UserStack = StackAddress;
 	PsGetCurrentThread()->UserStackSize = StackSize;
 	PsGetCurrentThread()->Tcb.IsUserThread = true;
 	
+	uint32_t* StackBottom = (uint32_t*)((uintptr_t)StackAddress + StackSize);
+	
+	// We have to do this on i386 because of ABI constraints.  Other platforms are saner
+	// and allow parameter passing through registers. As such, this platform is the only
+	// one where this hack is required.
+#ifdef TARGET_I386
+	// Put the user context onto the stack, as well as a fake return address.
+	// This is so that we can pass the context as a parameter.
+	struct {
+		uint32_t ReturnAddr;
+		uint32_t Parameter;
+	}
+	EntryData;
+	EntryData.ReturnAddr = 0;
+	EntryData.Parameter = (uint32_t) Context.UserContext;
+	
+	StackBottom -= 2;
+	Status = MmSafeCopy(StackBottom, &EntryData, sizeof EntryData, MODE_USER, true);
+	if (FAILED(Status))
+	{
+		DbgPrint("Failed to write entry context for the new thread, just exiting.");
+		OSExitThread();
+	}
+#endif
+	
 	KeGetCurrentThread()->Mode = MODE_USER;
-	KeDescendIntoUserMode(Context.InstructionPointer, (uint8_t*) StackAddress + StackSize, Context.UserContext);
+#ifdef TARGET_I386
+	KeDescendIntoUserMode(Context.InstructionPointer, StackBottom, 0);
+#else
+	KeDescendIntoUserMode(Context.InstructionPointer, StackBottom, Context.UserContext, 0);
+#endif
 }
 
 void PsOnTerminateUserThread()

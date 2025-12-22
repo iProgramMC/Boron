@@ -41,6 +41,11 @@ enum
 	// This flag is set when user mode requests an object.  This flag is ignored if passed
 	// in from user mode.
 	OB_OPEN_USER_MODE = (1 << 4),
+	
+	// This flag is set when an object must be duplicated upon a fork, instead of the same
+	// object being referenced by both processes.  If the caller tries to create an object
+	// that cannot be duplicated in such a manner, STATUS_UNSUPPORTED_FUNCTION is returned.
+	OB_OPEN_DUPLICATE_ON_FORK = (1 << 5),
 };
 
 typedef struct _OBJECT_ATTRIBUTES

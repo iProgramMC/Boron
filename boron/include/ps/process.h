@@ -42,6 +42,9 @@ BSTATUS OSCreateProcess(
 	bool DeepCloneHandles
 );
 
+// POSIX fork support.
+BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildReturnSP);
+
 #ifdef KERNEL
 extern EPROCESS PsSystemProcess;
 #else

@@ -43,6 +43,13 @@ KeSetCurrentPageTable:
 	mov cr3, rdi
 	ret
 
+; void KeFlushTLB()
+global KeFlushTLB
+KeFlushTLB:
+	mov rax, cr3
+	mov cr3, rax
+	ret
+
 global KeOnUpdateIPL
 
 ; void KeOnUpdateIPL(eIPL newIPL, eIPL oldIPL)
