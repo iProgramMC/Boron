@@ -247,7 +247,7 @@ void KeInitSMP()
 	PsInitSystemProcess();
 	
 	int VersionNumber = KeGetVersionNumber();
-	LogMsg("Boron (TM), October 2025 - v%d.%d.%d (%s)", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber), BORON_TARGET);
+	LogMsg("Boron (TM), December 2025 - v%d.%d.%d (%s)", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber), BORON_TARGET);
 	LogMsg("%u System Processors [%u Kb System Memory] " UNI_OR_MULTI "Processor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
 	for (uint64_t i = 0; i < MpInfo->Count; i++)
