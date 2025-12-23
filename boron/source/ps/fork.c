@@ -19,6 +19,7 @@ typedef struct {
 	void* ThreadUserStack;
 	size_t ThreadUserStackSize;
 	void* PebPointer;
+	void* TebPointer;
 	HANDLE CloseProcessHandle;
 }
 FORK_ENTRY_CONTEXT;
@@ -32,7 +33,8 @@ void PspUserThreadStartFork(void* ContextV)
 	PsGetCurrentThread()->UserStack = Context->ThreadUserStack;
 	PsGetCurrentThread()->UserStackSize = Context->ThreadUserStackSize;
 	PsGetCurrentThread()->Tcb.IsUserThread = true;
-	PsGetCurrentProcess()->Pcb.PebPointer = Context->PebPointer;
+	OSSetCurrentPeb(Context->PebPointer);
+	OSSetCurrentTeb(Context->TebPointer);
 	
 	void* ReturnPC = Context->ChildReturnPC;
 	void* ReturnSP = Context->ChildReturnSP;
@@ -91,6 +93,7 @@ BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildRe
 	// the new thread.
 	ForkEntryContext->ThreadUserStack = PsGetCurrentThread()->UserStack;
 	ForkEntryContext->ThreadUserStackSize = PsGetCurrentThread()->UserStackSize;
+	ForkEntryContext->TebPointer = KeGetCurrentThread()->TebPointer;
 	ForkEntryContext->PebPointer = KeGetCurrentProcess()->PebPointer;
 	
 	// However, we DO NOT necessarily want a useless handle to this process in the child process.
