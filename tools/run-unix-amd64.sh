@@ -1,3 +1,4 @@
+#!/bin/sh
 qemu-system-x86_64 \
     -no-reboot \
     -no-shutdown \
@@ -5,5 +6,5 @@ qemu-system-x86_64 \
     -m 256M \
     -smp 4 \
     -boot d \
-    -cdrom build/image.amd64.iso \
+    -cdrom ../build/image.amd64.iso \
     -debugcon stdio
