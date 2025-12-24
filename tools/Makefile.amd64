@@ -1,0 +1,21 @@
+# AMD64 Makefile
+
+TARGETL = amd64
+
+DRIVERS_LIST = \
+	halx86     \
+	framebuf   \
+	i8042prt   \
+	stornvme   \
+	ext2fs     \
+	tmpfs      \
+	test
+
+# Amd64 has a special sysroot path since we'll be porting mlibc on it. 32-bit currently
+# doesn't get such a thing yet.
+# Note that if the path is missing (not in an environment variable), it'll just redundantly
+# copy the `root` directory again. Bad, but I don't know how to disable commands inside of rules.
+BORON_SYSROOT_AMD64_PATH ?= root
+BORON_SYSROOT_PATH := $(BORON_SYSROOT_AMD64_PATH)
+
+

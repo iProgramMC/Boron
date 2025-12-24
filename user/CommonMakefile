@@ -66,7 +66,7 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
-include ../../tools/toolchain.mk
+include ../../tools/toolchain.$(TARGETL).mk
 
 # User controllable CFLAGS.
 CFLAGS ?=

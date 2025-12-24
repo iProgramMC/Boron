@@ -76,7 +76,7 @@ else
 endif
 
 IS_KERNEL = yes
-include ../tools/toolchain.mk
+include ../tools/toolchain.$(TARGETL).mk
 
 ifeq ($(SMP), yes)
 	ARCH_CFLAGS += -DCONFIG_SMP

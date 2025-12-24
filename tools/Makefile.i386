@@ -1,0 +1,12 @@
+# i386 Makefile
+
+TARGETL = i386
+
+DRIVERS_LIST = \
+	hali386    \
+	framebuf   \
+	i8042prt   \
+	ext2fs     \
+	tmpfs      \
+	test
+

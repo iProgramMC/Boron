@@ -19,37 +19,12 @@ TARGETL ?= $(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F
 KERNEL_NAME = kernel.elf
 SYSDLL_NAME = libboron.so
 
-ifeq ($(TARGET),AMD64)
-DRIVERS_LIST = \
-	halx86     \
-	framebuf   \
-	i8042prt   \
-	stornvme   \
-	ext2fs     \
-	tmpfs      \
-	test
-else ifeq ($(TARGET),I386)
-DRIVERS_LIST = \
-	hali386    \
-	framebuf   \
-	i8042prt   \
-	ext2fs     \
-	tmpfs      \
-	test
-endif
-
 # Decide on a sysroot path.
-#
-# Amd64 has a special sysroot path since we'll be porting mlibc using it. 32-bit currently
-# doesn't get such a thing. Yet.
-# Note that if the path is missing (not in an environment variable), it'll just redundantly
-# copy the `root` directory again. Bad, but I don't know how to disable commands inside of rules.
-ifeq ($(TARGETL),amd64)
-	BORON_SYSROOT_AMD64_PATH ?= root
-	BORON_SYSROOT_PATH = $(BORON_SYSROOT_AMD64_PATH)
-else
-	BORON_SYSROOT_PATH = root
-endif
+# It can be overwritten by the platform-specific makefile component (for example,
+# amd64 requires a special root where mlibc installs its stuff)
+BORON_SYSROOT_PATH = root
+
+include tools/Makefile.$(TARGETL)
 
 # The build directory
 BUILD_DIR = build/$(TARGETL)
@@ -105,13 +80,8 @@ clean:
 
 image: limine $(IMAGE_TARGET) $(INITRD_TARGET)
 
-ifeq ($(TARGET),AMD64)
-include tools/build_iso_limine.mk
-include tools/run_rule_amd64.mk
-else ifeq ($(TARGET),I386)
-include tools/build_iso_limine.mk
-include tools/run_rule_i386.mk
-endif
+include tools/build_image_$(TARGETL).mk
+include tools/run_rule_$(TARGETL).mk
 
 kernel: $(KERNEL_ELF)
 
