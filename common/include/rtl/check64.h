@@ -18,7 +18,7 @@ Author:
 
 #define IS_64_BIT 1
 
-#elif defined TARGET_I386
+#elif defined TARGET_I386 || defined TARGET_ARM
 
 #define IS_32_BIT 1
 

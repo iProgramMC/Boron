@@ -8,6 +8,10 @@
 #include <arch/amd64.h>
 #elif defined TARGET_I386
 #include <arch/i386.h>
+#elif defined TARGET_ARM
+#include <arch/arm.h>
+#else
+#error Define your architecture here!
 #endif
 
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====

@@ -88,7 +88,7 @@ MMADDRESS_CONVERT;
 #define MM_PTE_PAGESIZE   (1 <<  7) // for 4MB pages. not used by the kernel
 #define MM_PTE_GLOBAL     (1 <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1 <<  9) // if the allocated memory is managed by the PFN database
-#define MM_PTE_COW        (1 << 10) // if this page is to be copied after a write
+#define MM_PTE_COW        (1 << 10) // if this page is to be copied after a write (UNUSED)
 
 #define MM_PTE_NOEXEC     (0)       // no such thing on 32-bit (without PAE)
 #define MM_PTE_PKMASK     (0)       // no such thing on 32-bit
@@ -96,6 +96,9 @@ MMADDRESS_CONVERT;
 #define MM_PTE_ADDRESSMASK (0xFFFFF000U)
 
 #define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
+#define MM_PTE_NEWPFN(Pfn) ((Pfn) << 12)
+
+#define MM_PTE_CHECKFROMPMM(Pte) ((Pte) & MM_PTE_ISFROMPMM)
 
 // Disabled PTE (present bit is zero):
 // bits 0..2 - Permission bits as usual
@@ -119,8 +122,7 @@ MMADDRESS_CONVERT;
 #define MM_DPTE_COMMITTED    (1 << 8)
 #define MM_DPTE_BACKEDBYFILE (1 << 9)
 #define MM_DPTE_SWAPPED      (1 << 10)
-
-#define MM_PTE_ISPOOLHDR     (1 << 11) // see src/mm/poolsup.c for an explanation
+#define MM_DPTE_ISPOOLHDR    (1 << 11) // see src/mm/poolsup.c for an explanation
 
 // Page fault reasons
 #define MM_FAULT_PROTECTION (1 << 0) // 0: Page wasn't marked present; 1: Page protection violation (e.g. writing to a readonly page)

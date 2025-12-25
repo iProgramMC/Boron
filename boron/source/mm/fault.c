@@ -56,7 +56,7 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, MMPTE SupervisorBit)
 	MMPTE NewPte = *PtePtr;
 	NewPte &= ~MM_DPTE_COMMITTED;
 	NewPte |=  MM_PTE_PRESENT | MM_PTE_ISFROMPMM | SupervisorBit;
-	NewPte |=  MmPFNToPhysPage(Pfn);
+	NewPte |=  MM_PTE_NEWPFN(Pfn);
 	NewPte &= ~MM_PTE_PKMASK;
 	*PtePtr = NewPte;
 	
@@ -181,13 +181,13 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
 		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
 		
-	#ifdef TARGET_I386
+	#ifdef MI_USE_TWO_POOLS
 		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
 		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
 	#endif
 		
 		if ((PoolStart <= Va && Va < PoolEnd)
-		#ifdef TARGET_I386
+		#ifdef MI_USE_TWO_POOLS
 			|| (Pool2Start <= Va && Va < Pool2End)
 		#endif
 			)
@@ -262,7 +262,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	}
 	
 	// Now the PTE is here and we can commit it.
-	*PtePtr = Vad->Flags.Protection;
+	*PtePtr = MmGetPteBitsFromProtection(Vad->Flags.Protection);
 	
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
@@ -305,13 +305,13 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
 		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
 		
-	#ifdef TARGET_I386
+	#ifdef MI_USE_TWO_POOLS
 		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
 		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
 	#endif
 		
 		if ((PoolStart <= Va && Va < PoolEnd)
-		#ifdef TARGET_I386
+		#ifdef MI_USE_TWO_POOLS
 			|| (Pool2Start <= Va && Va < Pool2End)
 		#endif
 			)
@@ -378,7 +378,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		*PtePtr =
 			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
 			MM_PTE_READWRITE |
-			(NewPfn * PAGE_SIZE);
+			MM_PTE_NEWPFN(NewPfn * PAGE_SIZE);
 	}
 	else
 	{

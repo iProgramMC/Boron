@@ -19,6 +19,8 @@ Author:
 #include <arch/amd64/ipl.h>
 #elif defined TARGET_I386
 #include <arch/i386/ipl.h>
+#elif defined TARGET_ARM
+#include <arch/arm/ipl.h>
 #else
 #error Implement ipl.h for your architecture!
 #endif

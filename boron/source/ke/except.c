@@ -32,6 +32,21 @@ Author:
 	UNUSED uint64_t FaultMode    = TrapFrame->ErrorCode; \
 	UNUSED int Vector = TrapFrame->IntNumber
 
+#elif defined TARGET_ARM
+
+// TODO: an actual vector number
+#define KI_EXCEPTION_HANDLER_INIT() \
+	UNUSED uint32_t FaultPC = TrapFrame->Pc; \
+	UNUSED uint32_t FaultAddress, FaultMode; \
+	UNUSED uint32_t Vector = TrapFrame->IntNumber; \
+	if (KiWasFaultCausedByInstructionFetch()) { \
+		FaultAddress = KiReadIfar(); \
+		FaultMode = KiReadIfsr(); \
+	} else { \
+		FaultAddress = KiReadDfar(); \
+		FaultMode = KiReadDfsr(); \
+	}
+
 #else
 
 #error Go implement KI_EXCEPTION_HANDLER_INIT!
@@ -122,23 +137,19 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 			// Instead of crashing, just modify the trap frame to point to the return
 			// instruction of MmProbeAddressSubEarlyReturn, and RAX to return STATUS_FAULT.
 		#ifdef TARGET_AMD64
-			
 			TrapFrame->rip = (uint64_t) MmProbeAddressSubEarlyReturn;
 			TrapFrame->rax = (uint64_t) STATUS_FAULT;
-			
 			return;
-			
 		#elif defined TARGET_I386
-			
 			TrapFrame->Eip = (uint32_t) MmProbeAddressSubEarlyReturn;
 			TrapFrame->Eax = (uint32_t) STATUS_FAULT;
-			
 			return;
-			
+		#elif defined TARGET_ARM
+			TrapFrame->Pc = (uint32_t) MmProbeAddressSubEarlyReturn;
+			TrapFrame->R0 = (uint32_t) STATUS_FAULT;
+			return;
 		#else
-			
 			#error Hey!
-			
 		#endif
 		}
 	}
