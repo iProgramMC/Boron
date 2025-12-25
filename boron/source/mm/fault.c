@@ -262,7 +262,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	}
 	
 	// Now the PTE is here and we can commit it.
-	*PtePtr = MmGetPteBitsFromProtection(Vad->Flags.Protection);
+	*PtePtr = 0;
 	
 	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
@@ -378,7 +378,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		*PtePtr =
 			(*PtePtr & ~(MM_PTE_COW | MM_PTE_ADDRESSMASK)) |
 			MM_PTE_READWRITE |
-			MM_PTE_NEWPFN(NewPfn * PAGE_SIZE);
+			MM_PTE_NEWPFN(NewPfn);
 	}
 	else
 	{

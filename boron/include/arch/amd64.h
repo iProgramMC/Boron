@@ -89,7 +89,7 @@ MMADDRESS_CONVERT;
 	// 58..52 - more available bits
 
 #define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
-#define MM_PTE_NEWPFN(Pfn) ((Pfn) << 12)
+#define MM_PTE_NEWPFN(Pfn) (((Pfn) * PAGE_SIZE) & MM_PTE_ADDRESSMASK)
 
 #define MM_PTE_CHECKFROMPMM(Pte) ((Pte) & MM_PTE_ISFROMPMM)
 
