@@ -1,0 +1,4 @@
+# armv6 Makefile
+
+DRIVERS_LIST = \
+	test
