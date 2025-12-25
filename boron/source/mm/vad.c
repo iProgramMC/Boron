@@ -430,7 +430,7 @@ void MiCleanUpVad(PMMVAD Vad)
 	PMMPTE Pte = MmGetPteLocation(CurrentVa);
 	for (size_t i = 0; i < Vad->Node.Size; i++)
 	{
-		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
 		{
 			if (!MmCheckPteLocation(CurrentVa, false))
 			{

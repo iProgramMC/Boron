@@ -114,8 +114,8 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 {
 	// Figure out the number of pages to reserve the MDL for:
-	uintptr_t StartPage = VirtualAddress & ~0xFFF;
-	uintptr_t EndPage   = (VirtualAddress + Length + 0xFFF) & ~0xFFF;
+	uintptr_t StartPage = VirtualAddress & ~(PAGE_SIZE - 1);
+	uintptr_t EndPage   = (VirtualAddress + Length + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 	size_t NumPages = (EndPage - StartPage) / PAGE_SIZE;
 	
 	if (Length >= MDL_MAX_SIZE)
@@ -134,11 +134,11 @@ PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length)
 		return NULL;
 	
 	// Initialize the MDL
-	Mdl->ByteOffset    = (short)(VirtualAddress & 0xFFF);
+	Mdl->ByteOffset    = (short)(VirtualAddress & (PAGE_SIZE - 1));
 	Mdl->Flags         = MDL_FLAG_FROMPOOL;
 	Mdl->Available     = 0; // pad
 	Mdl->ByteCount     = Length;
-	Mdl->SourceStartVA = VirtualAddress & ~0xFFF;
+	Mdl->SourceStartVA = VirtualAddress & ~(PAGE_SIZE - 1);
 	Mdl->MappedStartVA = 0;
 	Mdl->Process       = PsGetAttachedProcess();
 	Mdl->NumberPages   = NumPages;
@@ -152,8 +152,8 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 	size_t Size = Mdl->ByteCount;
 	
 	// Figure out the number of pages to reserve the MDL for:
-	uintptr_t StartPage = VirtualAddress & ~0xFFF;
-	uintptr_t EndPage   = (VirtualAddress + Mdl->ByteOffset + Size + 0xFFF) & ~0xFFF;
+	uintptr_t StartPage = VirtualAddress & ~(PAGE_SIZE - 1);
+	uintptr_t EndPage   = (VirtualAddress + Mdl->ByteOffset + Size + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
 	BSTATUS FailureReason = STATUS_SUCCESS;
 	
 	// TODO: Arbitrary size limitation that we should remove!

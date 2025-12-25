@@ -371,7 +371,7 @@ void MiSlabFree(void* Ptr)
 	Item = CONTAINING_RECORD(Entry, MISLAB_ITEM, TreeEntry);
 	
 	// This item pointer is page aligned.
-	ASSERT(((uintptr_t)Item & 0xFFF) == 0);
+	ASSERT(((uintptr_t)Item & (PAGE_SIZE - 1)) == 0);
 	
 	// Now check if the pointer we were passed actually belongs inside this slab item.
 	if ((char*)Ptr < Item->Data || Item->Data + Item->Length - sizeof(Item) <= (char*)Ptr)

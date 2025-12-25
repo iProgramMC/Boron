@@ -67,7 +67,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	{
 		// If the Pte address crossed into a new page, or if the range is equal to zero,
 		// we need to check if that new page is valid.
-		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
 		{
 			if (!MmCheckPteLocation(CurrentVa, false))
 			{
@@ -133,7 +133,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	{
 		// If the Pte address crossed into a new page, or if the range is equal to zero,
 		// we need to check if that new page is valid.
-		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
 		{
 			if (!MmCheckPteLocation(CurrentVa, true))
 			{
@@ -211,7 +211,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 	PMMPTE Pte = MmGetPteLocation(CurrentVa);
 	for (size_t i = 0; i < SizePages; )
 	{
-		if (i == 0 || ((uintptr_t)Pte & 0xFFF) == 0)
+		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
 		{
 			// If IsVadCommitted is true, then we would need allocate new PTs
 			// to mark the page as decommitted.  I am slightly embarrassed about this,
