@@ -65,7 +65,7 @@ static BSTATUS MmpChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
 			if (Pte & MM_PTE_PRESENT)
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(Pte & MM_PTE_ISFROMPMM);
+				ASSERT(MM_PTE_CHECKFROMPMM(Pte));
 				
 				MMPFN Pfn = MM_PTE_PFN(Pte);
 				
@@ -205,7 +205,7 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 			if (Pte & MM_PTE_PRESENT)
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(Pte & MM_PTE_ISFROMPMM);
+				ASSERT(MM_PTE_CHECKFROMPMM(Pte));
 				
 				MMPFN Pfn = MM_PTE_PFN(Pte);
 				MmFreePhysicalPage(Pfn);

@@ -20,7 +20,6 @@ Author:
 #include <hal.h>
 #include <ke.h>
 #include <ps.h>
-#include <_limine.h>
 
 #define PAGE_ALIGNED(x) (((x) & (PAGE_SIZE - 1)) == 0)
 
@@ -182,13 +181,15 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 // Thus, our pool will be 512 GB in size.
 #define MI_POOL_LOG2_SIZE (39)
 
-#elif defined TARGET_I386
+#elif defined TARGET_I386 || defined TARGET_ARM
 
 // There will actually be two arenas of pool space:
 // 0x80000000 - 0xC0000000 and 0xD0000000 - 0xF0000000
 #define MI_POOL_LOG2_SIZE (30)
 
 #define MI_POOL_LOG2_SIZE_2ND (28)
+
+#define MI_USE_TWO_POOLS
 
 #else
 
@@ -286,7 +287,7 @@ void MiPrepareGlobalAreaForPool(HPAGEMAP PageMap);
 // Get the top of the area managed by the pool allocator.
 uintptr_t MiGetTopOfPoolManagedArea();
 
-#ifdef TARGET_I386
+#ifdef MI_USE_TWO_POOLS
 // Get the top of the second area managed by the pool allocator.
 uintptr_t MiGetTopOfSecondPoolManagedArea();
 #endif

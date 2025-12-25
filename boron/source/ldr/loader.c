@@ -24,6 +24,11 @@ static const char* LdrpHalPath = "halx86.sys";
 static uintptr_t LdrpCurrentBase = 0xD2000000;
 static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
 
+#elif defined TARGET_ARM
+
+static uintptr_t LdrpCurrentBase = 0xD2000000;
+static const char* LdrpHalPath = "halarmqv.sys"; // TODO: make this configurable. for now, ARM QEMU virt machine.
+
 #else
 	
 #error Define your loader base and HAL path here.

@@ -179,8 +179,8 @@ uintptr_t MiAllocatePageFromMemMap()
 		if (Entry->Type != LOADER_MEM_FREE)
 			continue;
 		
-		// Note! Usable entries in limine are guaranteed to be aligned to
-		// page size, and not overlap any other entries. So we are good
+		// Note: Usable entries are guaranteed to be aligned to page size,
+		// and not overlap any other entries.
 		
 		// if it's got no pages, also skip it..
 		if (Entry->Size == 0)
@@ -322,6 +322,8 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	}
 	
 	return true;
+#elif defined TARGET_ARM
+	#warning TODO: Implement this!
 #else
 	#error "Implement this for your platform!"
 #endif
@@ -468,7 +470,7 @@ void MiInitPMM()
 		
 		for (uint64_t j = 0; j < Entry->Size; j += PAGE_SIZE)
 		{
-			bool isUsed = Entry->Type != LIMINE_MEMMAP_USABLE;
+			bool isUsed = Entry->Type != LOADER_MEM_FREE;
 			
 			int currPFN = MmPhysPageToPFN(Entry->Base + j);
 			
