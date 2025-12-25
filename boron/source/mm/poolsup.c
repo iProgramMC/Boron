@@ -200,7 +200,7 @@ void MiInitPool()
 	Entry->Address = MiGetTopOfPoolManagedArea();
 	InsertTailList(&MmpPoolList, &Entry->ListEntry);
 
-#ifdef MM_USE_TWO_POOLS
+#ifdef MI_USE_TWO_POOLS
 
 	// TODO: Will other 32-bit platforms look similar?
 	Entry = MiCreatePoolEntry();
