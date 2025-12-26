@@ -76,7 +76,7 @@ PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
 HPAGEMAP MiCreatePageMapping()
 {
 	// Allocate the PML2.
-	int NewPageMappingPFN = MmAllocatePhysicalPage();
+	MMPFN NewPageMappingPFN = MmAllocatePhysicalPage();
 	if (NewPageMappingPFN == PFN_INVALID)
 	{
 		LogMsg("Error, can't create a new page mapping.  Can't allocate PML4");
@@ -106,6 +106,12 @@ HPAGEMAP MiCreatePageMapping()
 	MmEndUsingHHDM();
 	MmUnlockKernelSpace();
 	return (HPAGEMAP) NewPageMappingResult;
+}
+
+// Frees a page mapping.
+void MiFreePageMapping(HPAGEMAP PageMap)
+{
+	return MmFreePhysicalPage(MmPhysPageToPFN(PageMap));
 }
 
 static void MmpFreeVacantPageTables(uintptr_t Address)
