@@ -1,7 +1,7 @@
 # armv6 Compiler Toolchain
 BCC  ?= arm-none-eabi-gcc
 BCXX ?= arm-none-eabi-g++
-BLD  ?= ld
+BLD  ?= arm-none-eabi-ld
 BASM ?= unknown
 # ^^ note: we will be using .S files
 
@@ -11,4 +11,4 @@ ARCH_CFLAGS = \
 	-mfloat-abi=soft \
 	-DTARGET_ARM
 
-LINK_ARCH = arm
+LINK_ARCH = armelf

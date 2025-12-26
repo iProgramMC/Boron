@@ -123,7 +123,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	}
 	
 	// The range is safe to commit.
-	uintptr_t PteFlags = MmGetPteBitsFromProtection(Protection);
+	MMPTE PteFlags = MmGetPteBitsFromProtection(Protection);
 	
 	// TODO: Enforce W^X here if the user doesn't have the relevant permissions
 	

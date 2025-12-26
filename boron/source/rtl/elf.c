@@ -84,6 +84,133 @@ static bool RtlpComputeRelocation(
 			*Length = sizeof(uint32_t);
 			break;
 		// TODO
+#elif defined TARGET_ARM
+		case R_ARM_NONE:
+			*Value  = 0;
+			*Length = 0;
+			break;
+		case R_ARM_ABS32:
+			*Value  = Symbol + Addend;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_ARM_REL32:
+			*Value  = Symbol + Addend - Place;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_ARM_SBREL32:
+			*Value  = Symbol + Addend - Base;
+			*Length = sizeof(uint32_t);
+			break;
+		case R_ARM_ABS16:
+			*Value  = (Symbol + Addend) & 0xFFFF;
+			*Length = sizeof(uint16_t);
+			break;
+		case R_ARM_ABS8:
+			*Value  = (Symbol + Addend) & 0xFF;
+			*Length = sizeof(uint8_t);
+			break;
+		case R_ARM_PC24:
+		case R_ARM_XPC25:
+		{
+			uint32_t Instruction = *(uint32_t*) Place;
+
+			uint32_t Address = Symbol + Addend - Place;
+			int32_t Disp = (int32_t)(Address) >> 2;
+			int32_t Thm = (Address & 2) != 0;
+			Disp &= 0x00FFFFFF;
+
+			if (Type == R_ARM_PC24) {
+				Instruction &= 0xFF000000;
+				Instruction |= Disp;
+			}
+			else {
+				Instruction &= 0xFE000000;
+				Instruction |= Disp;
+				Instruction |= Thm << 24;
+			}
+
+			*Value  = Instruction;
+			*Length = sizeof(uint32_t);
+			break;
+		}
+		case R_ARM_PC13:
+		{
+			uint32_t Instruction = *(uint32_t*)Place;
+			int32_t Disp = (int32_t)(Symbol + Addend - Place);
+
+			uint32_t Direction = (Disp >= 0);
+			uint32_t Imm12 = (uint32_t)(Direction ? Disp : -Disp) & 0xFFF;
+
+			Instruction &= ~((1 << 23) | 0xFFF);
+			Instruction |= (Direction << 23) | Imm12;
+
+			*Value  = Instruction;
+			*Length = sizeof(uint32_t);
+			break;
+		}
+		case R_ARM_ABS12:
+		{
+			uint32_t Instruction = *(uint32_t*)Place;
+			uint32_t Imm12 = (Symbol + Addend) & 0xFFF;
+
+			Instruction &= ~0xFFF;
+			Instruction |= Imm12;
+
+			*Value  = Instruction;
+			*Length = sizeof(uint32_t);
+			break;
+		}
+		case R_ARM_SWI24:
+		{
+			uint32_t Instruction = *(uint32_t*)Place;
+			uint32_t Imm24 = (Symbol + Addend) & 0x00FFFFFF;
+
+			Instruction &= 0xFF000000;
+			Instruction |= Imm24;
+
+			*Value  = Instruction;
+			*Length = sizeof(uint32_t);
+			break;
+		}
+		case R_ARM_THM_ABS5:
+		{
+			uint16_t instr = *(uint16_t*)Place;
+			uint16_t imm5 = ((Symbol + Addend) >> 2) & 0x1F;
+
+			instr &= ~(0x1F << 6);
+			instr |= (imm5 << 6);
+
+			*Value  = instr;
+			*Length = sizeof(uint16_t);
+			break;
+		}
+		case R_ARM_THM_PC8:
+		{
+			uint16_t instr = *(uint16_t*)Place;
+			uint32_t disp = Symbol + Addend - (Place & ~3);
+
+			uint8_t imm8 = (disp >> 2) & 0xFF;
+
+			instr &= ~0xFF;
+			instr |= imm8;
+
+			*Value  = instr;
+			*Length = sizeof(uint16_t);
+			break;
+		}
+		case R_ARM_THM_SWI8:
+		{
+			uint16_t instr = *(uint16_t*)Place;
+			uint8_t imm8 = (Symbol + Addend) & 0xFF;
+
+			instr &= 0xFF00;
+			instr |= imm8;
+
+			*Value  = instr;
+			*Length = sizeof(uint16_t);
+			break;
+		}
+		// TODO: R_ARM_THM_PC22, R_ARM_THM_XPC22, R_ARM_AMP_VCALL9
 #else
 #error Hey! Add ELF relocation types here
 #endif
@@ -447,6 +574,8 @@ BSTATUS RtlCheckValidity(PELF_HEADER Header)
 	const int Arch = ELF_ARCH_AMD64;
 #elif defined TARGET_I386
 	const int Arch = ELF_ARCH_386;
+#elif defined TARGET_ARM
+	const int Arch = ELF_ARCH_ARM;
 #endif
 
 	if (Header->Machine != Arch)
