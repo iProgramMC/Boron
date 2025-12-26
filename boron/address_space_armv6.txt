@@ -1,0 +1,62 @@
+BORON Operating System Address Space (i386)
+
+** Kernel Mode **
+
++------------------------------+ - 0xFFFFFFFF
+| virtually linear page tables |
++------------------------------+ - 0xFF800000
+|            unused            |
++------------------------------+ - 0xF0000000
+|   more dynamic pool space    |
++------------------------------+ - 0xE0000000
+|            unused            |
++------------------------------+ - 0xD8000000
+|     page frame data base     |
++------------------------------+ - 0xD4000000
+|      system module DLLs      |
++------------------------------+ - 0xD2000000
+|            unused            |
++------------------------------+ - 0xD1900000
+|      map of UART MMIO        |
++------------------------------+ - 0xD1800000
+|  pool header slab magazines  |
++------------------------------+ - 0xD1000000
+| fast mapping in 16MB windows |
++------------------------------+ - 0xD0000000
+|  map of first 256 MB of phys |
+|      kernel code & data      |
++------------------------------+ - 0xC0000000
+|      dynamic pool space      |
++------------------------------+ - 0x80000000
+|    higher half direct map    |
++------------------------------+ - 0x00000000
+
+Notes:
+- if we use the multiboot boot protocol, then "kernel code & data" really means "first 8MB of physical memory"
+
+** User Mode **
+
+Currently this is nothing more than a plan.
+Now, a user process has complete control over its own
+address space. (They will even be able to unmap the
+PEB/TEBs if they want as well!)
+
+However, this is the plan for normal user processes.
+
++-----------------------------+ - 0x80000000
+|  process environment block  |
++-----------------------------+ - 0x7ffe0000
+|  thread environment blocks  |
++-----------------------------+ - 0x7fe00000
+|    operating system DLLs    |
++-----------------------------+ - 0x78000000
+|        thread stacks        |
++-----------------------------+ - 0x70000000
+|          user DLLs          |
++-----------------------------+ - 0x60000000
+|     user heap + mappings    |
++-----------------------------+ - 0x10000000
+|      program executable     |
++-----------------------------+ - 0x00001000
+|                             |
++-----------------------------+ - 0x00000000

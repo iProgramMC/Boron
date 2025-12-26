@@ -84,7 +84,7 @@ BSTATUS MmProbeAddress(void* Address, size_t Length, bool ProbeWrite, KPROCESSOR
 	return STATUS_SUCCESS;
 }
 
-// Defined in arch/amd64/misc.asm
+// Defined in arch/i386/misc.asm
 int MmSafeCopySub(void* Address, const void* Source, size_t Length);
 
 BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length, KPROCESSOR_MODE AccessMode, bool VerifyDest)
