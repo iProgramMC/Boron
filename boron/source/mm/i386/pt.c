@@ -143,7 +143,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	
     if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
-		int pfn = MmAllocatePhysicalPage();
+		MMPFN pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
 			//DbgPrint("MiMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
