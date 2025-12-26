@@ -81,7 +81,7 @@ void MmTearDownProcess(PEPROCESS Process)
 #endif // DEBUG
 	
 	if (Process->Pcb.PageMap != 0)
-		MmFreePhysicalPage(MmPhysPageToPFN(Process->Pcb.PageMap));
+		MiFreePageMapping(Process->Pcb.PageMap);
 	
 	PsSetAttachedProcess(ProcessRestore);
 }

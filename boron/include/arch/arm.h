@@ -14,9 +14,8 @@
 
 #define MI_RECURSIVE_PAGING_START (1023)
 
-#define MI_PML2_LOCATION ((uintptr_t)0xFFFFF000U)
-#define MI_PML1_LOCATION ((uintptr_t)0xFFC00000U)
-#define MI_PML1_LOC_END  ((uint64_t)0x100000000U)
+#define MI_PML1_LOCATION ((uintptr_t)0xFF800000U) // Jibbie (L1 page table + Jibbie + Debbie)
+#define MI_PML2_LOCATION ((uintptr_t)0xFFC00000U) // Debbie (L2 page tables)
 #define MI_PML_ADDRMASK  ((uintptr_t)0xFFFFF000U)
 
 #endif // KERNEL
@@ -54,8 +53,9 @@ MMADDRESS_CONVERT;
 #define MM_PFNDB_BASE     (0xD4000000U)
 
 // -- L1 PTEs --
+#define MM_PTEL1_TYPE         (3U << 0)
 #define MM_PTEL1_PRESENT      (1U << 0) // Type = b01, Coarse Page Table
-#define MM_PTEL1_NORMAL_SETUP ((3U << 2) | (7U << 12) | (3U << 10)) // CB = 0b11, TEX = 0b111, AP = 0b11, APX=0
+#define MM_PTEL1_NORMAL_SETUP ((3U << 2) | (7U << 12) | (1U << 10)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0
 
 // -- L2 PTEs --
 // AP = PTE[5:4], APX = PTE[9]

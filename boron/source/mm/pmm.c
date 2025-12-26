@@ -1121,3 +1121,103 @@ int MiGetReferenceCountPfn(MMPFN Pfn)
 	
 	return Pfdbe->RefCount;
 }
+
+FORCE_INLINE
+bool MmpIsFree(MMPFN Pfn)
+{
+	return MmGetPageFrameFromPFN(Pfn)->Type == PF_TYPE_FREE;
+}
+
+static void MmpRemovePfnFromItsList(MMPFN Pfn)
+{
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	ASSERT(Pfdbe->Type == PF_TYPE_FREE);
+	
+	if (Pfdbe->NextFrame != PFN_INVALID && Pfdbe->PrevFrame != PFN_INVALID) {
+		MmpUnlinkPfn(Pfdbe);
+		return;
+	}
+	
+	PMMPFN First = NULL, Last = NULL;
+	if (Pfdbe->NextFrame == PFN_INVALID) {
+		if (MiLastFreePFN == Pfn)
+			First = &MiFirstFreePFN, Last = &MiLastFreePFN;
+		else if (MiLastZeroPFN == Pfn)
+			First = &MiFirstZeroPFN, Last = &MiLastZeroPFN;
+		else if (MiLastStandbyPFN == Pfn)
+			First = &MiFirstStandbyPFN, Last = &MiLastStandbyPFN;
+	}
+	else if (Pfdbe->PrevFrame == PFN_INVALID) {
+		if (MiFirstFreePFN == Pfn)
+			First = &MiFirstFreePFN, Last = &MiLastFreePFN;
+		else if (MiFirstZeroPFN == Pfn)
+			First = &MiFirstZeroPFN, Last = &MiLastZeroPFN;
+		else if (MiFirstStandbyPFN == Pfn)
+			First = &MiFirstStandbyPFN, Last = &MiLastStandbyPFN;
+	}
+	else {
+		ASSERT(!"Neither NextFrame nor PrevFrame are NULL but this is impossible");
+	}
+	
+	ASSERT(First && Last && "This PFN is in a free list... right?!");
+	MmpRemovePfnFromList(First, Last, Pfn);
+}
+
+static bool MmpTryAllocateContiguousRegion(MMPFN Pfn, int PageCount, uintptr_t Alignment)
+{
+	// first, make sure this region is truly 16 Kbyte aligned.
+	if (MmPFNToPhysPage(Pfn) & Alignment)
+		return false;
+	
+	// N.B. Pfn is already free
+	ASSERT(MmpIsFree(Pfn));
+	
+	for (int i = 1; i < PageCount; i++) {
+		if (!MmpIsFree(Pfn + i))
+			return false;
+	}
+	
+	// okay, now actually allocate it.
+	for (int i = 0; i < PageCount; i++) {
+		MmpRemovePfnFromItsList(Pfn + i);
+		MmpInitializePfn(MmGetPageFrameFromPFN(Pfn + i));
+	}
+	
+	return true;
+}
+
+MMPFN MmAllocatePhysicalContiguousRegion(int PageCount, uintptr_t Alignment)
+{
+	MMPFN Pfn;
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	for (Pfn = MiFirstFreePFN; Pfn != MiLastFreePFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+	for (Pfn = MiFirstZeroPFN; Pfn != MiLastZeroPFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+	for (Pfn = MiFirstStandbyPFN; Pfn != MiLastStandbyPFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+Return:
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+	return Pfn;
+}
+
+void MmFreePhysicalContiguousRegion(MMPFN PfnStart, int PageCount)
+{
+	for (int i = 0; i < PageCount; i++)
+		MmFreePhysicalPage(PfnStart + i);
+}

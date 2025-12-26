@@ -117,6 +117,12 @@ HPAGEMAP MiCreatePageMapping()
 	return (HPAGEMAP) NewPageMappingResult;
 }
 
+// Frees a page mapping.
+void MiFreePageMapping(HPAGEMAP PageMap)
+{
+	return MmFreePhysicalPage(MmPhysPageToPFN(PageMap));
+}
+
 // TODO: this will most likely be rewritten
 bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 {

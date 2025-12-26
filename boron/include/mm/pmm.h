@@ -123,4 +123,14 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Size);
 // TODO: Not sure where to place this.  Do we really need a new file?
 void MmInitializeModifiedPageWriter(void);
 
+// Allocates a contiguous memory region with an address alignment.  Note that
+// this is slow and so it should be called cautiously.  Thanks for your stupid
+// unconventional page table layout, ARM!  Someday I may opt to implement a
+// buddy system, but not as of now.
+MMPFN MmAllocatePhysicalContiguousRegion(int PageCount, uintptr_t Alignment);
+
+// Frees a physical contiguous region.  It basically frees every PFN between
+// PfnStart and PfnStart + PageCount - 1.
+void MmFreePhysicalContiguousRegion(MMPFN PfnStart, int PageCount);
+
 #endif//BORON_MM_PMM_H
