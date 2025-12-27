@@ -19,34 +19,9 @@ typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 
 // Functions that do different things based on architecture,
 // but exist everywhere
-#if defined TARGET_AMD64 || defined TARGET_I386
-
-FORCE_INLINE
-void KeWaitForNextInterrupt(void)
-{
-	ASM("hlt":::"memory");
-}
-
-FORCE_INLINE
-void KeSpinningHint(void)
-{
-	ASM("pause":::"memory");
-}
-
-FORCE_INLINE
-void KeInvalidatePage(void* Address)
-{
-	ASM("invlpg (%0)"::"r"((uintptr_t)Address):"memory");
-}
-
-#else
-
 void KeWaitForNextInterrupt(void);
 void KeSpinningHint(void);
 void KeInvalidatePage(void* Page);
-
-#endif
-
 void KeSetCPUPointer(void* CpuPointer);
 void* KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);

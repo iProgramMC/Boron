@@ -44,7 +44,11 @@ void PerformIntTest()
 	if (!KeConnectInterrupt(&Int1)) KeCrash("Test fail: cannot connect Int1 (first test)");
 	if (!KeConnectInterrupt(&Int2)) KeCrash("Test fail: cannot connect Int2 (first test)");
 	
+#if defined TARGET_I386 || defined TARGET_AMD64
 	ASM("int $0x80":::"memory");
+#else
+	KeCrash("Unimplemented: PerformIntTest()");
+#endif
 	
 	if (!Int1Fired) KeCrash("Test fail: int1 not fired (first test)");
 	if (!Int2Fired) KeCrash("Test fail: int2 not fired (first test)");
@@ -61,7 +65,9 @@ void PerformIntTest()
 	if (!KeConnectInterrupt(&Int1)) KeCrash("Test fail: cannot connect int1 (second test)");
 	if ( KeConnectInterrupt(&Int2)) KeCrash("Test fail: can connect int2 (second test)");
 	
+#if defined TARGET_I386 || defined TARGET_AMD64
 	ASM("int $0x80":::"memory");
+#endif
 	
 	if (!Int1Fired) KeCrash("Test fail: int1 not fired (second test)");
 	if ( Int2Fired) KeCrash("Test fail: int2 fired (second test)");

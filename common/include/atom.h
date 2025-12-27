@@ -65,6 +65,10 @@ Author:
 
 // Note for AtClear: Don't use for anything other than bool and char.
 
+#if defined TARGET_AMD64 || defined TARGET_I386
 #define SpinHint() __asm__("pause")
+#else
+#define SpinHint() __asm__("nop")
+#endif
 
 #endif//BORON_KE_ATOMICS_H

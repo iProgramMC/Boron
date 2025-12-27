@@ -20,6 +20,8 @@ Author:
 
 // NOTE: This is not ideal.  The test penetrates into internal functions.
 
+#if defined TARGET_I386 || defined TARGET_AMD64
+
 uint8_t PortReadByte(uint16_t portNo)
 {
     uint8_t rv;
@@ -32,8 +34,8 @@ void PortWriteByte(uint16_t portNo, uint8_t data)
 	ASM("outb %0, %1"::"a"((uint8_t)data),"Nd"((uint16_t)portNo));
 }
 
-void Reboot() {
-	
+void Reboot()
+{
     uint8_t good = 0x02;
     while (good & 0x02)
         good = PortReadByte(0x64);
@@ -42,6 +44,15 @@ void Reboot() {
 	(void) KeDisableInterrupts();
 	while (true) KeWaitForNextInterrupt();
 }
+
+#else
+
+void Reboot()
+{
+	KeCrash("TODO: Reboot()");
+}
+
+#endif
 
 void PerformDemandPageTest()
 {

@@ -169,16 +169,62 @@ typedef struct
 KARCH_DATA, *PKARCH_DATA;
 
 // TODO: inline these
-#define DISABLE_INTERRUPTS() ((void) KeDisableInterrupts())
-#define ENABLE_INTERRUPTS()  (KeRestoreInterrupts(true))
+#define DISABLE_INTERRUPTS() ASM("cpsid i" ::: "memory");
+#define ENABLE_INTERRUPTS()  ASM("cpsie i" ::: "memory");
 
-// TODO: implement these
+FORCE_INLINE
+void KeWaitForNextInterrupt() {
+	ASM("wfi":::"memory");
+}
+
+FORCE_INLINE
+void KeSpinningHint() {
+	ASM("nop":::"memory");
+}
+
+FORCE_INLINE
+void KeInvalidatePage(void* Address) {
+	uint32_t Zero = 0;
+    ASM(
+        "mcr p15, 0, %1, c7, c10, 4\n" // data synchronization barrier (DSB)
+        "mcr p15, 0, %0, c8, c7, 1\n"
+        "mcr p15, 0, %1, c7, c10, 4\n" // DSB
+        "mcr p15, 0, %1, c7, c5, 4\n"  // flush prefetch buffer
+        :
+        : "r"(Address), "r"(Zero)
+        : "memory"
+    );
+}
+
+// TODO: implement this
 bool KiWasFaultCausedByInstructionFetch();
-uint32_t KiReadIfar();
-uint32_t KiReadIfsr();
-uint32_t KiReadDfar();
-uint32_t KiReadDfsr();
+
+FORCE_INLINE
+uint32_t KiReadIfsr() {
+	uint32_t val;
+	ASM("mrc p15, 0, %0, c5, c0, 1" : "=r"(val));
+	return val;
+}
+
+FORCE_INLINE
+uint32_t KiReadIfar() {
+	uint32_t val;
+	ASM("mrc p15, 0, %0, c6, c0, 2" : "=r"(val));
+	return val;
+}
+
+FORCE_INLINE
+uint32_t KiReadDfsr() {
+	uint32_t val;
+	ASM("mrc p15, 0, %0, c5, c0, 0" : "=r"(val));
+	return val;
+}
+
+FORCE_INLINE
+uint32_t KiReadDfar() {
+	uint32_t val;
+	ASM("mrc p15, 0, %0, c6, c0, 0" : "=r"(val));
+	return val;
+}
 
 static_assert(sizeof(int) == 4);
-
-
