@@ -2,7 +2,11 @@
 #include <boron.h>
 #include <elf.h>
 
+#if defined TARGET_I386 || defined TARGET_AMD64
 #define BUG_UNREACHABLE() __asm__ volatile("ud2":::"memory");
+#else
+#define BUG_UNREACHABLE() __builtin_unreachable()
+#endif
 
 #ifdef TARGET_I386
 
@@ -99,6 +103,8 @@ void RelocateSelf(PPEB Peb)
 		if (RelType != R_X86_64_RELATIVE)
 	#elif defined TARGET_I386
 		if (RelType != R_386_RELATIVE)
+	#elif defined TARGET_ARM
+		if (RelType != R_ARM_RELATIVE)
 	#else
 		#error TODO!
 	#endif
@@ -126,8 +132,8 @@ void RelocateSelf(PPEB Peb)
 		if (RelType != R_X86_64_RELATIVE)
 	#elif defined TARGET_I386
 		if (RelType != R_386_RELATIVE)
-	#else
-		#error TODO!
+	#elif defined TARGET_ARM
+		if (RelType != R_ARM_RELATIVE)
 	#endif
 			// Libboron.so, in addition to being restricted in so many
 			// different ways already, also cannot import things from

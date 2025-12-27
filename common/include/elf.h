@@ -179,6 +179,8 @@ enum
 	R_ARM_THM_SWI8,  // S + A (Thumb SWI)
 	R_ARM_XPC25,     // S - P + A (ARM BLX)
 	R_ARM_THM_XPC22, // S - P + A (Thumb BLX pair)
+	
+	R_ARM_RELATIVE = 23, // B + A
 #else
 #error Hey! Add ELF relocation types here
 #endif

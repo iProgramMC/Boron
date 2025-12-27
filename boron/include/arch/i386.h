@@ -320,3 +320,21 @@ KARCH_DATA, *PKARCH_DATA;
 #include <arch.h>
 #include <arch/x86cpuid.h>
 #include <arch/x86cr.h>
+
+FORCE_INLINE
+void KeWaitForNextInterrupt(void)
+{
+	ASM("hlt":::"memory");
+}
+
+FORCE_INLINE
+void KeSpinningHint(void)
+{
+	ASM("pause":::"memory");
+}
+
+FORCE_INLINE
+void KeInvalidatePage(void* Address)
+{
+	ASM("invlpg (%0)"::"r"((uintptr_t)Address):"memory");
+}
