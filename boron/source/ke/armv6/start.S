@@ -19,12 +19,14 @@ Author:
 /*#define L1PTE(Address) (((Address) & 0xFFF00000) | 0b111010000001110)*/
 
 /* TEX = 0b111, AP = 0b01, P = 0, Domain = 0, CB = 0b11 */
-.equ L1PTE_FLAGS, 0b111010000001110
+.equ L1PTE_FLAGS_SEC, 0b111010000001110
+
+.equ L1PTE_FLAGS_CPT, 0b111010000001101
 
 .section .ipltext, "ax", %progbits
 KiBeforeSystemStartup:
 	/* set up the root page table */
-	ldr r2, =L1PTE_FLAGS
+	ldr r2, =L1PTE_FLAGS_SEC
 	
 	/* map first 2MB with identity */
 	ldr r0, =KiRootPageTable
@@ -52,6 +54,18 @@ KiBeforeSystemStartup:
 	orr r1, r1, r2
 	str r1, [r0, #0x0008]
 	
+	/* map the exception handlers to 0xFFF'F0'000 */
+	ldr r0, =(KiRootPageTable + 0x3FFC)
+	ldr r1, =KiHigh1MPageTable
+	orr r1, r1, r2
+	str r1, [r0, #0x0000]
+	ldr r0, =(KiHigh1MPageTable + 0x3C0) /* 240th entry */
+	ldr r1, =KiExceptionHandlerTable
+	ldr r2, =L1PTE_FLAGS_CPT
+	orr r1, r1, #(3 << 0) /* small page NX */
+	orr r1, r1, #(1 << 4) /* super read/write */
+	str r1, [r0, #0x0000]
+	
 	ldr r0, =KiRootPageTable
 	mcr p15, 0, r0, c2, c0, 0   /* write TTBR0 */
 	
@@ -62,6 +76,7 @@ KiBeforeSystemStartup:
 	orr r0, r0, #1              /* enable MMU */
 	orr r0, r0, #(1<<2)         /* enable dcache, icache */
 	orr r0, r0, #(1<<12)        /* enable icache */
+	orr r0, r0, #(1<<13)        /* enable V - interrupt vectors start at 0xFFFF0000 */
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
 	
     /* Set up a simple stack */
@@ -76,6 +91,14 @@ KiBeforeSystemStartup:
 .align 16
 KiRootPageTable:
 	.space 16384
+
+/* The exception handler table is mapped to 0xFFFF0000. Must be aligned to 4KB */
+KiExceptionHandlerTable:
+	.space 0x20
+
+/* Page table used to map KiExceptionHandlerTable. Must be aligned to 1K */
+KiHigh1MPageTable:
+	.space 1024
 
 .section bss
 .align 16
