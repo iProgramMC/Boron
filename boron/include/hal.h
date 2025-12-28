@@ -35,6 +35,10 @@ void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool
 void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl);
 void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl);
 #endif
+#ifdef TARGET_ARM
+uint32_t HalGetMaximumInterruptCount();
+void HalRegisterInterruptHandler(uint32_t Irq, void(*Func)());
+#endif
 
 #ifdef IS_HAL
 void HalSetVftable(const HAL_VFTABLE* Table);

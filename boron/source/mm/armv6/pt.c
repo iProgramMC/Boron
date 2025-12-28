@@ -22,6 +22,8 @@ Author:
 #define L1PTE(Address) (((Address) & ~0x3FF) | MM_PTEL1_PRESENT | MM_PTEL1_NORMAL_SETUP)
 #define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE)
 
+extern char KiExceptionHandlerTable[]; // NOTE: This is a *PHYSICAL* address!
+
 HPAGEMAP MiCreatePageMapping()
 {
 	MMPFN NewPageMapping = MmAllocatePhysicalContiguousRegion(4, 0x3FFF);
@@ -76,6 +78,11 @@ HPAGEMAP MiCreatePageMapping()
 	JibbiePtr[4] = L2PTE(Jibbie);
 	JibbiePtr[5] = L2PTE(Debbie);
 	
+	// The 240th entry of Jibbie maps the exception handler pointers
+	// (at 0xFFFF0000), so map it too.  Note that KiExceptionHandlerTable
+	// is a physical address.
+	JibbiePtr[240] = L2PTE((uintptr_t)KiExceptionHandlerTable);
+	
 	PMMPTE RootPtr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPageMapping));
 	PMMPTE OldRootPtr = (PMMPTE) MI_PML1_LOCATION;
 	memset(RootPtr, 0, PAGE_SIZE * 4);
@@ -98,8 +105,8 @@ HPAGEMAP MiCreatePageMapping()
 	uintptr_t JibbieAddress = Jibbie * PAGE_SIZE;
 	uintptr_t DebbieAddress = Debbie * PAGE_SIZE;
 	for (int i = 0; i < 4; i++) {
-		RootPtr[4088 + i] = L1PTE(JibbieAddress + i * 1024);
-		RootPtr[4092 + i] = L1PTE(DebbieAddress + i * 1024);
+		RootPtr[4088 + i] = L1PTE(DebbieAddress + i * 1024);
+		RootPtr[4092 + i] = L1PTE(JibbieAddress + i * 1024);
 	}
 	
 	MmEndUsingHHDM();
@@ -120,8 +127,8 @@ void MiFreePageMapping(HPAGEMAP PageMap)
 	
 	// this works because MM_PTE_PFN fetches bits [31..12], and the root entries
 	// have the coarse page table address from bits [31..10]
-	Jibbie = MM_PTE_PFN(RootPtr[4088]);
-	Debbie = MM_PTE_PFN(RootPtr[4092]);
+	Debbie = MM_PTE_PFN(RootPtr[4088]);
+	Jibbie = MM_PTE_PFN(RootPtr[4092]);
 	
 	MmEndUsingHHDM();
 	

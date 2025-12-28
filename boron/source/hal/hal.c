@@ -197,6 +197,21 @@ uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 }
 #endif
 
+#ifdef TARGET_ARM
+
+uint32_t HalGetMaximumInterruptCount()
+{
+	return HalpVftable.GetMaximumInterruptCount();
+}
+
+// NOTE: This is low level and should not be used directly!
+void HalRegisterInterruptHandler(uint32_t Irq, void(*Func)())
+{
+	return HalpVftable.RegisterInterruptHandler(Irq, Func);
+}
+
+#endif
+
 NO_RETURN void HalProcessorCrashed()
 {
 	HalpVftable.ProcessorCrashed();

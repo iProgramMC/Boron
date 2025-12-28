@@ -11,4 +11,9 @@ ARCH_CFLAGS = \
 	-mfloat-abi=soft \
 	-DTARGET_ARM
 
+ARCH_LDFLAGS = \
+	-z max-page-size=0x1000  \
+	-L$(DDK_DIR)/../../tools \
+	-lgcc-arm
+
 LINK_ARCH = armelf
