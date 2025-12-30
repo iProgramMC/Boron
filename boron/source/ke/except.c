@@ -92,8 +92,8 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	KI_EXCEPTION_HANDLER_INIT();
 	
 #ifdef DEBUG2
-#endif
 	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
+#endif
 	
 	BSTATUS FaultReason = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();
