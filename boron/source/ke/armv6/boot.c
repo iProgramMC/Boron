@@ -53,8 +53,6 @@ void KiInitLoaderParameterBlock()
 	FreeRegion->Size = MEMORY_SIZE - KernelRegion->Size;
 	FreeRegion->Type = LOADER_MEM_FREE;
 	
-	DbgPrint("FreeRegion: Base %p  Size %zu", FreeRegion->Base, FreeRegion->Size);
-	
 	KiLoaderAp.ProcessorId = 1;
 	KiLoaderAp.HardwareId = 1;
 	KiLoaderAp.TrampolineJumpAddress = &KiLoaderApDummy;
