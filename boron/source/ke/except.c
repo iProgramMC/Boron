@@ -38,7 +38,7 @@ Author:
 #define KI_EXCEPTION_HANDLER_INIT() \
 	UNUSED uint32_t FaultPC = TrapFrame->Lr; \
 	UNUSED uint32_t FaultAddress, FaultMode; \
-	UNUSED uint32_t Vector = TrapFrame->IntNumber; \
+	UNUSED uint32_t Vector = 0; \
 	if (KeGetCurrentThread()->HandlingInstructionFault) { \
 		FaultAddress = KiReadIfar(); \
 		FaultMode = KiReadIfsr(); \
@@ -92,8 +92,8 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	KI_EXCEPTION_HANDLER_INIT();
 	
 #ifdef DEBUG2
-	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
+	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 	
 	BSTATUS FaultReason = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();

@@ -74,18 +74,6 @@ KiBeforeSystemStartup:
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	
-	/* map the exception handlers to 0xFFF'F0'000 */
-	ldr r0, =(KiRootPageTable + 0x3FFC)
-	ldr r1, =KiHigh1MPageTable
-	ldr r2, =L1PTE_FLAGS_CPT
-	orr r1, r1, r2
-	str r1, [r0, #0x0000]
-	ldr r0, =(KiHigh1MPageTable + 0x3C0) /* 240th entry */
-	ldr r1, =KiExceptionHandlerTable
-	orr r1, r1, #(3 << 0) /* small page NX */
-	orr r1, r1, #(1 << 4) /* super read/write */
-	str r1, [r0, #0x0000]
-	
 	ldr r0, =KiRootPageTable
 	mcr p15, 0, r0, c2, c0, 0   /* write TTBR0 */
 	
@@ -122,16 +110,23 @@ KiBeforeSystemStartup:
 
 .section .iplbss, "aw", %nobits
 .global KiRootPageTable
-.global KiHigh1MPageTable
+.global KiRootPageTableDebbie
+.global KiRootPageTableJibbie
 
 /* KEEP THIS at the start of iplbss! */
 .align 16
 KiRootPageTable:
 	.space 16384
 
-/* Page table used to map KiExceptionHandlerTable. Must be aligned to 1K */
-KiHigh1MPageTable:
-	.space 1024
+/* Root page table Debbie */
+KiRootPageTableDebbie:
+	.space 4096
+
+/* Root page table Jibbie */
+KiRootPageTableJibbie:
+	.space 4096
+
+/* ^^^ I promise I will find better names for them soon. */
 
 .section .bss
 .align 16
