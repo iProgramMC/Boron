@@ -69,6 +69,11 @@ struct KTHREAD_tag
 	
 	KTHREAD_STACK Stack;
 	
+#ifdef TARGET_ARM
+	// A region of size KERNEL_INTERRUPT_STACK_SIZE, which stores all 4 interrupt stacks.
+	void* InterruptStack;
+#endif
+	
 	void* StackPointer; // Pass this into KiSwitchThreadStack.
 	
 	int WaitType;
@@ -177,7 +182,18 @@ struct KTHREAD_tag
 #endif
 };
 
+#ifdef TARGET_ARM
+
+// add another page to kernel stack sizes on ARM, because we're appending
+// interrupt stacks to the end of the normal kernel stack
+#define KERNEL_STACK_SIZE (PAGE_SIZE * 3)
+#define KERNEL_INTERRUPT_STACK_SIZE (PAGE_SIZE)
+
+#else
+
 #define KERNEL_STACK_SIZE (PAGE_SIZE * 2)
+
+#endif
 
 // Creates an empty, uninitialized, thread object.
 // TODO Use the object manager for this purpose and expose the thread object there.
