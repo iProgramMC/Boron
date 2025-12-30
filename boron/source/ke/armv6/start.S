@@ -88,6 +88,7 @@ KiBeforeSystemStartup:
 	orr r0, r0, #(1<<2)         /* enable dcache, icache */
 	orr r0, r0, #(1<<12)        /* enable icache */
 	orr r0, r0, #(1<<13)        /* enable V - interrupt vectors start at 0xFFFF0000 */
+	orr r0, r0, #(1<<23)        /* enable XP - disables ARMv5 backwards compatible mode */
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
 	
     /* Set up a simple stack */

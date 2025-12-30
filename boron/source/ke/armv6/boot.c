@@ -46,12 +46,14 @@ void KiInitLoaderParameterBlock()
 	FreeRegion = &KiMemoryRegions[1];
 	
 	KernelRegion->Base = MEMORY_START_ADDRESS;
-	KernelRegion->Size = (KiKernelEnd - KiKernelStart + PAGE_SIZE - 1) & (PAGE_SIZE - 1);
+	KernelRegion->Size = (KiKernelEnd - KiKernelStart + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 	KernelRegion->Type = LOADER_MEM_LOADED_PROGRAM;
 	
 	FreeRegion->Base = MEMORY_START_ADDRESS + KernelRegion->Size;
 	FreeRegion->Size = MEMORY_SIZE - KernelRegion->Size;
 	FreeRegion->Type = LOADER_MEM_FREE;
+	
+	DbgPrint("FreeRegion: Base %p  Size %zu", FreeRegion->Base, FreeRegion->Size);
 	
 	KiLoaderAp.ProcessorId = 1;
 	KiLoaderAp.HardwareId = 1;
