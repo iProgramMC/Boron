@@ -78,15 +78,36 @@ KiThreadEntryPoint:
 	bl    KiUnlockDispatcher  @ unlock the dispatcher and lower to normal IPL
 	mov   r0, r5
 	bx    r4
-	
-	@ void KiSetupInterruptStacks(
+
+	@ void KiSaveInterruptStacks(
+	@     uintptr_t* AbortStack,
+	@     uintptr_t* UndefinedStack,
+	@     uintptr_t* IrqStack,
+	@     uintptr_t* FiqStack
+	@ );
+	.global KiSaveInterruptStacks
+KiSaveInterruptStacks:
+	cpsid if
+	cps   #0x17  @ Abort Mode
+	str   sp, [r0]
+	cps   #0x1B  @ Undefined Mode
+	str   sp, [r1]
+	cps   #0x12  @ IRQ Mode
+	str   sp, [r2]
+	cps   #0x11  @ FIQ Mode
+	str   sp, [r3]
+	cps   #0x13  @ Supervisor Mode
+	cpsie if
+	bx    lr
+
+	@ void KiRestoreInterruptStacks(
 	@     uintptr_t AbortStack,
 	@     uintptr_t UndefinedStack,
 	@     uintptr_t IrqStack,
 	@     uintptr_t FiqStack
 	@ );
-	.global KiSetupInterruptStacks
-KiSetupInterruptStacks:
+	.global KiRestoreInterruptStacks
+KiRestoreInterruptStacks:
 	cpsid if
 	cps   #0x17  @ Abort Mode
 	mov   sp, r0

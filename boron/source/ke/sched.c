@@ -734,17 +734,18 @@ void KiSwitchToNextThread()
 
 #elif defined TARGET_ARM
 
-	uintptr_t IntStack = (uintptr_t) Thread->InterruptStack;
-	uintptr_t AbtStack = IntStack;
-	uintptr_t UndStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 1 / 4;
-	uintptr_t IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 2 / 4;
-	uintptr_t FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
-	
-	KiSetupInterruptStacks(
-		AbtStack,
-		UndStack,
-		IrqStack,
-		FiqStack
+	KiSaveInterruptStacks(
+		&OldThread->AbtStack,
+		&OldThread->UndStack,
+		&OldThread->IrqStack,
+		&OldThread->FiqStack
+	);
+
+	KiRestoreInterruptStacks(
+		Thread->AbtStack,
+		Thread->UndStack,
+		Thread->IrqStack,
+		Thread->FiqStack
 	);
 
 #endif

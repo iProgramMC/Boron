@@ -47,4 +47,10 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	Thread->StackPointer = (void*) Context;
 	
 	memset(&Thread->ArchContext, 0, sizeof Thread->ArchContext);
+	
+	uintptr_t IntStack = (uintptr_t) Thread->InterruptStack;
+	Thread->AbtStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 1 / 4;
+	Thread->UndStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 2 / 4;
+	Thread->IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
+	Thread->FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE;
 }
