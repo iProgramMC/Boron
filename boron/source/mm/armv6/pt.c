@@ -19,7 +19,7 @@ Author:
 #include <arch.h>
 #include "../mi.h"
 
-#define L1PTE(Address) (((Address) & ~0x3FF) | MM_PTEL1_PRESENT | MM_PTEL1_NORMAL_SETUP)
+#define L1PTE(Address) (((Address) & ~0x3FF) | MM_PTEL1_COARSE_PAGE_TABLE)
 #define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE)
 
 extern char KiExceptionHandlerTable[]; // NOTE: This is a *PHYSICAL* address!
@@ -97,8 +97,10 @@ HPAGEMAP MiCreatePageMapping()
 	memset(DebbiePtr, 0, PAGE_SIZE);
 	
 	for (int i = 512; i < 1024; i++) {
-		MMPFN Pfn = MM_PTE_PFN(OldRootPtr[i * 4]);
-		DebbiePtr[i] = L2PTE(Pfn);
+		if (OldRootPtr[i * 4]) {
+			MMPFN Pfn = MM_PTE_PFN(OldRootPtr[i * 4]);
+			DebbiePtr[i] = L2PTE(Pfn);
+		}
 	}
 	
 	// Replace the last few entries with pointers to Jibbie and Debbie.
@@ -168,7 +170,7 @@ bool MmCheckPteLocationAllocator(
 		
 		// Debbie must also be updated.
 		PtePtr = (PMMPTE) MI_PML2_MIRROR_LOCATION;
-		PtePtr[Convert.Level1Index] = L2PTE(Pfn);
+		PtePtr[Convert.Level1Index >> 2] = L2PTE(Pfn);
 	}
 	
 	// Page table exists.

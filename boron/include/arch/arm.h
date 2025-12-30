@@ -59,9 +59,9 @@ MMADDRESS_CONVERT;
 #define MM_PFNDB_BASE     (0xD4000000U)
 
 // -- L1 PTEs --
-#define MM_PTEL1_TYPE         (3U << 0)
-#define MM_PTEL1_PRESENT      (1U << 0) // Type = b01, Coarse Page Table
-#define MM_PTEL1_NORMAL_SETUP ((3U << 2) | (7U << 12) | (1U << 10)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0
+#define MM_PTEL1_TYPE              (3U << 0)
+#define MM_PTEL1_COARSE_PAGE_TABLE (1U << 0) // Type = b01, Coarse Page Table
+#define MM_PTEL1_SECTION_SETUP     ((3U << 2) | (7U << 12) | (1U << 10) | (2U << 0)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0, Type = 0b10
 
 // -- L2 PTEs --
 // AP = PTE[5:4], APX = PTE[9]
@@ -167,12 +167,15 @@ struct KREGISTERS_tag
 // This restrained struct represents only the registers saved in each IRQ handler.
 struct KREGISTERS_tag
 {
-	uint32_t IntNumber;
 	uint32_t Cpsr;
 	uint32_t R0;
 	uint32_t R1;
 	uint32_t R2;
 	uint32_t R3;
+	uint32_t R4;
+	uint32_t R5;
+	uint32_t R6;
+	uint32_t R7;
 	uint32_t Lr;
 };
 

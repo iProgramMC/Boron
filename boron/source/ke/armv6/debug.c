@@ -49,7 +49,6 @@ void DbgPrintString(const char* str)
 void DbgInit()
 {
 	// TODO
-	DbgPrintString("What's up, bro?\n");
 }
 
 void DbgPrintStackTrace(uintptr_t Rbp)
