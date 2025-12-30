@@ -113,6 +113,7 @@ KiBeforeSystemStartup:
 .global KiRootPageTable
 .global KiRootPageTableDebbie
 .global KiRootPageTableJibbie
+.global KiPoolHeadersPageTables
 
 /* KEEP THIS at the start of iplbss! */
 .align 16
@@ -126,6 +127,10 @@ KiRootPageTableDebbie:
 /* Root page table Jibbie */
 KiRootPageTableJibbie:
 	.space 4096
+
+/* Page tables for pool headers */
+KiPoolHeadersPageTables:
+	.space 4 * 2048
 
 /* ^^^ I promise I will find better names for them soon. */
 
