@@ -210,6 +210,16 @@ void HalRegisterInterruptHandler(uint32_t Irq, void(*Func)())
 	return HalpVftable.RegisterInterruptHandler(Irq, Func);
 }
 
+PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
+{
+	return HalpVftable.OnInterruptRequest(Registers);
+}
+
+PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers)
+{
+	return HalpVftable.OnFastInterruptRequest(Registers);
+}
+
 #endif
 
 NO_RETURN void HalProcessorCrashed()
