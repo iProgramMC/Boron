@@ -7,6 +7,7 @@
 void KeOnUnknownInterrupt(PKREGISTERS);
 void KeOnDoubleFault(PKREGISTERS);
 void KeOnProtectionFault(PKREGISTERS);
+void KeOnUndefinedInstruction(PKREGISTERS);
 void KeOnPageFault(PKREGISTERS);
 
 #endif//NS64_EXCEPT_H

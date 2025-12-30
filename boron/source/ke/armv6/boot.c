@@ -23,6 +23,9 @@ static const char* KiKernelBootCmdLine = "";
 
 // end of hardcoded properties.
 
+INIT void KeMarkCrashedAp(UNUSED uint32_t ProcessorIndex) {}
+INIT void KeJumpstartAp(UNUSED uint32_t ProcessorIndex) {}
+
 extern char KiKernelStart[], KiKernelEnd[], KiMemoryStart[];
 
 LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;

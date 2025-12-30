@@ -731,6 +731,7 @@ void KiSwitchToNextThread()
 	// Set the relevant MSRs.
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
+
 #endif
 
 	if (OldThread == Thread)

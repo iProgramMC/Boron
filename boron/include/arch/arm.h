@@ -126,6 +126,7 @@ typedef uint32_t MMPTE, *PMMPTE;
 #define PT_L1_IDX(addr) (((addr) >> 20) & 0xFFF)
 #define PT_L2_IDX(addr) (((addr) >> 12) & 0xFF)
 
+/*
 // This struct represents all of the available registers at a time.
 //
 // User mode (EL0) has access to these registers. Interrupt handlers and
@@ -154,6 +155,19 @@ struct KREGISTERS_tag
 	
 	uint32_t Cpsr;
 	uint32_t IntNumber;
+};
+*/
+
+// This restrained struct represents only the registers saved in each IRQ handler.
+struct KREGISTERS_tag
+{
+	uint32_t IntNumber;
+	uint32_t Cpsr;
+	uint32_t R0;
+	uint32_t R1;
+	uint32_t R2;
+	uint32_t R3;
+	uint32_t Lr;
 };
 
 typedef struct
@@ -196,9 +210,6 @@ void KeInvalidatePage(void* Address) {
     );
 }
 
-// TODO: implement this
-bool KiWasFaultCausedByInstructionFetch();
-
 FORCE_INLINE
 uint32_t KiReadIfsr() {
 	uint32_t val;
@@ -228,3 +239,8 @@ uint32_t KiReadDfar() {
 }
 
 static_assert(sizeof(int) == 4);
+
+// Special trap numbers:
+#define TRAP_CODE_PREFETCH_ABORT  (0x20) // Prefetch Abort means page fault fetching an instruction
+#define TRAP_CODE_DATA_ABORT      (0x21) // Data Abort means page fault fetching data or writing to data
+#define TRAP_CODE_SYSTEM_SERVICE  (0x22) // System Service (user mode ran "svc")

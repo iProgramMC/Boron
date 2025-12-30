@@ -36,10 +36,10 @@ Author:
 
 // TODO: an actual vector number
 #define KI_EXCEPTION_HANDLER_INIT() \
-	UNUSED uint32_t FaultPC = TrapFrame->Pc; \
+	UNUSED uint32_t FaultPC = TrapFrame->Lr; \
 	UNUSED uint32_t FaultAddress, FaultMode; \
 	UNUSED uint32_t Vector = TrapFrame->IntNumber; \
-	if (KiWasFaultCausedByInstructionFetch()) { \
+	if (KeGetCurrentThread()->HandlingInstructionFault) { \
 		FaultAddress = KiReadIfar(); \
 		FaultMode = KiReadIfsr(); \
 	} else { \
@@ -76,7 +76,13 @@ void KeOnDoubleFault(PKREGISTERS TrapFrame)
 void KeOnProtectionFault(PKREGISTERS TrapFrame)
 {
 	KI_EXCEPTION_HANDLER_INIT();
-	KeCrash("General Protection Fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
+	KeCrash("General protection fault at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
+}
+
+void KeOnUndefinedInstruction(PKREGISTERS TrapFrame)
+{
+	KI_EXCEPTION_HANDLER_INIT();
+	KeCrash("Undefined instruction at %p on CPU %u", FaultPC, KeGetCurrentPRCB()->LapicId);
 }
 
 extern void MmProbeAddressSubEarlyReturn();
@@ -145,7 +151,7 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 			TrapFrame->Eax = (uint32_t) STATUS_FAULT;
 			return;
 		#elif defined TARGET_ARM
-			TrapFrame->Pc = (uint32_t) MmProbeAddressSubEarlyReturn;
+			TrapFrame->Lr = (uint32_t) MmProbeAddressSubEarlyReturn;
 			TrapFrame->R0 = (uint32_t) STATUS_FAULT;
 			return;
 		#else
