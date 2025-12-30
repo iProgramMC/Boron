@@ -230,6 +230,16 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
+INIT
+MMPFN MiAllocatePfnFromMemMap()
+{
+	uintptr_t Page = MiAllocatePageFromMemMap();
+	if (!Page)
+		return PFN_INVALID;
+	
+	return MmPhysPageToPFN(Page);
+}
+
 typedef struct
 {
 	uint64_t entries[512];
@@ -242,6 +252,8 @@ INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
 #ifdef TARGET_AMD64
+	// TODO: remove this arch-specific implementation.
+
 	// Maps a new page at an address, if needed.
 	PageMapLevel *pPML[4];
 	pPML[3] = (PageMapLevel*) MmGetHHDMOffsetAddr(pageTable);
@@ -280,52 +292,24 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	}
 	
 	return true;
-#elif defined TARGET_I386
-	(void)pageTable; // unused
+#else
+	(void) pageTable;
+
+	if (!MmCheckPteLocationAllocator(address, true, MiAllocatePfnFromMemMap))
+		return false;
 	
-	MMADDRESS_CONVERT Convert;
-	Convert.Long = address;
-	
-	PMMPTE Level1, Level2;
-	
-	Level2 = (PMMPTE)MI_PML2_LOCATION;
-	Level1 = (PMMPTE)(MI_PML1_LOCATION + 4096 * Convert.Level2Index);
-	
-	if (~Level2[Convert.Level2Index] & MM_PTE_PRESENT)
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		Level2[Convert.Level2Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	PMMPTE Pte = MmGetPteLocation(address);
+	MMPFN Pfn = MiAllocatePfnFromMemMap();
+	if (Pfn == PFN_INVALID) {
+		return false;
 	}
 	
-	if (~Level1[Convert.Level1Index] & MM_PTE_PRESENT)
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		MmBeginUsingHHDM();
-		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
-		MmEndUsingHHDM();
-		
-		Level1[Convert.Level1Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
-	}
+	MmBeginUsingHHDM();
+	memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn)), 0, PAGE_SIZE);
+	MmEndUsingHHDM();
+	*Pte = MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
 	
 	return true;
-#elif defined TARGET_ARM
-	#warning TODO: Implement this!
-#else
-	#error "Implement this for your platform!"
 #endif
 }
 

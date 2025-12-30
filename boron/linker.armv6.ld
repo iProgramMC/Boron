@@ -1,18 +1,27 @@
 ENTRY(KiBeforeSystemStartup)
 
+PHDRS {
+	ipldata PT_LOAD FLAGS(4 | 2);  /* R | W */
+	ipltext PT_LOAD FLAGS(4 | 1);  /* R | W */
+	text    PT_LOAD FLAGS(4 | 1); /* R | X */
+	data    PT_LOAD FLAGS(4 | 2); /* R | W */
+}
+
 SECTIONS {
 	/* change this for other platforms?! or just make the bootloader do this instead
 	   of the kernel? TODO */
     . = 0x00000000;
 	KiKernelStart = 0xC0000000 + .;
 	
-	.ipltext ALIGN (4K) : AT (0x00000000) {
-		KEEP(*(.ipltext*))
-	}
-	
-	.iplbss : ALIGN(16K) {
+	.iplbss ALIGN (16K) : AT (ADDR(.iplbss)) {
 		KEEP(*(.iplbss*))
-	}
+	} :ipldata
+	
+	.ipltext ALIGN (4K) : AT (ADDR(.ipltext)) {
+		__iplbss_start = .;
+		KEEP(*(.ipltext*))
+		__iplbss_end = .;
+	} :ipltext
 	
 	. += 0xC0000000;
 
@@ -28,7 +37,7 @@ SECTIONS {
 		. = ALIGN(CONSTANT(MAXPAGESIZE));
 		
         *(.text*)
-    }
+    } :text
 
     .rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000) {
 		KiInitArrayStart = .;
@@ -41,11 +50,11 @@ SECTIONS {
         *(.rodata*)
 		PROVIDE(KiSymbolTable = .);
 		PROVIDE(KiSymbolTableEnd = .);
-    }
+    } :text
 
     .data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000) {
         *(.data*)
-    }
+    } :data
 
     .bss ALIGN (4K) : AT (ADDR (.bss) - 0xC0000000) {
         *(COMMON)
@@ -53,7 +62,7 @@ SECTIONS {
 		
 		/* Hack to keep the PsSystemProcess symbol while adding an object header on top */
 		PROVIDE(PsSystemProcess = PspSystemProcessObject + 64);
-    }
+    } :data
 	
 	KiKernelEnd = .;
 }

@@ -16,6 +16,7 @@ Author:
 #include <string.h>
 #include <ke.h>
 #include <hal.h>
+#include <except.h>
 
 #define MAX_IRQS (32) // PL192 has 32 IRQs, PL190 has only 16
 

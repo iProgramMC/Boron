@@ -137,7 +137,11 @@ void MiFreePageMapping(HPAGEMAP PageMap)
 	MmFreePhysicalContiguousRegion(Root, 4);
 }
 
-bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+bool MmCheckPteLocationAllocator(
+	uintptr_t Address,
+	bool GenerateMissingLevels,
+	MM_PAGE_ALLOCATOR_METHOD PageAllocate
+)
 {
 	ASSERT(Address < MI_PML1_LOCATION && "MmCheckPteLocation for regions inside the L1 and L2 maps is unimplemented.");
 	
@@ -152,7 +156,7 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 			return false;
 		
 		int Index = Convert.Level1Index & ~3;
-		MMPFN Pfn = MmAllocatePhysicalPage();
+		MMPFN Pfn = PageAllocate();
 		if (Pfn == PFN_INVALID) {
 			DbgPrint("MmCheckPteLocation: Out of memory!");
 			return false;
@@ -169,6 +173,11 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	
 	// Page table exists.
 	return true;
+}
+
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+{
+	return MmCheckPteLocationAllocator(Address, GenerateMissingLevels, MmAllocatePhysicalPage);
 }
 
 PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)

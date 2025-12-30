@@ -8,11 +8,18 @@ cd /d c:\Program Files\qemu
 set path=%path%;%NSPath%
 
 @rem NOTE: Placeholder !!
-qemu-system-arm.exe -no-reboot -no-shutdown -d int ^
--M virt ^
--cpu arm1176 ^
--m 256M ^
--kernel %nspath%\build\armv6\kernel.elf
+qemu-system-arm.exe ^
+	-d int ^
+	-M versatilepb ^
+	-cpu arm1176 ^
+	-m 128M ^
+	-kernel %nspath%\build\armv6\kernel.elf ^
+	-monitor telnet:127.0.0.1:56789,server,nowait ^
+	-serial stdio ^
+	-display sdl ^
+	-no-reboot ^
+	-no-shutdown ^
+	-s -S
 
 rem go back
 cd /d %NSPath%

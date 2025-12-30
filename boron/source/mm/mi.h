@@ -313,6 +313,10 @@ PMMPTE MmGetPteLocation(uintptr_t Address);
 // been generated if GenerateMissingLevels is true).
 bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels);
 
+// TODO: Implement this for other platforms too!
+typedef MMPFN(*MM_PAGE_ALLOCATOR_METHOD)(void);
+bool MmCheckPteLocationAllocator(uintptr_t Address, bool GenerateMissingLevels, MM_PAGE_ALLOCATOR_METHOD PageAllocate);
+
 // Reserves a range of virtual memory and returns a VAD.
 //
 // Note: This leaves the VAD list locked, if the function succeeds, so you must call MmUnlockVadList!
@@ -405,5 +409,6 @@ BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN P
 #if defined TARGET_I386 || defined TARGET_AMD64 || defined TARGET_ARM
 #define MI_PTE_LOC(Address) (MI_PML1_LOCATION + (((Address) & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
 #endif
+
 
 #endif//NS64_MI_H
