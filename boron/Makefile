@@ -38,6 +38,14 @@ LINKER_FILE = linker.$(TARGETL).ld
 ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
+ifeq ($(TARGET),AMD64)
+	GENERATE_SYMBOLS = 1
+else ifeq ($(TARGET),I386)
+	GENERATE_SYMBOLS = 1
+else
+	GENERATE_SYMBOLS = 0
+endif
+
 # This is the name that our final kernel executable will have.
 # Change as needed.
 override KERNEL := $(BUILD_DIR)/kernel.$(TARGETL).elf
@@ -175,6 +183,8 @@ VER_BUILD = $(shell cat $(BUILD_NUMBER_FILE))
 CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BUILD=$(VER_BUILD)
 
 # Link rules for the final kernel executable.
+ifeq ($(GENERATE_SYMBOLS),1)
+
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
 	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
@@ -192,6 +202,14 @@ $(KERNEL2): $(KERNEL_PARTIAL)
 $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
 	@echo "[LD]\tPartially linking kernel"
 	@$(BLD) -m $(LINK_ARCH) -r $(OBJ) $(LDFLAGSBASE) -o $@
+
+else
+
+$(KERNEL): $(OBJ) $(LINKER_FILE)
+	@echo "[LD]\tLinking kernel"
+	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
+
+endif
 
 $(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TARGETL).o, $(OBJ)) $(SRC_DIR)/ke/version.c
 	@echo "[CC]\tCompiling $(SRC_DIR)/ke/version.c"

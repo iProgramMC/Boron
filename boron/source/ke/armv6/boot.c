@@ -34,9 +34,13 @@ static LOADER_MEMORY_REGION KiMemoryRegions[2];
 static LOADER_AP KiLoaderAp;
 static void* KiLoaderApDummy;
 
+void MiInitializeBaseIdentityMapping();
+
 INIT
 void KiInitLoaderParameterBlock()
 {
+	MiInitializeBaseIdentityMapping();
+	
 	PLOADER_MEMORY_REGION KernelRegion, FreeRegion;
 	KernelRegion = &KiMemoryRegions[0];
 	FreeRegion = &KiMemoryRegions[1];

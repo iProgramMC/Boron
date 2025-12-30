@@ -199,13 +199,13 @@ uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 
 #ifdef TARGET_ARM
 
-uint32_t HalGetMaximumInterruptCount()
+int HalGetMaximumInterruptCount()
 {
 	return HalpVftable.GetMaximumInterruptCount();
 }
 
 // NOTE: This is low level and should not be used directly!
-void HalRegisterInterruptHandler(uint32_t Irq, void(*Func)())
+void HalRegisterInterruptHandler(int Irq, void(*Func)())
 {
 	return HalpVftable.RegisterInterruptHandler(Irq, Func);
 }

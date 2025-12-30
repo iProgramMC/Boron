@@ -78,10 +78,10 @@ HPAGEMAP MiCreatePageMapping()
 	JibbiePtr[4] = L2PTE(Jibbie);
 	JibbiePtr[5] = L2PTE(Debbie);
 	
-	// The 240th entry of Jibbie maps the exception handler pointers
+	// The 1008th entry of Jibbie maps the exception handler pointers
 	// (at 0xFFFF0000), so map it too.  Note that KiExceptionHandlerTable
 	// is a physical address.
-	JibbiePtr[240] = L2PTE((uintptr_t)KiExceptionHandlerTable);
+	JibbiePtr[1008] = L2PTE((uintptr_t)KiExceptionHandlerTable);
 	
 	PMMPTE RootPtr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPageMapping));
 	PMMPTE OldRootPtr = (PMMPTE) MI_PML1_LOCATION;
@@ -163,7 +163,7 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 		}
 		
 		// Debbie must also be updated.
-		PtePtr = (PMMPTE)(MI_PML2_LOCATION + 5 * PAGE_SIZE);
+		PtePtr = (PMMPTE) MI_PML2_MIRROR_LOCATION;
 		PtePtr[Convert.Level1Index] = L2PTE(Pfn);
 	}
 	

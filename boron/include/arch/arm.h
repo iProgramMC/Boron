@@ -14,8 +14,12 @@
 
 #define MI_RECURSIVE_PAGING_START (1023)
 
-#define MI_PML1_LOCATION ((uintptr_t)0xFFC00000U) // Jibbie (L1 page table + Jibbie + Debbie)
 #define MI_PML2_LOCATION ((uintptr_t)0xFF800000U) // Debbie (L2 page tables)
+#define MI_PML1_LOCATION ((uintptr_t)0xFFC00000U) // Jibbie (L1 page table + Jibbie + Debbie)
+
+#define MI_PML1_MIRROR_LOCATION ((uintptr_t)(0xFFC04000U))
+#define MI_PML2_MIRROR_LOCATION ((uintptr_t)(0xFFC05000U))
+
 #define MI_PML_ADDRMASK  ((uintptr_t)0xFFFFF000U)
 
 #endif // KERNEL
