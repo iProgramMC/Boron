@@ -107,7 +107,7 @@ KiBeforeSystemStartup:
 	ldr r1, =KiFiqHandler
 	str r1, [r0, #28]
 	
-	/* Initialize each exception's stack register. */
+	/* Initialize each exception's stack register.  These are temporary until threads start running. */
 	cps #0x11 /* FIQ */
 	ldr sp, =KiFiqStackBottom
 	cps #0x12 /* IRQ */

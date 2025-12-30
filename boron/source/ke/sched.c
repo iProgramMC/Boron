@@ -732,6 +732,21 @@ void KiSwitchToNextThread()
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
 
+#elif defined TARGET_ARM
+
+	uintptr_t IntStack = (uintptr_t) Thread->InterruptStack;
+	uintptr_t AbtStack = IntStack;
+	uintptr_t UndStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 1 / 4;
+	uintptr_t IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 2 / 4;
+	uintptr_t FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
+	
+	KiSetupInterruptStacks(
+		AbtStack,
+		UndStack,
+		IrqStack,
+		FiqStack
+	);
+
 #endif
 
 	if (OldThread == Thread)
