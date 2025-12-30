@@ -18,7 +18,7 @@ Author:
 // TODO: a lot of stuff is going to be hardcoded for a start.
 // hardcode properties HERE
 #define MEMORY_START_ADDRESS (0x00000000)
-#define MEMORY_SIZE (128*1024*1024)
+#define MEMORY_SIZE (512*1024*1024)
 static const char* KiKernelBootCmdLine = "";
 
 // end of hardcoded properties.
