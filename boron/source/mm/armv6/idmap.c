@@ -22,12 +22,12 @@ Author:
 #define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE)
 
 #define L1PTE_FLAGS_SEC 0b111010000001110 // Level 1 PTE flags for Section
-#define L1PTE_FLAGS_CPT 0b111010000001101 // Level 1 PTE flags for Coarse Page Table
 
 extern uint32_t KiRootPageTable[];
 extern uint32_t KiRootPageTableJibbie[];
 extern uint32_t KiRootPageTableDebbie[];
 extern uint32_t KiExceptionHandlerTable[];
+extern uint32_t KiPoolHeadersPageTables[];
 
 void MiInitializeBaseIdentityMapping()
 {
@@ -37,6 +37,12 @@ void MiInitializeBaseIdentityMapping()
 	{
 		uintptr_t Address = MI_IDENTMAP_START_PHYS + i;
 		KiRootPageTable[j] = Address | L1PTE_FLAGS_SEC;
+	}
+	
+	for (uintptr_t i = 0; i < MI_POOL_HEADERS_SIZE; i += 1024 * 4096)
+	{
+		uintptr_t Address = MI_POOL_HEADERS_START + i;
+		KiRootPageTable[Address >> 20] = ((uintptr_t) &KiPoolHeadersPageTables[i / PAGE_SIZE]) | MM_PTEL1_COARSE_PAGE_TABLE;
 	}
 	
 	// setup a linear page table view of the root page table.
