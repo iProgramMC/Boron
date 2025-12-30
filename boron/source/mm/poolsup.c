@@ -170,6 +170,27 @@ void MiInitializeRootPageTable(int Idx)
 	*Pte = MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
 }
 
+#elif defined TARGET_ARM
+
+#define L1PTE_FLAGS_CPT 0b111010000001101
+
+void MiInitializeRootPageTable(int Idx)
+{
+	PMMPTE Pte = (PMMPTE) MI_PML1_LOCATION + Idx;
+	MMPFN Pfn = MmAllocatePhysicalPage();
+	
+	if (Pfn == PFN_INVALID)
+		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
+	
+	for (int i = 0; i < 4; i++) {
+		Pte[i] = ((Pfn << 12) + i) | L1PTE_FLAGS_CPT;
+	}
+}
+
+#endif
+
+#ifdef IS_32_BIT
+
 void MiInitializePoolPageTables()
 {
 	int Size1 = 1 << (MI_POOL_LOG2_SIZE - 22);

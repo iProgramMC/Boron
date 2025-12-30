@@ -92,6 +92,7 @@ static bool RtlpComputeRelocation(
 		case R_ARM_RELATIVE:
 			*Value = Base + Addend;
 			*Length = sizeof(uint32_t);
+			break;
 		case R_ARM_ABS32:
 			*Value  = Symbol + Addend;
 			*Length = sizeof(uint32_t);

@@ -27,36 +27,6 @@ INTERRUPT_LIST, *PINTERRUPT_LIST;
 
 static INTERRUPT_LIST KiInterruptList[256];
 
-static PKREGISTERS KiInterruptDispatch(PKREGISTERS Regs)
-{
-	int Number = Regs->IntNumber;
-	PINTERRUPT_LIST InterruptList = &KiInterruptList[Number];
-	KIPL Ipl;
-	
-	KeAcquireSpinLock(&InterruptList->Lock, &Ipl);
-	
-	for (PLIST_ENTRY Entry = InterruptList->List.Flink;
-	     Entry != &InterruptList->List;
-		 Entry = Entry->Flink)
-	{
-		PKINTERRUPT Interrupt = CONTAINING_RECORD(Entry, KINTERRUPT, Entry);
-		KIPL Unused;
-		KeAcquireSpinLock(Interrupt->SpinLock, &Unused);
-		
-		Interrupt->ServiceRoutine(Interrupt, Interrupt->ServiceContext);
-		
-		KeReleaseSpinLock(Interrupt->SpinLock, Unused);
-	}
-	
-	KeReleaseSpinLock(&InterruptList->Lock, Ipl);
-	
-	// Acknowledge the interrupt.
-	HalEndOfInterrupt(Regs->IntNumber);
-	
-	// No change in registers.
-	return Regs;
-}
-
 INIT
 void KiInitializeInterruptSystem()
 {
@@ -123,10 +93,6 @@ bool KeConnectInterrupt(PKINTERRUPT Interrupt)
 	InsertTailList(&InterruptList->List, &Interrupt->Entry);
 	Interrupt->Connected = true;
 	
-	// In case this wasn't already done, wire up the interrupt
-	// dispatcher routine we specified.
-	KeRegisterInterrupt(Interrupt->Vector, KiInterruptDispatch);
-	
 	KeReleaseSpinLock(&InterruptList->Lock, IplUnused);
 	KeLowerIPL(Ipl);
 	
@@ -145,9 +111,6 @@ void KeDisconnectInterrupt(PKINTERRUPT Interrupt)
 	// Disconnect the interrupt now.
 	RemoveEntryList(&Interrupt->Entry);
 	Interrupt->Connected = false;
-	
-	if (IsListEmpty(&InterruptList->List))
-		;//HalPicDeregisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
 	
 	KeReleaseSpinLock(&InterruptList->Lock, IplUnused);
 	KeLowerIPL(Ipl);
@@ -172,4 +135,30 @@ int KeSynchronizeExecution(
 	KeLowerIPL(Ipl);
 	
 	return Result;
+}
+
+void KeDispatchInterruptRequest(int Number)
+{
+	PINTERRUPT_LIST InterruptList = &KiInterruptList[Number];
+	KIPL Ipl;
+	
+	KeAcquireSpinLock(&InterruptList->Lock, &Ipl);
+	
+	for (PLIST_ENTRY Entry = InterruptList->List.Flink;
+	     Entry != &InterruptList->List;
+		 Entry = Entry->Flink)
+	{
+		PKINTERRUPT Interrupt = CONTAINING_RECORD(Entry, KINTERRUPT, Entry);
+		KIPL Unused;
+		KeAcquireSpinLock(Interrupt->SpinLock, &Unused);
+		
+		Interrupt->ServiceRoutine(Interrupt, Interrupt->ServiceContext);
+		
+		KeReleaseSpinLock(Interrupt->SpinLock, Unused);
+	}
+	
+	KeReleaseSpinLock(&InterruptList->Lock, Ipl);
+	
+	// Acknowledge the interrupt.
+	HalEndOfInterrupt(Number);
 }
