@@ -54,3 +54,13 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	Thread->IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
 	Thread->FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE;
 }
+
+void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread)
+{
+	if (!OldThread)
+		return;
+	
+	// TODO
+	(void) NewThread;
+	(void) OldThread;
+}

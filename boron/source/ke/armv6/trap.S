@@ -167,27 +167,27 @@ KiUndefinedInstructionHandler:
 	subs  pc, lr, #4                 @ and finally return
 
 	.global KiSoftwareInterruptHandler
-	.extern KeOnSoftwareInterrupt
+	.extern KiSystemServiceHandler
 KiSoftwareInterruptHandler:
 	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
 	mrs   r0, spsr                   @ prepare CPSR for saving
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
-	bl    KeOnSoftwareInterrupt      @ handle the call here
+	bl    KiSystemServiceHandler     @ handle the call here
 	pop   {r0}
 	msr   spsr, r0                   @ restore old CPSR
 	pop   {r0-r7,lr}                 @ restore GPRs and the LR
 	subs  pc, lr, #4                 @ and finally return
 
 	.global KiIrqHandler
-	.extern KeOnInterruptRequest
+	.extern HalOnInterruptRequest
 KiIrqHandler:
 	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
 	mrs   r0, spsr                   @ prepare CPSR for saving
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
 	cps   #0x13                      @ switch to supervisor mode
-	bl    KeOnInterruptRequest       @ handle the IRQ here
+	bl    HalOnInterruptRequest      @ handle the IRQ here
 	cps   #0x12                      @ back to IRQ mode
 	mov   sp, r0
 	pop   {r0}
@@ -196,14 +196,14 @@ KiIrqHandler:
 	subs  pc, lr, #4                 @ and finally return
 
 	.global KiFiqHandler
-	.extern KeOnFastInterruptRequest
+	.extern HalOnFastInterruptRequest
 KiFiqHandler:
 	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
 	mrs   r0, spsr                   @ prepare CPSR for saving
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
 	cps   #0x13                      @ switch to supervisor mode
-	bl    KeOnFastInterruptRequest   @ handle the FIQ here
+	bl    HalOnFastInterruptRequest  @ handle the FIQ here
 	cps   #0x11                      @ back to FIQ mode
 	mov   sp, r0
 	pop   {r0}

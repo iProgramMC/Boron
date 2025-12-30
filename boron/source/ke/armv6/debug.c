@@ -46,6 +46,18 @@ void DbgPrintString(const char* str)
 	}
 }
 
+void DbgInit()
+{
+	// TODO
+}
+
+void DbgPrintStackTrace(uintptr_t Rbp)
+{
+	(void) Rbp;
+	
+	DbgPrintDouble("TODO: DbgPrintStackTrace\n");
+}
+
 KSPIN_LOCK KiPrintLock;
 KSPIN_LOCK KiDebugPrintLock;
 
