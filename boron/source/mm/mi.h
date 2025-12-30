@@ -406,8 +406,15 @@ BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN P
 
 // ===== Hardware Specific =====
 
-#if defined TARGET_I386 || defined TARGET_AMD64 || defined TARGET_ARM
+#if defined TARGET_I386 || defined TARGET_AMD64
+
 #define MI_PTE_LOC(Address) (MI_PML1_LOCATION + (((Address) & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+
+#elif defined TARGET_ARM
+
+// same as above, but L1 is the top level and L2 is the bottom level
+#define MI_PTE_LOC(Address) (MI_PML2_LOCATION + (((Address) & MI_PML_ADDRMASK) >> 12) * sizeof(MMPTE))
+
 #endif
 
 

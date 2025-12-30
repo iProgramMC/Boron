@@ -19,7 +19,7 @@ qemu-system-arm.exe ^
 	-display sdl ^
 	-no-reboot ^
 	-no-shutdown ^
-	-s -S
+	-s
 
 rem go back
 cd /d %NSPath%

@@ -299,6 +299,10 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 		return false;
 	
 	PMMPTE Pte = MmGetPteLocation(address);
+	if (*Pte) {
+		return true;
+	}
+	
 	MMPFN Pfn = MiAllocatePfnFromMemMap();
 	if (Pfn == PFN_INVALID) {
 		return false;
@@ -307,6 +311,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	MmBeginUsingHHDM();
 	memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn)), 0, PAGE_SIZE);
 	MmEndUsingHHDM();
+	
 	*Pte = MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
 	
 	return true;
