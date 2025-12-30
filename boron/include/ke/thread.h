@@ -169,7 +169,15 @@ struct KTHREAD_tag
 	
 	// User-space pointer to the TEB (thread environment block).
 	void* TebPointer;
+	
+#ifdef TARGET_ARM
+	// ARM implements instruction page faults and data page faults in
+	// separate ways, so tell them apart using this flag.
+	bool HandlingInstructionFault;
+#endif
 };
+
+#define KERNEL_STACK_SIZE (PAGE_SIZE * 2)
 
 // Creates an empty, uninitialized, thread object.
 // TODO Use the object manager for this purpose and expose the thread object there.
@@ -204,9 +212,14 @@ void KeTerminateThread2(PKTHREAD Thread, KPRIORITY Increment);
 void KeSetSuspendedThread(PKTHREAD Thread, bool IsSuspended);
 
 // Switch this thread into user mode.
-#ifdef TARGET_I386
+#if defined TARGET_I386 || defined TARGET_ARM
 
-// You must pass UserContext in another way.
+// On i386, you must pass UserContext (parameter to the entry point) in another way,
+// such as placing it onto the user stack. Only ReturnCode can be provided from here.
+//
+// On armv6, UserContext and ReturnCode would share the same register, so there is one
+// unified parameter.  This is fine, since the kernel never tries to provide both at
+// the same time.
 NO_RETURN void KeDescendIntoUserMode(void* InstructionPointer, void* StackPointer, uintptr_t ReturnCode);
 
 #else

@@ -215,6 +215,12 @@ PKREGISTERS KiHandleProtectionFault(PKREGISTERS Regs)
 	return Regs;
 }
 
+PKREGISTERS KiHandleUndefinedInstructionFault(PKREGISTERS Regs)
+{
+	KeOnUndefinedInstruction(Regs);
+	return Regs;
+}
+
 PKREGISTERS KiHandlePageFault(PKREGISTERS Regs)
 {
 	KeOnPageFault(Regs);

@@ -13,7 +13,13 @@ Author:
 	iProgramInCpp - 26 December 2025
 ***/
 .global KiBeforeSystemStartup
-.extern kernel_main
+.extern KiSystemStartup
+.extern KiUndefinedInstructionHandler
+.extern KiSoftwareInterruptHandler
+.extern KiPrefetchAbortHandler
+.extern KiDataAbortHandler
+.extern KiIrqHandler
+.extern KiFiqHandler
 
 /* define a Level 1 "Section" PTE */
 /*#define L1PTE(Address) (((Address) & 0xFFF00000) | 0b111010000001110)*/
@@ -72,6 +78,9 @@ KiBeforeSystemStartup:
 	mov r0, #0x1
 	mcr p15, 0, r0, c3, c0, 0   /* Domain Access Control: Domain 0 = Client */
 	
+	mov r0, #0x0                /* clear TTBCR to always use TTBR0 */
+	mcr p15, 0, r0, c2, c0, 2
+	
 	mrc p15, 0, r0, c1, c0, 0   /* read SCTLR */
 	orr r0, r0, #1              /* enable MMU */
 	orr r0, r0, #(1<<2)         /* enable dcache, icache */
@@ -80,13 +89,44 @@ KiBeforeSystemStartup:
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
 	
     /* Set up a simple stack */
-    ldr sp, =KiInitStackTop
+    ldr sp, =KiInitStackBottom
+	
+	/* Initialize the exception handler table */
+	/* Note: Reset (0) and Reserved (0x14) not set */
+	ldr r0, =KiExceptionHandlerTable
+	ldr r1, =KiUndefinedInstructionHandler
+	str r1, [r0, #4]
+	ldr r1, =KiSoftwareInterruptHandler
+	str r1, [r0, #8]
+	ldr r1, =KiPrefetchAbortHandler
+	str r1, [r0, #12]
+	ldr r1, =KiDataAbortHandler
+	str r1, [r0, #16]
+	ldr r1, =KiIrqHandler
+	str r1, [r0, #24]
+	ldr r1, =KiFiqHandler
+	str r1, [r0, #28]
+	
+	/* Initialize each exception's stack register. */
+	cps #0x11 /* FIQ */
+	ldr sp, =KiFiqStackBottom
+	cps #0x12 /* IRQ */
+	ldr sp, =KiIrqStackBottom
+	cps #0x17 /* ABT */
+	ldr sp, =KiAbortStackBottom
+	cps #0x1B /* UND */
+	ldr sp, =KiUndefinedInstructionStackBottom
+	cps #0x13 /* switch back to SVC mode */
 
-	/* TODO: jump to kernel_main in .text at 0xC0000000 */
+	/* jump to KiSystemStartup in .text at 0xC0000000 */
 	ldr r0, =KiSystemStartup
 	bx  r0
 
 .section .iplbss
+.global KiRootPageTable
+.global KiExceptionHandlerTable
+.global KiHigh1MPageTable
+
 /* KEEP THIS at the start of iplbss! */
 .align 16
 KiRootPageTable:
@@ -102,6 +142,18 @@ KiHigh1MPageTable:
 
 .section bss
 .align 16
-KiInitStackTop:
+KiInitStack:
 	.space 2048
-stack_top:
+KiInitStackBottom:
+
+/* define each exception's separate stack */
+	.space 64
+KiUndefinedInstructionStackBottom:
+	.space 64
+KiSoftwareInterruptStackBottom:
+	.space 64
+KiAbortStackBottom:
+	.space 64
+KiIrqStackBottom:
+	.space 64
+KiFiqStackBottom:

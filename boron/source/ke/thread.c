@@ -30,7 +30,7 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 	Thread->StartContext = StartContext;
 	
 	Thread->Stack.Top    = KernelStack;
-	Thread->Stack.Size   = KernelStackSize; //MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
+	Thread->Stack.Size   = KernelStackSize;
 	
 	Thread->Mode = MODE_KERNEL;
 	

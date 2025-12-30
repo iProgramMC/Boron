@@ -17,11 +17,30 @@ SECTIONS {
 	. += 0xC0000000;
 
     .text ALIGN (4K) : AT (ADDR (.text) - 0xC0000000) {
+		KiTextInitStart = .;
+		*(.text.init)
+		KiTextInitEnd = .;
+		. = ALIGN(CONSTANT(MAXPAGESIZE));
+		
+		KiTextPageStart = .;
+		*(.text.page)
+		KiTextPageEnd = .;
+		. = ALIGN(CONSTANT(MAXPAGESIZE));
+		
         *(.text*)
     }
 
     .rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000) {
+		KiInitArrayStart = .;
+		*(.init_array .init_array.*)
+		KiInitArrayEnd = .;
+		KiFiniArrayStart = .;
+		*(.fini_array .fini_array.*)
+		KiFiniArrayEnd = .;
+		
         *(.rodata*)
+		PROVIDE(KiSymbolTable = .);
+		PROVIDE(KiSymbolTableEnd = .);
     }
 
     .data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000) {
@@ -31,6 +50,9 @@ SECTIONS {
     .bss ALIGN (4K) : AT (ADDR (.bss) - 0xC0000000) {
         *(COMMON)
         *(.bss*)
+		
+		/* Hack to keep the PsSystemProcess symbol while adding an object header on top */
+		PROVIDE(PsSystemProcess = PspSystemProcessObject + 64);
     }
 	
 	KiKernelEnd = .;

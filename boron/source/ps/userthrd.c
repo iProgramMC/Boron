@@ -69,6 +69,8 @@ void PspUserThreadStart(void* ContextV)
 	KeGetCurrentThread()->Mode = MODE_USER;
 #ifdef TARGET_I386
 	KeDescendIntoUserMode(Context.InstructionPointer, StackBottom, 0);
+#elif defined TARGET_ARM
+	KeDescendIntoUserMode(Context.InstructionPointer, StackBottom, (uintptr_t) Context.UserContext);
 #else
 	KeDescendIntoUserMode(Context.InstructionPointer, StackBottom, Context.UserContext, 0);
 #endif
