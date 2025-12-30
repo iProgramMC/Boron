@@ -70,8 +70,8 @@ struct KTHREAD_tag
 	KTHREAD_STACK Stack;
 	
 #ifdef TARGET_ARM
-	// A region of size KERNEL_INTERRUPT_STACK_SIZE, which stores all 4 interrupt stacks.
 	void* InterruptStack;
+	uintptr_t AbtStack, UndStack, IrqStack, FiqStack;
 #endif
 	
 	void* StackPointer; // Pass this into KiSwitchThreadStack.
