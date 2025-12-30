@@ -32,6 +32,8 @@
 #define MI_IDENTMAP_START ((uintptr_t) 0xC0000000)
 #define MI_IDENTMAP_SIZE  ((uintptr_t) 0x10000000)
 
+#define MI_IDENTMAP_START_PHYS ((uintptr_t) 0x00000000)
+
 #define MI_FASTMAP_START ((uintptr_t) 0xD0000000)
 #define MI_FASTMAP_MASK  ((uintptr_t) 0xFFFF0000)
 #define MI_FASTMAP_SIZE  (64 * 1024)

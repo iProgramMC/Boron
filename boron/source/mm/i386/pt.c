@@ -34,7 +34,11 @@ PMMPTE MmGetPteLocation(uintptr_t Address)
 	return PtePtr;
 }
 
-bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+bool MmCheckPteLocationAllocator(
+	uintptr_t Address,
+	bool GenerateMissingLevels,
+	MM_PAGE_ALLOCATOR_METHOD PageAllocate
+)
 {
 	PMMPTE Pte;
 	MMPTE SupervisorBit;
@@ -53,7 +57,7 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 		if (!GenerateMissingLevels)
 			return false;
 		
-		MMPFN PtAllocated = MmAllocatePhysicalPage();
+		MMPFN PtAllocated = PageAllocate();
 		if (PtAllocated == PFN_INVALID)
 			return false;
 		
@@ -62,6 +66,11 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	
 	// Page table exists.
 	return true;
+}
+
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+{
+	return MmCheckPteLocationAllocator(Address, GenerateMissingLevels, MmAllocatePhysicalPage);
 }
 
 PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)

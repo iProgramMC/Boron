@@ -53,6 +53,7 @@ KeDescendIntoUserMode:
 	bx   lr
 KeDescendIntoUserModeUnimplementedMessage:
 	.asciz "NYI KeDescendIntoUserMode"
+	.align 4
 
 	@ void KiSwitchThreadStack(void** OldStack, void** NewStack);
 	.global KiSwitchThreadStack

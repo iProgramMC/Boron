@@ -28,7 +28,9 @@ void MiInitializeBaseIdentityMapping()
 		i < MI_IDENTMAP_SIZE;
 		i += 1024 * 1024, j++)
 	{
-		uintptr_t Address = MI_IDENTMAP_START + i;
-		KiRootPageTable[i] = L1PTE_FLAGS_SEC | Address;
+		uintptr_t Address = MI_IDENTMAP_START_PHYS + i;
+		KiRootPageTable[j] = L1PTE_FLAGS_SEC | Address;
 	}
+	
+	DbgPrint("done");
 }

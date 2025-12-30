@@ -27,9 +27,23 @@ Author:
 /* TEX = 0b111, AP = 0b01, P = 0, Domain = 0, CB = 0b11 */
 .equ L1PTE_FLAGS_SEC, 0b111010000001110
 
-.equ L1PTE_FLAGS_CPT, 0b111010000001101
+/* P = 0, Domain = 0, Type = 0b01 */
+.equ L1PTE_FLAGS_CPT, 0b0000000001
 
 .section .ipltext, "ax", %progbits
+
+/* The exception handler table is mapped to 0xFFFF0000. Must be aligned to 4KB */
+.global KiExceptionHandlerTable
+KiExceptionHandlerTable:
+	b KiBeforeSystemStartup
+	b KiUndefinedInstructionHandler
+	b KiSoftwareInterruptHandler
+	b KiPrefetchAbortHandler
+	b KiDataAbortHandler
+	.word 0
+	b KiIrqHandler
+	b KiFiqHandler
+
 KiBeforeSystemStartup:
 	/* set up the root page table */
 	ldr r2, =L1PTE_FLAGS_SEC
@@ -58,16 +72,16 @@ KiBeforeSystemStartup:
 	ldr r0, =(KiRootPageTable + 0x3460)
 	ldr r1, =0x10100000
 	orr r1, r1, r2
-	str r1, [r0, #0x0008]
+	str r1, [r0, #0x0000]
 	
 	/* map the exception handlers to 0xFFF'F0'000 */
 	ldr r0, =(KiRootPageTable + 0x3FFC)
 	ldr r1, =KiHigh1MPageTable
+	ldr r2, =L1PTE_FLAGS_CPT
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	ldr r0, =(KiHigh1MPageTable + 0x3C0) /* 240th entry */
 	ldr r1, =KiExceptionHandlerTable
-	ldr r2, =L1PTE_FLAGS_CPT
 	orr r1, r1, #(3 << 0) /* small page NX */
 	orr r1, r1, #(1 << 4) /* super read/write */
 	str r1, [r0, #0x0000]
@@ -91,22 +105,6 @@ KiBeforeSystemStartup:
     /* Set up a simple stack */
     ldr sp, =KiInitStackBottom
 	
-	/* Initialize the exception handler table */
-	/* Note: Reset (0) and Reserved (0x14) not set */
-	ldr r0, =KiExceptionHandlerTable
-	ldr r1, =KiUndefinedInstructionHandler
-	str r1, [r0, #4]
-	ldr r1, =KiSoftwareInterruptHandler
-	str r1, [r0, #8]
-	ldr r1, =KiPrefetchAbortHandler
-	str r1, [r0, #12]
-	ldr r1, =KiDataAbortHandler
-	str r1, [r0, #16]
-	ldr r1, =KiIrqHandler
-	str r1, [r0, #24]
-	ldr r1, =KiFiqHandler
-	str r1, [r0, #28]
-	
 	/* Initialize each exception's stack register.  These are temporary until threads start running. */
 	cps #0x11 /* FIQ */
 	ldr sp, =KiFiqStackBottom
@@ -122,9 +120,8 @@ KiBeforeSystemStartup:
 	ldr r0, =KiSystemStartup
 	bx  r0
 
-.section .iplbss
+.section .iplbss, "aw", %nobits
 .global KiRootPageTable
-.global KiExceptionHandlerTable
 .global KiHigh1MPageTable
 
 /* KEEP THIS at the start of iplbss! */
@@ -132,15 +129,11 @@ KiBeforeSystemStartup:
 KiRootPageTable:
 	.space 16384
 
-/* The exception handler table is mapped to 0xFFFF0000. Must be aligned to 4KB */
-KiExceptionHandlerTable:
-	.space 0x20
-
 /* Page table used to map KiExceptionHandlerTable. Must be aligned to 1K */
 KiHigh1MPageTable:
 	.space 1024
 
-.section bss
+.section .bss
 .align 16
 KiInitStack:
 	.space 2048
