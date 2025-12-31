@@ -10,9 +10,9 @@ set path=%path%;%NSPath%
 @rem NOTE: Placeholder !!
 qemu-system-arm.exe ^
 	-d int ^
-	-M raspi1ap ^
+	-M versatilepb ^
 	-cpu arm1176 ^
-	-m 512M ^
+	-m 128M ^
 	-kernel %nspath%\build\armv6\kernel.elf ^
 	-monitor telnet:127.0.0.1:56789,server,nowait ^
 	-serial stdio ^

@@ -3,10 +3,10 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ha/timer.c
+	ha/gic.c
 	
 Abstract:
-	This module contains the driver for the timer.
+	This module contains the driver for the GIC (PL190/PL192).
 	
 Author:
 	iProgramInCpp - 31 December 2025
@@ -15,49 +15,45 @@ Author:
 #include <ke.h>
 #include "hali.h"
 
-bool HalRaspi1apUseOneShotIntTimer()
+void HalVpbEndOfInterrupt(int InterruptNumber)
 {
 	DbgPrint("TODO %s", __func__);
-	return false;
 }
 
-bool HalRaspi1apUseOneShotTimer()
+void HalVpbRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 {
 	DbgPrint("TODO %s", __func__);
-	return false;
 }
 
-uint64_t HalRaspi1apGetIntTimerFrequency()
+void HalVpbRegisterInterruptHandler(int Irq, void(*Func)())
 {
 	DbgPrint("TODO %s", __func__);
-	return 1;
 }
 
-uint64_t HalRaspi1apGetTickCount()
+PKREGISTERS HalVpbOnInterruptRequest(PKREGISTERS Registers)
 {
 	DbgPrint("TODO %s", __func__);
-	return 1;
+	return Registers;
 }
 
-uint64_t HalRaspi1apGetTickFrequency()
+PKREGISTERS HalVpbOnFastInterruptRequest(PKREGISTERS Registers)
 {
 	DbgPrint("TODO %s", __func__);
-	return 1;
+	return Registers;
 }
 
-uint64_t HalRaspi1apGetIntTimerDeltaTicks()
+int HalVpbGetMaximumInterruptCount()
 {
 	DbgPrint("TODO %s", __func__);
 	return 1;
 }
 
-uint64_t HalRaspi1apGetInterruptDeltaTime()
+void HalInitPL190()
 {
 	DbgPrint("TODO %s", __func__);
-	return 1;
 }
 
-void HalRaspi1apRequestInterruptInTicks(uint64_t ticks)
+void HalInitTimer()
 {
 	DbgPrint("TODO %s", __func__);
 }
