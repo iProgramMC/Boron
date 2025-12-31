@@ -88,6 +88,7 @@ MMADDRESS_CONVERT;
 #define MM_PTE_READWRITE  MM_PTEL2_AP_SUPERREADWRITE
 #define MM_PTE_USERACCESS MM_PTEL2_AP_USERREADONLY   // USERREADONLY | SUPERREADWRITE = USERREADWRITE
 #define MM_PTE_NOEXEC     MM_PTEL2_TYPE_LARGEPAGE    // LARGEPAGE | SMALLPAGE = SMALLPAGENX
+#define MM_PTE_ISPRESENT(Pte) (((Pte) & 0x3) != 0)
 
 #define MM_PTE_WRITETHRU  (0) // seemingly unused
 #define MM_PTE_CDISABLE   (0) // TODO: supported by hardware, but to use it you must *turn off* bits

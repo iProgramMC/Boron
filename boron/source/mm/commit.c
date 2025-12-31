@@ -235,7 +235,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 			}
 		}
 		
-		if (*Pte & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(*Pte))
 		{
 			// The PTE is present. If it doesn't come from the PMM, then
 			// it's MMIO and it's not tracked.

@@ -62,7 +62,7 @@ static BSTATUS MmpChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
 			}
 			
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MM_PTE_ISPRESENT(Pte))
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
 				ASSERT(MM_PTE_CHECKFROMPMM(Pte));
@@ -202,7 +202,7 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 			}
 			
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MM_PTE_ISPRESENT(Pte))
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
 				ASSERT(MM_PTE_CHECKFROMPMM(Pte));
@@ -275,7 +275,7 @@ static BSTATUS MmpReplicateCommitPtesIfNeeded(PEPROCESS DestinationProcess, PMMV
 			
 			MMPTE DestPte = 0;
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MM_PTE_ISPRESENT(Pte))
 			{
 				DestPte = MM_DPTE_COMMITTED;
 			}

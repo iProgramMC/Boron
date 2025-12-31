@@ -12,29 +12,21 @@ Abstract:
 Author:
 	iProgramInCpp - 31 December 2025
 ***/
+#ifdef TARGET_ARMV6
 #include <ke.h>
 #include "hali.h"
 
 NO_RETURN
 void HalRaspi1apCrashSystem(const char* Message)
 {
-	DbgPrint("TODO %s", __func__);
-	while (1) {
-		ASM("wfi":::"memory");
-	}
+	DISABLE_INTERRUPTS();
+	KeCrashConclusion(Message);
 }
 
 NO_RETURN
 void HalRaspi1apProcessorCrashed()
 {
-	DbgPrint("TODO %s", __func__);
-	while (1) {
-		ASM("wfi":::"memory");
-	}
+	KeStopCurrentCPU();
 }
 
-int HalRaspi1apGetMaximumInterruptCount()
-{
-	DbgPrint("TODO %s", __func__);
-	return 1;
-}
+#endif

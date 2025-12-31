@@ -12,6 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 31 December 2025
 ***/
+#ifdef TARGET_ARMV6
 #define IS_HAL
 #include <ke.h>
 #include <io.h>
@@ -54,7 +55,8 @@ HAL_API void HalRaspi1apInitSystemMP()
 
 void HalRaspi1apDisplayString(const char* Message)
 {
-	DbgPrint("%s(%s)", __func__, Message);
+	//DbgPrint("%s(%s)", __func__, Message);
+	DbgPrintString(Message);
 }
 
 static const HAL_VFTABLE HalpVfTable =
@@ -89,3 +91,5 @@ BSTATUS HAL_DriverEntry(UNUSED PDRIVER_OBJECT Object)
 	// And return, that's all we need.
 	return STATUS_SUCCESS;
 }
+
+#endif

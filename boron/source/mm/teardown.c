@@ -65,15 +65,15 @@ void MmTearDownProcess(PEPROCESS Process)
 	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
 	
 	for (int i = 0; i < 256; i++)
-		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
+		ASSERT(!MM_PTE_ISPRESENT(PteScan[i]));
 #endif // TARGET_AMD64
 
 #ifdef TARGET_I386
 	MmBeginUsingHHDM();
 	PMMPTE PteScan = MmGetHHDMOffsetAddr(Process->Pcb.PageMap);
 	
-	for (int i = 0; i < 256; i++)
-		ASSERT(~PteScan[i] & MM_PTE_PRESENT);
+	for (int i = 0; i < 512; i++)
+		ASSERT(!MM_PTE_ISPRESENT(PteScan[i]));
 	
 	MmEndUsingHHDM();
 #endif // TARGET_I386

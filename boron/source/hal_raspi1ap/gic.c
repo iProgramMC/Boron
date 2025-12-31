@@ -11,6 +11,7 @@ Abstract:
 Author:
 	iProgramInCpp - 31 December 2025
 ***/
+#ifdef TARGET_ARMV6
 #include <ke.h>
 #include "hali.h"
 
@@ -41,6 +42,12 @@ PKREGISTERS HalRaspi1apOnFastInterruptRequest(PKREGISTERS Registers)
 	return Registers;
 }
 
+int HalRaspi1apGetMaximumInterruptCount()
+{
+	DbgPrint("TODO %s", __func__);
+	return 1;
+}
+
 void HalInitPL190()
 {
 	DbgPrint("TODO %s", __func__);
@@ -51,3 +58,4 @@ void HalInitTimer()
 	DbgPrint("TODO %s", __func__);
 }
 
+#endif

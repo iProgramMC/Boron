@@ -212,7 +212,7 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			{
 				MMPTE Pte = *PtePtr;
 				
-				if (~Pte & MM_PTE_PRESENT)
+				if (!MM_PTE_ISPRESENT(Pte))
 				{
 					// Try to fault on this page.  We don't know what kind of non-present page this is.
 					TryFault = true;

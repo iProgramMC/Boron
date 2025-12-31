@@ -46,17 +46,17 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	PMMPTE Pte;
 	
 	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(MI_PTE_LOC(Address))));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(*Pte))
 		goto Missing;
 	
 	// PML4 exists, check PML3
 	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(Address)));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(*Pte))
 		goto Missing;
 	
 	// PML3 exists, check PML2
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(*Pte))
 	{
 	Missing:
 		if (GenerateMissingLevels)
@@ -132,7 +132,7 @@ bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
 	if (PageForThisLevelPFN == PFN_INVALID)
 		return false;
 	
-	if (~Old[Index] & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(Old[Index]))
 	{
 		// TODO handle a non present page... Currently just exit.
 		New[Index] = 0;
@@ -259,7 +259,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 		
 		MMPTE Entry = *EntryPointer;
 		
-		if (pml > 1 && (~Entry & MM_PTE_PRESENT))
+		if (pml > 1 && !MM_PTE_ISPRESENT(Entry))
 		{
 			// not present!! Do we allocate it?
 			if (!AllocateMissingPMLs)
@@ -344,7 +344,7 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 		
 		MMPTE Entry = *EntryPointer;
 		
-		if (pml > 1 && (~Entry & MM_PTE_PRESENT))
+		if (pml > 1 && !MM_PTE_ISPRESENT(Entry))
 		{
 			// if we don't have a parent, return
 			if (!ParentEntryPointer)
@@ -527,7 +527,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		
 		*pPTE &= ~MM_DPTE_COMMITTED;
 		
-		if (*pPTE & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(*pPTE))
 		{
 			*pPTE &= ~MM_PTE_PRESENT;
 			*pPTE |= MM_DPTE_WASPRESENT;

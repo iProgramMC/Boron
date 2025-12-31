@@ -67,7 +67,7 @@ KiSwitchThreadStack:
 	@ void KiSwitchThreadStackForever(void* NewStack)
 	.global KiSwitchThreadStackForever
 KiSwitchThreadStackForever:
-	ldr   sp, [r0]
+	mov   sp, r0
 	ldmia sp!, {r4-r12, lr}
 	bx    lr
 
