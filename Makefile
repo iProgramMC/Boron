@@ -39,7 +39,7 @@ USER_DIR = user
 ISO_DIR = $(BUILD_DIR)/iso_root
 
 # The ISO target.
-IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).iso
+IMAGE_TARGET ?= $(BUILD_DIR)/../image.$(TARGETL).iso
 
 # The init ramdisk directory.
 INITRD_DIR = $(BUILD_DIR)/initrd_root
