@@ -52,7 +52,7 @@ bool MmCheckPteLocationAllocator(
 	
 	// Check the presence of the PT
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(*Pte))
 	{
 		if (!GenerateMissingLevels)
 			return false;
@@ -200,7 +200,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		
 		*pPTE &= ~MM_DPTE_COMMITTED;
 		
-		if (*pPTE & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(*pPTE))
 		{
 			*pPTE &= ~MM_PTE_PRESENT;
 			*pPTE |= MM_DPTE_WASPRESENT;

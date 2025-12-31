@@ -19,7 +19,7 @@ Author:
 // hardcode properties HERE
 #define MEMORY_START_ADDRESS (0x00000000)
 #define MEMORY_SIZE (512*1024*1024)
-static const char* KiKernelBootCmdLine = "";
+static const char* KiKernelBootCmdLine = "Root=\"/InitRoot\" Init=\"/bin/Test\" NoInit=yes";
 
 // end of hardcoded properties.
 

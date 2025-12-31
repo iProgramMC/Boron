@@ -11,6 +11,7 @@ Abstract:
 Author:
 	iProgramInCpp - 31 December 2025
 ***/
+#ifdef TARGET_ARMV6
 #include <ke.h>
 #include "hali.h"
 
@@ -60,3 +61,5 @@ void HalRaspi1apRequestInterruptInTicks(uint64_t ticks)
 {
 	DbgPrint("TODO %s", __func__);
 }
+
+#endif

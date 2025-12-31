@@ -444,7 +444,7 @@ void MiCleanUpVad(PMMVAD Vad)
 		}
 		
 		// Assume that the page is NOT present.
-		ASSERT(~*Pte & MM_PTE_PRESENT);
+		ASSERT(!MM_PTE_ISPRESENT(*Pte));
 		
 		*Pte = 0;
 		Pte++;

@@ -30,6 +30,7 @@ MmSafeCopySub:
 	subs r2, r2, #1
 	bne  1b
 2:
+	mov  r0, #0
 	bx   lr
 
 	@ int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);

@@ -437,7 +437,7 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	}
 	
 	ASSERT(*PtePtr == 0);
-	ASSERT((Handle & MM_PTE_PRESENT) == 0);
+	ASSERT(!MM_PTE_ISPRESENT(Handle));
 	
 	MMPTE Pte = MiCalculatePoolHeaderPte(Handle);
 	ASSERT(MiReconstructPoolHandleFromPte(Pte) == Handle);

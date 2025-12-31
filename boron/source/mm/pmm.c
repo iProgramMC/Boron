@@ -261,7 +261,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	for (int i = 3; i >= 0; i--)
 	{
 		int index = (address >> (12 + 9 * i)) & 0x1FF;
-		if (pPML[i]->entries[index] & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(pPML[i]->entries[index]))
 		{
 			if (i == 0)
 				return true; // didn't allocate anything
@@ -557,7 +557,7 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 				KeCrash("MmRegisterMMIOAsMemory: could not ensure PTE location %p exists", currPage);
 			
 			PMMPTE Pte = MmGetPteLocation(currPage);
-			if (!(*Pte & MM_PTE_PRESENT))
+			if (!MM_PTE_ISPRESENT(*Pte))
 			{
 				// allocate it
 				MMPFN PfnAlloc = MmAllocatePhysicalPage();

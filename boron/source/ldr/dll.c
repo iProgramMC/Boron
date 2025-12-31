@@ -69,7 +69,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		
 		// Some entries overlap. Check if there's already a PTE beforehand.
 		PMMPTE Pte = MmGetPteLocationCheck(VirtAddr, false);
-		if (Pte && (*Pte & MM_PTE_PRESENT))
+		if (Pte && MM_PTE_ISPRESENT(*Pte))
 		{
 			MMPTE OldPte = *Pte;
 			
@@ -343,7 +343,12 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 INIT
 void LdrInitializeHal()
 {
-	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
+	//LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
+	
+	extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
+	DbgPrint("calling fake built-in HAL");
+	HAL_DriverEntry(NULL);
+	return;
 }
 
 INIT

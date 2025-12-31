@@ -427,7 +427,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	PMMPTE PtePtr = MmGetPteLocationCheck(FaultAddress, false);
 	
 	// If the PTE is present.
-	if (PtePtr && (*PtePtr & MM_PTE_PRESENT))
+	if (PtePtr && MM_PTE_ISPRESENT(*PtePtr))
 	{
 		// If this is a user mode thread and it's trying to access kernel mode addresses,
 		// declare failure instantly.

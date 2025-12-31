@@ -66,7 +66,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	// Scan each page table in the range.
 	for (size_t i = 0; i < SizePages; i += PTES_COVERED_BY_ONE_PT, ++Pte)
 	{
-		if (~(*Pte) & MM_PTE_PRESENT)
+		if (!MM_PTE_ISPRESENT(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);

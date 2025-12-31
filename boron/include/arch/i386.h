@@ -99,6 +99,7 @@ MMADDRESS_CONVERT;
 #define MM_PTE_NEWPFN(Pfn) ((Pfn) << 12)
 
 #define MM_PTE_CHECKFROMPMM(Pte) ((Pte) & MM_PTE_ISFROMPMM)
+#define MM_PTE_ISPRESENT(Pte) (((Pte) & MM_PTE_PRESENT) != 0)
 
 // Disabled PTE (present bit is zero):
 // bits 0..2 - Permission bits as usual
