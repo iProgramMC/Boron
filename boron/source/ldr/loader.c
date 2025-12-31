@@ -102,7 +102,14 @@ void LdrInit()
 	
 	if (!HalFile)
 	{
+		/*
 		KeCrashBeforeSMPInit("No HAL loaded");
+		return;
+		*/
+		
+		extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
+		DbgPrint("calling fake built-in HAL");
+		HAL_DriverEntry(NULL);
 		return;
 	}
 	

@@ -33,9 +33,6 @@ int HalRaspi1apGetMaximumInterruptCount();
 void HalRaspi1apRegisterInterruptHandler(int Irq, void(*Func)());
 PKREGISTERS HalRaspi1apOnInterruptRequest(PKREGISTERS Registers);
 PKREGISTERS HalRaspi1apOnFastInterruptRequest(PKREGISTERS Registers);
-uint64_t HalRaspi1apGetTickFrequency();
-uint64_t HalRaspi1apGetTickCount();
-uint64_t HalRaspi1apGetIntTimerFrequency();
 bool HalRaspi1apUseOneShotTimer();
 void HalRaspi1apRequestInterruptInTicks(uint64_t ticks);
 uint64_t HalRaspi1apGetInterruptDeltaTime();
@@ -53,6 +50,11 @@ HAL_API void HalRaspi1apInitSystemUP()
 HAL_API void HalRaspi1apInitSystemMP()
 {
 	HalInitTimer();
+}
+
+void HalRaspi1apDisplayString(const char* Message)
+{
+	DbgPrint("%s(%s)", __func__, Message);
 }
 
 static const HAL_VFTABLE HalpVfTable =
