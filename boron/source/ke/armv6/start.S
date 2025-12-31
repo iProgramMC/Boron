@@ -67,10 +67,10 @@ KiBeforeSystemStartup:
 	str r1, [r0, #0x0004]
 	
 	/* map PL011 for debugging purposes */
-	/* raspi1ap machine features it at offset 0x20201000 */
+	/* raspi1ap machine features it at offset 0x101f1000 */
 	/* we need to map it to 0xD1800000 */
 	ldr r0, =(KiRootPageTable + 0x3460)
-	ldr r1, =0x20200000
+	ldr r1, =0x10100000
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	

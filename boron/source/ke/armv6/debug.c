@@ -22,7 +22,7 @@ void DbgPrintDouble(const char* String)
 
 #ifdef DEBUG
 
-#define UART0_BASE (0xD1801000)
+#define UART0_BASE (0xD18F1000)
 #define UART0_DR   (*(volatile unsigned int *)(UART0_BASE + 0x00))
 #define UART0_FR   (*(volatile unsigned int *)(UART0_BASE + 0x18))
 

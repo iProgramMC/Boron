@@ -17,14 +17,14 @@ Author:
 #include "hali.h"
 
 NO_RETURN
-void HalRaspi1apCrashSystem(const char* Message)
+void HalVpbCrashSystem(const char* Message)
 {
 	DISABLE_INTERRUPTS();
 	KeCrashConclusion(Message);
 }
 
 NO_RETURN
-void HalRaspi1apProcessorCrashed()
+void HalVpbProcessorCrashed()
 {
 	KeStopCurrentCPU();
 }
