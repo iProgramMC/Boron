@@ -31,6 +31,7 @@ const char* PspInitialProcessEnvironment =
 
 bool PsShouldStartInitialProcess()
 {
+	return false;
 	return !ExIsConfigValue("NoInit", CONFIG_YES);
 }
 

@@ -11,6 +11,7 @@ Abstract:
 Author:
 	iProgramInCpp - 31 December 2025
 ***/
+#ifdef TARGET_ARMV6
 	.section .text
 	.extern KeDispatchInterruptRequest
 
@@ -95,3 +96,4 @@ HalIrqList:
 	IRQD 29
 	IRQD 30
 	IRQD 31
+#endif
