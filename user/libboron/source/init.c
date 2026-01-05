@@ -755,9 +755,28 @@ BSTATUS OSDLLSetupArgumentsAndEnvironment(PPEB Peb, int* OutArgumentCount, char*
 	return STATUS_SUCCESS;
 }
 
+HIDDEN
+void OSDLLUnmapOldInterpreterIfNeeded(PPEB Peb)
+{
+	if (!Peb->Loader.OldInterpreterBase)
+		return;
+	
+	OSFreeVirtualMemory(
+		CURRENT_PROCESS_HANDLE,
+		Peb->Loader.OldInterpreterBase,
+		Peb->Loader.OldInterpreterSize,
+		MEM_RELEASE | MEM_PARTIAL
+	);
+	
+	Peb->Loader.OldInterpreterBase = NULL;
+	Peb->Loader.OldInterpreterSize = 0;
+}
+
 NO_RETURN HIDDEN
 void DLLEntryPoint(PPEB Peb)
 {
+	OSDLLUnmapOldInterpreterIfNeeded(Peb);
+	
 	OSDLLInitializeGlobalHeap();
 	InitializeListHead(&OSDllLoadQueue);
 	InitializeListHead(&OSDllsLoaded);

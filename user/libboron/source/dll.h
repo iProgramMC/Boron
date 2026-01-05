@@ -12,6 +12,14 @@
 #define LdrDbgPrint(...) do {} while (0)
 #endif
 
+#ifdef IS_64_BIT
+#define USER_SPACE_END 0x0000800000000000
+#else
+#define USER_SPACE_END 0x80000000
+#endif
+
+#define PAGE_ALIGN_UP(x) (((x) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+
 // NOTE: This is a non-standard entry format. Normally applications' entry points are no-return
 // with no arguments. No OS, as far as I know, does this. However, because I am lazy enough not
 // to want to write a crt0 that links with every object, I will instead treat the application's

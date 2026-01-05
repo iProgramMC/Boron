@@ -6,12 +6,6 @@
 #include "pebteb.h"
 #include "dll.h"
 
-#ifdef IS_64_BIT
-#define USER_SPACE_END 0x0000800000000000
-#else
-#define USER_SPACE_END 0x80000000
-#endif
-
 static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 {
 	extern char _DYNAMIC[];

@@ -35,6 +35,13 @@ typedef struct
 	void* FileHeader;
 	void* ProgramHeaders;
 	const char* Interpreter;
+	
+	// Information about the old interpreter.
+	//
+	// When the new interpreter takes over, if OldInterpreterBase is not NULL,
+	// it should call OSFreeVirtualMemory with MEM_PARTIAL.
+	void* OldInterpreterBase;
+	size_t OldInterpreterSize;
 }
 LOADER_INFORMATION;
 

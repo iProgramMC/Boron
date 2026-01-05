@@ -9,7 +9,7 @@ PTEB OSDLLGetCurrentTeb()
 
 PPEB OSDLLGetCurrentPeb()
 {
-	return OSDLLGetCurrentTeb()->Peb;
+	return (PPEB) OSGetCurrentPeb();
 }
 
 PTEB OSDLLCreateTebObject(PPEB Peb)
