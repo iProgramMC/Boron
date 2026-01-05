@@ -52,6 +52,7 @@ extern OSOutputDebugString
 extern OSPulseEvent
 extern OSQueryEvent
 extern OSQueryMutex
+extern OSQueryVirtualMemoryInformation
 extern OSReadDirectoryEntries
 extern OSReadFile
 extern OSReadVirtualMemory
@@ -127,6 +128,7 @@ KiSystemServiceTable:
 	dq OSWriteFile
 	dq OSWriteVirtualMemory
 	dq OSForkProcessA
+	dq OSQueryVirtualMemoryInformation
 KiSystemServiceTableEnd:
 	nop
 

@@ -60,3 +60,9 @@ BSTATUS OSGetMappedFileHandle(
 	HANDLE ProcessHandle,
 	uintptr_t Address
 );
+
+BSTATUS OSQueryVirtualMemoryInformation(
+	HANDLE ProcessHandle,
+	PVIRTUAL_MEMORY_INFORMATION OutInformation,
+	uintptr_t VirtualAddress
+);

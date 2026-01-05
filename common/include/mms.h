@@ -69,6 +69,31 @@ enum ACCESS_FLAG
 	PAGE_EXECUTE = 4,
 };
 
+typedef struct
+{
+	// The start of the virtual memory region.
+	uintptr_t Start;
+	
+	// The size, in bytes, of the virtual memory region.
+	size_t Size;
+	
+	struct
+	{
+		// Matches up to the ACCESS_FLAG enum.
+		unsigned Protection : 3;
+		
+		// If this mapping is free.
+		unsigned Free : 1;
+		
+		// If this mapping is private (i.e. does not affect the backing store of
+		// the mapped object)
+		unsigned Private : 1;
+	}
+	PACKED
+	Flags;
+}
+VIRTUAL_MEMORY_INFORMATION, *PVIRTUAL_MEMORY_INFORMATION;
+
 // Page Size definition
 #if defined TARGET_AMD64 || defined TARGET_I386
 #define PAGE_SIZE (0x1000)

@@ -55,6 +55,7 @@ CALL 48, 3, OSWaitForSingleObject
 //   49     OSWriteFile
 CALL 50, 4, OSWriteVirtualMemory
 CALL 51, 2, OSForkProcessInternal
+CALL 52, 3, OSQueryVirtualMemoryInformation
 
 #ifdef IS_64_BIT
 CALL 24, 7, OSMapViewOfObject

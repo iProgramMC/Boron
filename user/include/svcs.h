@@ -115,6 +115,12 @@ BSTATUS OSQueryEvent(HANDLE EventHandle, int* EventState);
 
 BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
+BSTATUS OSQueryVirtualMemoryInformation(
+	HANDLE ProcessHandle,
+	PVIRTUAL_MEMORY_INFORMATION OutInformation,
+	uintptr_t VirtualAddress
+);
+
 BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t DirectoryEntryCount, PIO_DIRECTORY_ENTRY DirectoryEntries);
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
