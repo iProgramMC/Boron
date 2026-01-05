@@ -156,7 +156,10 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		{
 			// Complete overlap, so the whole VAD will be unmapped.
 			//
-			// Lock the VAD list again because MiReleaseVad will acquire it.
+			// Lock the VAD list again because MiDecommitVad and MiReleaseVad will release it.
+			MiLockVadList(VadList);
+			MiDecommitVad(VadList, Vad, Vad->Node.StartVa, Vad->Node.Size, false);
+			
 			MiLockVadList(VadList);
 			MiReleaseVad(Vad);
 			continue;
