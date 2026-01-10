@@ -6,7 +6,8 @@
 #include "pebteb.h"
 #include "dll.h"
 
-static BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
+HIDDEN
+BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 {
 	extern char _DYNAMIC[];
 	return OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
@@ -22,7 +23,8 @@ static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLi
 	return PebSize;
 }
 
-static BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine, const char* Environment)
+HIDDEN
+BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine, const char* Environment)
 {
 	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine, Environment);
 	
@@ -222,7 +224,7 @@ BSTATUS OSCreateProcess(
 	
 	// Now map the main image inside.
 	LdrDbgPrint("OSCreateProcess: Mapping main image %s.", ImageName);
-	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, FILE_KIND_MAIN_EXECUTABLE);
+	Status = OSDLLMapElfFile(Peb, ProcessHandle, FileHandle, ImageName, &EntryPoint, FILE_KIND_MAIN_EXECUTABLE, true);
 	OSClose(FileHandle);
 	
 	if (FAILED(Status))
@@ -279,7 +281,7 @@ BSTATUS OSCreateProcess(
 			goto Fail;
 		}
 		
-		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, InterpreterCopy, &EntryPoint, FILE_KIND_INTERPRETER);
+		Status = OSDLLMapElfFile(Peb, ProcessHandle, InterpreterFileHandle, InterpreterCopy, &EntryPoint, FILE_KIND_INTERPRETER, true);
 		OSClose(InterpreterFileHandle);
 		
 		if (FAILED(Status))

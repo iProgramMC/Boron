@@ -407,13 +407,6 @@ BSTATUS OSInitializeHeap(POS_HEAP Heap)
 	return OSInitializeCriticalSection(&Heap->CriticalSection);
 }
 
-void OSDeleteHeap(POS_HEAP Heap)
-{
-	OSDeleteCriticalSection(&Heap->CriticalSection);
-	
-	// TODO: Free every block of memory
-}
-
 // TODO: Add OSReallocateHeap
 
 // Global Heap
@@ -433,6 +426,49 @@ void OSDLLInitializeGlobalHeap()
 		DbgPrint("OSDLL: Failed to initialize heap. %d (%s)", Status, RtlGetStatusString(Status));
 		ABORT();
 	}
+}
+
+HIDDEN
+void OSDLLReinitializeHeap()
+{
+	POS_HEAP Heap = &OSDLLGlobalHeap;
+	
+	OSEnterCriticalSection(&Heap->CriticalSection);
+	InitializeListHead(&Heap->BlockList);
+	InitializeListHead(&Heap->FreeList);
+	OSLeaveCriticalSection(&Heap->CriticalSection);
+}
+
+HIDDEN
+void OSDLLClearEntireHeap(POS_HEAP Heap)
+{
+	if (!Heap) {
+		Heap = &OSDLLGlobalHeap;
+	}
+	
+	// First, free everything.
+	PLIST_ENTRY Entry = Heap->BlockList.Flink;
+	while (Entry != &Heap->BlockList)
+	{
+		POS_HEAP_HEADER Header = CONTAINING_RECORD(Entry, OS_HEAP_HEADER, BlockListEntry);
+		Entry = Entry->Flink;
+		
+		if (Header->IsFree)
+			continue;
+		
+		OSFreeHeap(Heap, &Header->Data);
+		Entry = Heap->BlockList.Flink;
+	}
+	
+	// Make sure everything is deleted.
+	ASSERT(IsListEmpty(&Heap->BlockList));
+	ASSERT(IsListEmpty(&Heap->FreeList));
+}
+
+void OSDeleteHeap(POS_HEAP Heap)
+{
+	OSDeleteCriticalSection(&Heap->CriticalSection);
+	OSDLLClearEntireHeap(Heap);
 }
 
 void* OSAllocate(size_t Size)

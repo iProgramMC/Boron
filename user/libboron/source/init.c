@@ -61,7 +61,8 @@ BSTATUS OSDLLMapElfFile(
 	HANDLE Handle,
 	const char* Name,
 	OSDLL_ENTRY_POINT* OutEntryPoint,
-	int FileKind
+	int FileKind,
+	bool IsSeparateProcess
 )
 {
 	BSTATUS Status = STATUS_SUCCESS;
@@ -74,7 +75,6 @@ BSTATUS OSDLLMapElfFile(
 	uintptr_t ImageBase = 0;
 	bool NeedFreeProgramHeaders = false;
 	bool NeedReadAndMapFile = true;
-	bool IsSeparateProcess = ProcessHandle != CURRENT_PROCESS_HANDLE;
 	bool IsMainExecutable = FileKind == FILE_KIND_MAIN_EXECUTABLE;
 	
 	Name = OSDLLOffsetPathAway(Name);
@@ -487,7 +487,7 @@ BSTATUS OSDLLLoadDynamicLibrary(PPEB Peb, const char* FileName)
 	}
 	
 	OSDLL_ENTRY_POINT EntryPoint;
-	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, FileName, &EntryPoint, FILE_KIND_DYNAMIC_LIBRARY);
+	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, Handle, FileName, &EntryPoint, FILE_KIND_DYNAMIC_LIBRARY, false);
 	OSClose(Handle);
 	if (FAILED(Status))
 		return Status;
@@ -525,7 +525,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, OSDLL_ENTRY_POINT* OutEntryPoint)
 {
 	BSTATUS Status;
 	
-	Status = OSDLLCreateTeb(Peb);
+	Status = OSDLLCreateTeb(Peb, Peb->StartingDirectory);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to create TEB! %s (%d)", RtlGetStatusString(Status), Status);
@@ -563,7 +563,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, OSDLL_ENTRY_POINT* OutEntryPoint)
 		return Status;
 	}
 	
-	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, FileHandle, Peb->ImageName, OutEntryPoint, FILE_KIND_MAIN_EXECUTABLE);
+	Status = OSDLLMapElfFile(Peb, CURRENT_PROCESS_HANDLE, FileHandle, Peb->ImageName, OutEntryPoint, FILE_KIND_MAIN_EXECUTABLE, false);
 	OSClose(FileHandle);
 	
 	if (FAILED(Status))

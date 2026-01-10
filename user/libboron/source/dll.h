@@ -3,8 +3,8 @@
 #include <rtl/elf.h>
 
 #ifdef DEBUG2
-#define LOADER_DEBUG
 #endif
+#define LOADER_DEBUG
 
 #ifdef LOADER_DEBUG
 #define LdrDbgPrint(...) DbgPrint(__VA_ARGS__)
@@ -68,9 +68,25 @@ BSTATUS OSDLLMapElfFile(
 	HANDLE FileHandle,
 	const char* Name,
 	OSDLL_ENTRY_POINT* OutEntryPoint,
-	int FileKind
+	int FileKind,
+	bool IsSeparateProcess
 );
 
 // Opens a file by name, scanning the PATH environment variable.
 HIDDEN
 BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName, bool IsLibrary);
+
+HIDDEN
+BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine, const char* Environment);
+
+NO_RETURN
+void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context);
+
+HIDDEN
+BSTATUS OSDLLOpenSelf(PHANDLE FileHandle);
+
+HIDDEN
+void OSDLLReinitializeHeap();
+
+HIDDEN
+void OSDLLClearEntireHeap(POS_HEAP Heap);
