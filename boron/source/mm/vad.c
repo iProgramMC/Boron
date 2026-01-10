@@ -336,6 +336,13 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		KeCrash("MmOverrideAddressRange: Unhandled case (2)");
 	}
 	
+	// If the unmap operation covers the 0th page, then exclude it.
+	if (StartAddress == 0)
+	{
+		StartAddress = PAGE_SIZE;
+		SizePages--;
+	}
+	
 	// Set up the address node with the new range.
 	TempVad1->Node.StartVa = StartAddress;
 	TempVad1->Node.Size = SizePages;
