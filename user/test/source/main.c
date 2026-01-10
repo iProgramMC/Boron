@@ -14,19 +14,6 @@ BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const c
 
 int _start(int ArgumentCount, char** ArgumentArray)
 {
-	if (ArgumentCount > 1 && strcmp(ArgumentArray[1], "/done") == 0) {
-		OSPrintf("spawned from OSReplaceProcess\n");
-		return 0;
-	}
-	
-	BSTATUS Status = OSReplaceProcess("/bin/test.exe", "/done\0", NULL);
-	if (FAILED(Status)) {
-		OSPrintf("OSReplaceProcess failed: %s (%d)\n", RtlGetStatusString(Status), Status);
-	}
-	
-	return 0;
-	
-	/*
 	// write my own test code here
 	void* BaseAddress = NULL;
 	size_t RegionSize1 = 1024 * 1024;
@@ -167,5 +154,5 @@ int _start(int ArgumentCount, char** ArgumentArray)
 		Buffer[sizeof Buffer - 1] = 0;
 		Buffer[Iosb.BytesRead] = 0;
 		OSPrintf("You typed in: '%s'.\n", Buffer);
-	}*/
+	}
 }
