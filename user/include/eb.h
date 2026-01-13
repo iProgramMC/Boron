@@ -1,6 +1,10 @@
 #pragma once
 
-#include <handle.h>
+#include "handle.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct _TEB
 {
@@ -23,3 +27,7 @@ HANDLE OSGetCurrentDirectory();
 
 // Sets the current working directory of the current thread.
 void OSSetCurrentDirectory(HANDLE NewDirectory);
+
+#ifdef __cplusplus
+}
+#endif
