@@ -77,12 +77,14 @@ static void OSDLLFixUpMemoryRanges(PMEMORY_RANGE MemoryRanges, size_t Count)
 	}
 }
 
-// NOTE: mlibc will probably have its own copy instead of using libboron's version.
-//
-// This is so that it can keep features such as non-CLOEXEC file handles across the
-// process replacement.  However, we might also add a list of memory ranges to not
-// annihilate. We already do something like this internally.
-BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const char* Environment)
+
+BSTATUS OSReplaceProcess(
+	const char* ImageName,
+	const char* CommandLine,
+	const char* Environment,
+	void* Context,
+	size_t ContextSize
+)
 {
 	BSTATUS Status;
 	HANDLE FileHandle;
@@ -111,8 +113,6 @@ BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const c
 		return Status;
 	}
 	
-	DbgPrint("StackInformation   Start: %p   Size: %zu", StackInformation.Start, StackInformation.Size);
-	
 	// Perform some sanity checks first.
 	Status = OSDLLOpenFileByName(&FileHandle, ImageName, false);
 	if (FAILED(Status))
@@ -121,7 +121,31 @@ BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const c
 		return Status;
 	}
 	
-	// First, we allocate a PEB for this new process.
+	// Allocate a copy of the context if required.
+	void* ContextCopy = NULL;
+	size_t ContextCopySize = PAGE_ALIGN_UP(ContextSize);
+	
+	if (Context)
+	{
+		Status = OSAllocateVirtualMemory(
+			CURRENT_PROCESS_HANDLE,
+			&ContextCopy,
+			&ContextCopySize,
+			MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN,
+			PAGE_READ | PAGE_WRITE
+		);
+		
+		if (FAILED(Status))
+		{
+			DbgPrint("OSDLL: Failed to allocate additional context for process. %s (%d)", RtlGetStatusString(Status), Status);
+			OSClose(FileHandle);
+			return Status;
+		}
+		
+		memcpy(ContextCopy, Context, ContextSize);
+	}
+	
+	// Allocate a PEB for this new process.
 	PPEB NewPeb = NULL;
 	size_t NewPebSize = 0;
 	Status = OSDLLCreatePebForProcess(&NewPeb, &NewPebSize, ImageName, CommandLine, Environment);
@@ -171,37 +195,44 @@ BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const c
 	OSSetCurrentPeb(PebPtr);
 	Peb = (PPEB) PebPtr;
 	
-#define RANGE_COUNT 3
-	MEMORY_RANGE MemoryRanges[RANGE_COUNT];
+#define MAX_RANGE_COUNT 4
+	MEMORY_RANGE MemoryRanges[MAX_RANGE_COUNT];
+	int RangeCount = 3;
 	
 	// We'll be building up a list of ranges to exclude from the nuclear option, and
 	// then applying it to the rest of the mappings using a partial OSFreeVirtualMemory.
 	
-	// The first range to exclude is the libboron image.
+	// Exclude the libboron image.
 	MemoryRanges[0].Start = RtlGetImageBase();
 	MemoryRanges[0].End = (uintptr_t) _end;
 	
 	void*  OldInterpreterBase = (void*) MemoryRanges[0].Start;
 	size_t OldInterpreterSize = PAGE_ALIGN_UP(MemoryRanges[0].End - MemoryRanges[0].Start);
 	
-	// The second range to exclude is the PEB of the current process.
+	// Exclude the PEB of the current process.
 	MemoryRanges[1].Start = (uintptr_t) Peb;
 	MemoryRanges[1].End = MemoryRanges[1].Start + Peb->PebFreeSize;
 	
-	// The final range to exclude is this thread's current stack.
+	// Exclude this thread's current stack.
 	MemoryRanges[2].Start = StackInformation.Start;
 	MemoryRanges[2].End = StackInformation.Start + StackInformation.Size;
 	
-	OSDLLSortMemoryRanges(MemoryRanges, RANGE_COUNT);
-	OSDLLFixUpMemoryRanges(MemoryRanges, RANGE_COUNT);
+	// Exclude the context, if present.
+	if (Context)
+	{
+		MemoryRanges[3].Start = (uintptr_t) ContextCopy;
+		MemoryRanges[3].End = (uintptr_t) ContextCopy + ContextCopySize;
+		RangeCount++;
+	}
 	
-	bool UnmappedAnything = false;
+	OSDLLSortMemoryRanges(MemoryRanges, RangeCount);
+	OSDLLFixUpMemoryRanges(MemoryRanges, RangeCount);
 	
 	uintptr_t LastStart = 0;
 	
-	for (int i = 0; i < RANGE_COUNT + 1; i++)
+	for (int i = 0; i < RangeCount + 1; i++)
 	{
-		uintptr_t ThisStart = i == RANGE_COUNT ? USER_SPACE_END : MemoryRanges[i].Start;
+		uintptr_t ThisStart = i == RangeCount ? USER_SPACE_END : MemoryRanges[i].Start;
 		size_t Size = ThisStart - LastStart;
 		
 		if (Size != 0)
@@ -217,29 +248,25 @@ BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const c
 		if (FAILED(Status))
 		{
 			DbgPrint(
-				"OSDLL: OSReplaceProcess failed to unmap beginning of address space: %s (%d)",
+				"OSDLL: OSReplaceProcess failed to unmap part of address space: %s (%d)",
 				RtlGetStatusString(Status),
 				Status
 			);
 			
-			if (UnmappedAnything)
-			{
-				// TODO: report an error, and only then exit!
-				OSExitProcess(1);
-			}
-			
-			return Status;
+			// TODO: report an error, and only then exit!
+			OSExitProcess(1);
 		}
 		
-		UnmappedAnything = true;
-		
-		if (i < RANGE_COUNT) {
+		if (i < RangeCount) {
 			LastStart = MemoryRanges[i].End;
 		}
 	}
 	
 	Peb->Loader.OldInterpreterBase = OldInterpreterBase;
 	Peb->Loader.OldInterpreterSize = OldInterpreterSize;
+	
+	Peb->StartingContext = ContextCopy;
+	Peb->StartingContextSize = ContextCopy ? ContextCopySize : 0;
 	
 	// Temporarily reinitialize the heap, but we'll free everything unconditionally later,
 	// so don't pass any pointers from the heap to the new process!

@@ -72,9 +72,15 @@ typedef struct
 	// once transferred to the main thread's TEB.
 	HANDLE StartingDirectory;
 	
-	// TODO: implement environment variables
-	
-	// TODO: need anything more?
+	// If OSReplaceProcess is used, this can point to a region in memory
+	// with additional information. The starting context and its size is
+	// specified in a contract between the executable doing the replace-
+	// ment, and the executable replacing it.
+	//
+	// If the starting context is no longer required, then it can be freed
+	// using an OSFreeVirtualMemory call.
+	void* StartingContext;
+	size_t StartingContextSize;
 }
 PEB, *PPEB;
 
