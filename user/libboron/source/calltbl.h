@@ -56,6 +56,8 @@ CALL 48, 3, OSWaitForSingleObject
 CALL 50, 4, OSWriteVirtualMemory
 CALL 51, 2, OSForkProcessInternal
 CALL 52, 3, OSQueryVirtualMemoryInformation
+CALL 53, 0, OSCloseAllUninheritableHandles
+CALL 54, 1, OSCheckIsValidHandle
 
 #ifdef IS_64_BIT
 CALL 24, 7, OSMapViewOfObject

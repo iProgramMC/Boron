@@ -193,6 +193,8 @@ const void* const KiSystemServiceTable[] =
 	OSWriteVirtualMemory,
 	OSForkProcess_Call,
 	OSQueryVirtualMemoryInformation,
+	OSCloseAllUninheritableHandles,
+	OSCheckIsValidHandle,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)

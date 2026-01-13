@@ -311,3 +311,23 @@ BSTATUS ObKillHandleTable(void* HandleTable)
 {
 	return ExKillHandleTable(HandleTable, ObpCloseHandle, NULL);
 }
+
+static bool ObpCloseAllUninheritableHandlesFilter(void* Handle, UNUSED void* Context)
+{
+	OB_HANDLE_ITEM HandleItem;
+	HandleItem.Pointer = Handle;
+	return HandleItem.U.Inherit == 0;
+}
+
+BSTATUS OSCloseAllUninheritableHandles()
+{
+	PEPROCESS Process = PsGetCurrentProcess();
+	ExFilterHandleTable(Process->HandleTable, ObpCloseAllUninheritableHandlesFilter, ObpCloseHandle, NULL, NULL);
+	return STATUS_SUCCESS;
+}
+
+BSTATUS OSCheckIsValidHandle(HANDLE Handle)
+{
+	PEPROCESS Process = PsGetCurrentProcess();
+	return ExCheckHandle(Process->HandleTable, Handle);
+}

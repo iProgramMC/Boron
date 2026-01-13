@@ -354,6 +354,34 @@ void ExpDeleteHandle(void* TableV, HANDLE Index)
 	}
 }
 
+BSTATUS ExCheckHandle(void* TableV, HANDLE Handle)
+{
+	// Check if the handle is valid.
+	if (!ExpCheckHandleCorrectness(Handle))
+		return STATUS_INVALID_HANDLE;
+	
+	Handle = HANDLE_TO_INDEX(Handle);
+	
+	PEHANDLE_TABLE Table = TableV;
+	ExLockHandleTable(Table);
+	
+	if (Handle >= Table->Capacity)
+	{
+		// Handle index is bigger than the table's size.
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	if (!Table->HandleMap[Handle].Pointer)
+	{
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	ExUnlockHandleTable(Table);
+	return STATUS_SUCCESS;
+}
+
 BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillHandleRoutine, void* Context)
 {
 	// Check if the handle is valid.
@@ -368,6 +396,12 @@ BSTATUS ExDeleteHandle(void* TableV, HANDLE Handle, EX_KILL_HANDLE_ROUTINE KillH
 	if (Handle >= Table->Capacity)
 	{
 		// Handle index is bigger than the table's size.
+		ExUnlockHandleTable(Table);
+		return STATUS_INVALID_HANDLE;
+	}
+	
+	if (!Table->HandleMap[Handle].Pointer)
+	{
 		ExUnlockHandleTable(Table);
 		return STATUS_INVALID_HANDLE;
 	}
@@ -559,4 +593,28 @@ Fail:
 	ExUnlockHandleTable(Table);
 	ExDeleteHandleTable(NewTable);
 	return Status;
+}
+
+// Filters a handle table and closes all entries where the Filter routine returns true.
+void ExFilterHandleTable(
+	void* HandleTable,
+	EX_HANDLE_TABLE_FILTER_METHOD Filter,
+	EX_KILL_HANDLE_ROUTINE KillHandleMethod,
+	void* FilterContext,
+	void* KillContext
+)
+{
+	PEHANDLE_TABLE Table = HandleTable;
+	ExLockHandleTable(Table);
+	
+	for (size_t i = 0; i <= Table->MaxIndex; i++)
+	{
+		if (Table->HandleMap[i].Pointer == NULL)
+			continue;
+		
+		if (Filter(Table->HandleMap[i].Pointer, FilterContext))
+			ExDeleteHandle(Table, INDEX_TO_HANDLE(i), KillHandleMethod, KillContext);
+	}
+	
+	ExUnlockHandleTable(Table);
 }

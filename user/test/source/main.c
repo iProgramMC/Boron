@@ -10,8 +10,6 @@
 } while (0)
 
 
-BSTATUS OSReplaceProcess(const char* ImageName, const char* CommandLine, const char* Environment);
-
 int _start(int ArgumentCount, char** ArgumentArray)
 {
 	// write my own test code here

@@ -47,6 +47,18 @@ BSTATUS OSCreateProcess(
 //   It would be useless anyway as you can just use CURRENT_PROCESS_HANDLE.
 BSTATUS OSForkProcess(PHANDLE OutChildProcessHandle);
 
+// Replaces a process with another.  This function doesn't close handles except
+// if they are marked with OB_OPEN_NO_INHERIT, meaning the resulting process will
+// still be able to see them.  So the caller must make sure to either pass knowledge
+// of all of these handles to the new program, or close them all.
+BSTATUS OSReplaceProcess(
+	const char* ImageName,
+	const char* CommandLine,
+	const char* Environment,
+	void* Context,
+	size_t ContextSize
+);
+
 #ifdef __cplusplus
 }
 #endif

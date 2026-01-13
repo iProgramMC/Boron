@@ -40,6 +40,8 @@ typedef bool(*EX_KILL_HANDLE_ROUTINE)(void* Pointer, void* Context);
 
 typedef void*(EX_DUPLICATE_HANDLE_METHOD)(void* Handle, void* Context);
 
+typedef bool(*EX_HANDLE_TABLE_FILTER_METHOD)(void* Handle, void* Context);
+
 // Creates a handle table.
 // If GrowBySize is equal to zero, the handle table cannot grow, so attempts to
 // ExCreateHandle will return HANDLE_NONE.
@@ -53,6 +55,9 @@ void ExUnlockHandleTable(void* HandleTable);
 
 // Creates a handle within the handle table.
 BSTATUS ExCreateHandle(void* HandleTable, void* Pointer, PHANDLE OutHandle);
+
+// Checks if a handle is valid.
+BSTATUS ExCheckHandle(void* TableV, HANDLE Handle);
 
 // Maps a handle into a pointer, using the specified handle table.  If a pointer was returned
 // through *OutObject, then the handle table remains locked, in which case ExUnlockHandleTable
@@ -104,3 +109,12 @@ BSTATUS ExDuplicateHandleToHandle(
 	EX_KILL_HANDLE_ROUTINE KillHandleMethod,
 	void* DuplicateContext,
 	void* KillContext);
+
+// Filters a handle table and closes all entries where the Filter routine returns true.
+void ExFilterHandleTable(
+	void* HandleTable,
+	EX_HANDLE_TABLE_FILTER_METHOD Filter,
+	EX_KILL_HANDLE_ROUTINE KillHandleMethod,
+	void* FilterContext,
+	void* KillContext
+);

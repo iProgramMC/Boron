@@ -16,7 +16,11 @@ BSTATUS OSAllocateVirtualMemory(
 
 BSTATUS OSCheckIsTerminalFile(HANDLE FileHandle);
 
+BSTATUS OSCheckIsValidHandle(HANDLE Handle);
+
 BSTATUS OSClose(HANDLE Handle);
+
+BSTATUS OSCloseAllUninheritableHandles();
 
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
 

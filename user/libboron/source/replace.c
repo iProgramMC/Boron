@@ -77,7 +77,9 @@ static void OSDLLFixUpMemoryRanges(PMEMORY_RANGE MemoryRanges, size_t Count)
 	}
 }
 
-
+// TODO: increase robustness against failures.  Perhaps we could refactor this entirely.
+// Maybe we can create a whole new process, then add a system call called OSSwapProcessAddressSpace
+// and that would be the new address space.
 BSTATUS OSReplaceProcess(
 	const char* ImageName,
 	const char* CommandLine,
@@ -333,6 +335,7 @@ BSTATUS OSReplaceProcess(
 	}
 	
 	OSDLLClearEntireHeap(NULL);
+	OSCloseAllUninheritableHandles();
 	
 	// Finally, some assembly to jump to the new process' entry point.
 	LdrDbgPrint("OSReplaceProcess: Entry Point: %p", EntryPoint);

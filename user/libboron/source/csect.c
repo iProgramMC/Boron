@@ -27,7 +27,7 @@ BSTATUS OSInitializeCriticalSectionWithSpinCount(POS_CRITICAL_SECTION CriticalSe
 	CriticalSection->MaxSpins = MaxSpins;
 
 	OBJECT_ATTRIBUTES Attributes = {};
-	Attributes.OpenFlags = OB_OPEN_DUPLICATE_ON_FORK;
+	Attributes.OpenFlags = OB_OPEN_DUPLICATE_ON_FORK | OB_OPEN_NO_INHERIT;
 
 	BSTATUS Status = OSCreateEvent(
 		&CriticalSection->EventHandle,

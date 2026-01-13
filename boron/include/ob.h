@@ -355,6 +355,13 @@ BSTATUS ObDuplicateHandleTable(void** NewHandleTable, void* OldHandleTable, int 
 // Deletes a handle table and closes every handle.
 BSTATUS ObKillHandleTable(void* HandleTable);
 
+// Closes all handles opened with OB_OPEN_NO_INHERIT.
+BSTATUS OSCloseAllUninheritableHandles();
+
+// Checks a handle for validity.
+// If the handle is invalid, this returns STATUS_INVALID_HANDLE.
+BSTATUS OSCheckIsValidHandle(HANDLE Handle);
+
 // Matches a file name with the first segment of the path name,
 // up until a backslash ('\') character within the `Path`.
 // Returns 0 if not matched, >0 (length of path consumed) if matched.

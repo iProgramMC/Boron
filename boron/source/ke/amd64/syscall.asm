@@ -21,7 +21,9 @@ bits 64
 ; *** SYSTEM SERVICE TABLE ***
 extern OSAllocateVirtualMemory
 extern OSCheckIsTerminalFile
+extern OSCheckIsValidHandle
 extern OSClose
+extern OSCloseAllUninheritableHandles
 extern OSCreateEvent
 extern OSCreateMutex
 extern OSCreatePipe
@@ -129,6 +131,8 @@ KiSystemServiceTable:
 	dq OSWriteVirtualMemory
 	dq OSForkProcessA
 	dq OSQueryVirtualMemoryInformation
+	dq OSCloseAllUninheritableHandles
+	dq OSCheckIsValidHandle
 KiSystemServiceTableEnd:
 	nop
 
