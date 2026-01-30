@@ -1,8 +1,8 @@
 
 run: image
 	@echo "Running..."
-	@./tools/run-unix-armv6.sh
+	@./tools/run-unix-arm.sh
 
 runw: image
 	@echo "Invoking WSL to run the OS..."
-	@./tools/run-armv6.sh
+	@./tools/run-arm.sh
