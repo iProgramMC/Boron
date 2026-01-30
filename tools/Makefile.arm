@@ -1,4 +1,4 @@
-# armv6 Makefile
+# arm Makefile
 
 IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).img
 

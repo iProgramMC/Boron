@@ -6,5 +6,5 @@ qemu-system-arm \
     -M virt \
     -cpu arm1176 \
     -m 256M \
-    -kernel ../build/armv6/kernel.elf \
+    -kernel ../build/arm/kernel.elf \
 	-serial stdio

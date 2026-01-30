@@ -13,7 +13,7 @@ qemu-system-arm.exe ^
 	-M versatilepb ^
 	-cpu arm1176 ^
 	-m 128M ^
-	-kernel %nspath%\build\armv6\kernel.elf ^
+	-kernel %nspath%\build\arm\kernel.elf ^
 	-monitor telnet:127.0.0.1:56789,server,nowait ^
 	-serial stdio ^
 	-display sdl ^

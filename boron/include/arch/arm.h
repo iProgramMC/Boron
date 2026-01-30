@@ -64,6 +64,37 @@ MMADDRESS_CONVERT;
 #define MM_PTEL1_SECTION_SETUP     ((3U << 2) | (7U << 12) | (1U << 10) | (2U << 0)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0, Type = 0b10
 
 // -- L2 PTEs --
+
+#ifdef TARGET_ARMV5
+
+// ARMv5 first level PTEs aren't different, but second level PTEs are.
+#define MM_PTEL2_B (1 << 2)
+#define MM_PTEL2_C (1 << 3)
+
+#define MM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
+#define MM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
+#define MM_PTEL2_AP_USERREADONLY   ((2U << 4)) // super R/W, user R/O
+#define MM_PTEL2_AP_USERREADWRITE  ((3U << 4)) // super R/W, user R/W
+
+#define MM_PTEL2_AP_ALL(x) ((x) | ((x) << 2) | ((x) << 4) | ((x) << 6))
+#define MM_PTEL2_AP_ALL_NOACCESS       (0)
+#define MM_PTEL2_AP_ALL_SUPERREADWRITE MM_PTEL2_AP_ALL(MM_PTEL2_AP_SUPERREADWRITE)
+#define MM_PTEL2_AP_ALL_USERREADONLY   MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADONLY)
+#define MM_PTEL2_AP_ALL_USERREADWRITE  MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADWRITE)
+
+#define MM_PTEL2_TYPE_TRANSFAULT  (0U << 0)
+#define MM_PTEL2_TYPE_LARGEPAGE   (1U << 0)
+#define MM_PTEL2_TYPE_SMALLPAGE   (2U << 0)
+#define MM_PTEL2_TYPE_EXSMALLPAGE (3U << 0)
+
+#define MM_PTE_PRESENT     (MM_PTEL2_TYPE_SMALLPAGE | MM_PTEL2_B | MM_PTEL2_C)
+#define MM_PTE_READWRITE   (MM_PTEL2_AP_ALL_SUPERREADWRITE)
+#define MM_PTE_USERACCESS  (MM_PTEL2_AP_ALL_USERREADONLY)
+#define MM_PTE_NOEXEC      (0)
+#define MM_PTE_ISPRESENT(Pte) (((Pte) & 0x3) != 0)
+
+#else // ARMv6
+
 // AP = PTE[5:4], APX = PTE[9]
 #define MM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
 #define MM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
@@ -89,6 +120,8 @@ MMADDRESS_CONVERT;
 #define MM_PTE_USERACCESS MM_PTEL2_AP_USERREADONLY   // USERREADONLY | SUPERREADWRITE = USERREADWRITE
 #define MM_PTE_NOEXEC     MM_PTEL2_TYPE_LARGEPAGE    // LARGEPAGE | SMALLPAGE = SMALLPAGENX
 #define MM_PTE_ISPRESENT(Pte) (((Pte) & 0x3) != 0)
+
+#endif
 
 #define MM_PTE_WRITETHRU  (0) // seemingly unused
 #define MM_PTE_CDISABLE   (0) // TODO: supported by hardware, but to use it you must *turn off* bits

@@ -343,12 +343,12 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 INIT
 void LdrInitializeHal()
 {
-#ifndef TARGET_ARMV6
+#ifndef TARGET_ARM
 	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
 #else
-	extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
-	DbgPrint("calling fake built-in HAL");
-	HAL_DriverEntry(NULL);
+	//extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
+	//DbgPrint("calling fake built-in HAL");
+	//HAL_DriverEntry(NULL);
 #endif
 }
 
