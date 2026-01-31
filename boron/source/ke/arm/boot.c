@@ -15,6 +15,8 @@ Author:
 #include "../ki.h"
 #include "../../mm/mi.h"
 
+#define MAX_FRAMEBUFFER_COUNT 1
+
 // TODO: a lot of stuff is going to be hardcoded for a start.
 // hardcode properties HERE
 #define MEMORY_START_ADDRESS (0x00000000)
@@ -33,6 +35,8 @@ LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
 static LOADER_MEMORY_REGION KiMemoryRegions[2];
 static LOADER_AP KiLoaderAp;
 static void* KiLoaderApDummy;
+
+static LOADER_FRAMEBUFFER KiFramebufferInfo[MAX_FRAMEBUFFER_COUNT];
 
 void MiInitializeBaseIdentityMapping();
 
@@ -63,7 +67,7 @@ void KiInitLoaderParameterBlock()
 	Lpb->MemoryRegions = KiMemoryRegions;
 	Lpb->MemoryRegionCount = 2;
 	
-	Lpb->Framebuffers = NULL;
+	Lpb->Framebuffers = KiFramebufferInfo;
 	Lpb->FramebufferCount = 0;
 	
 	PLOADER_MODULE KernelModule = &Lpb->ModuleInfo.Kernel;
