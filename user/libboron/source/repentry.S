@@ -2,9 +2,9 @@
 // Copyright (C) 2026 iProgramInCpp
 
 .section .text
-.att_syntax
 
 #ifdef TARGET_AMD64
+	.att_syntax
 
 	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
 	.globl OSDLLJumpToEntry
@@ -16,6 +16,7 @@ OSDLLJumpToEntry:
 	jmp *%rsi
 
 #elif defined TARGET_I386
+	.att_syntax
 
 	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
 	.globl OSDLLJumpToEntry
@@ -28,6 +29,15 @@ OSDLLJumpToEntry:
 	xor  %ebp, %ebp
 	push %ecx
 	call *%ebx
+
+#elif TARGET_ARM
+
+#warning Implement this TODO
+
+	.globl OSDLLJumpToEntry
+	.type  OSDLLJumpToEntry, %function
+OSDLLJumpToEntry:
+	bx  lr
 
 #else
 
