@@ -124,7 +124,7 @@ MMADDRESS_CONVERT;
 #endif
 
 #define MM_PTE_WRITETHRU  (0) // seemingly unused
-#define MM_PTE_CDISABLE   (0) // TODO: supported by hardware, but to use it you must *turn off* bits
+#define MM_PTE_NOCACHE    (0) // TODO: supported by hardware, but to use it you must *turn off* bits
 #define MM_PTE_ACCESSED   (0) // TODO: supported by hardware (through an exception), but ForceAP must be set and we kind of rely on permission bits
 #define MM_PTE_DIRTY      (0) // TODO: unused
 #define MM_PTE_GLOBAL     (0) // TODO: unsupported?

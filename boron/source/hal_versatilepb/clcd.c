@@ -52,6 +52,16 @@ static_assert(sizeof(PL111_MMIO) == 4096);
 
 static volatile PPL111_MMIO HalPL111;
 
+#define SCREEN_WIDTH  640
+#define SCREEN_HEIGHT 480
+
+#define HORIZONTAL_BACK_PORCH  (63)
+#define HORIZONTAL_FRONT_PORCH (31)
+#define HORIZONTAL_PULSE_WIDTH (95)
+#define VERTICAL_BACK_PORCH    (8)
+#define VERTICAL_FRONT_PORCH   (11)
+#define VERTICAL_PULSE_WIDTH   (24)
+
 #define TIM0_PPL(pixelsPerLine) ((((pixelsPerLine) / 16) - 1) << 2)
 #define TIM0_HBP(backPorch) ((backPorch) << 24)
 #define TIM0_HFP(frontPorch) ((frontPorch) << 16)
@@ -86,7 +96,8 @@ static volatile PPL111_MMIO HalPL111;
 #define CTL_LCDBEPO (1 << 10) // big endian pixel order
 #define CTL_LCDPWR  (1 << 11)
 
-uint16_t HalFramebuffer[640 * 480];
+// TODO: make this more dynamic and everything...
+static uint16_t HalFramebuffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 void HalVpbInitCLCD()
 {
@@ -94,25 +105,40 @@ void HalVpbInitCLCD()
 	if (!HalPL111)
 		KeCrash("ERROR: Cannot map CLCD");
 	
-	DbgPrint("HalPL111: %p", HalPL111);
-	
 	HalPL111->LcdControl = 0;
 	
 	// set up a 640x480x16 bpp framebuffer
-	HalPL111->LcdTiming0 = TIM0_PPL(640) | TIM0_HBP(63) | TIM0_HFP(31) | TIM0_HSW(95);
-	HalPL111->LcdTiming1 = TIM1_LPP(480) | TIM1_VBP(8) | TIM1_VFP(11) | TIM1_VSW(24);
+	HalPL111->LcdTiming0 = TIM0_PPL(SCREEN_WIDTH)  | TIM0_HBP(HORIZONTAL_BACK_PORCH) | TIM0_HFP(HORIZONTAL_FRONT_PORCH) | TIM0_HSW(HORIZONTAL_PULSE_WIDTH);
+	HalPL111->LcdTiming1 = TIM1_LPP(SCREEN_HEIGHT) | TIM1_VBP(VERTICAL_BACK_PORCH)   | TIM1_VFP(VERTICAL_FRONT_PORCH)   | TIM1_VSW(VERTICAL_PULSE_WIDTH);
 	HalPL111->LcdTiming2 = TIM2_PCD(0) | TIM2_BCD | TIM2_IEO; // TODO: PCD ignored in QEMU, not on an actual board.
 	HalPL111->LcdTiming3 = 0;
 	
-	// TODO: pick a sane frame buffer location
-	HalPL111->LcdUPBase = ((uintptr_t) HalFramebuffer - 0xC0000000);
-	HalPL111->LcdLPBase = ((uintptr_t) HalFramebuffer - 0xC0000000);
+	// TODO: dynamically allocate frame buffer.
+	uintptr_t HalFramebufferPhys = ((uintptr_t) HalFramebuffer - 0xC0000000);
+	HalPL111->LcdUPBase = HalFramebufferPhys;
+	HalPL111->LcdLPBase = HalFramebufferPhys;
 	
-	HalPL111->LcdControl = CTL_LCDEN | CTL_16BPP | CTL_LCDTFT | CTL_LCDBGR | CTL_LCDPWR;
+	HalPL111->LcdControl = CTL_LCDEN | CTL_16BPP | CTL_LCDTFT | CTL_LCDPWR;
+
+	// Modify the LPB to register this frame buffer.  It should work, right?
+	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
+	int FramebufferIndex = Lpb->FramebufferCount++;
 	
-	DbgPrint("initialized CLCD");
+	PLOADER_FRAMEBUFFER FrameBufferObject = &Lpb->Framebuffers[FramebufferIndex];
+	FrameBufferObject->Address = (void*) HalFramebuffer;
+	FrameBufferObject->Pitch = SCREEN_WIDTH * sizeof(uint16_t);
+	FrameBufferObject->Width = SCREEN_WIDTH;
+	FrameBufferObject->Height = SCREEN_HEIGHT;
+	FrameBufferObject->IsPhysicalAddress = false;
+	FrameBufferObject->BitDepth = 16;
+	FrameBufferObject->RedMaskSize = 5;
+	FrameBufferObject->GreenMaskSize = 6;
+	FrameBufferObject->BlueMaskSize = 5;
+	FrameBufferObject->RedMaskShift = 0;
+	FrameBufferObject->GreenMaskShift = 5;
+	FrameBufferObject->BlueMaskShift = 11;
 	
-	memset(HalFramebuffer, 0x34, 640 * 480 * 2);
+	DbgPrint("CLCD initialized.");
 }
 
 #endif
