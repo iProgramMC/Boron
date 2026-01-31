@@ -46,7 +46,7 @@ void LogMsg(const char* msg, ...)
 	va_end(va);
 	
 #ifdef KERNEL
-	DbgPrintString(buffer);
+	HalDisplayString(buffer);
 #else
 	OSOutputDebugString(buffer, strlen(buffer));
 #endif
