@@ -5,11 +5,15 @@ BLD  ?= arm-none-eabi-ld
 BASM ?= unknown
 # ^^ note: we will be using .S files
 
-SUBTARGET ?= v6
+SUBTARGET ?= v5
 $(eval $(call validate-option,SUBTARGET,v5 v6 v7))
 
 ifeq ($(SUBTARGET),v5)
-	$(error ARMv5 not supported for now.)
+	ARCH_CFLAGS = \
+		-mcpu=arm926ej-s \
+		-marm \
+		-mfloat-abi=soft \
+		-DTARGET_ARMV5
 else ifeq ($(SUBTARGET),v6)
 	ARCH_CFLAGS = \
 		-mcpu=arm1176jzf-s \

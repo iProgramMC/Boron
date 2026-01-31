@@ -88,12 +88,47 @@ KiBeforeSystemStartup:
 	orr r0, r0, #(1<<2)         /* enable dcache, icache */
 	orr r0, r0, #(1<<12)        /* enable icache */
 	orr r0, r0, #(1<<13)        /* enable V - interrupt vectors start at 0xFFFF0000 */
+	
+#ifndef TARGET_ARMV5
 	orr r0, r0, #(1<<23)        /* enable XP - disables ARMv5 backwards compatible mode */
+#endif
+
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
 	
     /* Set up a simple stack */
     ldr sp, =KiInitStackBottom
 	
+#ifdef TARGET_ARMV5
+	/* Initialize each exception's stack register.  These are temporary until threads start running. */
+	mrs r12, cpsr
+	bic r12, r12, #0x1F
+	orr r12, r12, #0x11 @ FIQ
+	msr cpsr, r12
+	ldr sp, =KiFiqStackBottom
+	
+	mrs r12, cpsr
+	bic r12, r12, #0x1F
+	orr r12, r12, #0x12 @ IRQ
+	msr cpsr, r12
+	ldr sp, =KiIrqStackBottom
+	
+	mrs r12, cpsr
+	bic r12, r12, #0x1F
+	orr r12, r12, #0x17 @ ABT
+	msr cpsr, r12
+	ldr sp, =KiAbortStackBottom
+	
+	mrs r12, cpsr
+	bic r12, r12, #0x1F
+	orr r12, r12, #0x1B @ UND
+	msr cpsr, r12
+	ldr sp, =KiUndefinedInstructionStackBottom
+	
+	mrs r12, cpsr
+	bic r12, r12, #0x1F
+	orr r12, r12, #0x13 @ SVC
+	msr cpsr, r12
+#else
 	/* Initialize each exception's stack register.  These are temporary until threads start running. */
 	cps #0x11 /* FIQ */
 	ldr sp, =KiFiqStackBottom
@@ -104,6 +139,7 @@ KiBeforeSystemStartup:
 	cps #0x1B /* UND */
 	ldr sp, =KiUndefinedInstructionStackBottom
 	cps #0x13 /* switch back to SVC mode */
+#endif
 
 	/* jump to KiSystemStartup in .text at 0xC0000000 */
 	ldr r0, =KiSystemStartup

@@ -226,17 +226,40 @@ typedef struct
 }
 KARCH_DATA, *PKARCH_DATA;
 
-// TODO: inline these
+#ifdef TARGET_ARMV5
+
+#define DISABLE_INTERRUPTS() ASM(\
+	"mrs r12, cpsr\n" \
+	"orr r12, r12, #0x80\n" \
+	"msr cpsr_c, r12\n" ::: "r12", "memory" \
+)
+#define ENABLE_INTERRUPTS() ASM(\
+	"mrs r12, cpsr\n" \
+	"bic r12, r12, #0x80\n" \
+	"msr cpsr_c, r12\n" ::: "r12", "memory" \
+)
+
+#else
+
 #define DISABLE_INTERRUPTS() ASM("cpsid i" ::: "memory");
 #define ENABLE_INTERRUPTS()  ASM("cpsie i" ::: "memory");
 
+#endif
+
 FORCE_INLINE
-void KeWaitForNextInterrupt() {
+void KeWaitForNextInterrupt()
+{
+#ifdef TARGET_ARMV5
+	unsigned int zero = 0;
+	ASM("mcr p15, 0, %0, c7, c0, 4" : : "r" (zero) : "memory");
+#else
 	ASM("wfi":::"memory");
+#endif
 }
 
 FORCE_INLINE
-void KeSpinningHint() {
+void KeSpinningHint()
+{
 	ASM("nop":::"memory");
 }
 

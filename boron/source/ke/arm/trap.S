@@ -22,7 +22,12 @@ KeDisableInterrupts:
 	tst   r0, #(1 << 7)   @ test I bit
 	moveq r0, #1          @ 1 if enabled
 	movne r0, #0          @ 0 if disabled
+#ifdef TARGET_ARMV5
+	orr   r0, r0, #0x80   @ set I bit
+	msr   cpsr_c, r0
+#else
 	cpsid i
+#endif
 	bx    lr
 
 	@ void KeRestoreInterrupts(bool OldState);
@@ -30,7 +35,12 @@ KeDisableInterrupts:
 KeRestoreInterrupts:
 	cmp   r0, #0
 	beq   1f
+#ifdef TARGET_ARMV5
+	mrs   r0, cpsr
+	bic   r0, r0, #0x80   @ clear I bit
+#else
 	cpsie i
+#endif
 1:	bx    lr
 
 	@ void KeOnUpdateIPL(KIPL OldIpl, KIPL NewIpl);
@@ -88,6 +98,34 @@ KiThreadEntryPoint:
 	@ );
 	.global KiSaveInterruptStacks
 KiSaveInterruptStacks:
+
+#ifdef TARGET_ARMV5
+	mrs   r12, cpsr
+	orr   r12, r12, #0xC0  @ set I and F bits
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x17  @ abort mode
+	msr   cpsr_c, r12
+	str   sp, [r0]
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x1B  @ undefined mode
+	msr   cpsr_c, r12
+	str   sp, [r1]
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x12  @ IRQ mode
+	msr   cpsr_c, r12
+	str   sp, [r2]
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x11  @ FIQ mode
+	msr   cpsr_c, r12
+	str   sp, [r3]
+
+	bic   r12, r12, #0xDF  @ clear I and F bits as well as mode bits (0xC0 | 0x1F)
+	orr   r12, r12, #0x13  @ supervisor mode
+	msr   cpsr_c, r12
+#else
 	cpsid if
 	cps   #0x17  @ Abort Mode
 	str   sp, [r0]
@@ -99,6 +137,7 @@ KiSaveInterruptStacks:
 	str   sp, [r3]
 	cps   #0x13  @ Supervisor Mode
 	cpsie if
+#endif
 	bx    lr
 
 	@ void KiRestoreInterruptStacks(
@@ -109,6 +148,34 @@ KiSaveInterruptStacks:
 	@ );
 	.global KiRestoreInterruptStacks
 KiRestoreInterruptStacks:
+
+#ifdef TARGET_ARMV5
+	mrs   r12, cpsr
+	orr   r12, r12, #0xC0  @ set I and F bits
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x17  @ abort mode
+	msr   cpsr_c, r12
+	mov   sp, r0
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x1B  @ undefined mode
+	msr   cpsr_c, r12
+	mov   sp, r1
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x12  @ IRQ mode
+	msr   cpsr_c, r12
+	mov   sp, r2
+
+	bic   r12, r12, #0x1F
+	orr   r12, r12, #0x11  @ FIQ mode
+	msr   cpsr_c, r12
+	mov   sp, r3
+
+	bic   r12, r12, #0xDF  @ clear I and F bits as well as mode bits (0xC0 | 0x1F)
+	orr   r12, r12, #0x13  @ supervisor mode
+	msr   cpsr_c, r12
+#else
 	cpsid if
 	cps   #0x17  @ Abort Mode
 	mov   sp, r0
@@ -120,52 +187,60 @@ KiRestoreInterruptStacks:
 	mov   sp, r3
 	cps   #0x13  @ Supervisor Mode
 	cpsie if
+#endif
 	bx    lr
 
-	.global KiPrefetchAbortHandler
-	.extern KiHandleInstructionFault
-KiPrefetchAbortHandler:
-	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
-	mrs   r0, spsr                   @ prepare CPSR for saving
-	push  {r0}
-	mov   r0, sp                     @ prepare register pointer
-	cps   #0x13                      @ switch to supervisor mode for this next call
-	bl    KiHandleInstructionFault   @ handle the fault here
-	cps   #0x17                      @ back to abort mode
-	pop   {r0}
-	msr   spsr, r0                   @ restore old CPSR
-	pop   {r0-r7,lr}                 @ restore GPRs and the LR
-	subs  pc, lr, #4                 @ and finally return
+#ifdef TARGET_ARMV5
 
-	.global KiDataAbortHandler
-	.extern KiHandleDataFault
-KiDataAbortHandler:
+.macro ABORT_HANDLER name, handle, ps
+	.global \name
+	.extern \handle
+\name:
 	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
 	mrs   r0, spsr                   @ prepare CPSR for saving
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
-	cps   #0x13                      @ switch to supervisor mode for this next call
-	bl    KiHandleDataFault          @ handle the fault here
-	cps   #0x17                      @ back to abort mode
+	mrs   r1, cpsr
+	bic   r1, r1, #0x1F
+	orr   r1, r1, #0x13              @ switch to supervisor mode for this next call
+	msr   cpsr_c, r1
+	bl    \handle                    @ handle the fault here
+	mrs   r1, cpsr
+	bic   r1, r1, #0x1F
+	orr   r1, r1, #\ps               @ back to the specific mode
+	msr   cpsr_c, r1
 	pop   {r0}
 	msr   spsr, r0                   @ restore old CPSR
 	pop   {r0-r7,lr}                 @ restore GPRs and the LR
 	subs  pc, lr, #4                 @ and finally return
+.endm
 
-	.global KiUndefinedInstructionHandler
-	.extern KeOnUndefinedInstruction
-KiUndefinedInstructionHandler:
+#else
+
+.macro ABORT_HANDLER name, handle, ps
+	.global \name
+	.extern \handle
+\name:
 	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
 	mrs   r0, spsr                   @ prepare CPSR for saving
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
 	cps   #0x13                      @ switch to supervisor mode for this next call
-	bl    KeOnUndefinedInstruction   @ handle the fault here
-	cps   #0x17                      @ back to abort mode
+	bl    \handle                    @ handle the fault here
+	cps   #\ps                       @ back to the specific mode
 	pop   {r0}
 	msr   spsr, r0                   @ restore old CPSR
 	pop   {r0-r7,lr}                 @ restore GPRs and the LR
 	subs  pc, lr, #4                 @ and finally return
+.endm
+
+#endif
+
+ABORT_HANDLER KiPrefetchAbortHandler, KiHandleInstructionFault, 0x17
+ABORT_HANDLER KiDataAbortHandler, KiHandleDataFault, 0x17
+ABORT_HANDLER KiUndefinedInstructionHandler, KeOnUndefinedInstruction, 0x17
+ABORT_HANDLER KiIrqHandler, HalOnInterruptRequest, 0x12
+ABORT_HANDLER KiFiqHandler, HalOnFastInterruptRequest, 0x11
 
 	.global KiSoftwareInterruptHandler
 	.extern KiSystemServiceHandler
@@ -175,38 +250,6 @@ KiSoftwareInterruptHandler:
 	push  {r0}
 	mov   r0, sp                     @ prepare register pointer
 	bl    KiSystemServiceHandler     @ handle the call here
-	pop   {r0}
-	msr   spsr, r0                   @ restore old CPSR
-	pop   {r0-r7,lr}                 @ restore GPRs and the LR
-	subs  pc, lr, #4                 @ and finally return
-
-	.global KiIrqHandler
-	.extern HalOnInterruptRequest
-KiIrqHandler:
-	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
-	mrs   r0, spsr                   @ prepare CPSR for saving
-	push  {r0}
-	mov   r0, sp                     @ prepare register pointer
-	cps   #0x13                      @ switch to supervisor mode
-	bl    HalOnInterruptRequest      @ handle the IRQ here
-	cps   #0x12                      @ back to IRQ mode
-	mov   sp, r0
-	pop   {r0}
-	msr   spsr, r0                   @ restore old CPSR
-	pop   {r0-r7,lr}                 @ restore GPRs and the LR
-	subs  pc, lr, #4                 @ and finally return
-
-	.global KiFiqHandler
-	.extern HalOnFastInterruptRequest
-KiFiqHandler:
-	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
-	mrs   r0, spsr                   @ prepare CPSR for saving
-	push  {r0}
-	mov   r0, sp                     @ prepare register pointer
-	cps   #0x13                      @ switch to supervisor mode
-	bl    HalOnFastInterruptRequest  @ handle the FIQ here
-	cps   #0x11                      @ back to FIQ mode
-	mov   sp, r0
 	pop   {r0}
 	msr   spsr, r0                   @ restore old CPSR
 	pop   {r0-r7,lr}                 @ restore GPRs and the LR
