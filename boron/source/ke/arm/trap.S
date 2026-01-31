@@ -18,13 +18,13 @@ Author:
 	@ bool KeDisableInterrupts();
 	.global KeDisableInterrupts
 KeDisableInterrupts:
-	mrs   r0, cpsr
-	tst   r0, #(1 << 7)   @ test I bit
-	moveq r0, #1          @ 1 if enabled
-	movne r0, #0          @ 0 if disabled
+	mrs   r12, cpsr
+	tst   r12, #(1 << 7)   @ test I bit
+	moveq r0, #1           @ 1 if enabled
+	movne r0, #0           @ 0 if disabled
 #ifdef TARGET_ARMV5
-	orr   r0, r0, #0x80   @ set I bit
-	msr   cpsr_c, r0
+	orr   r12, r12, #0x80   @ set I bit
+	msr   cpsr_c, r12
 #else
 	cpsid i
 #endif
