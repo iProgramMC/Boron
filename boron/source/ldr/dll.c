@@ -346,9 +346,9 @@ void LdrInitializeHal()
 #ifndef TARGET_ARM
 	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
 #else
-	//extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
-	//DbgPrint("calling fake built-in HAL");
-	//HAL_DriverEntry(NULL);
+	extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
+	DbgPrint("calling fake built-in HAL");
+	HAL_DriverEntry(NULL);
 #endif
 }
 

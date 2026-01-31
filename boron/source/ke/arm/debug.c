@@ -23,8 +23,13 @@ void DbgPrintDouble(const char* String)
 #ifdef DEBUG
 
 #define UART0_BASE (0xD18F1000)
-#define UART0_DR   (*(volatile unsigned int *)(UART0_BASE + 0x00))
-#define UART0_FR   (*(volatile unsigned int *)(UART0_BASE + 0x18))
+#define UART0_DR    (*(volatile unsigned int *)(UART0_BASE + 0x00))
+#define UART0_FR    (*(volatile unsigned int *)(UART0_BASE + 0x18))
+#define UART0_IBRD  (*(volatile unsigned int *)(UART0_BASE + 0x24))
+#define UART0_FBRD  (*(volatile unsigned int *)(UART0_BASE + 0x28))
+#define UART0_LCRH  (*(volatile unsigned int *)(UART0_BASE + 0x2C))
+#define UART0_CR    (*(volatile unsigned int *)(UART0_BASE + 0x30))
+#define UART0_ICR   (*(volatile unsigned int *)(UART0_BASE + 0x44))
 
 void DbgPrintChar(char c)
 {
@@ -48,7 +53,12 @@ void DbgPrintString(const char* str)
 
 void DbgInit()
 {
-	// TODO
+	UART0_CR = 0;
+	UART0_ICR = 0x7FF;
+	UART0_IBRD = 13;
+	UART0_FBRD = 2;
+	UART0_LCRH = (3 << 5) | (1 << 4);
+	UART0_CR = (1 << 0) | (1 << 8) | (1 << 9);
 }
 
 void DbgPrintStackTrace(uintptr_t Rbp)

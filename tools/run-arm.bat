@@ -11,7 +11,7 @@ set path=%path%;%NSPath%
 qemu-system-arm.exe ^
 	-d int ^
 	-M versatilepb ^
-	-cpu arm1176 ^
+	-cpu arm926 ^
 	-m 128M ^
 	-kernel %nspath%\build\arm\kernel.elf ^
 	-monitor telnet:127.0.0.1:56789,server,nowait ^
