@@ -3,13 +3,17 @@
 Boron is a portable (32-bit and 64-bit) operating system designed with SMP in mind. It borrows heavily from Windows NT,
 but does not aim to be a total clone.
 
-NOTE: Boron is currently not even in a minimally usable state. Don't expect it to do anything.
+### License
 
 This project is licensed under the three clause BSD license, **except the following**:
-- Flanterm (drivers/halx86/source/flanterm): https://codeberg.org/Mintsuki/Flanterm.git - Licensed under the 2 clause BSD license
-- The implementation of splay and RB trees from FreeBSD (boron/include/rtl/fbsdtree.h) - Licensed under the 2 clause BSD license
 
-#### Be advised that this is currently alpha-level software and you should not expect any stability from it.
+- Flanterm: https://codeberg.org/Mintsuki/Flanterm.git - Licensed under the 2 clause BSD license
+    - The `external/flanterm` submodule
+    - `external/flanterm_alt_fb.c`
+    - `external/flanterm_alt_fb.h`
+
+- The implementation of splay and RB trees from FreeBSD - Licensed under the 2 clause BSD license
+    - `common/include/rtl/fbsdtree.h`
 
 ### Why the codename Boron?
 (Note: The name is probably temporary, not sure, but this is what it's called right now)
