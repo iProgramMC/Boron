@@ -38,6 +38,7 @@ bool HalVpbUseOneShotTimer();
 void HalVpbRequestInterruptInTicks(uint64_t ticks);
 uint64_t HalVpbGetInterruptDeltaTime();
 void HalVpbInitCLCD();
+void HalVpbInitTerminal();
 void HalInitPL190();
 void HalInitTimer();
 
@@ -45,6 +46,7 @@ void HalInitTimer();
 HAL_API void HalVpbInitSystemUP()
 {
 	HalVpbInitCLCD();
+	HalVpbInitTerminal();
 	HalInitPL190();
 }
 
@@ -53,12 +55,6 @@ HAL_API void HalVpbInitSystemUP()
 HAL_API void HalVpbInitSystemMP()
 {
 	HalInitTimer();
-}
-
-void HalVpbDisplayString(const char* Message)
-{
-	//DbgPrint("%s(%s)", __func__, Message);
-	DbgPrintString(Message);
 }
 
 static const HAL_VFTABLE HalpVfTable =

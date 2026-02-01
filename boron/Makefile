@@ -158,10 +158,10 @@ NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 EXCLUDE_WRONG_ARCH = '(' '(' -path 'source/ke/$(TARGETL)/*' ')' -o '(' -path 'source/mm/$(TARGETL)/*' ')' -o '(' -not -path 'source/ke/*/*' -not -path 'source/mm/*/*' ')' ')'
-override CFILES      := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.c')
-override CXXFILES    := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.cpp')
-override ASFILES     := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.S')
-override NASMFILES   := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.asm')
+override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.c')
+override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.cpp')
+override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.S')
+override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.asm')
 override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
