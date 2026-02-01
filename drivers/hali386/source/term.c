@@ -16,7 +16,7 @@ Author:
 #include <string.h>
 #include "hali.h"
 #include "flanterm/src/flanterm.h"
-#include "flanterm/src/flanterm_backends/fb.h"
+#include "flanterm_alt_fb.h"
 
 static uint8_t HalpBuiltInFont[] = {
 #include "font.h"
@@ -66,10 +66,8 @@ void HalInitTerminal()
 	// 52 bytes per character.
 	
 	const int charWidth = 8, charHeight = 16;
-	int charScale = 1;
-	
-	int termBufWidth  = Framebuffer->Width  / charWidth  / charScale;
-	int termBufHeight = Framebuffer->Height / charHeight / charScale;
+	int termBufWidth  = Framebuffer->Width  / charWidth;
+	int termBufHeight = Framebuffer->Height / charHeight;
 	
 	const int usagePerChar     = 52; // I calculated it
 	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
@@ -95,17 +93,17 @@ void HalInitTerminal()
 	if (!HalpTerminalMemory)
 		KeCrashBeforeSMPInit("Error, no memory for the terminal.");
 	
-	HalpTerminalContext = flanterm_fb_init(
+	HalpTerminalContext = flanterm_fb_init_alt(
 		&HalpTerminalMemAlloc,
 		&HalpTerminalFree,
 		FramebufferMemory,
 		Framebuffer->Width,
 		Framebuffer->Height,
 		Framebuffer->Pitch,
+		Framebuffer->BitDepth,
 		Framebuffer->RedMaskSize, Framebuffer->RedMaskShift,     // red mask size and shift
 		Framebuffer->GreenMaskSize, Framebuffer->GreenMaskShift, // green mask size and shift
 		Framebuffer->BlueMaskSize, Framebuffer->BlueMaskShift,   // blue mask size and shift
-		NULL,       // canvas
 		NULL,       // ansi colors
 		NULL,       // ansi bright colors
 		&defaultBG, // default background
@@ -116,8 +114,6 @@ void HalInitTerminal()
 		charWidth,     // font width
 		charHeight,    // font height
 		0,             // character spacing X
-		charScale,     // character scale width
-		charScale,     // character scale height
 		0              // character spacing Y
 	);
 	
