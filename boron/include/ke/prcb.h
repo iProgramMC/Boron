@@ -16,8 +16,6 @@ Author:
 #define BORON_KE_PRCB_H
 
 #include <arch.h>
-#include <_limine.h>
-
 #include <hal/data.h>
 
 #include <ke/ipl.h>

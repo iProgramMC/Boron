@@ -95,7 +95,7 @@ typedef struct
 VIRTUAL_MEMORY_INFORMATION, *PVIRTUAL_MEMORY_INFORMATION;
 
 // Page Size definition
-#if defined TARGET_AMD64 || defined TARGET_I386
+#if defined TARGET_AMD64 || defined TARGET_I386 || defined TARGET_ARM
 #define PAGE_SIZE (0x1000)
 #else
 #error Define page size here!

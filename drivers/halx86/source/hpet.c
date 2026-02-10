@@ -52,7 +52,7 @@ void HpetInitialize()
 	void* Address = MmMapIoSpace(
 		HpetAddress,
 		1,       // SizePages
-		MM_PTE_READWRITE | MM_PTE_CDISABLE | MM_PTE_GLOBAL | MM_PTE_NOEXEC,
+		MM_PTE_READWRITE | MM_PTE_NOCACHE | MM_PTE_GLOBAL | MM_PTE_NOEXEC,
 		POOL_TAG("HPET")
 	);
 

@@ -80,7 +80,7 @@ void HalInitTerminal()
 	void* FramebufferMemory = MmMapIoSpace(
 		(uintptr_t)Framebuffer->Address,
 		Framebuffer->Pitch * Framebuffer->Height,
-		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		MM_PTE_READWRITE | MM_PTE_NOCACHE,
 		POOL_TAG("HAFB")
 	);
 	

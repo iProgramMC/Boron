@@ -34,7 +34,11 @@ PMMPTE MmGetPteLocation(uintptr_t Address)
 	return PtePtr;
 }
 
-bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+bool MmCheckPteLocationAllocator(
+	uintptr_t Address,
+	bool GenerateMissingLevels,
+	MM_PAGE_ALLOCATOR_METHOD PageAllocate
+)
 {
 	PMMPTE Pte;
 	MMPTE SupervisorBit;
@@ -48,12 +52,12 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	
 	// Check the presence of the PT
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MM_PTE_ISPRESENT(*Pte))
 	{
 		if (!GenerateMissingLevels)
 			return false;
 		
-		MMPFN PtAllocated = MmAllocatePhysicalPage();
+		MMPFN PtAllocated = PageAllocate();
 		if (PtAllocated == PFN_INVALID)
 			return false;
 		
@@ -62,6 +66,11 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	
 	// Page table exists.
 	return true;
+}
+
+bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
+{
+	return MmCheckPteLocationAllocator(Address, GenerateMissingLevels, MmAllocatePhysicalPage);
 }
 
 PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
@@ -76,7 +85,7 @@ PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
 HPAGEMAP MiCreatePageMapping()
 {
 	// Allocate the PML2.
-	int NewPageMappingPFN = MmAllocatePhysicalPage();
+	MMPFN NewPageMappingPFN = MmAllocatePhysicalPage();
 	if (NewPageMappingPFN == PFN_INVALID)
 	{
 		LogMsg("Error, can't create a new page mapping.  Can't allocate PML4");
@@ -108,6 +117,12 @@ HPAGEMAP MiCreatePageMapping()
 	return (HPAGEMAP) NewPageMappingResult;
 }
 
+// Frees a page mapping.
+void MiFreePageMapping(HPAGEMAP PageMap)
+{
+	return MmFreePhysicalPage(MmPhysPageToPFN(PageMap));
+}
+
 static void MmpFreeVacantPageTables(uintptr_t Address)
 {
 	if (!MmCheckPteLocation(Address, false))
@@ -137,7 +152,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	
     if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
-		int pfn = MmAllocatePhysicalPage();
+		MMPFN pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
 			//DbgPrint("MiMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
@@ -185,7 +200,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		
 		*pPTE &= ~MM_DPTE_COMMITTED;
 		
-		if (*pPTE & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(*pPTE))
 		{
 			*pPTE &= ~MM_PTE_PRESENT;
 			*pPTE |= MM_DPTE_WASPRESENT;

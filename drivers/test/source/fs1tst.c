@@ -40,7 +40,7 @@ void DirectoryList(const char* Path)
 	Status = ObReferenceObjectByHandle(Handle, NULL, &ObjectV);
 	
 	PFILE_OBJECT File = (PFILE_OBJECT) ObjectV;
-	IoResetDirectoryReadHead(File);
+	//IoResetDirectoryReadHead(File);
 	
 	IO_STATUS_BLOCK Iosb;
 	IO_DIRECTORY_ENTRY DirEnt;

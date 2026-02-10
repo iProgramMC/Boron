@@ -123,7 +123,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	}
 	
 	// The range is safe to commit.
-	uintptr_t PteFlags = MmGetPteBitsFromProtection(Protection);
+	MMPTE PteFlags = MmGetPteBitsFromProtection(Protection);
 	
 	// TODO: Enforce W^X here if the user doesn't have the relevant permissions
 	
@@ -235,16 +235,18 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 			}
 		}
 		
-		if (*Pte & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(*Pte))
 		{
 			// The PTE is present. If it doesn't come from the PMM, then
 			// it's MMIO and it's not tracked.
-			if (*Pte & MM_PTE_ISFROMPMM)
-			{
-				// Free the physical page.
-				MMPFN Pfn = MmPhysPageToPFN(*Pte & MM_PTE_ADDRESSMASK);
-				MmFreePhysicalPage(Pfn);
-			}
+			//
+			// NOTE 2025/12/25: This should never be false. MMIO is registered
+			// with the PMM.
+			ASSERT(MM_PTE_CHECKFROMPMM(*Pte));
+			
+			// Free the physical page.
+			MMPFN Pfn = MM_PTE_PFN(*Pte);
+			MmFreePhysicalPage(Pfn);
 		}
 		else if (*Pte != 0)
 		{

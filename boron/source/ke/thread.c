@@ -29,8 +29,15 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 	Thread->StartRoutine = StartRoutine;
 	Thread->StartContext = StartContext;
 	
+#ifdef TARGET_ARM
+	ASSERT(KernelStackSize > KERNEL_INTERRUPT_STACK_SIZE);
+	KernelStackSize -= KERNEL_INTERRUPT_STACK_SIZE;
+	
+	Thread->InterruptStack = (void*)((uintptr_t) KernelStack + KernelStackSize - KERNEL_INTERRUPT_STACK_SIZE);
+#endif
+	
 	Thread->Stack.Top    = KernelStack;
-	Thread->Stack.Size   = KernelStackSize; //MmGetSizeFromPoolAddress(KernelStack) * PAGE_SIZE;
+	Thread->Stack.Size   = KernelStackSize;
 	
 	Thread->Mode = MODE_KERNEL;
 	

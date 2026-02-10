@@ -212,12 +212,12 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			{
 				MMPTE Pte = *PtePtr;
 				
-				if (~Pte & MM_PTE_PRESENT)
+				if (!MM_PTE_ISPRESENT(Pte))
 				{
 					// Try to fault on this page.  We don't know what kind of non-present page this is.
 					TryFault = true;
 				}
-				else if (~Pte & MM_PTE_ISFROMPMM)
+				else if (!MM_PTE_CHECKFROMPMM(Pte))
 				{
 					// This is MMIO space or the HHDM.  Disallow its capture.
 					FailureReason = STATUS_INVALID_PARAMETER;
@@ -257,8 +257,8 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			
 			// Probe was successful and this is a proper page (writable if IsWrite is true).
 			ASSERT((Pte & MM_PTE_READWRITE) || !IsWrite);
-			ASSERT(Pte & MM_PTE_ISFROMPMM);
 			ASSERT(Pte & MM_PTE_PRESENT);
+			ASSERT(MM_PTE_CHECKFROMPMM(Pte));
 			
 			// Fetch the page frame number.
 			int Pfn = MM_PTE_PFN(Pte);

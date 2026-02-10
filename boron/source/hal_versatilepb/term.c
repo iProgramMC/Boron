@@ -1,0 +1,148 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2026 iProgramInCpp
+
+Module name:
+	ha/term.c
+	
+Abstract:
+	This module implements the terminal functions for the versatilepb
+	platform.
+	
+Author:
+	iProgramInCpp - 1 February 2026
+***/
+#include <ke.h>
+#include <string.h>
+#include "hali.h"
+#include "flanterm/src/flanterm.h"
+#include "flanterm_alt_fb.h"
+
+static uint8_t HalpBuiltInFont[] = {
+#include "font.h"
+};
+
+// NOTE: Initialization done on the BSP. So no need to sync anything
+uint8_t* HalpTerminalMemory;
+size_t   HalpTerminalMemoryHead;
+size_t   HalpTerminalMemorySize;
+
+static struct flanterm_context* HalpTerminalContext;
+
+bool HalIsTerminalInitted()
+{
+	return HalpTerminalContext != NULL;
+}
+
+static void* HalpTerminalMemAlloc(size_t sz)
+{
+	if (HalpTerminalMemoryHead + sz > HalpTerminalMemorySize)
+	{
+		DbgPrint("Error, running out of memory in the terminal heap");
+		return NULL;
+	}
+	
+	uint8_t* pCurMem = &HalpTerminalMemory[HalpTerminalMemoryHead];
+	HalpTerminalMemoryHead += sz;
+	return pCurMem;
+}
+
+static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
+{
+}
+
+void HalVpbInitTerminal()
+{
+	if (KeLoaderParameterBlock.FramebufferCount == 0)
+		KeCrashBeforeSMPInit("HAL: No framebuffers found");
+	
+	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
+	uint32_t defaultBG = 0x0000007f;
+	uint32_t defaultFG = 0x00ffffff;
+	
+	// on a 1280x800 screen, the term will have a rez of 160x50 (8000 chars).
+	// 52 bytes per character.
+	
+	const int charWidth = 8, charHeight = 16;
+	int termBufWidth  = Framebuffer->Width  / charWidth;
+	int termBufHeight = Framebuffer->Height / charHeight;
+	
+	const int usagePerChar	 = 52; // I calculated it
+	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
+	const int fontDataMemUsage = charWidth * charHeight * 256 / 8;
+	const int contextSize	  = 256; // seems like sizeof(struct flanterm_context) is no longer exposed, so my best guess
+	
+	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
+	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	void* FramebufferMemory;
+
+	if (Framebuffer->IsPhysicalAddress)
+	{
+		FramebufferMemory = MmMapIoSpace(
+			(uintptr_t)Framebuffer->Address,
+			Framebuffer->Pitch * Framebuffer->Height,
+			MM_PTE_READWRITE | MM_PTE_NOCACHE,
+			POOL_TAG("HAFB")
+		);
+	}
+	else
+	{
+		FramebufferMemory = Framebuffer->Address;
+	}
+	
+	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes.  Framebuffer mapped at %p.", Framebuffer->Width, Framebuffer->Height, sizePages * PAGE_SIZE, FramebufferMemory);
+	
+	HalpTerminalMemory	   = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, POOL_TAG("Term"));
+	HalpTerminalMemoryHead   = 0;
+	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;
+	
+	if (!HalpTerminalMemory)
+		KeCrashBeforeSMPInit("Error, no memory for the terminal.");
+	
+	HalpTerminalContext = flanterm_fb_init_alt(
+		&HalpTerminalMemAlloc,
+		&HalpTerminalFree,
+		FramebufferMemory,
+		Framebuffer->Width,
+		Framebuffer->Height,
+		Framebuffer->Pitch,
+		Framebuffer->BitDepth,
+		Framebuffer->RedMaskSize, Framebuffer->RedMaskShift,	 // red mask size and shift
+		Framebuffer->GreenMaskSize, Framebuffer->GreenMaskShift, // green mask size and shift
+		Framebuffer->BlueMaskSize, Framebuffer->BlueMaskShift,   // blue mask size and shift
+		NULL,	   // ansi colors
+		NULL,	   // ansi bright colors
+		&defaultBG, // default background
+		&defaultFG, // default foreground
+		NULL,	   // default background bright
+		NULL,	   // default fontground bright
+		HalpBuiltInFont, // font pointer
+		charWidth,	 // font width
+		charHeight,	// font height
+		0,			 // character spacing X
+		0			  // character spacing Y
+	);
+	
+	if (!HalpTerminalContext)
+	{
+		KeCrashBeforeSMPInit("Error, no terminal context");
+	}
+}
+
+HAL_API void HalVpbDisplayString(const char* Message)
+{
+	if (!HalpTerminalContext)
+	{
+		HalPrintStringDebug(Message);
+		return;
+	}
+	
+	size_t Length = strlen(Message);
+	
+	static KSPIN_LOCK SpinLock;
+	KIPL Ipl;
+	KeAcquireSpinLock(&SpinLock, &Ipl);
+	flanterm_write(HalpTerminalContext, Message, Length);
+	KeReleaseSpinLock(&SpinLock, Ipl);
+}

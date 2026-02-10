@@ -80,7 +80,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	     PageNumber += PTES_COVERED_BY_PML4,
 	     ++Pte)
 	{
-		if (~*Pte & MM_PTE_PRESENT)
+		if (!MM_PTE_ISPRESENT(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
@@ -113,7 +113,7 @@ static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
 			if (*Pte)
 			{
 				// The PTE exists, check if it was decommitted though.
-				if ((~*Pte & MM_PTE_PRESENT) && (*Pte & MM_DPTE_DECOMMITTED))
+				if (!MM_PTE_ISPRESENT(*Pte) && (*Pte & MM_DPTE_DECOMMITTED))
 					continue;
 				
 				// This mapping level is busy.
@@ -129,7 +129,7 @@ static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
 	// Walk the PML.
 	for (size_t i = 0; i < PTES_PER_LEVEL; ++i, ++Pte)
 	{
-		if (~*Pte & MM_PTE_PRESENT)
+		if (!MM_PTE_ISPRESENT(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);

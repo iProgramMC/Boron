@@ -179,8 +179,8 @@ uintptr_t MiAllocatePageFromMemMap()
 		if (Entry->Type != LOADER_MEM_FREE)
 			continue;
 		
-		// Note! Usable entries in limine are guaranteed to be aligned to
-		// page size, and not overlap any other entries. So we are good
+		// Note: Usable entries are guaranteed to be aligned to page size,
+		// and not overlap any other entries.
 		
 		// if it's got no pages, also skip it..
 		if (Entry->Size == 0)
@@ -230,6 +230,16 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 	KeCrashBeforeSMPInit("Error, out of memory in the memmap allocate function");
 }
 
+INIT
+MMPFN MiAllocatePfnFromMemMap()
+{
+	uintptr_t Page = MiAllocatePageFromMemMap();
+	if (!Page)
+		return PFN_INVALID;
+	
+	return MmPhysPageToPFN(Page);
+}
+
 typedef struct
 {
 	uint64_t entries[512];
@@ -242,6 +252,8 @@ INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
 #ifdef TARGET_AMD64
+	// TODO: remove this arch-specific implementation.
+
 	// Maps a new page at an address, if needed.
 	PageMapLevel *pPML[4];
 	pPML[3] = (PageMapLevel*) MmGetHHDMOffsetAddr(pageTable);
@@ -249,7 +261,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	for (int i = 3; i >= 0; i--)
 	{
 		int index = (address >> (12 + 9 * i)) & 0x1FF;
-		if (pPML[i]->entries[index] & MM_PTE_PRESENT)
+		if (MM_PTE_ISPRESENT(pPML[i]->entries[index]))
 		{
 			if (i == 0)
 				return true; // didn't allocate anything
@@ -280,50 +292,29 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	}
 	
 	return true;
-#elif defined TARGET_I386
-	(void)pageTable; // unused
+#else
+	(void) pageTable;
+
+	if (!MmCheckPteLocationAllocator(address, true, MiAllocatePfnFromMemMap))
+		return false;
 	
-	MMADDRESS_CONVERT Convert;
-	Convert.Long = address;
-	
-	PMMPTE Level1, Level2;
-	
-	Level2 = (PMMPTE)MI_PML2_LOCATION;
-	Level1 = (PMMPTE)(MI_PML1_LOCATION + 4096 * Convert.Level2Index);
-	
-	if (~Level2[Convert.Level2Index] & MM_PTE_PRESENT)
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		Level2[Convert.Level2Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	PMMPTE Pte = MmGetPteLocation(address);
+	if (*Pte) {
+		return true;
 	}
 	
-	if (~Level1[Convert.Level1Index] & MM_PTE_PRESENT)
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		MmBeginUsingHHDM();
-		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
-		MmEndUsingHHDM();
-		
-		Level1[Convert.Level1Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	MMPFN Pfn = MiAllocatePfnFromMemMap();
+	if (Pfn == PFN_INVALID) {
+		return false;
 	}
+	
+	MmBeginUsingHHDM();
+	memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn)), 0, PAGE_SIZE);
+	MmEndUsingHHDM();
+	
+	*Pte = MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
 	
 	return true;
-#else
-	#error "Implement this for your platform!"
 #endif
 }
 
@@ -468,7 +459,7 @@ void MiInitPMM()
 		
 		for (uint64_t j = 0; j < Entry->Size; j += PAGE_SIZE)
 		{
-			bool isUsed = Entry->Type != LIMINE_MEMMAP_USABLE;
+			bool isUsed = Entry->Type != LOADER_MEM_FREE;
 			
 			int currPFN = MmPhysPageToPFN(Entry->Base + j);
 			
@@ -566,7 +557,7 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 				KeCrash("MmRegisterMMIOAsMemory: could not ensure PTE location %p exists", currPage);
 			
 			PMMPTE Pte = MmGetPteLocation(currPage);
-			if (!(*Pte & MM_PTE_PRESENT))
+			if (!MM_PTE_ISPRESENT(*Pte))
 			{
 				// allocate it
 				MMPFN PfnAlloc = MmAllocatePhysicalPage();
@@ -1118,4 +1109,104 @@ int MiGetReferenceCountPfn(MMPFN Pfn)
 		return 0;
 	
 	return Pfdbe->RefCount;
+}
+
+FORCE_INLINE
+bool MmpIsFree(MMPFN Pfn)
+{
+	return MmGetPageFrameFromPFN(Pfn)->Type == PF_TYPE_FREE;
+}
+
+static void MmpRemovePfnFromItsList(MMPFN Pfn)
+{
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+	
+	ASSERT(Pfdbe->Type == PF_TYPE_FREE);
+	
+	if (Pfdbe->NextFrame != PFN_INVALID && Pfdbe->PrevFrame != PFN_INVALID) {
+		MmpUnlinkPfn(Pfdbe);
+		return;
+	}
+	
+	PMMPFN First = NULL, Last = NULL;
+	if (Pfdbe->NextFrame == PFN_INVALID) {
+		if (MiLastFreePFN == Pfn)
+			First = &MiFirstFreePFN, Last = &MiLastFreePFN;
+		else if (MiLastZeroPFN == Pfn)
+			First = &MiFirstZeroPFN, Last = &MiLastZeroPFN;
+		else if (MiLastStandbyPFN == Pfn)
+			First = &MiFirstStandbyPFN, Last = &MiLastStandbyPFN;
+	}
+	else if (Pfdbe->PrevFrame == PFN_INVALID) {
+		if (MiFirstFreePFN == Pfn)
+			First = &MiFirstFreePFN, Last = &MiLastFreePFN;
+		else if (MiFirstZeroPFN == Pfn)
+			First = &MiFirstZeroPFN, Last = &MiLastZeroPFN;
+		else if (MiFirstStandbyPFN == Pfn)
+			First = &MiFirstStandbyPFN, Last = &MiLastStandbyPFN;
+	}
+	else {
+		ASSERT(!"Neither NextFrame nor PrevFrame are NULL but this is impossible");
+	}
+	
+	ASSERT(First && Last && "This PFN is in a free list... right?!");
+	MmpRemovePfnFromList(First, Last, Pfn);
+}
+
+static bool MmpTryAllocateContiguousRegion(MMPFN Pfn, int PageCount, uintptr_t Alignment)
+{
+	// first, make sure this region is truly 16 Kbyte aligned.
+	if (MmPFNToPhysPage(Pfn) & Alignment)
+		return false;
+	
+	// N.B. Pfn is already free
+	ASSERT(MmpIsFree(Pfn));
+	
+	for (int i = 1; i < PageCount; i++) {
+		if (!MmpIsFree(Pfn + i))
+			return false;
+	}
+	
+	// okay, now actually allocate it.
+	for (int i = 0; i < PageCount; i++) {
+		MmpRemovePfnFromItsList(Pfn + i);
+		MmpInitializePfn(MmGetPageFrameFromPFN(Pfn + i));
+	}
+	
+	return true;
+}
+
+MMPFN MmAllocatePhysicalContiguousRegion(int PageCount, uintptr_t Alignment)
+{
+	MMPFN Pfn;
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+	
+	for (Pfn = MiFirstFreePFN; Pfn != MiLastFreePFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+	for (Pfn = MiFirstZeroPFN; Pfn != MiLastZeroPFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+	for (Pfn = MiFirstStandbyPFN; Pfn != MiLastStandbyPFN; Pfn = MmGetPageFrameFromPFN(Pfn)->NextFrame) {
+		if (MmpTryAllocateContiguousRegion(Pfn, PageCount, Alignment)) {
+			goto Return;
+		}
+	}
+	
+Return:
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+	return Pfn;
+}
+
+void MmFreePhysicalContiguousRegion(MMPFN PfnStart, int PageCount)
+{
+	for (int i = 0; i < PageCount; i++)
+		MmFreePhysicalPage(PfnStart + i);
 }

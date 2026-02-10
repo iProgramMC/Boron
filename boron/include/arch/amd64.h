@@ -71,18 +71,17 @@ MMADDRESS_CONVERT;
 #define MM_PTE_READWRITE  (1ULL <<  1)
 #define MM_PTE_USERACCESS (1ULL <<  2)
 #define MM_PTE_WRITETHRU  (1ULL <<  3)
-#define MM_PTE_CDISABLE   (1ULL <<  4)
+#define MM_PTE_NOCACHE    (1ULL <<  4)
 #define MM_PTE_ACCESSED   (1ULL <<  5)
 #define MM_PTE_DIRTY      (1ULL <<  6)
 #define MM_PTE_PAT        (1ULL <<  7)
 #define MM_PTE_PAGESIZE   (1ULL <<  7) // in terms of PML3/PML2 entries, for 1GB/2MB pages respectively. Not Used by the kernel
 #define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
 #define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
-#define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write -- TODO: We are supposed to be phasing this one out.
+#define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write (UNUSED)
 #define MM_PTE_TRANSITION (1ULL << 11) // if this page is in transition (3) (UNUSED)
 #define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
 #define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
-#define MM_PTE_ISPOOLHDR  (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it) (NOTE: This is supposed to be MM_DPTE_ISPOOLHDR)
 
 #define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
 	// 63 - execute disable
@@ -90,6 +89,10 @@ MMADDRESS_CONVERT;
 	// 58..52 - more available bits
 
 #define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
+#define MM_PTE_NEWPFN(Pfn) (((Pfn) * PAGE_SIZE) & MM_PTE_ADDRESSMASK)
+
+#define MM_PTE_CHECKFROMPMM(Pte) ((Pte) & MM_PTE_ISFROMPMM)
+#define MM_PTE_ISPRESENT(Pte) (((Pte) & MM_PTE_PRESENT) != 0)
 
 // Disabled PTE (present bit is zero):
 // bits 0..2 and 63 - Permission bits as usual
@@ -112,6 +115,7 @@ MMADDRESS_CONVERT;
 #define MM_DPTE_COMMITTED    (1ULL << 8)
 #define MM_DPTE_BACKEDBYFILE (1ULL << 9)
 #define MM_DPTE_SWAPPED      (1ULL << 10)
+#define MM_DPTE_ISPOOLHDR    (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
 #define MM_DPTE_WASPRESENT   (1ULL << 62)
 
 // Page fault reasons
@@ -293,5 +297,23 @@ KARCH_DATA, *PKARCH_DATA;
 #include <arch.h>
 #include <arch/x86cpuid.h>
 #include <arch/x86cr.h>
+
+FORCE_INLINE
+void KeWaitForNextInterrupt(void)
+{
+	ASM("hlt":::"memory");
+}
+
+FORCE_INLINE
+void KeSpinningHint(void)
+{
+	ASM("pause":::"memory");
+}
+
+FORCE_INLINE
+void KeInvalidatePage(void* Address)
+{
+	ASM("invlpg (%0)"::"r"((uintptr_t)Address):"memory");
+}
 
 #endif//NS64_ARCH_AMD64_H

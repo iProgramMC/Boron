@@ -1,0 +1,6 @@
+# arm Makefile
+
+IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).img
+
+DRIVERS_LIST = \
+	test
