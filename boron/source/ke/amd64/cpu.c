@@ -202,6 +202,7 @@ void KePrintSystemServiceDebug(size_t Syscall)
 		FunctionName = DbgLookUpRoutineNameByAddressExact(KiSystemServiceTable[Syscall]);
 	
 	DbgPrint("SYSCALL: %p - %d %s", KeGetCurrentThread(), (int) Syscall, FunctionName);
+	ASSERT(KeGetPreviousMode() == MODE_USER);
 }
 
 void KeCpuid(PCPUID_OUTPUT Output, uint32_t Eax);
