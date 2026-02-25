@@ -1,4 +1,5 @@
 #include <boron.h>
+#include "testfmk.h"
 
 void Test3()
 {
