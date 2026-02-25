@@ -30,6 +30,7 @@ extern OSCreateFile
 extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
+extern OSCreateSymbolicLink
 extern OSCreateTerminal
 extern OSCreateTerminalIoHandles
 extern OSCreateThread
@@ -137,6 +138,7 @@ KiSystemServiceTable:
 	dq OSCheckIsValidHandle
 	dq OSCreateFile
 	dq OSCreateDirectory
+	dq OSCreateSymbolicLink
 KiSystemServiceTableEnd:
 	nop
 

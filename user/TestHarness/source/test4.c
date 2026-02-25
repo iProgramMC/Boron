@@ -1,6 +1,9 @@
 #include "testfmk.h"
 
-void Test4()
+void Test4CreateFile()
 {
-	DbgPrint("test 4 running");
+	HANDLE Handle;
+	BSTATUS Status;
+	
+	//Status = OSCreateFile();
 }

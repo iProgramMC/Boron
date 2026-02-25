@@ -22,11 +22,17 @@ BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCloseAllUninheritableHandles();
 
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);
+
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
+
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
+
+BSTATUS OSCreateSymbolicLink(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength, const char* TargetName, size_t TargetNameLength);
 
 #ifdef IS_BORON_DLL
 

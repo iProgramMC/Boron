@@ -238,14 +238,14 @@ BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeFile(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeFile(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
 {
-	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, Entry->Name);
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, FileName);
 }
 
-BSTATUS TmpMakeDirectory(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeDirectory(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
 {
-	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, Entry->Name);
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, FileName);
 }
 
 typedef union

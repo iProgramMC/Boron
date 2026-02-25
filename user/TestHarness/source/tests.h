@@ -1,5 +1,5 @@
 TEST(Test1BasicOpenAndClose)
 TEST(Test2BasicRead)
 TEST(Test3MoreRead)
-TEST(Test4)
+TEST(Test4CreateFile)
 TEST(Test5)

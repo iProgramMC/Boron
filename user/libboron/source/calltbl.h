@@ -58,6 +58,9 @@ CALL 51, 2, OSForkProcessInternal
 CALL 52, 3, OSQueryVirtualMemoryInformation
 CALL 53, 0, OSCloseAllUninheritableHandles
 CALL 54, 1, OSCheckIsValidHandle
+CALL 55, 4, OSCreateFile
+CALL 56, 4, OSCreateDirectory
+CALL 57, 6, OSCreateSymbolicLink
 
 #ifdef IS_64_BIT
 CALL 24, 7, OSMapViewOfObject
