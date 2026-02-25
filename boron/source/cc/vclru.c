@@ -64,9 +64,9 @@ void CcOnSystemSpaceVadUsed(PMMVAD Vad)
 	KeReleaseSpinLock(&CcViewCacheLruLock, Ipl);
 }
 
-// Removes the head of the view cache LRU list for freeing.
+// Gets the head of the view cache LRU list for freeing.
 // This is used if view space is running out.
-PMMVAD CcRemoveHeadOfViewCacheLru()
+PMMVAD CcGetHeadOfViewCacheLru()
 {
 	KIPL Ipl;
 	KeAcquireSpinLock(&CcViewCacheLruLock, &Ipl);
@@ -77,26 +77,33 @@ PMMVAD CcRemoveHeadOfViewCacheLru()
 		return NULL;
 	}
 	
-	PLIST_ENTRY Entry = RemoveHeadList(&CcViewCacheLru);
-	AtFetchAdd(CcViewCacheLruSize, -1);
-	
+	PLIST_ENTRY Entry = CcViewCacheLru.Flink;
+	//RemoveHeadList(&CcViewCacheLru);
+	//AtFetchAdd(CcViewCacheLruSize, -1);
 	KeReleaseSpinLock(&CcViewCacheLruLock, Ipl);
 	
 	return CONTAINING_RECORD(Entry, MMVAD, ViewCacheLruEntry);
 }
 
 // Purge any VADs that go over the limit plus a specified number.
+// This is a soft-limit, so it is possible to go over.
 void CcPurgeViewsOverLimit(int LeaveSpaceFor)
 {
 	// NOTE: I realize that there is a possible race condition however
 	// it should not allow more than one view to go over the limit.
 	int Limit = VIEW_CACHE_MAX_COUNT - LeaveSpaceFor;
 	
+#ifdef DEBUG
+	PMMVAD LastVad = NULL;
+#endif
+	
 	while (AtLoad(CcViewCacheLruSize) > Limit)
 	{
-		// TODO: THIS DOES NOT WORK. You must NOT remove the head of view cache!!!
-		PMMVAD Vad = CcRemoveHeadOfViewCacheLru();
+		PMMVAD Vad = CcGetHeadOfViewCacheLru();
+		ASSERT(!LastVad || LastVad != Vad);
 		
+		// This also removes the VAD from the view cache LRU.
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, true);
+		LastVad = Vad;
 	}
 }
