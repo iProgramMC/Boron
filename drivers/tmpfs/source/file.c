@@ -238,30 +238,14 @@ BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeFile(PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeFile(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
 {
-	BSTATUS Status;
-	PFILE_OBJECT FileObject;
-	
-	Status = TmpCreateFile(&FileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, Entry->Name);
-	if (FAILED(Status))
-		return Status;
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, Entry->Name);
 }
 
-BSTATUS TmpMakeDir(PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeDirectory(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
 {
-	BSTATUS Status;
-	PFILE_OBJECT FileObject;
-	
-	Status = TmpCreateFile(&FileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, Entry->Name);
-	if (FAILED(Status))
-		return Status;
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, Entry->Name);
 }
 
 typedef union
@@ -574,7 +558,7 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
+BSTATUS TmpMakeHardLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
 {
 	if (DestFcb->FileType == FILE_TYPE_DIRECTORY)
 		return STATUS_IS_A_DIRECTORY;
@@ -616,8 +600,8 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 	.Write = TmpWrite,
 	.Resize = TmpResize,
 	.MakeFile = TmpMakeFile,
-	.MakeDir = TmpMakeDir,
-	.MakeLink = TmpMakeLink,
+	.MakeDirectory = TmpMakeDirectory,
+	.MakeHardLink = TmpMakeHardLink,
 	.Unlink = TmpUnlink,
 	.RemoveDir = TmpRemoveDir,
 	.ReadDir = TmpReadDir,

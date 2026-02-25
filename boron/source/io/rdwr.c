@@ -555,40 +555,96 @@ BSTATUS IoDeviceIoControl(
 	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
 }
 
-// =========== User-facing API ===========
-
-BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
+BSTATUS IoMakeFile(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, PIO_DIRECTORY_ENTRY Name)
 {
-	BSTATUS Status;
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_FILE_METHOD MakeFile = Fcb->DispatchTable->MakeFile;
 	
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
-	if (FAILED(Status))
-		return Status;
+	if (!MakeFile)
+		return STATUS_UNSUPPORTED_FUNCTION;
 	
-	PFILE_OBJECT FileObject = FileObjectV;
-	
-	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return MakeFile(OutFileObject, Fcb, Name);
 }
 
-BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
+BSTATUS IoMakeDirectory(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, PIO_DIRECTORY_ENTRY Name)
 {
-	BSTATUS Status;
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_DIR_METHOD MakeDirectory = Fcb->DispatchTable->MakeDirectory;
 	
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (!MakeDirectory)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeDirectory(OutFileObject, Fcb, Name);
+}
+
+BSTATUS IoMakeSymbolicLink(
+	PFILE_OBJECT* OutFileObject,
+	PFILE_OBJECT DirectoryObject,
+	PIO_DIRECTORY_ENTRY Name,
+	const char* DestinationName,
+	size_t DestinationNameLength
+)
+{
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink = Fcb->DispatchTable->MakeSymbolicLink;
+	
+	if (!MakeSymbolicLink)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeSymbolicLink(
+		OutFileObject,
+		Fcb,
+		Name,
+		DestinationName,
+		DestinationNameLength
+	);
+}
+
+BSTATUS IoMakeHardLink(
+	PFILE_OBJECT DirectoryObject,
+	PIO_DIRECTORY_ENTRY Name,
+	PFILE_OBJECT ReferencedFileObject
+)
+{
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_LINK_METHOD MakeHardLink = Fcb->DispatchTable->MakeHardLink;
+	
+	if (!MakeHardLink)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeHardLink(Fcb, Name, ReferencedFileObject->Fcb);
+}
+
+BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)
+{
+	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
-	PFILE_OBJECT FileObject = FileObjectV;
-	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
+	int64_t ResultOffset = 0;
+	switch (Whence)
+	{
+		case IO_SEEK_CUR:
+			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
+			break;
+		
+		case IO_SEEK_END:
+			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
+			break;
+		
+		case IO_SEEK_SET:
+			ResultOffset = Offset;
+			break;
+	}
 	
-	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
+	if (ResultOffset < 0) {
+		Status = STATUS_INVALID_PARAMETER;
+	}
+	else {
+		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
+	}
 	
-	ObDereferenceObject(FileObject);
+	KeReleaseMutex(&FileObject->FileOffsetMutex);
 	return Status;
 }
 
@@ -648,6 +704,43 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 	}
 	
 	return Status2;
+}
+
+// =========== User-facing API ===========
+
+BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
+{
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
+	
+	ObDereferenceObject(FileObject);
+	return Status;
+}
+
+BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
+{
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
+	
+	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
+	
+	ObDereferenceObject(FileObject);
+	return Status;
 }
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags)
@@ -765,39 +858,6 @@ EarlyExit:
 	return Status;
 }
 
-BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)
-{
-	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
-	if (FAILED(Status))
-		return Status;
-	
-	int64_t ResultOffset = 0;
-	switch (Whence)
-	{
-		case IO_SEEK_CUR:
-			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
-			break;
-		
-		case IO_SEEK_END:
-			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
-			break;
-		
-		case IO_SEEK_SET:
-			ResultOffset = Offset;
-			break;
-	}
-	
-	if (ResultOffset < 0) {
-		Status = STATUS_INVALID_PARAMETER;
-	}
-	else {
-		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
-	}
-	
-	KeReleaseMutex(&FileObject->FileOffsetMutex);
-	return Status;
-}
-
 BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutNewOffset)
 {
 	if (Whence != IO_SEEK_CUR && Whence != IO_SEEK_SET && Whence != IO_SEEK_END)
@@ -819,4 +879,25 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 		Status = MmSafeCopy(OutNewOffset, &OutNewOffset2, sizeof(uint64_t), KeGetPreviousMode(), true);
 	
 	return STATUS_SUCCESS;
+}
+
+// TODO: add more parameters like permissions etc.
+//
+// Creates an empty file in a directory.
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* Name)
+{/*
+	if (!Name)
+		return STATUS_INVALID_PARAMETER;
+	
+	BSTATUS Status;
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	//Status = IoMakeFile(*/
+	
+	return STATUS_UNIMPLEMENTED;
 }
