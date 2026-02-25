@@ -15,6 +15,10 @@ Author:
 
 #define STB_SPRINTF_IMPLEMENTATION // implement the stb_sprintf right here
 
+#ifdef TARGET_ARM
+#define STB_SPRINTF_NOUNALIGNED
+#endif
+
 #include <main.h>
 #include <string.h>
 
