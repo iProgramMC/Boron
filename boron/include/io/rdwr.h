@@ -125,3 +125,7 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* NewO
 BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t DirectoryEntryCount, PIO_DIRECTORY_ENTRY DirectoryEntries);
 
 BSTATUS OSDeviceIoControl(HANDLE FileHandle, int IoControlCode, void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);
+
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);
+
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);

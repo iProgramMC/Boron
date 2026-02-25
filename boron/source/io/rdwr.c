@@ -881,23 +881,90 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 	return STATUS_SUCCESS;
 }
 
+enum {
+	MAKE_FILE_OBJECT,
+	MAKE_DIRECTORY_OBJECT,
+	MAKE_SYMLINK_OBJECT,
+};
+
 // TODO: add more parameters like permissions etc.
 //
-// Creates an empty file in a directory.
-BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* Name)
-{/*
-	if (!Name)
+// Creates a new object inside of a directory.
+BSTATUS IoCreateObjectInDirectory(
+	PHANDLE OutFileHandle,
+	HANDLE DirectoryHandle,
+	PIO_DIRECTORY_ENTRY EntryUser,
+	int Type,
+	UNUSED const char* DestinationPath
+)
+{
+	if (!OutFileHandle || !EntryUser)
 		return STATUS_INVALID_PARAMETER;
 	
 	BSTATUS Status;
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	IO_DIRECTORY_ENTRY Entry;
+	Status = MmSafeCopy(&Entry, EntryUser, sizeof(IO_DIRECTORY_ENTRY), KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		return Status;
 	
-	PFILE_OBJECT FileObject = FileObjectV;
+	void* DirectoryObjectV;
+	Status = ObReferenceObjectByHandle(DirectoryHandle, IoFileType, &DirectoryObjectV);
+	if (FAILED(Status))
+		return Status;
 	
-	//Status = IoMakeFile(*/
+	PFILE_OBJECT DirectoryObject = DirectoryObjectV;
+	PFILE_OBJECT NewFileObject = NULL;
 	
-	return STATUS_UNIMPLEMENTED;
+	switch (Type)
+	{
+		case MAKE_FILE_OBJECT:
+			Status = IoMakeFile(&NewFileObject, DirectoryObject, &Entry);
+			break;
+		case MAKE_DIRECTORY_OBJECT:
+			Status = IoMakeDirectory(&NewFileObject, DirectoryObject, &Entry);
+			break;
+		default:
+			DbgPrint("IoCreateObjectInDirectory(%d, '%s') unimplemented.", Type, Entry.Name);
+			Status = STATUS_UNIMPLEMENTED;
+			break;
+	}
+	
+	ObDereferenceObject(DirectoryObject);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	// OK, we have a reference to the new file object, but we still need to add it to our handle
+	// table.  So do so now.
+	HANDLE Handle = HANDLE_NONE;
+	Status = ObInsertObject(NewFileObject, &Handle, 0);
+	
+	if (FAILED(Status))
+	{
+		ObDereferenceObject(NewFileObject);
+		return Status;
+	}
+	
+	// Then, copy it in.
+	Status = MmSafeCopy(OutFileHandle, &Handle, sizeof Handle, KeGetPreviousMode(), true);
+	if (FAILED(Status))
+	{
+		// Failed, so close the handle.
+		OSClose(Handle);
+	}
+	
+	ObDereferenceObject(NewFileObject);
+	return Status;
+}
+
+// Creates an empty file in a directory.
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY EntryUser)
+{
+	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, EntryUser, MAKE_FILE_OBJECT, NULL);
+}
+
+// Creates an empty directory in a directory.
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY EntryUser)
+{
+	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, EntryUser, MAKE_DIRECTORY_OBJECT, NULL);
 }

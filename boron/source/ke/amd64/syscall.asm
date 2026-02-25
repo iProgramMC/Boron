@@ -24,7 +24,9 @@ extern OSCheckIsTerminalFile
 extern OSCheckIsValidHandle
 extern OSClose
 extern OSCloseAllUninheritableHandles
+extern OSCreateDirectory
 extern OSCreateEvent
+extern OSCreateFile
 extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
@@ -133,6 +135,8 @@ KiSystemServiceTable:
 	dq OSQueryVirtualMemoryInformation
 	dq OSCloseAllUninheritableHandles
 	dq OSCheckIsValidHandle
+	dq OSCreateFile
+	dq OSCreateDirectory
 KiSystemServiceTableEnd:
 	nop
 
