@@ -39,3 +39,16 @@ MMADDRESS_NODE, *PMMADDRESS_NODE;
 #define Node_EndVa(Node) ((Node)->StartVa + (Node)->Size * PAGE_SIZE)
 
 static_assert(offsetof(MMADDRESS_NODE, StartVa) == offsetof(MMADDRESS_NODE, Entry.Key), "these should be the same offset");
+
+
+#ifdef IS_64_BIT
+
+#define MM_FIRST_USER_PAGE (0x0000000000001000)
+#define MM_LAST_USER_PAGE  (0x00007FFFFFFFF000)
+
+#else
+
+#define MM_FIRST_USER_PAGE (0x00001000)
+#define MM_LAST_USER_PAGE  (0x7FFFF000)
+
+#endif

@@ -343,6 +343,18 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		SizePages--;
 	}
 	
+	// Ensure that the first and last page are still inaccessible to userspace.
+	if (StartAddress < MM_FIRST_USER_PAGE)
+	{
+		StartAddress += PAGE_SIZE;
+		SizePages -= 1;
+	}
+	
+	if (StartAddress + SizePages * PAGE_SIZE >= MM_LAST_USER_PAGE)
+	{
+		SizePages -= 1;
+	}
+	
 	// Set up the address node with the new range.
 	TempVad1->Node.StartVa = StartAddress;
 	TempVad1->Node.Size = SizePages;

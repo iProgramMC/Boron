@@ -82,7 +82,6 @@ BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* I
 NO_RETURN
 void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context);
 
-HIDDEN
 BSTATUS OSDLLOpenSelf(PHANDLE FileHandle);
 
 HIDDEN
