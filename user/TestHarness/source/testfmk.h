@@ -1,4 +1,5 @@
 #pragma once
+#include <boron.h>
 
 // Shorthand for RtlGetStatusString
 #define ST(st) RtlGetStatusString(st)
@@ -19,9 +20,3 @@ bool TestAssertionFailed(
 
 #define TestAssert(condition) \
 	((void)((condition) || TestAssertionFailed(__FILE__, __LINE__, __func__, #condition, NULL)))
-
-extern void Test1BasicOpenAndClose();
-extern void Test2BasicRead();
-extern void Test3();
-extern void Test4();
-extern void Test5();

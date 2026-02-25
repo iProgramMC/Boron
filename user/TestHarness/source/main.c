@@ -5,12 +5,14 @@
 static int CurrentTestNumber;
 static bool AssertionFailuresExit = true;
 
+#define TEST(x) extern void x();
+#include "tests.h"
+#undef TEST
+
 static void (*Tests[])() = {
-	Test1BasicOpenAndClose,
-	Test2BasicRead,
-	Test3,
-	Test4,
-	Test5,
+#define TEST(x) x,
+#include "tests.h"
+#undef TEST
 };
 
 // Prints both to stdout as well as to debug console.
