@@ -27,46 +27,71 @@ void TestPrintf(const char * Format, ...)
 }
 
 // Reports that an assertion has failed.
-void TestAssertionFailed(
+bool TestAssertionFailed(
 	const char* File,
-	const char* Line, 
+	int Line,
 	const char* Func,
 	const char* Condition,
 	const char* Format,
 	...
 )
 {
-	va_list vl;
-	va_start(vl, Format);
-	char Buffer[2048];
-	vsnprintf(Buffer, sizeof Buffer, Format, vl);
-	va_end(vl);
-	
-	DbgPrint(
-		"%d: %s (%s:%d): Assertion failed.\nCondition: %s\nMessage: %s",
-		CurrentTestNumber,
-		Func,
-		File,
-		Line,
-		Condition,
-		Buffer
-	);
-	OSFPrintf(
-		FILE_STANDARD_ERROR,
-		"%d: %s (%s:%d): Assertion failed.\nCondition: %s\nMessage: %s\n",
-		CurrentTestNumber,
-		Func,
-		File,
-		Line,
-		Condition,
-		Buffer
-	);
+	if (Format)
+	{
+		va_list vl;
+		va_start(vl, Format);
+		char Buffer[2048];
+		vsnprintf(Buffer, sizeof Buffer, Format, vl);
+		va_end(vl);
+		
+		DbgPrint(
+			"%d: %s (%s:%d): Assertion failed.\nCondition: %s\nMessage: %s",
+			CurrentTestNumber,
+			Func,
+			File,
+			Line,
+			Condition,
+			Buffer
+		);
+		OSFPrintf(
+			FILE_STANDARD_ERROR,
+			"%d: %s (%s:%d): Assertion failed.\nCondition: %s\nMessage: %s\n",
+			CurrentTestNumber,
+			Func,
+			File,
+			Line,
+			Condition,
+			Buffer
+		);
+	}
+	else
+	{
+		DbgPrint(
+			"%d: %s (%s:%d): Assertion failed.\nCondition: %s\n",
+			CurrentTestNumber,
+			Func,
+			File,
+			Line,
+			Condition
+		);
+		OSFPrintf(
+			FILE_STANDARD_ERROR,
+			"%d: %s (%s:%d): Assertion failed.\nCondition: %s\n\n",
+			CurrentTestNumber,
+			Func,
+			File,
+			Line,
+			Condition
+		);
+	}
 	
 	if (AssertionFailuresExit)
 	{
 		DbgPrint("Exiting as a result of a failure.");
 		OSExitProcess(1);
 	}
+	
+	return true;
 }
 
 int _start(int ArgumentCount, char** ArgumentArray)

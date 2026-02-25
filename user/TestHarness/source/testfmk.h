@@ -5,17 +5,20 @@
 
 void TestPrintf(const char *, ...);
 
-void TestAssertionFailed(
+bool TestAssertionFailed(
 	const char* File,
-	const char* Line, 
+	int Line,
 	const char* Func,
 	const char* Condition,
 	const char* Format,
 	...
 );
 
-#define TestAssert(condition, ...) \
-	((condition) || TestAssertionFailed(__FILE__, __LINE__, __func__, #condition, __VA_ARGS__))
+#define TestAssertMsg(condition, ...) \
+	((void)((condition) || TestAssertionFailed(__FILE__, __LINE__, __func__, #condition, __VA_ARGS__)))
+
+#define TestAssert(condition) \
+	((void)((condition) || TestAssertionFailed(__FILE__, __LINE__, __func__, #condition, NULL)))
 
 extern void Test1BasicOpenAndClose();
 extern void Test2BasicRead();

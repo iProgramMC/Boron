@@ -11,23 +11,18 @@ void Test2BasicRead()
 	HANDLE Handle;
 	BSTATUS Status = OSOpenFile(&Handle, &Attributes);
 	
-	if (FAILED(Status))
-	{
-		TestPrintf("Could not open '%s': %s", Attributes.ObjectName, ST(Status));
-		return;
-	}
+	TestAssert(SUCCEEDED(Status));
+	TestAssert(Handle != HANDLE_NONE);
 	
 	IO_STATUS_BLOCK Iosb;
 	
-	//uint32_t Data;
-	//OSReadFile();
-	
+	uint32_t Data;
+	Status = OSReadFile(&Iosb, Handle, 0, &Data, sizeof Data, 0);
+	TestAssert(SUCCEEDED(Status));
+	TestAssert(SUCCEEDED(Iosb.Status));
+	TestAssert(Iosb.BytesRead == sizeof(Data));
+	TestAssert(Data == 0x464C457F); // '[127]ELF'
 	
 	Status = OSClose(Handle);
-	
-	if (FAILED(Status))
-	{
-		TestPrintf("Could not close file: %s", ST(Status));
-		return;
-	}
+	TestAssert(SUCCEEDED(Status));
 }
