@@ -6,6 +6,7 @@
 #include "pebteb.h"
 #include "dll.h"
 
+HIDDEN
 BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 {
 	extern char _DYNAMIC[];
