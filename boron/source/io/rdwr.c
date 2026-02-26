@@ -621,6 +621,13 @@ BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t
 	if (FAILED(Status))
 		return Status;
 	
+	// You may not seek to anywhere but offset 0 (start of the directory).
+	if (FileObject->Fcb->FileType == FILE_TYPE_DIRECTORY && Offset != 0 && Whence != IO_SEEK_SET)
+	{
+		KeReleaseMutex(&FileObject->FileOffsetMutex);
+		return STATUS_INVALID_PARAMETER;
+	}
+	
 	int64_t ResultOffset = 0;
 	switch (Whence)
 	{
@@ -642,6 +649,7 @@ BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t
 	}
 	else {
 		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
+		FileObject->CurrentDirectoryVersion = 0;
 	}
 	
 	KeReleaseMutex(&FileObject->FileOffsetMutex);

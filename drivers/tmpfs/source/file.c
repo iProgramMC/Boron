@@ -283,7 +283,7 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 	TMPFS_OFFSET TOffset;
 	TOffset.Offset = Offset;
 	
-	if (Version != Ext->Version)
+	if (Version != Ext->Version || Version == 0 || Offset == 0)
 	{
 		Version = Ext->Version;
 		
@@ -628,6 +628,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 	Ext->InodeNumber = AtAddFetch(NextTmpfsInodeNumber, 1);
 	Ext->PageList = NULL;
 	Ext->PageListCount = 0;
+	Ext->Version = 1;
 	
 	// If InitialLength is set, then InitialAddress must also be set.
 	ASSERT(Ext->InitialLength ? (Ext->InitialAddress != NULL) : true);
@@ -671,6 +672,8 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 		ASSERT(SUCCEEDED(Status));
 		
 		InsertTailList(&ParentExt->ChildrenListHead, &DirEntry->ListEntry);
+		ParentExt->Version++;
+		
 		KeReleaseMutex(&ParentExt->Lock);
 	}
 	

@@ -10,18 +10,8 @@ void Test1BasicOpenAndClose()
 	
 	HANDLE Handle;
 	BSTATUS Status = OSOpenFile(&Handle, &Attributes);
-	
-	if (FAILED(Status))
-	{
-		TestPrintf("Could not open '%s': %s", Attributes.ObjectName, ST(Status));
-		return;
-	}
+	TestAssert(SUCCEEDED(Status));
 	
 	Status = OSClose(Handle);
-	
-	if (FAILED(Status))
-	{
-		TestPrintf("Could not close file: %s", ST(Status));
-		return;
-	}
+	TestAssert(SUCCEEDED(Status));
 }
