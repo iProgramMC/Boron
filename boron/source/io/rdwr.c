@@ -933,7 +933,10 @@ BSTATUS IoCreateObjectInDirectory(
 		{
 		Fail:
 			MmFreePool(FileNameCopy);
-			MmFreePool(TargetNameCopy);
+			
+			if (TargetNameCopy)
+				MmFreePool(TargetNameCopy);
+			
 			return Status;
 		}
 	}
@@ -989,7 +992,10 @@ BSTATUS IoCreateObjectInDirectory(
 	
 	ObDereferenceObject(NewFileObject);
 	MmFreePool(FileNameCopy);
-	MmFreePool(TargetNameCopy);
+	
+	if (TargetNameCopy)
+		MmFreePool(TargetNameCopy);
+	
 	return Status;
 }
 

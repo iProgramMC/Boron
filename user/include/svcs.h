@@ -22,11 +22,11 @@ BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCloseAllUninheritableHandles();
 
-BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
 
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
 
-BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, PIO_DIRECTORY_ENTRY Entry);
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
