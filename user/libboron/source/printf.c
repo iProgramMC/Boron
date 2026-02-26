@@ -3,6 +3,21 @@
 #include "pebteb.h"
 #include <_stb_sprintf.h>
 
+HANDLE OSGetStandardInput()
+{
+	return OSDLLGetCurrentPeb()->StandardInput;
+}
+
+HANDLE OSGetStandardOutput()
+{
+	return OSDLLGetCurrentPeb()->StandardOutput;
+}
+
+HANDLE OSGetStandardError()
+{
+	return OSDLLGetCurrentPeb()->StandardError;
+}
+
 typedef struct
 {
 	size_t BytesPrinted;

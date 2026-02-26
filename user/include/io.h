@@ -20,6 +20,12 @@ size_t OSFPrintf(int FileIndex, const char* Format, ...);
 	(Attributes)->ObjectNameLength = strlen((Attributes)->ObjectName); \
 } while (0)
 
+HANDLE OSGetStandardInput();
+
+HANDLE OSGetStandardOutput();
+
+HANDLE OSGetStandardError();
+
 #ifdef __cplusplus
 }
 #endif

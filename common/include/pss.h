@@ -78,7 +78,16 @@ typedef struct
 	// Standard I/O handles.
 	// Note that the initial process launched by libboron.so gets
 	// these as zeros.
-	HANDLE StandardIO[3];
+	union
+	{
+		HANDLE StandardIO[3];
+		struct
+		{
+			HANDLE StandardInput;
+			HANDLE StandardOutput;
+			HANDLE StandardError;
+		};
+	};
 	
 	// Starting directory.
 	// This handle should be set to HANDLE_NONE by the interpreter
@@ -105,7 +114,3 @@ enum
 	FILE_STANDARD_OUTPUT,
 	FILE_STANDARD_ERROR
 };
-
-#define StandardInput  StandardIO[FILE_STANDARD_INPUT]
-#define StandardOutput StandardIO[FILE_STANDARD_OUTPUT]
-#define StandardError  StandardIO[FILE_STANDARD_ERROR]
