@@ -82,8 +82,6 @@ static void CmdSkipWhiteSpace(char** Pointer)
 	*Pointer = Pointer2;
 }
 
-static char CommandName[MAX_COMMAND], ArgumentBuffer[MAX_COMMAND];
-
 static bool CmdParseWord(char** InputPtr, char** OutputPtr)
 {
 	char* CommandPtr = *InputPtr;
@@ -184,9 +182,10 @@ void CmdStartProcess(const char* CommandName, const char* ArgumentBuffer, bool W
 	OSClose(ProcessHandle);
 }
 
+static char ArgumentBuffer[MAX_COMMAND + 4];
+
 void CmdParseCommand()
 {
-	memset(CommandName, 0, sizeof(CommandName));
 	memset(ArgumentBuffer, 0, sizeof(ArgumentBuffer));
 	
 	char* CommandPtr = CommandBuffer;
@@ -205,21 +204,24 @@ void CmdParseCommand()
 		ArgumentBufferPtr++;
 	}
 	
+	*ArgumentBufferPtr++ = 0;
+	*ArgumentBufferPtr++ = 0;
 	*ArgumentBufferPtr = 0;
 	
-	// The first argument (consistent with the way argv works on other platforms) is the
-	// name of the desired command.
+	// The first argument is the name of the command.
 	const char* CommandName = ArgumentBuffer;
 	if (*CommandName == 0) {
 		DbgPrint("no command passed!");
 		return;
 	}
 	
+	const char* Arguments = ArgumentBuffer + strlen(CommandName) + 1;
+	
 	// At this point, CommandName and ArgumentBuffer can just be used in an OSCreateProcess.
 	// However, check for built-in commands first.
-	if (CmdTryRunningBuiltInCommand(CommandName, ArgumentBuffer))
+	if (CmdTryRunningBuiltInCommand(CommandName, Arguments))
 		return;
 	
-	CmdStartProcess(CommandName, ArgumentBuffer, true);
+	CmdStartProcess(CommandName, Arguments, true);
 }
 

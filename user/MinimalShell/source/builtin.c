@@ -47,17 +47,23 @@ void CmdPrintEnvironment(UNUSED const char* Arguments)
 	}
 }
 
-void CmdExecuteAndTime(const char* Arguments)
+void CmdExecuteAndTime(const char* FullArguments)
 {
-	// the first argument is of course 'time', so skip it
-	Arguments += strlen(Arguments) + 1;
+	if (*FullArguments == 0)
+	{
+		OSFPrintf(FILE_STANDARD_ERROR, "No command provided\n");
+		return;
+	}
 	
 	// then start a new process
 	uint64_t TicksStart, TicksEnd, Frequency;
 	OSGetTickCount(&TicksStart);
 	OSGetTickFrequency(&Frequency);
 	
-	CmdStartProcess(Arguments, Arguments, true);
+	const char* CommandName = FullArguments;
+	const char* Arguments = FullArguments + strlen(FullArguments) + 1;
+	
+	CmdStartProcess(CommandName, Arguments, true);
 	
 	OSGetTickCount(&TicksEnd);
 	
@@ -85,12 +91,18 @@ void CmdExecuteAndTime(const char* Arguments)
 	);
 }
 
-void CmdExecuteInBackground(const char* Arguments)
+void CmdExecuteAsync(const char* FullArguments)
 {
-	// the first argument is of course 'bg', so skip it
-	Arguments += strlen(Arguments) + 1;
+	if (*FullArguments == 0)
+	{
+		OSFPrintf(FILE_STANDARD_ERROR, "No command provided\n");
+		return;
+	}
 	
-	CmdStartProcess(Arguments, Arguments, false);
+	const char* CommandName = FullArguments;
+	const char* Arguments = FullArguments + strlen(FullArguments) + 1;
+	
+	CmdStartProcess(CommandName, Arguments, false);
 }
 
 void CmdClearScreen(UNUSED const char* Arguments)
@@ -102,15 +114,16 @@ void CmdClearScreen(UNUSED const char* Arguments)
 
 #define ENTRY(name, func, desc) { name, func, desc }
 COMMAND_ENTRY CommandTable[] = {
-	ENTRY("help", CmdHelp, "Print this stuff"),
-	ENTRY("?", CmdHelp, "Same as help"),
-	ENTRY("exit", CmdExit, "Exits minimal shell"),
-	ENTRY("imagename", CmdPrintImageName, "Prints image name from PEB"),
-	ENTRY("arguments", CmdPrintArguments, "Prints arguments from PEB"),
-	ENTRY("environment", CmdPrintEnvironment, "Prints environment from PEB"),
-	ENTRY("bg", CmdExecuteInBackground, "Runs a command without waiting"),
-	ENTRY("time", CmdExecuteAndTime, "Runs a command and prints the time it took"),
-	ENTRY("clear", CmdClearScreen, "Clears the screen"),
+	ENTRY("help",  CmdHelp, "Print this stuff"),
+	ENTRY("?",     CmdHelp, "Same as help"),
+	ENTRY("async", CmdExecuteAsync, "Start async process"),
+	ENTRY("&",     CmdExecuteAsync, "Same as async"),
+	ENTRY("args",  CmdPrintArguments, "Print arguments from PEB"),
+	ENTRY("clear", CmdClearScreen, "Clear terminal display"),
+	ENTRY("env",   CmdPrintEnvironment, "Print environment from PEB"),
+	ENTRY("exit",  CmdExit, "Exits minimal shell"),
+	ENTRY("iname", CmdPrintImageName, "Print image name from PEB"),
+	ENTRY("time",  CmdExecuteAndTime, "Start process and print execution time"),
 };
 
 void CmdHelp()
@@ -123,7 +136,7 @@ void CmdHelp()
 		strcpy(CommandName, CommandTable[i].Command);
 		
 		size_t Length = strlen(CommandName);
-		while (Length < 20) {
+		while (Length < 10) {
 			strcpy(CommandName + Length, " ");
 			Length++;
 		}
