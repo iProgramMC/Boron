@@ -10,7 +10,8 @@ APPS := \
 	init \
 	test \
 	VideoTerminal \
-	TestHarness
+	TestHarness \
+	MinimalShell
 
 ### Do not modify below ###
 
