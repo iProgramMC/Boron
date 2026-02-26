@@ -143,19 +143,45 @@ static bool CmdParseWord(char** InputPtr, char** OutputPtr)
 	return true;
 }
 
-bool CmdTryRunningBuiltInCommand(const char* CommandName, const char* Arguments)
+void CmdStartProcess(const char* CommandName, const char* ArgumentBuffer, bool Wait)
 {
-	if (strcmp(CommandName, "exit") == 0) {
-		OSExitProcess(0);
-		return true;
+	// Create a new process and wait for it to finish.
+	BSTATUS Status;
+	HANDLE ProcessHandle;
+	HANDLE MainThreadHandle;
+	Status = OSCreateProcess(
+		&ProcessHandle,
+		&MainThreadHandle,
+		NULL,
+		OS_PROCESS_CMDLINE_PARSED,
+		CommandName,
+		ArgumentBuffer,
+		NULL
+	);
+	
+	if (FAILED(Status))
+	{
+		OSFPrintf(FILE_STANDARD_ERROR, "%s: %s\n", CommandName, RtlGetStatusString(Status));
+		return;
 	}
 	
-	if (strcmp(CommandName, "imageName") == 0) {
-		OSPrintf("Image name from PEB: '%s'", OSDLLGetCurrentPeb()->ImageName);
-		return true;
+	// We have a process. Now wait for it if needed.
+	if (Wait)
+	{
+		// TODO: Alertable = true
+		Status = OSWaitForSingleObject(ProcessHandle, false, WAIT_TIMEOUT_INFINITE);
+		
+		if (FAILED(Status))
+		{
+			OSFPrintf(FILE_STANDARD_ERROR, "%s (while waiting for process): %s\n", CommandName, RtlGetStatusString(Status));
+			return;
+		}
 	}
+	// TODO: Otherwise, print information about the process run in the background.
 	
-	return false;
+	// Close both handles which will reap the process.
+	OSClose(MainThreadHandle);
+	OSClose(ProcessHandle);
 }
 
 void CmdParseCommand()
@@ -194,39 +220,6 @@ void CmdParseCommand()
 	if (CmdTryRunningBuiltInCommand(CommandName, ArgumentBuffer))
 		return;
 	
-	// Create a new process and wait for it to finish.
-	BSTATUS Status;
-	HANDLE ProcessHandle;
-	HANDLE MainThreadHandle;
-	Status = OSCreateProcess(
-		&ProcessHandle,
-		&MainThreadHandle,
-		NULL,
-		OS_PROCESS_CMDLINE_PARSED,
-		CommandName,
-		ArgumentBuffer,
-		NULL
-	);
-	
-	if (FAILED(Status))
-	{
-		OSFPrintf(FILE_STANDARD_ERROR, "%s: %s\n", CommandName, RtlGetStatusString(Status));
-		return;
-	}
-	
-	// We have a process. Now wait for it.
-	//
-	// TODO: Alertable = true
-	Status = OSWaitForSingleObject(ProcessHandle, false, WAIT_TIMEOUT_INFINITE);
-	
-	if (FAILED(Status))
-	{
-		OSFPrintf(FILE_STANDARD_ERROR, "%s (while waiting for process): %s\n", CommandName, RtlGetStatusString(Status));
-		return;
-	}
-	
-	// Close both handles which will reap the process.
-	OSClose(MainThreadHandle);
-	OSClose(ProcessHandle);
+	CmdStartProcess(CommandName, ArgumentBuffer, true);
 }
 
