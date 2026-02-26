@@ -27,7 +27,7 @@ void Test3CreateFile()
 	// try writing some data
 	const char* DataToWrite = "Boron is cool!\n";
 	IO_STATUS_BLOCK Iosb;
-	size_t OutSize = 0;
+	uint64_t OutSize = 0;
 	Status = OSWriteFile(&Iosb, Handle, 0, DataToWrite, strlen(DataToWrite), 0, &OutSize);
 	
 	TestAssert(SUCCEEDED(Status));
