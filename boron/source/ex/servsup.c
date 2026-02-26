@@ -16,9 +16,14 @@ Author:
 #include <ps.h>
 #include <io.h>
 
+#define MAX_STRING_LENGTH (1048575)
+
 BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
 {
 	BSTATUS Status;
+	
+	if (StringLength > MAX_STRING_LENGTH)
+		return STATUS_INVALID_PARAMETER;
 	
 	Status = MmProbeAddress((void*) UserString, StringLength, false, KeGetPreviousMode());
 	if (FAILED(Status))
@@ -49,11 +54,15 @@ BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRI
 	// provided from userspace), so we will replace them below.
 	
 	if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
-		return false;
+		return Status;
 	
 	char* Name = NULL;
-	if (FAILED(Status = ExDuplicateUserString(&Name, UserAttrs->ObjectName, OutNewAttrs->ObjectNameLength)))
-		return false;
+	if (OutNewAttrs->ObjectName &&
+		OutNewAttrs->ObjectNameLength &&
+		FAILED(Status = ExDuplicateUserString(&Name, OutNewAttrs->ObjectName, OutNewAttrs->ObjectNameLength)))
+	{
+		return Status;
+	}
 	
 	OutNewAttrs->ObjectName = Name;
 	return STATUS_SUCCESS;
