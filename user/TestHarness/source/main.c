@@ -137,7 +137,7 @@ int _start(int ArgumentCount, char** ArgumentArray)
 			TestPrintf(
 				"Usage:\n"
 				"\t%s                    : Runs all tests, until a failure is encountered\n"
-				"\t%s [test number 1-%d] : Runs a specific test number\n"
+				"\t%s [test number 1-%d]  : Runs a specific test number\n"
 				"\t%s [-f]               : Runs all tests, assertions do not exit\n",
 				Program,
 				Program,
