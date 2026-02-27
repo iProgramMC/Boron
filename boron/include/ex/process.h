@@ -27,6 +27,9 @@ struct EPROCESS_tag
 	// The exit code of the process.
 	int ExitCode;
 	
+	// The ID of the process.
+	HANDLE ProcessId;
+	
 	// The Virtual Address Descriptor list of this process.
 	MMVAD_LIST VadList;
 	

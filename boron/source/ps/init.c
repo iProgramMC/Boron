@@ -104,6 +104,8 @@ bool PsInitSystem()
 	if (!PsCreateProcessType())
 		return false;
 	
+	PspInitializeProcessList();
+	
 	PspSystemProcessNpHeader.ObjectType = PsProcessObjectType;
 	
 	return true;

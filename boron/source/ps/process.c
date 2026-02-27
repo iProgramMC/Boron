@@ -3,7 +3,7 @@
 	Copyright (C) 2024-2025 iProgramInCpp
 
 Module name:
-	ps/process.h
+	ps/process.c
 	
 Abstract:
 	This module implements the process manager process
@@ -16,7 +16,7 @@ Author:
 
 void PspDeleteProcess(void* ProcessV)
 {
-	UNUSED PEPROCESS Process = ProcessV;
+	PEPROCESS Process = ProcessV;
 	
 	// TODO:
 	// I suppose that, when a process is started, the reference count should be biased by one,
@@ -35,6 +35,8 @@ void PspDeleteProcess(void* ProcessV)
 	// (Verify that the deletion succeeded.  It should always succeed but just to be sure)
 	(void) Status;
 	ASSERT(Status == STATUS_SUCCESS);
+	
+	PspRemoveProcessFromList(Process);
 }
 
 INIT
@@ -92,6 +94,12 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	);
 	
 	// If the initial page map couldn't be created, throw an out of memory error.
+	if (FAILED(Status))
+		return Status;
+	
+	// Add the process to the global list of processes.  If any further initialization steps fail,
+	// then we can simply leave it in there, and remove it in PspDeleteProcess.
+	Status = PspAddProcessToList(Process);
 	if (FAILED(Status))
 		return Status;
 	
