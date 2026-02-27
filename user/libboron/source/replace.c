@@ -34,6 +34,7 @@ Author:
 #include <string.h>
 #include <rtl/assert.h>
 #include <rtl/elf.h>
+#include <rtl/cmdline.h>
 #include "pebteb.h"
 #include "dll.h"
 
