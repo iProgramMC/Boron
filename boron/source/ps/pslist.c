@@ -37,6 +37,8 @@ void PspInitializeProcessList()
 	if (FAILED(Status)) {
 		KeCrash("Failed to create process handle table: %s", RtlGetStatusString(Status));
 	}
+	
+	PspAddProcessToList(&PsSystemProcess);
 }
 
 BSTATUS PspAddProcessToList(PEPROCESS Process)
@@ -76,7 +78,7 @@ bool PspDebugDumpFilter(void* Pointer, UNUSED void* Context)
 {
 	PEPROCESS Process = (PEPROCESS) Pointer;
 	
-	DbgPrint("Process %d.", Process->ProcessId);
+	DbgPrint("Process %d, called '%s'.", Process->ProcessId, Process->ImageName);
 	
 	return false; // do not delete
 }

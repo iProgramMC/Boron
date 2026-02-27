@@ -61,6 +61,7 @@ CALL 54, 1, OSCheckIsValidHandle
 CALL 55, 4, OSCreateFile
 CALL 56, 4, OSCreateDirectory
 CALL 57, 6, OSCreateSymbolicLink
+CALL 58, 3, OSSetImageNameProcess
 
 #ifdef IS_64_BIT
 CALL 24, 7, OSMapViewOfObject

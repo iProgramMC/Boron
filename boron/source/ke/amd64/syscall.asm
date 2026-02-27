@@ -68,6 +68,7 @@ extern OSSetCurrentPeb
 extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetExitCode
+extern OSSetImageNameProcess
 extern OSSetPebProcess
 extern OSSetSuspendedThread
 extern OSSleep
@@ -139,6 +140,7 @@ KiSystemServiceTable:
 	dq OSCreateFile
 	dq OSCreateDirectory
 	dq OSCreateSymbolicLink
+	dq OSSetImageNameProcess
 KiSystemServiceTableEnd:
 	nop
 

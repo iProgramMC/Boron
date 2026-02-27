@@ -321,6 +321,12 @@ BSTATUS OSCreateProcess(
 	Peb = NULL;
 	AllocatedCmdLine = NULL;
 	
+	// Assign a "friendly name" for the process.
+	const char* ExecutableName = RtlGetFileNameFromPath(ImageName);
+	Status = OSSetImageNameProcess(ProcessHandle, ExecutableName, strlen(ExecutableName));
+	if (FAILED(Status))
+		goto Fail;
+	
 	LdrDbgPrint("OSDLL: Entry Point: %p", EntryPoint);
 	Status = OSDLLCreateMainThread(
 		ProcessHandle,

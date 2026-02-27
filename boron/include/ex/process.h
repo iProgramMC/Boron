@@ -19,6 +19,8 @@ Author:
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
+#define MAX_IMAGE_NAME (32)
+
 struct EPROCESS_tag
 {
 	// The kernel side process.
@@ -42,6 +44,9 @@ struct EPROCESS_tag
 	
 	// Object handle table.  This handle table manages objects opened by the process.
 	void* HandleTable;
+	
+	// A "friendly name" for the process.
+	char ImageName[MAX_IMAGE_NAME];
 };
 
 #define PsGetCurrentProcess() ((PEPROCESS)KeGetCurrentProcess())

@@ -337,6 +337,13 @@ BSTATUS OSReplaceProcess(
 	OSDLLClearEntireHeap(NULL);
 	OSCloseAllUninheritableHandles();
 	
+	// Assign a "friendly name" for the process.
+	const char* ExecutableName = RtlGetFileNameFromPath(OSDLLGetCurrentPeb()->ImageName);
+	Status = OSSetImageNameProcess(CURRENT_PROCESS_HANDLE, ExecutableName, strlen(ExecutableName));
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: failed to call OSSetImageNameProcess: %s", RtlGetStatusString(Status));
+	}
+	
 	// Finally, some assembly to jump to the new process' entry point.
 	LdrDbgPrint("OSReplaceProcess: Entry Point: %p", EntryPoint);
 	

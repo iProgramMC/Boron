@@ -45,6 +45,8 @@ BSTATUS OSCreateProcess(
 // POSIX fork support.
 BSTATUS OSForkProcess(PHANDLE OutChildHandle, void* ChildReturnPC, void* ChildReturnSP);
 
+BSTATUS OSSetImageNameProcess(HANDLE ProcessHandle, const char* ImageName, size_t ImageNameLength);
+
 #ifdef KERNEL
 extern EPROCESS PsSystemProcess;
 #else

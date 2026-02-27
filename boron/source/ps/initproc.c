@@ -367,6 +367,12 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	
 	OSClose(ThreadHandle);
 	
+	const char* BareImageName = RtlGetFileNameFromPath(ImageName);
+	Status = OSSetImageNameProcess(ProcessHandle, BareImageName, strlen(BareImageName));
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: failed to call OSSetImageNameProcess: %s", RtlGetStatusString(Status));
+	}
+	
 	Status = OSWaitForSingleObject(ProcessHandle, false, TIMEOUT_INFINITE);
 	
 	// Maybe the init process isn't supposed to exit. I should think of that.

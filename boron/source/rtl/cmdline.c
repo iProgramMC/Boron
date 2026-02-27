@@ -67,6 +67,27 @@ int RtlEnvironmentCount(const char* Description)
 	return EntryCount;
 }
 
+// Gets the bare file name for a path.
+//
+// For example, for "/Boron/Bin/VideoTerminal.exe", returns "VideoTerminal.exe"
+// as an offset into the initial string.
+const char* RtlGetFileNameFromPath(const char* Path)
+{
+	const char* FileName = Path;
+	
+	while (*Path)
+	{
+		if (*Path == OB_PATH_SEPARATOR && *(Path + 1) != 0)
+		{
+			FileName = Path + 1;
+		}
+		
+		Path++;
+	}
+	
+	return FileName;
+}
+
 // Parses a command line string into a command line description.
 //
 // A command line description is a null-character-separated list of command

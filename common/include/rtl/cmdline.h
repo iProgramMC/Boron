@@ -22,3 +22,5 @@ size_t RtlEnvironmentLength(const char* Description);
 int RtlEnvironmentCount(const char* Description);
 
 BSTATUS RtlCommandLineStringToDescription(const char* String, char** Description);
+
+const char* RtlGetFileNameFromPath(const char* Path);

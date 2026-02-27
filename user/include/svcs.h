@@ -151,6 +151,8 @@ BSTATUS OSSetEvent(HANDLE EventHandle);
 
 BSTATUS OSSetExitCode(int ExitCode);
 
+BSTATUS OSSetImageNameProcess(HANDLE ProcessHandle, const char* ImageName, size_t ImageNameLength);
+
 BSTATUS OSSetPebProcess(HANDLE ProcessHandle, void* PebPtr);
 
 BSTATUS OSSetSuspendedThread(HANDLE ThreadHandle, bool IsSuspended);

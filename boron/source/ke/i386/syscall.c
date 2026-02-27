@@ -198,6 +198,7 @@ const void* const KiSystemServiceTable[] =
 	OSCreateFile,
 	OSCreateDirectory,
 	OSCreateSymbolicLink,
+	OSSetImageNameProcess,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)
