@@ -17,12 +17,19 @@ Author:
 
 #ifdef DEBUG2
 #define PMMDEBUG
+//#define PMMDEBUG2
 #endif
 
 #ifdef PMMDEBUG
 #define PmmDbgPrint(...) DbgPrint(__VA_ARGS__)
 #else
 #define PmmDbgPrint(...) do {} while (0)
+#endif
+
+#ifdef PMMDEBUG2
+#define PmmDbgPrint2(...) DbgPrint(__VA_ARGS__)
+#else
+#define PmmDbgPrint2(...) do {} while (0)
 #endif
 
 // LOCKING:
@@ -779,7 +786,7 @@ MMPFN MmAllocatePhysicalPage()
 		MmEndUsingHHDM();
 	}
 	
-#ifdef PMMDEBUG
+#if defined(PMMDEBUG) || defined(PMMDEBUG2)
 	DbgPrint("MmAllocatePhysicalPage() => %d (RA:%p)", currPFN, __builtin_return_address(0));
 #endif
 	
@@ -913,6 +920,9 @@ void MmFreePhysicalPage(MMPFN pfn)
 				MmpAddPfnToList(&MiFirstStandbyPFN, &MiLastStandbyPFN, pfn);
 				PageFrame->Type = PF_TYPE_TRANSITION;
 				MmTotalFreePages++;
+#ifdef PMMDEBUG
+				DbgPrint("MmFreePhysicalPageStandby<= %d (RA:%p)", pfn, __builtin_return_address(0));
+#endif
 			}
 		}
 		else
@@ -921,6 +931,9 @@ void MmFreePhysicalPage(MMPFN pfn)
 			MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, pfn);
 			PageFrame->Type = PF_TYPE_FREE;
 			MmTotalFreePages++;
+#ifdef PMMDEBUG
+			DbgPrint("MmFreePhysicalPageFree() <= %d (RA:%p)", pfn, __builtin_return_address(0));
+#endif
 		}
 	}
 	
