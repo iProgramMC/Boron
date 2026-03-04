@@ -110,6 +110,59 @@ void CmdClearScreen(UNUSED const char* Arguments)
 	OSPrintf("\x1B[3J\x1B[H\x1B[2J");
 }
 
+void CmdSystemInfoBasic()
+{
+	size_t WrittenSize;
+	SYSTEM_BASIC_INFORMATION BasicInfo;
+	BSTATUS Status = OSQuerySystemInformation(
+		QUERY_BASIC_INFORMATION,
+		&BasicInfo,
+		sizeof BasicInfo,
+		&WrittenSize
+	);
+	
+	if (FAILED(Status)) {
+		OSFPrintf(FILE_STANDARD_ERROR, "Could not get system info: %s", RtlGetStatusString(Status));
+		return;
+	}
+	
+	int Vn = BasicInfo.OSVersionNumber;
+	
+	OSPrintf("OS Name:                   %s\n", BasicInfo.OSName);
+	OSPrintf("OS Version:                v%u.%u.%u\n", VER_MAJOR(Vn), VER_MINOR(Vn), VER_BUILD(Vn));
+	OSPrintf("Page Size:                 %u\n", BasicInfo.PageSize);
+	OSPrintf("Allocation Granularity:    %u\n", BasicInfo.AllocationGranularity);
+	OSPrintf("Processor Count:           %u\n", BasicInfo.ProcessorCount);
+	OSPrintf("Minimum User Mode Address: %p\n", BasicInfo.MinimumUserModeAddress);
+	OSPrintf("Maximum User Mode Address: %p\n", BasicInfo.MaximumUserModeAddress);
+}
+
+void CmdSystemInfoMemory()
+{
+	size_t WrittenSize;
+	SYSTEM_MEMORY_INFORMATION MemoryInfo;
+	BSTATUS Status = OSQuerySystemInformation(
+		QUERY_MEMORY_INFORMATION,
+		&MemoryInfo,
+		sizeof MemoryInfo,
+		&WrittenSize
+	);
+	
+	if (FAILED(Status)) {
+		OSFPrintf(FILE_STANDARD_ERROR, "Could not get memory info: %s", RtlGetStatusString(Status));
+		return;
+	}
+	
+	OSPrintf("Page Size:             %u\n", MemoryInfo.PageSize);
+	OSPrintf("Total Physical Memory: %zu KB\n", MemoryInfo.TotalPhysicalMemoryPages * MemoryInfo.PageSize / 1024);
+	OSPrintf("Free Physical Memory:  %zu KB\n", MemoryInfo.FreePhysicalMemoryPages * MemoryInfo.PageSize / 1024);
+}
+
+void CmdSystemInfoProcess()
+{
+	OSPrintf("TODO\n");
+}
+
 // -- built-in commands end --
 
 #define ENTRY(name, func, desc) { name, func, desc }
@@ -124,6 +177,9 @@ COMMAND_ENTRY CommandTable[] = {
 	ENTRY("exit",  CmdExit, "Exits minimal shell"),
 	ENTRY("iname", CmdPrintImageName, "Print image name from PEB"),
 	ENTRY("time",  CmdExecuteAndTime, "Start process and print execution time"),
+	ENTRY("bi",    CmdSystemInfoBasic, "Get basic system info"),
+	ENTRY("mi",    CmdSystemInfoMemory, "Get system memory info"),
+	ENTRY("ps",    CmdSystemInfoProcess, "Get system process info"),
 };
 
 void CmdHelp()
