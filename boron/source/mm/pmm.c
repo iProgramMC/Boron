@@ -60,6 +60,11 @@ size_t MmGetTotalFreePages()
 	return MmTotalFreePages;
 }
 
+size_t MmGetTotalAvailablePages()
+{
+	return MmTotalAvailablePages;
+}
+
 // HHDM
 #ifdef IS_64_BIT
 

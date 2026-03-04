@@ -115,6 +115,9 @@ void MmFreePhysicalPageHHDM(void* Page);
 // Gets the total amount of free pages.
 size_t MmGetTotalFreePages();
 
+// Gets the total amount of pages of physical memory, both free and used, on the system.
+size_t MmGetTotalAvailablePages();
+
 // Registers a range of memory as MMIO.  This means that user applications
 // will be able to map this memory in directly, however, the pages will
 // never behave like regular memory.

@@ -57,6 +57,7 @@ extern OSOutputDebugString
 extern OSPulseEvent
 extern OSQueryEvent
 extern OSQueryMutex
+extern OSQuerySystemInformation
 extern OSQueryVirtualMemoryInformation
 extern OSReadDirectoryEntries
 extern OSReadFile
@@ -141,6 +142,7 @@ KiSystemServiceTable:
 	dq OSCreateDirectory
 	dq OSCreateSymbolicLink
 	dq OSSetImageNameProcess
+	dq OSQuerySystemInformation
 KiSystemServiceTableEnd:
 	nop
 

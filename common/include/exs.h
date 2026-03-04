@@ -27,3 +27,6 @@ enum
 
 #define CURRENT_PROCESS_HANDLE ((HANDLE) 0xFFFFFFFF)
 #define CURRENT_THREAD_HANDLE  ((HANDLE) 0xFFFFFFFE)
+
+// System Information
+#include "sysinfo.h"

@@ -11,6 +11,7 @@
 #include "ios.h"
 #include "pss.h"
 #include "ttys.h"
+#include "sysinfo.h"
 #include "svcs.h"
 
 // OSDLL features

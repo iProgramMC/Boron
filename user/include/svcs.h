@@ -125,6 +125,13 @@ BSTATUS OSQueryEvent(HANDLE EventHandle, int* EventState);
 
 BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
+BSTATUS OSQuerySystemInformation(
+	uint32_t QueryType,
+	void* UserBuffer,
+	size_t UserBufferSize,
+	size_t* SizeOfReturnedDataOut
+);
+
 BSTATUS OSQueryVirtualMemoryInformation(
 	HANDLE ProcessHandle,
 	PVIRTUAL_MEMORY_INFORMATION OutInformation,
