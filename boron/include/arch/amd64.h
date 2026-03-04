@@ -154,8 +154,10 @@ struct KREGISTERS_tag
 	// Old IPL
 	uint64_t OldIpl;
 	
+	//uint64_t rbp;
+	//uint64_t sfra; // stack frame return address
+	
 	uint64_t rbp;
-	uint64_t sfra; // stack frame return address
 	
 	// Registers pushed by KiTrapCommon. Pushed in reverse order from how they're laid out.
 	uint64_t cr2;

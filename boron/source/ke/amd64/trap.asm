@@ -98,24 +98,28 @@ KiTrapCommon:
 	; does it load the address of certain things into a register. We then
 	; defer actually loading those until after DS was changed.
 	PUSH_STATE                             ; Push the state, except for the old ipl
+	push  rbp                              ; Push RBP, but we'll be using it later too
 	mov   rbx, [rbx]                       ; Retrieve the interrupt number and RIP from interrupt frame. These were deferred
 	mov   rcx, [rcx]                       ; so that we wouldn't attempt to access the kernel stack using the user's data segment.
 	mov   rdx, [rdx]                       ; Load CS, to determine the previous mode when entering a hardware interrupt
-	push  rcx                              ; Enter a stack frame so that stack printing doesn't skip over anything
-	push  rbp
-	mov   rbp, rsp
 	cld                                    ; Clear direction flag, will be restored by iretq
+	push  qword 0                          ; Push placeholder IPL
+	mov   r12, rsp                         ; Save it to a register
+	and   rsp, ~15                         ; Align the stack pointer now
+	push  rcx                              ; Enter a fake stack frame by pushing the interrupt's return address and the base pointer.
+	push  rbp                              ; Coincidentally, this stack frame is 16 bytes, so we're already properly aligned.
+	mov   rbp, rsp                         ; Finally, use the new aligned RSP.
 	movsx rdi, byte [KiTrapIplList + rbx]  ; Get the IPL for the respective interrupt vector
 	call  KiEnterHardwareInterrupt         ; Tell the kernel we entered a hardware interrupt
-	push  rax                              ; Push the old IPL that we obtained from the function
-	mov   rdi, rsp                         ; Retrieve the PKREGISTERS to call the trap handler
+	mov   [r12], rax                       ; Write the old IPL that we obtained from the function
+	mov   rdi, r12                         ; Prepare the PKREGISTERS to call the trap handler
 	call  [KiTrapCallList + 8 * rbx]       ; Call the trap handler. It returns the new RSP.
-	mov   rsp, rax                         ; Use the new PKREGISTERS instance as what to pull
-	mov   rdi, rax                         ; Get the pointer to the register context
+	mov   r12, rax                         ; Get the PKREGISTERS from the trap handler now.
+	mov   rdi, rax                         ; We will need this pointer for KiExitHardwareInterrupt too.
 	call  KiExitHardwareInterrupt          ; Tell the kernel we're exiting the hardware interrupt
+	mov   rsp, r12                         ; Restore the previous RSP which could possibly be unaligned.
 	pop   rdi                              ; Pop the old IPL because we don't need it any more
-	pop   rbp                              ; Leave the stack frame
-	pop   rcx                              ; Skip over the RIP duplicate that we pushed
+	pop   rbp                              ; Pop RBP also
 	POP_STATE                              ; Pop the state
 	pop   rax                              ; Pop the RAX register - it has the old value of CS which we can check
 	cmp   rax, SEG_RING_0_CODE             ; Check if this is kernel mode.
