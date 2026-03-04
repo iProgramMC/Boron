@@ -154,7 +154,7 @@ KiThreadEntryPoint:
 	xor  edi, edi
 	call KiUnlockDispatcher
 	mov  rdi, r12
-	call  rbx
+	call rbx
 	ud2
 
 section .text.init

@@ -18,10 +18,11 @@ Author:
 
 void MmUnmapPagesMdl(PMDL Mdl)
 {
-	if (!Mdl->MappedStartVA)
+	if (~Mdl->Flags & MDL_FLAG_MAPPED)
 		return;
 	
 	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages);
+	MmFreePoolBig((void*) Mdl->MappedStartVA);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
 
