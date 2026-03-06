@@ -153,9 +153,15 @@ void CmdSystemInfoMemory()
 		return;
 	}
 	
-	OSPrintf("Page Size:             %u\n", MemoryInfo.PageSize);
-	OSPrintf("Total Physical Memory: %zu KB\n", MemoryInfo.TotalPhysicalMemoryPages * MemoryInfo.PageSize / 1024);
+	//OSPrintf("Page Size:             %u\n", MemoryInfo.PageSize);
+	//OSPrintf("Total Physical Memory: %zu KB\n", MemoryInfo.TotalPhysicalMemoryPages * MemoryInfo.PageSize / 1024);
 	OSPrintf("Free Physical Memory:  %zu KB\n", MemoryInfo.FreePhysicalMemoryPages * MemoryInfo.PageSize / 1024);
+}
+
+void CmdSystemInfoMemory2() {
+	while (true) {
+		CmdSystemInfoMemory();
+	}
 }
 
 void CmdSystemInfoProcess()
@@ -179,6 +185,7 @@ COMMAND_ENTRY CommandTable[] = {
 	ENTRY("time",  CmdExecuteAndTime, "Start process and print execution time"),
 	ENTRY("bi",    CmdSystemInfoBasic, "Get basic system info"),
 	ENTRY("mi",    CmdSystemInfoMemory, "Get system memory info"),
+	ENTRY("mi2",    CmdSystemInfoMemory2, "Get system memory info"),
 	ENTRY("ps",    CmdSystemInfoProcess, "Get system process info"),
 };
 

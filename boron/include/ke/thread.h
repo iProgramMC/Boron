@@ -192,6 +192,7 @@ void KeInitializeThread2(PKTHREAD Thread, void* KernelStack, size_t KernelStackS
 void KeReadyThread(PKTHREAD Thread);
 
 // Yield this thread's time slice.
+// NOTE: This currently leaves you in IPL_DPC after returning to the thread.
 void KeYieldCurrentThread();
 
 // Terminate the current thread.
