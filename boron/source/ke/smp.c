@@ -134,10 +134,12 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	int chars = vsnprintf(buffer, sizeof buffer - 3, message, va);
 	strcpy(buffer + chars, "\n");
 	va_end(va);
-	
+
+#ifdef DEBUG
 	KiPrintLock.Locked = 0;
 	KiDebugPrintLock.Locked = 0;
-	
+#endif
+
 #ifdef DEBUG
 	DbgPrintString("\x1B[35m*** Init error: \x1B[0m");
 	DbgPrintString(buffer);

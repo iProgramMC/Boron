@@ -100,10 +100,12 @@ void CcPurgeViewsOverLimit(int LeaveSpaceFor)
 	while (AtLoad(CcViewCacheLruSize) > Limit)
 	{
 		PMMVAD Vad = CcGetHeadOfViewCacheLru();
-		ASSERT(!LastVad || LastVad != Vad);
+		ASSERTN(!LastVad || LastVad != Vad);
 		
 		// This also removes the VAD from the view cache LRU.
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, true);
+#ifdef DEBUG
 		LastVad = Vad;
+#endif
 	}
 }

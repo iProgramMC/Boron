@@ -3,7 +3,7 @@
 # DEBUG flag
 DEBUG ?= yes
 DEBUG2 ?= no
-DWARF_SYMBOLS ?= yes
+DWARF_SYMBOLS ?= no
 
 # Major and minor versions are incremented manually, but the build number
 # is incremented automatically upon a successful link.

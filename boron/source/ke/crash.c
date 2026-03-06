@@ -38,16 +38,20 @@ void KeCrash(const char* message, ...)
 		HalCrashSystem(buffer);
 }
 
+#ifdef DEBUG
 extern KSPIN_LOCK KiPrintLock;
 extern KSPIN_LOCK KiDebugPrintLock;
+#endif
 
 void KeCrashConclusion(const char* Message)
 {
 	static char CrashBuffer[4096];
 	
 	// NOTE: We are running in a single processor context - all other processors were shut down
+#ifdef DEBUG
 	KiPrintLock.Locked = 0;
 	KiDebugPrintLock.Locked = 0;
+#endif
 	
 	snprintf(CrashBuffer, sizeof CrashBuffer, "\n\x1B[91m*** STOP (CPU %u): \x1B[0m %s\n", KeGetCurrentPRCB()->LapicId, Message);
 	
