@@ -16,11 +16,36 @@ Author:
 #pragma once
 
 #include "pfn.h"
+#include <arch.h>
+
+// This macro is appended to the definition of every function prototype such that the
+// arch-specific include may replace it if needed.  By default it specifies nothing.
+#ifndef MM_PTE_API
+#define MM_PTE_API
+#endif
+
+// On debug, we specify that MMPTE is actually a struct, so that I don't accidentally
+// assign an integer to it.
+#ifdef DEBUG
+#define MM_USE_STRUCT_FOR_PTE
+#endif
+
+#ifdef MM_USE_STRUCT_FOR_PTE
 
 typedef struct {
 	MMPTE_HW PteHardware;
 }
 MMPTE, *PMMPTE;
+
+#define MmHardwarePte(Pte) ((Pte).PteHardware)
+
+#else
+
+typedef MMPTE_HW MMPTE, *PMMPTE;
+
+#define MmHardwarePte(Pte) (Pte)
+
+#endif
 
 //
 // Protection bits.
@@ -78,55 +103,55 @@ MMPTE, *PMMPTE;
 //
 
 // Builds a zero PTE.
-MMPTE MmBuildZeroPte();
+MM_PTE_API MMPTE MmBuildZeroPte();
 
 // Builds a present PTE with the specified PFN and page bits.
-MMPTE MmBuildPte(MMPFN Pfn, uintptr_t PageBits);
+MM_PTE_API MMPTE MmBuildPte(MMPFN Pfn, uintptr_t PageBits);
 
 // Builds a "was present" PTE. This is used in the process of unmapping pages.
-MMPTE MmBuildWasPresentPte(MMPTE OldPte);
+MM_PTE_API MMPTE MmBuildWasPresentPte(MMPTE OldPte);
 
 // Builds an absent PTE with the specified bits.
-MMPTE MmBuildAbsentPte(uintptr_t PageBits);
+MM_PTE_API MMPTE MmBuildAbsentPte(uintptr_t PageBits);
 
 // Builds a pool header PTE.
-MMPTE MmBuildPoolHeaderPte(uintptr_t PoolHeaderAddress);
+MM_PTE_API MMPTE MmBuildPoolHeaderPte(uintptr_t PoolHeaderAddress);
 
 // Updates the PFN of the specified PTE.
-MMPTE MmSetPfnPte(MMPTE Pte, MMPFN NewPfn);
+MM_PTE_API MMPTE MmSetPfnPte(MMPTE Pte, MMPFN NewPfn);
 
 // Updates the page bits of the specified PTE.
-MMPTE MmSetPageBitsPte(MMPTE Pte, uintptr_t PageBits);
+MM_PTE_API MMPTE MmSetPageBitsPte(MMPTE Pte, uintptr_t PageBits);
 
 // Obtains the PFN from a PTE.
-MMPFN MmGetPfnPte(MMPTE Pte);
+MM_PTE_API MMPFN MmGetPfnPte(MMPTE Pte);
 
 // Obtains the page bits from a present PTE.
-uintptr_t MmGetPageBitsPte(MMPTE Pte);
+MM_PTE_API uintptr_t MmGetPageBitsPte(MMPTE Pte);
 
 // Checks if the PTE is present.
-bool MmIsPresentPte(MMPTE Pte);
+MM_PTE_API bool MmIsPresentPte(MMPTE Pte);
 
 // Checks if the PTE was present.
-bool MmWasPresentPte(MMPTE Pte);
+MM_PTE_API bool MmWasPresentPte(MMPTE Pte);
 
 // Checks if the PTE references a page from the PMM.
-bool MmIsFromPmmPte(MMPTE Pte);
+MM_PTE_API bool MmIsFromPmmPte(MMPTE Pte);
 
 // Checks if the PTE is a pool header PTE.
-bool MmIsPoolHeaderPte(MMPTE Pte);
+MM_PTE_API bool MmIsPoolHeaderPte(MMPTE Pte);
 
 // Get the address of the pool header that this PTE references.
-uintptr_t MmGetPoolHeaderAddressPte(MMPTE Pte);
+MM_PTE_API uintptr_t MmGetPoolHeaderAddressPte(MMPTE Pte);
 
-// Checkss if the PTE is committed.
-bool MmIsCommittedPte(MMPTE Pte);
+// Checks if the PTE is committed.
+MM_PTE_API bool MmIsCommittedPte(MMPTE Pte);
 
 // Checks if the PTE is decommitted.
-bool MmIsDecommittedPte(MMPTE Pte);
+MM_PTE_API bool MmIsDecommittedPte(MMPTE Pte);
 
 // Checks if two PTEs are equal.
-bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2);
+MM_PTE_API bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2);
 
 // Checks if the PTE has unsupported parameters.
-bool MmIsUnsupportedHigherLevelPte(MMPTE Pte);
+MM_PTE_API bool MmIsUnsupportedHigherLevelPte(MMPTE Pte);
