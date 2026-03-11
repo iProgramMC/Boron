@@ -124,7 +124,7 @@ void Init()
 	PixBuff = MmMapIoSpace(
 		(uintptr_t)Framebuffer->Address,
 		Framebuffer->Pitch * Framebuffer->Height,
-		MM_PTE_READWRITE | MM_PTE_CDISABLE,
+		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("FWFB")
 	);
 #else

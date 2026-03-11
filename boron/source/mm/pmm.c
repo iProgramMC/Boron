@@ -135,7 +135,7 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 		Convert.Long = Address;
 		
 		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] =
-			MmBuildPfn(MmPhysPageToPFN(PhysAddr + i), MM_PROT_READ | MM_PROT_WRITE);
+			MmBuildPte(MmPhysPageToPFN(PhysAddr + i), MM_PROT_READ | MM_PROT_WRITE);
 		KeInvalidatePage((void*)Address);
 	}
 	
@@ -304,7 +304,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	Level2 = (PMMPTE)MI_PML2_LOCATION;
 	Level1 = (PMMPTE)(MI_PML1_LOCATION + 4096 * Convert.Level2Index);
 	
-	if (~Level2[Convert.Level2Index] & MM_PTE_PRESENT)
+	if (!MmIsPresentPte(Level2[Convert.Level2Index]))
 	{
 		uintptr_t Addr = MiAllocatePageFromMemMap();
 		
@@ -314,10 +314,10 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 			return false;
 		}
 		
-		Level2[Convert.Level2Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+		Level2[Convert.Level2Index] = MmBuildPte(MmPhysPageToPFN(Addr), MM_PROT_READ | MM_PROT_WRITE);
 	}
 	
-	if (~Level1[Convert.Level1Index] & MM_PTE_PRESENT)
+	if (!MmIsPresentPte(Level1[Convert.Level1Index]))
 	{
 		uintptr_t Addr = MiAllocatePageFromMemMap();
 		
@@ -331,7 +331,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
 		MmEndUsingHHDM();
 		
-		Level1[Convert.Level1Index] = Addr | MM_PTE_PRESENT | MM_PTE_READWRITE;
+		Level1[Convert.Level1Index] = MmBuildPte(MmPhysPageToPFN(Addr), MM_PROT_READ | MM_PROT_WRITE);
 	}
 	
 	return true;
@@ -548,6 +548,9 @@ void MiInitPMM()
 		MmZeroOutFirstPFN();
 	
 	DbgPrint("PFN database initialized.  Reserved %d pages (%d KB)", numAllocatedPages, numAllocatedPages * PAGE_SIZE / 1024);
+	
+	(void) ReclaimPageCount;
+	DbgPrint("%d pages are reclaimable. (%d KB)", ReclaimPageCount, ReclaimPageCount * PAGE_SIZE / 1024);
 	
 	MmTotalFreePages = FreePageCount;
 	MmTotalAvailablePages = TotalPageCount;

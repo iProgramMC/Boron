@@ -154,7 +154,7 @@ PMIPOOL_ENTRY_SLAB MiAllocatePoolHeaderSlab()
 	void* Address = (void*)(MI_POOL_HEADERS_START + IndexFound * PAGE_SIZE);
 	
 	PMMPTE Pte = (PMMPTE) MI_PTE_LOC((uintptr_t) Address);
-	*Pte = MmPFNToPhysPage(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 	KeInvalidatePage(Pte);
 	
 	KeReleaseSpinLock(&MiPoolHeaderMapLock, Ipl);
@@ -167,10 +167,10 @@ void MiFreePoolHeaderSlab(PMIPOOL_ENTRY_SLAB Address)
 	KeAcquireSpinLock(&MiPoolHeaderMapLock, &Ipl);
 	
 	PMMPTE Pte = (PMMPTE) MI_PTE_LOC((uintptr_t) Address);
-	MMPFN Pfn = MmPhysPageToPFN(*Pte & MM_PTE_ADDRESSMASK);
+	MMPFN Pfn = MmGetPfnPte(*Pte);
 	
 	// clear the PTE
-	*Pte = 0;
+	*Pte = MmBuildZeroPte();
 	KeInvalidatePage(Address);
 	
 	// then free

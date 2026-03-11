@@ -116,7 +116,7 @@ void MiInitializeRootPageTable(int Idx)
 	if (Pfn == PFN_INVALID)
 		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
 	
-	*Pte = MmPFNToPhysPage(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
+	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 }
 
 void MiInitializePoolPageTables()

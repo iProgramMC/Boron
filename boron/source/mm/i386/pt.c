@@ -37,18 +37,18 @@ PMMPTE MmGetPteLocation(uintptr_t Address)
 bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 {
 	PMMPTE Pte;
-	MMPTE SupervisorBit;
+	uintptr_t SupervisorBit;
 	
 	ASSERT(Address < MI_PML1_LOCATION || (uint64_t)Address >= MI_PML1_LOC_END);
 	
 	if (Address >= MM_KERNEL_SPACE_BASE)
 		SupervisorBit = 0;
 	else
-		SupervisorBit = MM_PTE_USERACCESS;
+		SupervisorBit = MM_PROT_USER;
 	
 	// Check the presence of the PT
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
-	if (~(*Pte) & MM_PTE_PRESENT)
+	if (!MmIsPresentPte(*Pte))
 	{
 		if (!GenerateMissingLevels)
 			return false;
@@ -57,7 +57,7 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 		if (PtAllocated == PFN_INVALID)
 			return false;
 		
-		*Pte = MmPFNToPhysPage(PtAllocated) | MM_PTE_PRESENT | MM_PTE_READWRITE | SupervisorBit;
+		*Pte = MmBuildPte(PtAllocated, MM_PROT_READ | MM_PROT_WRITE | SupervisorBit);
 	}
 	
 	// Page table exists.
@@ -76,7 +76,7 @@ PMMPTE MmGetPteLocationCheck(uintptr_t Address, bool GenerateMissingLevels)
 HPAGEMAP MiCreatePageMapping()
 {
 	// Allocate the PML2.
-	int NewPageMappingPFN = MmAllocatePhysicalPage();
+	MMPFN NewPageMappingPFN = MmAllocatePhysicalPage();
 	if (NewPageMappingPFN == PFN_INVALID)
 	{
 		LogMsg("Error, can't create a new page mapping.  Can't allocate PML4");
@@ -93,15 +93,19 @@ HPAGEMAP MiCreatePageMapping()
 	PMMPTE OldPageDirectory = (PMMPTE) MI_PML2_LOCATION;
 	
 	// zero out the first 512
+	MMPTE ZeroPte = MmBuildZeroPte();
 	for (int i = 0; i < 512; i++)
-		NewPageMappingAccess[i] = 0;
+		NewPageMappingAccess[i] = ZeroPte;
 	
 	// then copy out the kernel's latter 512 entries
 	for (int i = 512; i < 1024; i++)
 		NewPageMappingAccess[i] = OldPageDirectory[i];
 	
 	// and replace that last entry with the pointer to this one.
-	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
+	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = MmBuildPte(
+		NewPageMappingPFN,
+		MM_PROT_READ | MM_PROT_WRITE
+	);
 	
 	MmEndUsingHHDM();
 	MmUnlockKernelSpace();
@@ -115,18 +119,19 @@ static void MmpFreeVacantPageTables(uintptr_t Address)
 		return;
 	
 	// check if the page table this address' PTE is in is vacant
+	MMPTE ZeroPte = MmBuildZeroPte();
 	PMMPTE PtePT = MmGetPteLocation(Address);
 	PtePT = (PMMPTE)((uintptr_t)PtePT & ~(PAGE_SIZE - 1));
 	for (int i = 0; i < 1024; i++)
 	{
-		if (PtePT[i] != 0)
+		if (!MmIsEqualPte(PtePT[i], ZeroPte))
 			// isn't vacant
 			return;
 	}
 	
 	PMMPTE PtePD = MmGetPteLocation(MI_PTE_LOC(Address));
-	MMPFN Pfn = MmPhysPageToPFN(*PtePD & MM_PTE_ADDRESSMASK);
-	*PtePD = 0;
+	MMPFN Pfn = MmGetPfnPte(*PtePD);
+	*PtePD = ZeroPte;
 	MmFreePhysicalPage(Pfn);
 }
 
@@ -137,7 +142,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	
     if (MM_DBG_NO_DEMAND_PAGING || NonPaged)
 	{
-		int pfn = MmAllocatePhysicalPage();
+		MMPFN pfn = MmAllocatePhysicalPage();
 		if (pfn == PFN_INVALID)
 		{
 			//DbgPrint("MiMapAnonPage(%p, %p) failed because we couldn't allocate physical memory", Mapping, Address);
@@ -150,11 +155,12 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 			return false;
 		}
 		
-		*Pte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | Permissions | MmPFNToPhysPage(pfn);
+		*Pte = MmBuildPte(pfn, MM_MISC_IS_FROM_PMM | Permissions);
 		return true;
 	}
 	
-	*Pte = MM_DPTE_COMMITTED | Permissions;
+	(void) Permissions;
+	*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 	return true;
 }
 
@@ -170,12 +176,14 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 	if (!Pte)
 		return false;
 	
-	*Pte = (PhysicalPage & MM_PTE_ADDRESSMASK) | Permissions | MM_PTE_PRESENT;
+	*Pte = MmBuildPte(MmPhysPageToPFN(PhysicalPage), Permissions);
 	return true;
 }
 
 void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 {
+	MMPTE ZeroPte = MmBuildZeroPte();
+	
 	// Step 1. Unset the PRESENT bit on all pages in the range.
 	for (size_t i = 0; i < LengthPages; i++)
 	{
@@ -183,16 +191,11 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		*pPTE &= ~MM_DPTE_COMMITTED;
-		
-		if (*pPTE & MM_PTE_PRESENT)
-		{
-			*pPTE &= ~MM_PTE_PRESENT;
-			*pPTE |= MM_DPTE_WASPRESENT;
+		if (MmIsPresentPte(*pPTE)) {
+			*pPTE = MmBuildWasPresentPte(*pPTE);
 		}
-		else
-		{
-			*pPTE &= ~MM_DPTE_WASPRESENT;
+		else {
+			*pPTE = ZeroPte;
 		}
 	}
 	
@@ -207,13 +210,11 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		uintptr_t Flags = MM_DPTE_WASPRESENT | MM_PTE_ISFROMPMM;
-		
-		if ((*pPTE & Flags) == Flags)
+		if (MmIsFromPmmPte(*pPTE))
 		{
-			uintptr_t PhysPage = *pPTE & MM_PTE_ADDRESSMASK;
-			MmFreePhysicalPage(MmPhysPageToPFN(PhysPage));
-			*pPTE = 0;
+			MMPFN Pfn = MmGetPfnPte(*pPTE);
+			MmFreePhysicalPage(Pfn);
+			*pPTE = ZeroPte;
 		}
 	}
 }
@@ -265,15 +266,15 @@ ROLLBACK:
 	return false;
 }
 
-MMPTE MmGetPteBitsFromProtection(int Protection)
+uintptr_t MmGetPteBitsFromProtection(int Protection)
 {
-	MMPTE Pte = 0;
-	
+	uintptr_t Bits = 0;
+	if (Protection & PAGE_READ)
+		Bits |= MM_PROT_READ;
 	if (Protection & PAGE_WRITE)
-		Pte |= MM_PTE_READWRITE;
+		Bits |= MM_PROT_WRITE;
+	if (Protection & PAGE_EXECUTE)
+		Bits |= MM_PROT_EXEC;
 	
-	if (~Protection & PAGE_EXECUTE)
-		Pte |= MM_PTE_NOEXEC;
-	
-	return Pte;
+	return Bits;
 }

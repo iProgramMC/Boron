@@ -441,7 +441,6 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		
 		if (MmIsPresentPte(*pPTE)) {
 			*pPTE = MmBuildWasPresentPte(*pPTE);
 		}

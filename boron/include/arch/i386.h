@@ -77,25 +77,25 @@ MMADDRESS_CONVERT;
 
 #define MM_PFNDB_BASE     (0xD4000000U)
 
-#define MM_PTE_PRESENT    (1 <<  0)
-#define MM_PTE_READWRITE  (1 <<  1)
-#define MM_PTE_USERACCESS (1 <<  2)
-#define MM_PTE_WRITETHRU  (1 <<  3)
-#define MM_PTE_CDISABLE   (1 <<  4)
-#define MM_PTE_ACCESSED   (1 <<  5)
-#define MM_PTE_DIRTY      (1 <<  6)
-#define MM_PTE_PAT        (1 <<  7)
-#define MM_PTE_PAGESIZE   (1 <<  7) // for 4MB pages. not used by the kernel
-#define MM_PTE_GLOBAL     (1 <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
-#define MM_PTE_ISFROMPMM  (1 <<  9) // if the allocated memory is managed by the PFN database
-#define MM_PTE_COW        (1 << 10) // if this page is to be copied after a write
+#define MM_I386_PTE_PRESENT    (1 <<  0)
+#define MM_I386_PTE_READWRITE  (1 <<  1)
+#define MM_I386_PTE_USERACCESS (1 <<  2)
+#define MM_I386_PTE_WRITETHRU  (1 <<  3)
+#define MM_I386_PTE_CDISABLE   (1 <<  4)
+#define MM_I386_PTE_ACCESSED   (1 <<  5)
+#define MM_I386_PTE_DIRTY      (1 <<  6)
+#define MM_I386_PTE_PAT        (1 <<  7)
+#define MM_I386_PTE_PAGESIZE   (1 <<  7) // for 4MB pages. not used by the kernel
+#define MM_I386_PTE_GLOBAL     (1 <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
+#define MM_I386_PTE_ISFROMPMM  (1 <<  9) // if the allocated memory is managed by the PFN database
+#define MM_I386_PTE_COW        (1 << 10) // if this page is to be copied after a write
 
-#define MM_PTE_NOEXEC     (0)       // no such thing on 32-bit (without PAE)
-#define MM_PTE_PKMASK     (0)       // no such thing on 32-bit
+#define MM_I386_PTE_NOEXEC     (0)       // no such thing on 32-bit (without PAE)
+#define MM_I386_PTE_PKMASK     (0)       // no such thing on 32-bit
 
-#define MM_PTE_ADDRESSMASK (0xFFFFF000U)
+#define MM_I386_PTE_ADDRESSMASK (0xFFFFF000U)
 
-#define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
+#define MM_I386_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
 
 // Disabled PTE (present bit is zero):
 // bits 0..2 - Permission bits as usual
@@ -114,13 +114,12 @@ MMADDRESS_CONVERT;
 //
 // (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
 
-#define MM_DPTE_DECOMMITTED  (1 << 3)
-#define MM_DPTE_WASPRESENT   (1 << 7)
-#define MM_DPTE_COMMITTED    (1 << 8)
-#define MM_DPTE_BACKEDBYFILE (1 << 9)
-#define MM_DPTE_SWAPPED      (1 << 10)
-
-#define MM_PTE_ISPOOLHDR     (1 << 11) // see src/mm/poolsup.c for an explanation
+#define MM_I386_DPTE_DECOMMITTED  (1 << 3)
+#define MM_I386_DPTE_WASPRESENT   (1 << 7)
+#define MM_I386_DPTE_COMMITTED    (1 << 8)
+#define MM_I386_DPTE_BACKEDBYFILE (1 << 9)
+#define MM_I386_DPTE_SWAPPED      (1 << 10)
+#define MM_I386_DPTE_ISPOOLHDR    (1 << 11) // see src/mm/poolsup.c for an explanation
 
 // Page fault reasons
 #define MM_FAULT_PROTECTION (1 << 0) // 0: Page wasn't marked present; 1: Page protection violation (e.g. writing to a readonly page)
@@ -130,7 +129,8 @@ MMADDRESS_CONVERT;
 
 #define PAGE_SIZE (0x1000)
 
-typedef uint32_t MMPTE, *PMMPTE;
+//typedef uint32_t MMPTE, *PMMPTE;
+typedef uint32_t MMPTE_HW, *PMMPTE_HW;
 
 // bits 0.11   - Offset within the page
 // bits 12..21 - Index within the PML1

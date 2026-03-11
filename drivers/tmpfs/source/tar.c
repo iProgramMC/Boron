@@ -69,7 +69,7 @@ BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
 	uint8_t* ModuleAddress = MmMapIoSpace(
 		(uintptr_t)Module->Address - MI_IDENTMAP_START,
 		Module->Size,
-		MM_PTE_READWRITE,
+		MM_PROT_READ | MM_PROT_WRITE,
 		POOL_TAG("TarM")
 	);
 	
