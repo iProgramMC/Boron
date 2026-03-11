@@ -14,6 +14,7 @@ Author:
 ***/
 #include "mi.h"
 
+#if 0
 #ifdef IS_32_BIT
 
 // the structure of the pool header PTE if this is set is as follows:
@@ -84,6 +85,7 @@ uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
 
 #define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
 
+#endif
 #endif
 
 //
@@ -295,7 +297,7 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
 	ASSERT(!(Handle & 0x7));
 	ASSERT(Handle >= MM_KERNEL_SPACE_BASE);
-	ASSERT(MiReconstructPoolHandleFromPte(MiCalculatePoolHeaderPte(Handle)) == Handle);
+	ASSERT(MmGetPoolHeaderAddressPte(MmBuildPoolHeaderPte(Handle)) == Handle);
 	
 	if (~Entry->Flags & MI_POOL_ENTRY_ALLOCATED)
 	{
@@ -321,8 +323,8 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	
 	PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
 	ASSERT(PtePtr);
-	ASSERT(*PtePtr == MiCalculatePoolHeaderPte(Handle));
-	*PtePtr = 0;
+	ASSERT(MmIsEqualPte(*PtePtr, MmBuildPoolHeaderPte(Handle)));
+	*PtePtr = MmBuildZeroPte();
 	
 	MmUnlockKernelSpace();
 	
@@ -362,11 +364,11 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 		return (MIPOOL_SPACE_HANDLE) NULL;
 	}
 	
-	ASSERT(*PtePtr == 0);
-	ASSERT((Handle & MM_PTE_PRESENT) == 0);
+	ASSERT(MmIsEqualPte(*PtePtr, MmBuildZeroPte()));
+	ASSERT((Handle & 3) == 0);
 	
-	MMPTE Pte = MiCalculatePoolHeaderPte(Handle);
-	ASSERT(MiReconstructPoolHandleFromPte(Pte) == Handle);
+	MMPTE Pte = MmBuildPoolHeaderPte(Handle);
+	ASSERT(MmGetPoolHeaderAddressPte(Pte) == Handle);
 	
 	*PtePtr = Pte;
 
@@ -445,12 +447,13 @@ MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* AddressV)
 	
 	// N.B.  This kind of relies on the notion that the address doesn't have
 	// the valid bit set.
-	uintptr_t PAddress = *PtePtr;
-	if (~PAddress & MM_PTE_ISPOOLHDR) {
-		KeCrash("Trying to access pool space handle from address %p, but its PTE says %p", AddressV, PAddress);
+	MMPTE Pte = *PtePtr;
+	if (!MmIsPoolHeaderPte(Pte)) {
+		KeCrash("Trying to access pool space handle from address %p, but its PTE says %p", AddressV, Pte.PteHardware);
 	}
-	ASSERT(PAddress & MM_PTE_ISPOOLHDR);
-	PAddress = MiReconstructPoolHandleFromPte(PAddress);
+	ASSERT(MmIsPoolHeaderPte(Pte));
+	
+	uintptr_t PAddress = MmGetPoolHeaderAddressPte(Pte);
 	MIPOOL_SPACE_HANDLE Handle = PAddress;
 	MmUnlockKernelSpace();
 	return Handle;

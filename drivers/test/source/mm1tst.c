@@ -3,7 +3,7 @@
 	Copyright (C) 2024 iProgramInCpp
 
 Module name:
-	ccbtst.c
+	mm1tst.c
 	
 Abstract:
 	This module implements the MM1 test for the test driver.
@@ -57,7 +57,7 @@ void PerformDemandPageTest()
 	
 	PMMPTE Pte = MmGetPteLocationCheck(Va, true);
 	ASSERT(Pte);
-	*Pte = MM_DPTE_COMMITTED | MM_PTE_READWRITE;
+	*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 	
 	MmUnlockKernelSpace();
 	
@@ -94,8 +94,8 @@ void PerformCopyOnWriteTest()
 	// Now map them in.
 	MmLockKernelSpaceExclusive();
 	
-	bool Res1 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va1, MM_PTE_ISFROMPMM | MM_PTE_COW);
-	bool Res2 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va2, MM_PTE_ISFROMPMM | MM_PTE_COW);
+	bool Res1 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va1, MM_MISC_IS_FROM_PMM);
+	bool Res2 = MiMapPhysicalPage(MmPFNToPhysPage(Pfn), Va2, MM_MISC_IS_FROM_PMM);
 	ASSERT(Res1 && Res2);
 	
 	MmUnlockKernelSpace();

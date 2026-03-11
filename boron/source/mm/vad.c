@@ -447,6 +447,7 @@ void MiCleanUpVad(PMMVAD Vad)
 {
 	// Zero out all of the PTEs.
 	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	uintptr_t CurrentVa = Vad->Node.StartVa;
 	PMMPTE Pte = MmGetPteLocation(CurrentVa);
@@ -466,9 +467,9 @@ void MiCleanUpVad(PMMVAD Vad)
 		}
 		
 		// Assume that the page is NOT present.
-		ASSERT(~*Pte & MM_PTE_PRESENT);
+		ASSERT(!MmIsPresentPte(*Pte));
 		
-		*Pte = 0;
+		*Pte = ZeroPte;
 		Pte++;
 		CurrentVa += PAGE_SIZE;
 	}

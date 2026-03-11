@@ -35,7 +35,7 @@ void PerformMdlTest()
 	if (!MiMapAnonPages(
 		FixedAddr,
 		FixedSize / PAGE_SIZE,
-		MM_PTE_READWRITE,
+		MM_PROT_READ | MM_PROT_WRITE,
 		false
 		))
 		KeCrash("Mdl test: Cannot map anon pages!");

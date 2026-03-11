@@ -62,12 +62,12 @@ static BSTATUS MmpChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
 			}
 			
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MmIsPresentPte(Pte))
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(Pte & MM_PTE_ISFROMPMM);
+				ASSERT(MmIsFromPmmPte(Pte));
 				
-				MMPFN Pfn = MM_PTE_PFN(Pte);
+				MMPFN Pfn = MmGetPfnPte(Pte);
 				
 				uint64_t SectionOffset = (Vad->SectionOffset + i * PAGE_SIZE) / PAGE_SIZE;
 				Status = MiAssignEntrySection(Section, SectionOffset, Pfn);
@@ -176,9 +176,9 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 		if (!Vad->Flags.Private)
 			continue;
 		
-		MMPTE CommittedButNotFaultedInPte = 0;
+		MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
 		if (!Vad->Flags.Committed)
-			CommittedButNotFaultedInPte = MM_DPTE_COMMITTED;
+			CommittedButNotFaultedInPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 		
 		// Now go through each page and put all of the allocated PFNs inside.
 		for (size_t i = 0; WritePTEs && i < Vad->Node.Size; i++)
@@ -202,12 +202,12 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 			}
 			
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MmIsPresentPte(Pte))
 			{
 				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(Pte & MM_PTE_ISFROMPMM);
+				ASSERT(MmIsFromPmmPte(Pte));
 				
-				MMPFN Pfn = MM_PTE_PFN(Pte);
+				MMPFN Pfn = MmGetPfnPte(Pte);
 				MmFreePhysicalPage(Pfn);
 				
 				*PtePtr = CommittedButNotFaultedInPte;
@@ -253,6 +253,11 @@ static BSTATUS MmpCloneAddressNodes(PRBTREE DestTree, PRBTREE SrcTree, size_t It
 
 static BSTATUS MmpReplicateCommitPtesIfNeeded(PEPROCESS DestinationProcess, PMMVAD_LIST VadList)
 {
+	MMPTE PteCommitted, PteDecommitted, PteZero;
+	PteCommitted = MmBuildAbsentPte(MM_PAGE_COMMITTED);
+	PteDecommitted = MmBuildAbsentPte(MM_PAGE_DECOMMITTED);
+	PteZero = MmBuildZeroPte();
+	
 	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
 		Entry != NULL;
 		Entry = GetNextEntryRbTree(Entry))
@@ -273,23 +278,23 @@ static BSTATUS MmpReplicateCommitPtesIfNeeded(PEPROCESS DestinationProcess, PMMV
 				continue;
 			}
 			
-			MMPTE DestPte = 0;
+			MMPTE DestPte = MmBuildZeroPte();
 			MMPTE Pte = *PtePtr;
-			if (Pte & MM_PTE_PRESENT)
+			if (MmIsPresentPte(Pte))
 			{
-				DestPte = MM_DPTE_COMMITTED;
+				DestPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 			}
 			else
 			{
-				if (Pte & MM_DPTE_COMMITTED)
-					DestPte = MM_DPTE_COMMITTED;
-				else if (Pte & MM_DPTE_DECOMMITTED)
-					DestPte = MM_DPTE_DECOMMITTED;
+				if (MmIsCommittedPte(Pte))
+					DestPte = PteCommitted;
+				else if (MmIsDecommittedPte(Pte))
+					DestPte = PteDecommitted;
 			}
 			
-			if (Pte &&
-			    ((MustFillInCommittedPtes && DestPte == MM_DPTE_COMMITTED) ||
-				 (MustFillInDecommittedPtes && DestPte == MM_DPTE_DECOMMITTED)))
+			if (!MmIsEqualPte(Pte, PteZero) &&
+			    ((MustFillInCommittedPtes && MmIsEqualPte(DestPte, PteCommitted)) ||
+				 (MustFillInDecommittedPtes && MmIsEqualPte(DestPte, PteDecommitted))))
 			{
 				// This is really, *really*, inefficient.  We could do this in a different way,
 				// or disable this entirely and just force every VAD to be committed.

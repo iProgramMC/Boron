@@ -20,6 +20,7 @@ extern char KiTextInitEnd[];
 void MiReclaimInitText()
 {
 	int Reclaimed = 0;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	MmLockKernelSpaceExclusive();
 	for (uintptr_t i = (uintptr_t) KiTextInitStart; i != (uintptr_t) KiTextInitEnd; i += PAGE_SIZE)
@@ -28,14 +29,14 @@ void MiReclaimInitText()
 		ASSERT(PtePtr);
 		
 		MMPTE Pte = *PtePtr;
-		ASSERT(Pte);
+		ASSERT(!MmIsEqualPte(Pte, ZeroPte));
 		
 		// Clear the PTE.  A TLB shootdown is normally not necessary because
 		// the memory region will never be read from again. However, in debug
 		// mode, a TLB shootdown will be performed anyway.
-		*PtePtr = 0;
+		*PtePtr = ZeroPte;
 		
-		MMPFN Pfn = MM_PTE_PFN(Pte);
+		MMPFN Pfn = MmGetPfnPte(Pte);
 		MmFreePhysicalPage(Pfn);
 		Reclaimed++;
 	}

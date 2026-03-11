@@ -47,7 +47,7 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 		if (!MiMapAnonPages(
 			(uintptr_t) OutputAddress,
 			PageCount,
-			MM_PTE_READWRITE | MM_PTE_GLOBAL,
+			MM_PROT_READ | MM_PROT_WRITE | MM_MISC_GLOBAL,
 			NonPaged))
 		{
 			MmUnlockKernelSpace();

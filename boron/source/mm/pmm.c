@@ -134,7 +134,8 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 		MMADDRESS_CONVERT Convert;
 		Convert.Long = Address;
 		
-		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | (PhysAddr + i);
+		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] =
+			MmBuildPfn(MmPhysPageToPFN(PhysAddr + i), MM_PROT_READ | MM_PROT_WRITE);
 		KeInvalidatePage((void*)Address);
 	}
 	
@@ -244,29 +245,29 @@ uintptr_t MiAllocateMemoryFromMemMap(size_t SizeInPages)
 
 typedef struct
 {
-	uint64_t entries[512];
+	MMPTE entries[512];
 }
-PageMapLevel;
+PAGE_MAP_LEVEL, *PPAGE_MAP_LEVEL;
 
-#define PTE_ADDRESS(pte) MmPFNToPhysPage(MM_PTE_PFN(pte))
+#define PTE_ADDRESS(pte) MmPFNToPhysPage(MmGetPfnPte(pte))
 
 INIT
 static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address)
 {
 #ifdef TARGET_AMD64
 	// Maps a new page at an address, if needed.
-	PageMapLevel *pPML[4];
-	pPML[3] = (PageMapLevel*) MmGetHHDMOffsetAddr(pageTable);
+	PAGE_MAP_LEVEL *pPML[4];
+	pPML[3] = (PPAGE_MAP_LEVEL) MmGetHHDMOffsetAddr(pageTable);
 	
 	for (int i = 3; i >= 0; i--)
 	{
 		int index = (address >> (12 + 9 * i)) & 0x1FF;
-		if (pPML[i]->entries[index] & MM_PTE_PRESENT)
+		if (MmIsPresentPte(pPML[i]->entries[index]))
 		{
 			if (i == 0)
 				return true; // didn't allocate anything
 			
-			pPML[i - 1] = (PageMapLevel*) MmGetHHDMOffsetAddr(PTE_ADDRESS(pPML[i]->entries[index]));
+			pPML[i - 1] = (PPAGE_MAP_LEVEL) MmGetHHDMOffsetAddr(PTE_ADDRESS(pPML[i]->entries[index]));
 		}
 		else
 		{
@@ -280,14 +281,14 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 			
 			memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
 			
-			uint64_t Flags = MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
+			uint64_t Flags = MM_PROT_READ | MM_PROT_WRITE;
 			
 			if (i != 0)
-				pPML[i - 1] = (PageMapLevel*) MmGetHHDMOffsetAddr(Addr);
+				pPML[i - 1] = (PPAGE_MAP_LEVEL) MmGetHHDMOffsetAddr(Addr);
 			else
-				Flags |= MM_PTE_GLOBAL;
+				Flags |= MM_MISC_GLOBAL;
 			
-			pPML[i]->entries[index] = Addr | Flags;
+			pPML[i]->entries[index] = MmBuildPte(MmPhysPageToPFN(Addr), Flags);
 		}
 	}
 	
@@ -578,12 +579,12 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 				KeCrash("MmRegisterMMIOAsMemory: could not ensure PTE location %p exists", currPage);
 			
 			PMMPTE Pte = MmGetPteLocation(currPage);
-			if (!(*Pte & MM_PTE_PRESENT))
+			if (!MmIsPresentPte(*Pte))
 			{
 				// allocate it
 				MMPFN PfnAlloc = MmAllocatePhysicalPage();
 				
-				*Pte = ((uintptr_t)PfnAlloc * PAGE_SIZE) | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC | MM_PTE_ISFROMPMM;
+				*Pte = MmBuildPte(PfnAlloc, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 				
 				KeInvalidatePage((void*) currPage);
 			}
