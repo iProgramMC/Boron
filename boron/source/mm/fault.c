@@ -56,18 +56,22 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, uintptr_t PageBits)
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn)
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection)
 {
-	uintptr_t PageBits = MM_PROT_READ;
+	uintptr_t PageBits = MM_PROT_READ | MM_MISC_IS_FROM_PMM;
 	
-	if (Va >= MM_KERNEL_SPACE_BASE)
+	// This function is used for MiNormalFault, not MiWriteFault, so don't allow
+	// write permissions to be given out here
+	Protection &= ~MM_PROT_WRITE;
+	
+	if (Va < MM_KERNEL_SPACE_BASE)
 		PageBits |= MM_PROT_USER;
 	
 	PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
 	if (!PtePtr)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	*PtePtr = MmBuildPte(Pfn, PageBits);
+	*PtePtr = MmBuildPte(Pfn, PageBits | MmGetPteBitsFromProtection(Protection));
 	return STATUS_SUCCESS;
 }
 
@@ -76,7 +80,8 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	uintptr_t VaBase,
 	uint64_t MappedOffset,
 	void* MappedObject,
-	KIPL SpaceUnlockIpl
+	KIPL SpaceUnlockIpl,
+	int Protection
 )
 {
 	// NOTE: IPL is raised to APC level and the relevant address
@@ -128,7 +133,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	ASSERT(Pfn != PFN_INVALID);
 	
 	PFDbgPrint("%s: For VA %p, calling MmpAssignPfnToAddress(%d)", __func__, Va, Pfn);
-	Status = MmpAssignPfnToAddress(Va, Pfn);
+	Status = MmpAssignPfnToAddress(Va, Pfn, Protection);
 	if (FAILED(Status))
 	{
 		MmFreePhysicalPage(Pfn);
@@ -246,12 +251,20 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		void* Object = ObReferenceObjectByPointer(Vad->MappedObject);
 		uintptr_t VaBase = Vad->Node.StartVa;
 		uint64_t VadMappedOffset = Vad->SectionOffset;
+		int Protection = Vad->Flags.Protection;
 		
 		// (Access to the VAD is no longer required now)
 		MmUnlockVadList(VadList);
 		
 		// There is.  Handle this page fault separately.
-		return MmpHandleFaultCommittedMappedPage(Va, VaBase, VadMappedOffset, Object, SpaceUnlockIpl);
+		return MmpHandleFaultCommittedMappedPage(
+			Va,
+			VaBase,
+			VadMappedOffset,
+			Object,
+			SpaceUnlockIpl,
+			Protection
+		);
 	}
 	
 	// Now the PTE is here and we can commit it.
@@ -313,7 +326,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		{
 			// Is in a pool area, make the existing PTE read-write
 			PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
-			*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE);
+			*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 			return STATUS_SUCCESS;
 		}
 		
@@ -371,13 +384,13 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		
 		PFDbgPrint("%s: For VA %p, using PFN %d.", __func__, Va, NewPfn);
 		
-		*PtePtr = MmBuildPte(NewPfn, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE);
+		*PtePtr = MmBuildPte(NewPfn, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 	}
 	else
 	{
 		// Anonymous memory, so just upgrade permissions
 		PFDbgPrint("%s: Upgrading permissions because this is anonymous memory.", __func__);
-		*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE);
+		*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 	}
 	
 	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);

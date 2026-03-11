@@ -84,16 +84,21 @@ MMPTE MmSetPageBitsPte(MMPTE Pte, uintptr_t PageBits)
 
 MMPTE MmBuildPte(MMPFN Pfn, uintptr_t PageBits)
 {
-	return MmSetPageBitsPte(MmSetPfnPte(MmBuildZeroPte(), Pfn), PageBits);
+	MMPTE Pte = MmSetPageBitsPte(MmSetPfnPte(MmBuildZeroPte(), Pfn), PageBits);
+	Pte.PteHardware |= MM_AMD64_PTE_PRESENT;
+	
+	//if (~PageBits & MM_MISC_IS_FROM_PMM) {
+	//	DbgPrint("MmBuildPte warning: page potentially declared incorrectly as not from PMM. RA: %p", CallerAddress());
+	//}
+	//DbgPrint("MmBuildPte(%d, 0x%zx) -> %p. RA: %p", Pfn, PageBits, Pte.PteHardware, CallerAddress());	
+	
+	return Pte;
 }
 
 MMPTE MmBuildWasPresentPte(MMPTE OldPte)
 {
-	MMPFN Pfn = MmGetPfnPte(OldPte);
-	MMPTE_HW PteHw;
-	PteHw = (Pfn << 12);
-	PteHw |= MM_AMD64_DPTE_WASPRESENT;
-	OldPte.PteHardware = PteHw;
+	OldPte.PteHardware &= 0x8000FFFFFFFFFFFF;
+	OldPte.PteHardware |= MM_AMD64_DPTE_WASPRESENT;
 	return OldPte;
 }
 

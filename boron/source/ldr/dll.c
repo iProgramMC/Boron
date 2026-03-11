@@ -100,6 +100,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		                       Permissions))
 			KeCrashBeforeSMPInit("Can't map in program header to virtual address %p!", VirtAddr);
 		
+		KeInvalidatePage((void*) VirtAddr);
 		VirtAddr += PAGE_SIZE;
 	}
 	

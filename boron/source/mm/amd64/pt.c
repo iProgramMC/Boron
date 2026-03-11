@@ -157,7 +157,6 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 	MMPTE  PtesOriginals[5];
 	PMMPTE PtesModified [5];
 	
-	// TODO: do we *want* to do this??
 	uintptr_t SupervisorBit;
 	if (Address >= MM_KERNEL_SPACE_BASE)
 		SupervisorBit = 0;
@@ -203,7 +202,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			
 			memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn)), 0, PAGE_SIZE);
 			
-			*EntryPointer = Entry = MmBuildPte(pfn, MM_PROT_READ | MM_PROT_WRITE | SupervisorBit);
+			*EntryPointer = Entry = MmBuildPte(pfn, MM_PROT_READ | MM_PROT_WRITE | MM_PROT_EXEC | SupervisorBit);
 		}
 		
 		if (pml > 1 && MmIsUnsupportedHigherLevelPte(Entry))
