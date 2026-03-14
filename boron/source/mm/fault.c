@@ -179,13 +179,13 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
 		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
 		
-	#ifdef TARGET_I386
+	#ifdef MI_USE_TWO_POOLS
 		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
 		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
 	#endif
 		
 		if ((PoolStart <= Va && Va < PoolEnd)
-		#ifdef TARGET_I386
+		#ifdef MI_USE_TWO_POOLS
 			|| (Pool2Start <= Va && Va < Pool2End)
 		#endif
 			)
@@ -313,13 +313,13 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		uintptr_t PoolStart = MiGetTopOfPoolManagedArea();
 		uintptr_t PoolEnd = PoolStart + (1ULL << MI_POOL_LOG2_SIZE);
 		
-	#ifdef TARGET_I386
+	#ifdef MI_USE_TWO_POOLS
 		uintptr_t Pool2Start = MiGetTopOfSecondPoolManagedArea();
 		uintptr_t Pool2End = PoolStart + (1ULL << MI_POOL_LOG2_SIZE_2ND);
 	#endif
 		
 		if ((PoolStart <= Va && Va < PoolEnd)
-		#ifdef TARGET_I386
+		#ifdef MI_USE_TWO_POOLS
 			|| (Pool2Start <= Va && Va < Pool2End)
 		#endif
 			)

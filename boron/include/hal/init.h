@@ -44,6 +44,13 @@ typedef void(*PFHAL_PIC_REGISTER_INTERRUPT)(uint8_t Vector, KIPL Ipl);
 typedef void(*PFHAL_PIC_DEREGISTER_INTERRUPT)(uint8_t Vector, KIPL Ipl);
 #endif
 
+#ifdef TARGET_ARM
+typedef int(*PFHAL_GET_MAXIMUM_INTERRUPT_COUNT)(void);
+typedef void(*PFHAL_REGISTER_INTERRUPT_HANDLER)(int, void(*)());
+typedef PKREGISTERS(*PFHAL_ON_INTERRUPT_REQUEST)(PKREGISTERS);
+typedef PKREGISTERS(*PFHAL_ON_FAST_INTERRUPT_REQUEST)(PKREGISTERS);
+#endif
+
 #if defined TARGET_AMD64 || defined TARGET_I386
 #include "pci.h"
 #endif
@@ -86,6 +93,12 @@ typedef struct
 	PFHAL_PCI_READ_BAR PciReadBar;
 	PFHAL_PCI_READ_BAR_ADDRESS PciReadBarAddress;
 	PFHAL_PCI_READ_BAR_IO_ADDRESS PciReadBarIoAddress;
+#endif
+#ifdef TARGET_ARM
+	PFHAL_GET_MAXIMUM_INTERRUPT_COUNT GetMaximumInterruptCount;
+	PFHAL_REGISTER_INTERRUPT_HANDLER RegisterInterruptHandler;
+	PFHAL_ON_INTERRUPT_REQUEST OnInterruptRequest;
+	PFHAL_ON_FAST_INTERRUPT_REQUEST OnFastInterruptRequest;
 #endif
 }
 HAL_VFTABLE, *PHAL_VFTABLE;

@@ -142,3 +142,9 @@ Rollback:
 	MmFreePoolBig(Space);
 	return NULL;
 }
+
+void* MmAllocateKernelStack()
+{
+	return MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, POOL_TAG("ThSt"));
+}
+

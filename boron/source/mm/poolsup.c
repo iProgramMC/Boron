@@ -26,7 +26,7 @@ Author:
 //
 // - Bit 0 is cleared because MM_PTE_PRESENT conflicts
 //
-// - Bit 11 is set because that's MM_PTE_ISPOOLHDR
+// - Bit 11 is set because that's MM_DPTE_ISPOOLHDR
 
 typedef union
 {
@@ -47,7 +47,7 @@ MMPTE_POOLHEADER;
 
 static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
 static_assert(MM_DPTE_COMMITTED == (1 << 8));
-static_assert(MM_PTE_ISPOOLHDR == (1 << 11));
+static_assert(MM_DPTE_ISPOOLHDR == (1 << 11));
 
 MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
 {
@@ -79,11 +79,64 @@ uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
 		PteHeader.B12to31 << 12;
 }
 
+#elif defined TARGET_ARM
+
+// the structure of the pool header PTE if this is set is as follows:
+//
+// Address[30:3] 0 1 0 0
+//
+// - bits 0 and 1 are cleared because ARM uses the first 2 bits as the PTE's "type"
+// - bit 2 is set because that's MM_DPTE_ISPOOLHDR
+// - bit 3 is cleared because that's MM_DPTE_COMMITTED and it shouldn't conflict
+typedef union
+{
+	MMPTE Pte;
+	
+	struct
+	{
+		uintptr_t Present   : 2; // MUST be zero
+		uintptr_t IsPoolHdr : 1; // MUST be ONE
+		uintptr_t Committed : 1; // MUST be zero
+		uintptr_t B3to30    : 28;
+	}
+	PACKED;
+}
+MMPTE_POOLHEADER;
+
+static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
+static_assert(MM_DPTE_ISPOOLHDR == (1 << 2));
+static_assert(MM_DPTE_COMMITTED == (1 << 3));
+
+MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
+{
+	ASSERT(!(Handle & 0x7));
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = 0;
+	
+	PteHeader.B3to30 = Handle >> 3;
+	PteHeader.IsPoolHdr = true;
+
+	return PteHeader.Pte;
+}
+
+FORCE_INLINE
+uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
+{
+	MMPTE_POOLHEADER PteHeader;
+	PteHeader.Pte = Pte;
+	
+	ASSERT(!PteHeader.Present);
+	ASSERT(!PteHeader.Committed);
+	ASSERT(PteHeader.IsPoolHdr);
+	
+	return (PteHeader.B3to30 << 3) | 0x80000000;
+}
+
 #else
 
-#define MiCalculatePoolHeaderPte(Handle) (((uintptr_t)(Handle) - MM_KERNEL_SPACE_BASE) | MM_PTE_ISPOOLHDR)
+#define MiCalculatePoolHeaderPte(Handle) (((uintptr_t)(Handle) - MM_KERNEL_SPACE_BASE) | MM_DPTE_ISPOOLHDR)
 
-#define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_PTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
+#define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_DPTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
 
 #endif
 #endif
@@ -106,7 +159,7 @@ static LIST_ENTRY MmpPoolList;
 
 #define MI_EMPTY_TAG MI_TAG("    ")
 
-#ifdef IS_32_BIT
+#ifdef TARGET_I386
 
 void MiInitializeRootPageTable(int Idx)
 {
@@ -118,6 +171,27 @@ void MiInitializeRootPageTable(int Idx)
 	
 	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 }
+
+#elif defined TARGET_ARM
+
+#define L1PTE_FLAGS_CPT 0b111010000001101
+
+void MiInitializeRootPageTable(int Idx)
+{
+	PMMPTE Pte = (PMMPTE) MI_PML1_LOCATION + Idx;
+	MMPFN Pfn = MmAllocatePhysicalPage();
+	
+	if (Pfn == PFN_INVALID)
+		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
+	
+	for (int i = 0; i < 4; i++) {
+		Pte[i] = ((Pfn << 12) + i) | L1PTE_FLAGS_CPT;
+	}
+}
+
+#endif
+
+#ifdef IS_32_BIT
 
 void MiInitializePoolPageTables()
 {
@@ -149,7 +223,7 @@ void MiInitPool()
 	Entry->Address = MiGetTopOfPoolManagedArea();
 	InsertTailList(&MmpPoolList, &Entry->ListEntry);
 
-#ifdef TARGET_I386
+#ifdef MI_USE_TWO_POOLS
 
 	// TODO: Will other 32-bit platforms look similar?
 	Entry = MiCreatePoolEntry();
