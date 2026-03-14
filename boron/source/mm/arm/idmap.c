@@ -41,7 +41,8 @@ void MiInitializeBaseIdentityMapping()
 		KiRootPageTable[j] = Address | L1PTE_FLAGS_SEC;
 	}
 	
-	for (uintptr_t i = 0; i < MI_POOL_HEADERS_SIZE; i += 1024 * 4096)
+	// TODO: is this right?
+	for (uintptr_t i = 0; i < MI_POOL_HEADERS_SIZE; i += 1024 * 1024)
 	{
 		uintptr_t Address = MI_POOL_HEADERS_START + i;
 		KiRootPageTable[Address >> 20] = ((uintptr_t) &KiPoolHeadersPageTables[i / PAGE_SIZE]) | MM_ARM_PTEL1_COARSE_PAGE_TABLE;

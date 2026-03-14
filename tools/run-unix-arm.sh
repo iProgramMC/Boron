@@ -1,4 +1,7 @@
 #!/bin/sh
+
+# NOTE: this is outdated. DO NOT USE THIS!
+
 qemu-system-arm \
     -no-reboot \
     -no-shutdown \

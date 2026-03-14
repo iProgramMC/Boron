@@ -10,7 +10,7 @@ PHDRS {
 SECTIONS {
 	/* change this for other platforms?! or just make the bootloader do this instead
 	   of the kernel? TODO */
-    . = 0x00000000;
+	. = 0x00100000;
 	KiKernelStart = 0xC0000000 + .;
 	
 	.iplbss ALIGN (16K) : AT (ADDR(.iplbss)) {

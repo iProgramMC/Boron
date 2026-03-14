@@ -45,10 +45,14 @@ KiExceptionHandlerTable:
 	b KiFiqHandler
 
 KiBeforeSystemStartup:
+	/* store the LPB pointer from r0 */
+	ldr r1, =(KiBootloaderLpb - 0xC0000000)
+	str r0, [r1, #0x0000]
+
 	/* set up the root page table */
 	ldr r2, =L1PTE_FLAGS_SEC
 	
-	/* map first 2MB with identity */
+	/* map first 4MB with identity */
 	ldr r0, =KiRootPageTable
 	ldr r1, =0x000000
 	orr r1, r1, r2
@@ -56,8 +60,14 @@ KiBeforeSystemStartup:
 	ldr r1, =0x100000
 	orr r1, r1, r2
 	str r1, [r0, #0x0004]
+	ldr r1, =0x200000
+	orr r1, r1, r2
+	str r1, [r0, #0x0008]
+	ldr r1, =0x300000
+	orr r1, r1, r2
+	str r1, [r0, #0x000C]
 	
-	/* map first 2MB with 0xC0000000 offset */
+	/* map first 4MB with 0xC0000000 offset */
 	ldr r0, =(KiRootPageTable + 0x3000)
 	ldr r1, =0x000000
 	orr r1, r1, r2
@@ -65,12 +75,28 @@ KiBeforeSystemStartup:
 	ldr r1, =0x100000
 	orr r1, r1, r2
 	str r1, [r0, #0x0004]
-	
-	/* map PL011 for debugging purposes */
-	/* raspi1ap machine features it at offset 0x101f1000 */
-	/* we need to map it to 0xD1800000 */
+	ldr r1, =0x200000
+	orr r1, r1, r2
+	str r1, [r0, #0x0008]
+	ldr r1, =0x300000
+	orr r1, r1, r2
+	str r1, [r0, #0x000C]
+
+/*
+	@ map PL011 for debugging purposes
+	@ raspi1ap machine features it at offset 0x101f1000
+	@ we need to map it to 0xD1800000
 	ldr r0, =(KiRootPageTable + 0x3460)
 	ldr r1, =0x10100000
+	orr r1, r1, r2
+	str r1, [r0, #0x0000]
+*/
+
+	/* map UART0 for debugging purposes */
+	/* iPod touch 1G maps it at 0x3CC00000 */
+	/* TODO: DO NOT hardcode this */
+	ldr r0, =(KiRootPageTable + 0x3460)
+	ldr r1, =0x3CC00000
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	
@@ -187,3 +213,7 @@ KiAbortStackBottom:
 KiIrqStackBottom:
 	.space 64
 KiFiqStackBottom:
+
+	.global KiBootloaderLpb
+KiBootloaderLpb:
+	.space 4

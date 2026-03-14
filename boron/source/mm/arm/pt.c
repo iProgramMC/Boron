@@ -22,7 +22,7 @@ Author:
 static MMPTE MmBuildL1Pte(uintptr_t Address)
 {
 	MMPTE Pte;
-	Pte.PteHardware = (Address & 0x3FF) | MM_ARM_PTEL1_COARSE_PAGE_TABLE;
+	MmHardwarePte(Pte) = (Address & ~0x3FF) | MM_ARM_PTEL1_COARSE_PAGE_TABLE;
 	return Pte;
 }
 

@@ -108,7 +108,10 @@ void LdrInit()
 		*/
 	}
 	
-	LdriLoadFile(HalFile);
+	if (HalFile)
+	{
+		LdriLoadFile(HalFile);
+	}
 }
 
 INIT

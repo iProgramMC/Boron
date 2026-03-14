@@ -32,59 +32,12 @@ extern char KiKernelStart[], KiKernelEnd[], KiMemoryStart[];
 
 LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
 
-static LOADER_MEMORY_REGION KiMemoryRegions[2];
-static LOADER_AP KiLoaderAp;
-static void* KiLoaderApDummy;
-
-static LOADER_FRAMEBUFFER KiFramebufferInfo[MAX_FRAMEBUFFER_COUNT];
-
-void MiInitializeBaseIdentityMapping();
+extern PLOADER_PARAMETER_BLOCK KiBootloaderLpb;
 
 INIT
 void KiInitLoaderParameterBlock()
 {
 	MiInitializeBaseIdentityMapping();
 	
-	PLOADER_MEMORY_REGION KernelRegion, FreeRegion;
-	KernelRegion = &KiMemoryRegions[0];
-	FreeRegion = &KiMemoryRegions[1];
-	
-	KernelRegion->Base = MEMORY_START_ADDRESS;
-	KernelRegion->Size = (KiKernelEnd - KiKernelStart + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-	KernelRegion->Type = LOADER_MEM_LOADED_PROGRAM;
-	
-	FreeRegion->Base = MEMORY_START_ADDRESS + KernelRegion->Size;
-	FreeRegion->Size = MEMORY_SIZE - KernelRegion->Size;
-	FreeRegion->Type = LOADER_MEM_FREE;
-	
-	KiLoaderAp.ProcessorId = 1;
-	KiLoaderAp.HardwareId = 1;
-	KiLoaderAp.TrampolineJumpAddress = &KiLoaderApDummy;
-	KiLoaderAp.ExtraArgument = NULL;
-	
-	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
-	
-	Lpb->MemoryRegions = KiMemoryRegions;
-	Lpb->MemoryRegionCount = 2;
-	
-	Lpb->Framebuffers = KiFramebufferInfo;
-	Lpb->FramebufferCount = 0;
-	
-	PLOADER_MODULE KernelModule = &Lpb->ModuleInfo.Kernel;
-	KernelModule->Path = "kernel.elf";
-	KernelModule->String = "";
-	KernelModule->Address = KiKernelStart - 0xC0000000;
-	KernelModule->Size = KiKernelEnd - KiKernelStart;
-	
-	Lpb->ModuleInfo.List = NULL;
-	Lpb->ModuleInfo.Count = 0;
-	
-	Lpb->Multiprocessor.List = &KiLoaderAp;
-	Lpb->Multiprocessor.Count = 1;
-	Lpb->Multiprocessor.BootstrapHardwareId = 1;
-	
-	Lpb->LoaderInfo.Name = "fake testing armv6 loader";
-	Lpb->LoaderInfo.Version = "v1.0";
-	
-	Lpb->CommandLine = KiKernelBootCmdLine;
+	KeLoaderParameterBlock = *KiBootloaderLpb;
 }
