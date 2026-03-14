@@ -167,7 +167,7 @@ void MiInitializeRootPageTable(int Idx)
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	
 	if (Pfn == PFN_INVALID)
-		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
+		KeCrashBeforeSMPInit("MiInitializeRootPageTable ERROR: Out of memory!");
 	
 	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 }
@@ -182,10 +182,13 @@ void MiInitializeRootPageTable(int Idx)
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	
 	if (Pfn == PFN_INVALID)
-		KeCrashBeforeSMPInit("MiCalculatePoolHeaderPte ERROR: Out of memory!");
+		KeCrashBeforeSMPInit("MiInitializeRootPageTable ERROR: Out of memory!");
 	
 	for (int i = 0; i < 4; i++) {
-		Pte[i] = ((Pfn << 12) + i) | L1PTE_FLAGS_CPT;
+		// HACK for now.
+		MMPTE hPte;
+		hPte.PteHardware = ((Pfn << 12) + i) | L1PTE_FLAGS_CPT;
+		Pte[i] = hPte;
 	}
 }
 
