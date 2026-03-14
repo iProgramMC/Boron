@@ -66,6 +66,10 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	Func = __func__;
 	
 	const char *BoronDllPath, *ImageName, *Environment;
+
+	// Yes, really.  We really are going to sleep for 250 milliseconds until the tmpfs finishes
+	// extracting.  I don't know why we're racing against it in the first place, but we are.
+	OSSleep(250);
 	
 	// Determine all the quickly determinable stuff
 	BoronDllPath = PspBoronDllFileName;
@@ -368,6 +372,12 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		KeCrash("%s: Failed to create thread in process: %d (%s)", Func, Status, RtlGetStatusString(Status));
 	
 	OSClose(ThreadHandle);
+	
+	const char* BareImageName = RtlGetFileNameFromPath(ImageName);
+	Status = OSSetImageNameProcess(ProcessHandle, BareImageName, strlen(BareImageName));
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: failed to call OSSetImageNameProcess: %s", RtlGetStatusString(Status));
+	}
 	
 	Status = OSWaitForSingleObject(ProcessHandle, false, TIMEOUT_INFINITE);
 	

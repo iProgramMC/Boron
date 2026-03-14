@@ -72,7 +72,7 @@ BSTATUS FramebufferRead(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, uint64_t Offset,
 	void *TempMapping = MmMapIoSpace(
 		Ext->Address + Offset,
 		Size,
-		MM_PTE_READWRITE | MM_PTE_NOCACHE,
+		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("FBCP")
 	);
 	
@@ -122,7 +122,7 @@ BSTATUS FramebufferWrite(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL 
 	void *TempMapping = MmMapIoSpace(
 		Ext->Address + Offset,
 		Size,
-		MM_PTE_READWRITE | MM_PTE_NOCACHE,
+		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("FBCP")
 	);
 	

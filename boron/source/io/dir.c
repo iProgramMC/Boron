@@ -64,7 +64,7 @@ BSTATUS IoReadDirectoryEntries(
 				PEntry = &DirEntry;
 			
 			Status = ReadDir(&InternalIosb, FileObject, Offset, Version, PEntry);
-			if (IOFAILED(Status))
+			if (FAILED(Status))
 			{
 				Iosb->EntriesRead = i;
 				Iosb->Status = InternalIosb.Status;
@@ -139,13 +139,16 @@ BSTATUS OSReadDirectoryEntries(
 	//
 	// However, it does NOT handle Iosb being a userspace address. So we still gotta do this for it.
 	IO_STATUS_BLOCK Iosb2;
+	memset(&Iosb2, 0, sizeof(Iosb2));
 	Status = IoReadDirectoryEntries(&Iosb2, FileObject, DirectoryEntryCount, DirectoryEntries);
 	
 	ObDereferenceObject(FileObjectV);
 	
-	if (FAILED(Status))
-		return Status;
+	BSTATUS CopyStatus = MmSafeCopy(Iosb, &Iosb2, sizeof(Iosb), KeGetPreviousMode(), true);
 	
-	Status = MmSafeCopy(Iosb, &Iosb2, sizeof(Iosb), KeGetPreviousMode(), true);
+	// If the operation failed, its status code prevails.
+	if (IOSUCCEEDED(Status))
+		Status = CopyStatus;
+	
 	return Status;
 }

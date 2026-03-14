@@ -99,12 +99,12 @@ BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName, bool IsLibrary
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
 	
-	// Try the current directory first.
+	// Try the current directory first. (If the file name is absolute, do not use a root directory.)
 	// TODO: For known system shared libraries, do this last.  Or not at all.
 	Attributes.ObjectName = FileName;
 	Attributes.ObjectNameLength = strlen(FileName);
 	Attributes.OpenFlags = 0;
-	Attributes.RootDirectory = OSGetCurrentDirectory();
+	Attributes.RootDirectory = *FileName == '/' ? HANDLE_NONE : OSGetCurrentDirectory();
 	
 	Status = OSOpenFile(Handle, &Attributes);
 	if (SUCCEEDED(Status))
@@ -113,7 +113,7 @@ BSTATUS OSDLLOpenFileByName(PHANDLE Handle, const char* FileName, bool IsLibrary
 	if (*FileName == '/')
 	{
 		// Absolute path, clearly we can't find it looking through PATH.
-		return STATUS_NAME_NOT_FOUND;
+		return Status;
 	}
 	
 	LdrDbgPrint("OSDLL: OSDLLOpenFileByName cannot open %s from the current directory.  Trying to scan PATH or LIB_PATH.", FileName);

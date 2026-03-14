@@ -24,10 +24,13 @@ extern OSCheckIsTerminalFile
 extern OSCheckIsValidHandle
 extern OSClose
 extern OSCloseAllUninheritableHandles
+extern OSCreateDirectory
 extern OSCreateEvent
+extern OSCreateFile
 extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
+extern OSCreateSymbolicLink
 extern OSCreateTerminal
 extern OSCreateTerminalIoHandles
 extern OSCreateThread
@@ -54,6 +57,7 @@ extern OSOutputDebugString
 extern OSPulseEvent
 extern OSQueryEvent
 extern OSQueryMutex
+extern OSQuerySystemInformation
 extern OSQueryVirtualMemoryInformation
 extern OSReadDirectoryEntries
 extern OSReadFile
@@ -65,6 +69,7 @@ extern OSSetCurrentPeb
 extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetExitCode
+extern OSSetImageNameProcess
 extern OSSetPebProcess
 extern OSSetSuspendedThread
 extern OSSleep
@@ -133,6 +138,11 @@ KiSystemServiceTable:
 	dq OSQueryVirtualMemoryInformation
 	dq OSCloseAllUninheritableHandles
 	dq OSCheckIsValidHandle
+	dq OSCreateFile
+	dq OSCreateDirectory
+	dq OSCreateSymbolicLink
+	dq OSSetImageNameProcess
+	dq OSQuerySystemInformation
 KiSystemServiceTableEnd:
 	nop
 

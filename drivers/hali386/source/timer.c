@@ -17,6 +17,8 @@ Author:
 
 // TODO: Decide on a good tick rate.  For slower systems, increased
 // time slice time would be better.
+//
+// TODO: Fix a bug where the timer sometimes goes backwards?!
 #define TIMER_RELOAD_VALUE 15000
 
 // This value is incremented by TIMER_RELOAD_VALUE on every timer interrupt.

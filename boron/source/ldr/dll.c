@@ -50,11 +50,12 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 	// Calculate the size of the total allocation.
 	size_t SizePages = (Phdr->SizeInMemory + Padding + PAGE_SIZE - 1) / PAGE_SIZE;
 	
-	uintptr_t Permissions = MM_PTE_ISFROMPMM;
-	if (~Phdr->Flags & ELF_PHDR_EXEC)
-		Permissions |= MM_PTE_NOEXEC;
+	uintptr_t Permissions = MM_MISC_IS_FROM_PMM | MM_PROT_READ;
+	if (Phdr->Flags & ELF_PHDR_EXEC)
+		Permissions |= MM_PROT_EXEC;
 	
-	Permissions |= MM_PTE_READWRITE;
+	// TODO: restrain permissions here
+	Permissions |= MM_PROT_WRITE;
 	
 	// Now map it in.
 	uintptr_t VirtAddrBackup = VirtAddr;
@@ -69,21 +70,20 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		
 		// Some entries overlap. Check if there's already a PTE beforehand.
 		PMMPTE Pte = MmGetPteLocationCheck(VirtAddr, false);
-		if (Pte && MM_PTE_ISPRESENT(*Pte))
+		if (Pte && MmIsPresentPte(*Pte))
 		{
-			MMPTE OldPte = *Pte;
+			MMPTE Pte1 = *Pte;
+			uintptr_t OldPageBits = MmGetPageBitsPte(Pte1);
 			
 			// Update the permissions. There shouldn't really be any
 			// execute segments inside of an NX segment, or reverse...
-			uintptr_t PermsWithoutNX = Permissions & ~MM_PTE_NOEXEC;
-			*Pte |= PermsWithoutNX;
+			OldPageBits |= MM_PROT_EXEC;
 			
-			if (~Permissions & MM_PTE_NOEXEC)
-				*Pte &= ~MM_PTE_NOEXEC;
+			*Pte = MmSetPageBitsPte(Pte1, OldPageBits);
 			
 			// If the PTE has changed, invalidate. We aren't ready to take
 			// page faults at this point, even if they'd be solved quickly.
-			if (OldPte != *Pte)
+			if (!MmIsEqualPte(Pte1, *Pte))
 				KeInvalidatePage((void*) VirtAddr);
 			
 			continue;
@@ -100,6 +100,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		                       Permissions))
 			KeCrashBeforeSMPInit("Can't map in program header to virtual address %p!", VirtAddr);
 		
+		KeInvalidatePage((void*) VirtAddr);
 		VirtAddr += PAGE_SIZE;
 	}
 	

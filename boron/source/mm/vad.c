@@ -343,6 +343,18 @@ BSTATUS MmOverrideAddressRange(PEPROCESS Process, uintptr_t StartAddress, size_t
 		SizePages--;
 	}
 	
+	// Ensure that the first and last page are still inaccessible to userspace.
+	if (StartAddress < MM_FIRST_USER_PAGE)
+	{
+		StartAddress += PAGE_SIZE;
+		SizePages -= 1;
+	}
+	
+	if (StartAddress + SizePages * PAGE_SIZE >= MM_LAST_USER_PAGE)
+	{
+		SizePages -= 1;
+	}
+	
 	// Set up the address node with the new range.
 	TempVad1->Node.StartVa = StartAddress;
 	TempVad1->Node.Size = SizePages;
@@ -435,6 +447,7 @@ void MiCleanUpVad(PMMVAD Vad)
 {
 	// Zero out all of the PTEs.
 	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	uintptr_t CurrentVa = Vad->Node.StartVa;
 	PMMPTE Pte = MmGetPteLocation(CurrentVa);
@@ -454,9 +467,9 @@ void MiCleanUpVad(PMMVAD Vad)
 		}
 		
 		// Assume that the page is NOT present.
-		ASSERT(!MM_PTE_ISPRESENT(*Pte));
+		ASSERT(!MmIsPresentPte(*Pte));
 		
-		*Pte = 0;
+		*Pte = ZeroPte;
 		Pte++;
 		CurrentVa += PAGE_SIZE;
 	}

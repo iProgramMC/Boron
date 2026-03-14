@@ -18,10 +18,11 @@ Author:
 
 void MmUnmapPagesMdl(PMDL Mdl)
 {
-	if (!Mdl->MappedStartVA)
+	if (~Mdl->Flags & MDL_FLAG_MAPPED)
 		return;
 	
 	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages);
+	MmFreePoolBig((void*) Mdl->MappedStartVA);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
 
@@ -67,10 +68,10 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 	if (!AddressV)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
-	uintptr_t Permissions = MM_PTE_ISFROMPMM;
+	uintptr_t Permissions = MM_MISC_IS_FROM_PMM | MM_PROT_READ;
 	
 	if (Mdl->Flags & MDL_FLAG_WRITE)
-		Permissions |= MM_PTE_READWRITE;
+		Permissions |= MM_PROT_WRITE;
 	
 	uintptr_t MapAddress = (uintptr_t) AddressV;
 	
@@ -212,19 +213,19 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			{
 				MMPTE Pte = *PtePtr;
 				
-				if (!MM_PTE_ISPRESENT(Pte))
+				if (!MmIsPresentPte(Pte))
 				{
 					// Try to fault on this page.  We don't know what kind of non-present page this is.
 					TryFault = true;
 				}
-				else if (!MM_PTE_CHECKFROMPMM(Pte))
+				else if (!MmIsFromPmmPte(Pte))
 				{
 					// This is MMIO space or the HHDM.  Disallow its capture.
 					FailureReason = STATUS_INVALID_PARAMETER;
 					MmUnlockSpace(OldIpl, Address);
 					break;
 				}
-				else if ((~Pte & MM_PTE_READWRITE) && IsWrite)
+				else if ((~MmGetPageBitsPte(Pte) & MM_PROT_WRITE) && IsWrite)
 				{
 					// This is a read-only page and we are trying to write to it.  
 					TryFault = true;
@@ -256,12 +257,12 @@ BSTATUS MmProbeAndPinPagesMdl(PMDL Mdl, KPROCESSOR_MODE AccessMode, bool IsWrite
 			MMPTE Pte = *PtePtr;
 			
 			// Probe was successful and this is a proper page (writable if IsWrite is true).
-			ASSERT((Pte & MM_PTE_READWRITE) || !IsWrite);
-			ASSERT(Pte & MM_PTE_PRESENT);
-			ASSERT(MM_PTE_CHECKFROMPMM(Pte));
+			ASSERT((MmGetPageBitsPte(Pte) & MM_PROT_WRITE) || !IsWrite);
+			ASSERT(MmIsFromPmmPte(Pte));
+			ASSERT(MmIsPresentPte(Pte));
 			
 			// Fetch the page frame number.
-			int Pfn = MM_PTE_PFN(Pte);
+			int Pfn = MmGetPfnPte(Pte);
 			
 			// Let the PF database know that the page was pinned.
 			//

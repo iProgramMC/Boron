@@ -93,7 +93,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 		
 		// If the PTE is present, there is overlap with an already committed region.
 		// Ditto if the PTE is marked committed.
-		if (*Pte & (MM_PTE_PRESENT | MM_DPTE_COMMITTED))
+		if (MmIsPresentPte(*Pte) || MmIsCommittedPte(*Pte))
 		{
 			DbgPrint("PTE is present or marked committed");
 			Status = STATUS_CONFLICTING_ADDRESSES;
@@ -102,7 +102,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 		
 		// If the VAD is marked committed and the page we're looking at hasn't been
 		// decommitted, there is overlap.
-		if (IsVadCommitted && (~*Pte & MM_DPTE_DECOMMITTED))
+		if (IsVadCommitted && !MmIsDecommittedPte(*Pte))
 		{
 			DbgPrint("VAD is committed but PTE is not decommitted");
 			Status = STATUS_CONFLICTING_ADDRESSES;
@@ -123,7 +123,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	}
 	
 	// The range is safe to commit.
-	MMPTE PteFlags = MmGetPteBitsFromProtection(Protection);
+	//uintptr_t PteFlags = MmGetPteBitsFromProtection(Protection);
 	
 	// TODO: Enforce W^X here if the user doesn't have the relevant permissions
 	
@@ -145,7 +145,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 			}
 		}
 		
-		*Pte = MM_DPTE_COMMITTED | PteFlags;
+		*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 		Pte++;
 		CurrentVa += PAGE_SIZE;
 	}
@@ -187,6 +187,8 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 // this is also referenced by MmTearDownVadList().
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages, bool SetDecommittedPTE)
 {
+	MMPTE ZeroPte = MmBuildZeroPte(), DecommittedPte = MmBuildAbsentPte(MM_PAGE_DECOMMITTED);
+	
 	// Check if the range can be entirely decommitted.
 	if (Vad->Node.StartVa == StartVa && Vad->Node.Size == SizePages)
 	{
@@ -235,30 +237,28 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 			}
 		}
 		
-		if (MM_PTE_ISPRESENT(*Pte))
+		if (MmIsPresentPte(*Pte))
 		{
 			// The PTE is present. If it doesn't come from the PMM, then
 			// it's MMIO and it's not tracked.
-			//
-			// NOTE 2025/12/25: This should never be false. MMIO is registered
-			// with the PMM.
-			ASSERT(MM_PTE_CHECKFROMPMM(*Pte));
-			
-			// Free the physical page.
-			MMPFN Pfn = MM_PTE_PFN(*Pte);
-			MmFreePhysicalPage(Pfn);
+			if (MmIsFromPmmPte(*Pte))
+			{
+				// Free the physical page.
+				MMPFN Pfn = MmGetPfnPte(*Pte);
+				MmFreePhysicalPage(Pfn);
+			}
 		}
-		else if (*Pte != 0)
+		else if (!MmIsEqualPte(*Pte, ZeroPte))
 		{
 			// If the pte is not zero, then it must have been committed. 
 			// Otherwise it's an unknown type which we don't know how to handle.
-			ASSERT((*Pte & MM_DPTE_COMMITTED) || (*Pte == MM_DPTE_DECOMMITTED));
+			ASSERT(MmIsCommittedPte(*Pte) || MmIsDecommittedPte(*Pte));
 		}
 		
 		if (SetDecommittedPTE)
-			*Pte = MM_DPTE_DECOMMITTED;
+			*Pte = DecommittedPte;
 		else
-			*Pte = 0;
+			*Pte = ZeroPte;
 		
 		Pte++;
 		CurrentVa += PAGE_SIZE;

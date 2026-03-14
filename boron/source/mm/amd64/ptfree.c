@@ -40,10 +40,11 @@ PMMPTE MiGetSubPteAddress(PMMPTE PteAddress)
 static bool MmpIsPteListCompletelyEmpty(PMMPTE Pte)
 {
 	bool AllZeroes = true;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	for (size_t PteIndex = 0; PteIndex < PTES_PER_LEVEL; PteIndex++)
 	{
-		if (Pte[PteIndex] != 0)
+		if (!MmIsEqualPte(Pte[PteIndex], ZeroPte))
 		{
 			AllZeroes = false;
 			break;
@@ -64,6 +65,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	bool ShouldUnmapPML4;
 	MMADDRESS_CONVERT Address;
 	PMMPTE Pte;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	ShouldUnmapPML4 = true;
 	Address.Long = StartVa;
@@ -80,14 +82,14 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	     PageNumber += PTES_COVERED_BY_PML4,
 	     ++Pte)
 	{
-		if (!MM_PTE_ISPRESENT(*Pte))
+		if (!MmIsPresentPte(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
 		if (MmpIsPteListCompletelyEmpty(SubPte) && ShouldUnmapPML4)
 		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
+			MmFreePhysicalPage(MmGetPfnPte(*Pte));
+			*Pte = ZeroPte;
 			continue;
 		}
 		
@@ -97,23 +99,25 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 		// Returned true, so this is now ready to free.
 		if (ShouldUnmapPML4)
 		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
+			MmFreePhysicalPage(MmGetPfnPte(*Pte));
+			*Pte = ZeroPte;
 		}
 	}
 }
 
 static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
 {
+	MMPTE ZeroPte = MmBuildZeroPte();
+	
 	if (MapLevel <= 1)
 	{
 		// We're on the last level.
 		for (size_t i = 0; i < PTES_PER_LEVEL; ++i, ++Pte)
 		{
-			if (*Pte)
+			if (MmIsEqualPte(*Pte, ZeroPte))
 			{
 				// The PTE exists, check if it was decommitted though.
-				if (!MM_PTE_ISPRESENT(*Pte) && (*Pte & MM_DPTE_DECOMMITTED))
+				if (MmIsDecommittedPte(*Pte))
 					continue;
 				
 				// This mapping level is busy.
@@ -129,15 +133,15 @@ static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
 	// Walk the PML.
 	for (size_t i = 0; i < PTES_PER_LEVEL; ++i, ++Pte)
 	{
-		if (!MM_PTE_ISPRESENT(*Pte))
+		if (!MmIsPresentPte(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
 		
 		if (MmpIsPteListCompletelyEmpty(SubPte))
 		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
+			MmFreePhysicalPage(MmGetPfnPte(*Pte));
+			*Pte = ZeroPte;
 			continue;
 		}
 		
@@ -148,8 +152,8 @@ static bool MmpFreeUnusedMappingLevelsInCurrentMapPML(PMMPTE Pte, int MapLevel)
 		}
 		
 		// Returned true, so this is now ready to free.
-		MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-		*Pte = 0;
+		MmFreePhysicalPage(MmGetPfnPte(*Pte));
+		*Pte = ZeroPte;
 	}
 	
 	return FreeParent;

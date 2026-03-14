@@ -1,0 +1,5 @@
+TEST(Test1BasicOpenAndClose)
+TEST(Test2ReadExistingFile)
+TEST(Test3CreateFile)
+TEST(Test4ListDirectory)
+TEST(Test5)

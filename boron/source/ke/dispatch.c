@@ -353,15 +353,19 @@ BSTATUS KeWaitForMultipleObjects(
 			KiSetTimer(&Thread->WaitTimer, TimeoutMS, &Thread->WaitDpc);
 		}
 		
-		// Yield at IPL_DPC to prevent DPCs that may unwait this thread from showing up
-		// until after this thread has completely yielded.
-		KiUnlockDispatcher(IPL_DPC);
-		KeYieldCurrentThread();
+		// Yield in order to start waiting on the object(s). However, we must initiate
+		// the yield with the dispatcher lock held, to prevent DPCs and work-stealing
+		// APs from showing up until this thread has been completely scheduled out.
+		//
+		// FIX 04/03/2026 - Do not release the dispatcher lock to yield.
+		// Thanks to https://github.com/monkuous for finding this bug.
+		Thread->QuantumUntil = 0;
+		KiPerformYield();
+		
+		if (KiGetCurrentScheduler()->NextThread)
+			KiSwitchToNextThread();
 		
 		// Fetch the wait status.
-		KIPL UnusedIpl = KiLockDispatcher();
-		(void) UnusedIpl;
-		
 		Status = Thread->WaitStatus;
 		KiUnlockDispatcher(Ipl);
 		

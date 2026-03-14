@@ -15,6 +15,14 @@ OSDLLJumpToEntry:
 	xor %ebp, %ebp
 	jmp *%rsi
 
+	/* Entry point of libboron.so.  RSP is already aligned to 16 but RelocateSelf
+	   requires us to do things a bit differently, seemingly. */
+	.globl  OSDLLEntry
+	.extern RelocateSelf
+	.type   OSDLLEntry, @function
+OSDLLEntry:
+	call    OSDLLRelocateSelf /* note: this function is NORETURN */
+
 #elif defined TARGET_I386
 	.att_syntax
 
@@ -29,6 +37,13 @@ OSDLLJumpToEntry:
 	xor  %ebp, %ebp
 	push %ecx
 	call *%ebx
+
+	/* Entry point of libboron.so. */
+	.globl  OSDLLEntry
+	.extern OSDLLRelocateSelf
+	.type   OSDLLEntry, @function
+OSDLLEntry:
+	jmp     OSDLLRelocateSelf
 
 #elif TARGET_ARM
 

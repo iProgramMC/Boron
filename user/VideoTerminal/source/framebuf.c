@@ -1,9 +1,6 @@
 #include "terminal.h"
-#include "flanterm.h"
-#include "flanterm_backends/fb.h"
-
-#define MARGIN_H 120
-#define MARGIN_V 100
+#include "flanterm/src/flanterm.h"
+#include "flanterm_alt_fb.h"
 
 #define TERM_TITLE_HEIGHT 23
 #define TERM_BACKGROUND_COLOR RGB(85, 85, 85)
@@ -24,15 +21,18 @@ static uint8_t Font[] = {
 PGRAPHICS_CONTEXT GraphicsContext;
 struct flanterm_context* FlantermContext;
 
+int MarginVert = 100;
+int MarginHorz = 120;
+
 void DrawFrame(int Left, int Top, int Right, int Bottom)
 {
 	PGRAPHICS_CONTEXT Ctx = GraphicsContext;
 	
 	// Fill a rectangle around the terminal window.
-	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, 0, Ctx->Width, MARGIN_V);
-	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, Ctx->Height - MARGIN_V, Ctx->Width, MARGIN_V);
-	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, MARGIN_V, MARGIN_H, Ctx->Height - MARGIN_V * 2);
-	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, Right, MARGIN_V, MARGIN_H, Ctx->Height - MARGIN_V * 2);
+	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, 0, Ctx->Width, MarginVert);
+	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, Ctx->Height - MarginVert, Ctx->Width, MarginVert);
+	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, 0, MarginVert, MarginHorz, Ctx->Height - MarginVert * 2);
+	CGFillRectangle(Ctx, TERM_BACKGROUND_COLOR, Right, MarginVert, MarginHorz, Ctx->Height - MarginVert * 2);
 	
 	// Draw the window's borders.
 	CGDrawRectangle(Ctx, TERM_BORDER_COLOR, Left - 1, Top - 1, Right - Left + 2, Bottom - Top + 2);
@@ -63,16 +63,15 @@ BSTATUS SetupTerminal()
 	PGRAPHICS_CONTEXT Ctx = GraphicsContext;
 	int Left, Right, Top, Bottom;
 	
-	Left = MARGIN_H;
-	Right = Ctx->Width - MARGIN_H;
-	
+	Left = MarginHorz;
+	Right = Ctx->Width - MarginHorz;
 	if (Left > Right) {
 		Left = 0;
 		Right = Ctx->Width;
 	}
 	
-	Top = MARGIN_V;
-	Bottom = Ctx->Height - MARGIN_V;
+	Top = MarginVert;
+	Bottom = Ctx->Height - MarginVert;
 	if (Top > Bottom) {
 		Top = 0;
 		Bottom = Ctx->Height;
@@ -95,17 +94,17 @@ BSTATUS SetupTerminal()
 	uint32_t DefaultBgBright = CGConvertColorToNative(SubContext, DEFAULT_BG_BRIGHT);
 	uint32_t DefaultFgBright = CGConvertColorToNative(SubContext, DEFAULT_FG_BRIGHT);
 	
-	FlantermContext = flanterm_fb_init(
+	FlantermContext = flanterm_fb_init_alt(
 		OSAllocate,
 		FreeThunk,
 		(uint32_t*) SubContext->BufferAddress,
 		SubContext->Width,
 		SubContext->Height,
 		SubContext->Pitch,
+		SubContext->Bpp,
 		RMSz, RMSh,
 		GMSz, GMSh,
 		BMSz, BMSh,
-		NULL, // Canvas
 		NULL, NULL, // AnsiColors, AnsiBrightColors
 		&DefaultBg,
 		&DefaultFg,
@@ -113,7 +112,6 @@ BSTATUS SetupTerminal()
 		&DefaultFgBright,
 		Font, // Font
 		8, 16, 0, // FontWidth, FontHeight, FontSpacing
-		1, 1, // FontScaleX, FontScaleY
 		0 // Margin
 	);
 	
@@ -185,6 +183,11 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		return Status;
 	}
 	
+	if (FbInfo.Width < 800)
+		MarginHorz /= 2;
+	if (FbInfo.Height < 600)
+		MarginVert /= 2;
+
 	GraphicsContext = CGCreateContextFromBuffer(
 		FbAddress,
 		(int) FbInfo.Width,

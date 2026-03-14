@@ -238,30 +238,14 @@ BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeFile(PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeFile(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
 {
-	BSTATUS Status;
-	PFILE_OBJECT FileObject;
-	
-	Status = TmpCreateFile(&FileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, Entry->Name);
-	if (FAILED(Status))
-		return Status;
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, FileName);
 }
 
-BSTATUS TmpMakeDir(PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Entry)
+BSTATUS TmpMakeDirectory(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
 {
-	BSTATUS Status;
-	PFILE_OBJECT FileObject;
-	
-	Status = TmpCreateFile(&FileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, Entry->Name);
-	if (FAILED(Status))
-		return Status;
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, FileName);
 }
 
 typedef union
@@ -299,7 +283,7 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 	TMPFS_OFFSET TOffset;
 	TOffset.Offset = Offset;
 	
-	if (Version != Ext->Version)
+	if (Version != Ext->Version || Version == 0 || Offset == 0)
 	{
 		Version = Ext->Version;
 		
@@ -574,7 +558,7 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
+BSTATUS TmpMakeHardLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
 {
 	if (DestFcb->FileType == FILE_TYPE_DIRECTORY)
 		return STATUS_IS_A_DIRECTORY;
@@ -616,8 +600,8 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 	.Write = TmpWrite,
 	.Resize = TmpResize,
 	.MakeFile = TmpMakeFile,
-	.MakeDir = TmpMakeDir,
-	.MakeLink = TmpMakeLink,
+	.MakeDirectory = TmpMakeDirectory,
+	.MakeHardLink = TmpMakeHardLink,
 	.Unlink = TmpUnlink,
 	.RemoveDir = TmpRemoveDir,
 	.ReadDir = TmpReadDir,
@@ -644,6 +628,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 	Ext->InodeNumber = AtAddFetch(NextTmpfsInodeNumber, 1);
 	Ext->PageList = NULL;
 	Ext->PageListCount = 0;
+	Ext->Version = 1;
 	
 	// If InitialLength is set, then InitialAddress must also be set.
 	ASSERT(Ext->InitialLength ? (Ext->InitialAddress != NULL) : true);
@@ -687,6 +672,8 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 		ASSERT(SUCCEEDED(Status));
 		
 		InsertTailList(&ParentExt->ChildrenListHead, &DirEntry->ListEntry);
+		ParentExt->Version++;
+		
 		KeReleaseMutex(&ParentExt->Lock);
 	}
 	

@@ -201,8 +201,11 @@ BSTATUS OSGetMappedFileHandle(
 	
 	if (ObGetObjectType(FileObject) != IoFileType)
 	{
-		// Okay, maybe it is a CoW overlay.
-		
+		DbgPrint("Type mismatch in OSGetMappedFileHandle(%p)!", Address);
+		DbgPrint("\tIoFileType:               %p", IoFileType);
+		DbgPrint("\tMmOverlayObjectType:      %p", MmOverlayObjectType);
+		DbgPrint("\tMmSectionObjectType:      %p", MmSectionObjectType);
+		DbgPrint("\tThe object's actual type: %p", ObGetObjectType(FileObject));
 		Status = STATUS_TYPE_MISMATCH;
 		goto ReturnEarlyUnlockDetach;
 	}

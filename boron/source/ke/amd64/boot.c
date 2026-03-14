@@ -206,7 +206,7 @@ void KiInitLoaderParameterBlock()
 	// Initialize the recursive paging mechanism.
 	HPAGEMAP PageMap = MiGetCurrentPageMap();
 	PMMPTE Pte = MmGetHHDMOffsetAddr(PageMap);
-	Pte[MI_RECURSIVE_PAGING_START] = PageMap | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
+	Pte[MI_RECURSIVE_PAGING_START] = MmBuildPte(MmPhysPageToPFN(PageMap), MM_PROT_READ | MM_PROT_WRITE);
 	
 	// Initialize the memory regions.
 	struct limine_memmap_response* MemMapResponse = KeLimineMemMapRequest.response;

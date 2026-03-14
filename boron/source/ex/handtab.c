@@ -424,8 +424,14 @@ BSTATUS ExCreateHandleTableInherit(void** NewHandleTable, void* HandleTable)
 {
 	PEHANDLE_TABLE Table = HandleTable;
 	ExLockHandleTable(Table);
+
+#ifdef DEBUG
+	int Level = Table->Mutex.Level;
+#else
+	int Level = 0;
+#endif
 	
-	BSTATUS Status = ExCreateHandleTable(Table->InitialSize, Table->GrowBy, Table->Limit, Table->Mutex.Level, NewHandleTable);
+	BSTATUS Status = ExCreateHandleTable(Table->InitialSize, Table->GrowBy, Table->Limit, Level, NewHandleTable);
 	
 	ExUnlockHandleTable(Table);
 	return Status;

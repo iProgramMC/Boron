@@ -14,6 +14,8 @@ Author:
 ***/
 #include "mi.h"
 
+//#define POOLDEBUG
+
 size_t MmGetSizeFromPoolAddress(void* Address)
 {
 	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
@@ -45,7 +47,7 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 		if (!MiMapAnonPages(
 			(uintptr_t) OutputAddress,
 			PageCount,
-			MM_PTE_READWRITE | MM_PTE_GLOBAL,
+			MM_PROT_READ | MM_PROT_WRITE | MM_MISC_GLOBAL,
 			NonPaged))
 		{
 			MmUnlockKernelSpace();
@@ -84,12 +86,19 @@ void MmFreePoolBig(void* Address)
 
 void* MmAllocatePool(int PoolFlags, size_t Size)
 {
-	return MiSlabAllocate(PoolFlags & POOL_FLAG_NON_PAGED, Size);
+	void* Result = MiSlabAllocate(PoolFlags & POOL_FLAG_NON_PAGED, Size);
+#ifdef POOLDEBUG
+	DbgPrint("MmAllocatePool(%d, %5zu) => %p (RA: %p)", PoolFlags, Size, Result, CallerAddress());
+#endif
+	return Result;
 }
 
 void MmFreePool(void* Pointer)
 {
 	MiSlabFree(Pointer);
+#ifdef POOLDEBUG
+	DbgPrint("MmFreePool()             <= %p (RA: %p)", Pointer, CallerAddress());
+#endif
 }
 
 void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t PermissionsAndCaching, int Tag)

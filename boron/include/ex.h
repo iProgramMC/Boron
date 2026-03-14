@@ -25,4 +25,11 @@ Author:
 #include <ex/object.h>
 #include <ex/bootcfg.h>
 
+BSTATUS OSQuerySystemInformation(
+	uint32_t QueryType,
+	void* UserBuffer,
+	size_t UserBufferSize,
+	size_t* SizeOfReturnedDataOut
+);
+
 #endif//BORON_EX_H

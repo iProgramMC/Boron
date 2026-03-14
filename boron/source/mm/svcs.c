@@ -62,6 +62,9 @@ BSTATUS OSAllocateVirtualMemory(
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
 	
+	if (!AllocationType)
+		return STATUS_INVALID_PARAMETER;
+	
 	if (AllocationType & ~(MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN | MEM_SHARED | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
 	
@@ -81,7 +84,7 @@ BSTATUS OSAllocateVirtualMemory(
 	size_t RegionSize = 0;
 	BSTATUS Status;
 	
-	if (AllocationType & MEM_FIXED)
+	if ((AllocationType & MEM_FIXED) || ((AllocationType & MEM_COMMIT) && !(AllocationType & MEM_RESERVE)))
 	{
 		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
 		if (FAILED(Status))

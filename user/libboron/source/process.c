@@ -10,7 +10,18 @@ HIDDEN
 BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 {
 	extern char _DYNAMIC[];
-	return OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
+	BSTATUS Status = OSGetMappedFileHandle(FileHandle, CURRENT_PROCESS_HANDLE, (uintptr_t) _DYNAMIC);
+	
+	if (Status == STATUS_TYPE_MISMATCH)
+	{
+		DbgPrint(
+			"OSDLL: ERROR: Libboron.so SHOULD NOT be loaded through anonymous sections! Please use "
+			"the OS facilities for memory mapped files instead. If you called OSReplaceProcess, it "
+			"certainly won't work, as a result of wrongful loading of libboron.so."
+		);
+	}
+	
+	return Status;
 }
 
 static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine, const char* Environment)
@@ -309,6 +320,12 @@ BSTATUS OSCreateProcess(
 	OSFree(AllocatedCmdLine);
 	Peb = NULL;
 	AllocatedCmdLine = NULL;
+	
+	// Assign a "friendly name" for the process.
+	const char* ExecutableName = RtlGetFileNameFromPath(ImageName);
+	Status = OSSetImageNameProcess(ProcessHandle, ExecutableName, strlen(ExecutableName));
+	if (FAILED(Status))
+		goto Fail;
 	
 	LdrDbgPrint("OSDLL: Entry Point: %p", EntryPoint);
 	Status = OSDLLCreateMainThread(

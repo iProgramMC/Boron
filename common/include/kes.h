@@ -29,3 +29,20 @@ enum
 };
 
 typedef NO_RETURN void(*PKTHREAD_START)(void* Context);
+
+// WARNING: keep this in sync with ke/thread.h!
+enum
+{
+	THREAD_STATUS_UNINITIALIZED,
+	THREAD_STATUS_INITIALIZED,
+	THREAD_STATUS_READY,
+	THREAD_STATUS_RUNNING,
+	THREAD_STATUS_WAITING,
+	THREAD_STATUS_TERMINATED
+};
+
+#define VER_MAJOR(vn) ((vn) >> 24)
+#define VER_MINOR(vn) (((vn) >> 16) & 0xFF)
+#define VER_BUILD(vn) (vn & 0xFFFF)
+
+#define VER(maj, min, pat) ((((maj) & 0xFF) << 24) | (((min) & 0xFF) << 16) | ((pat) & 0xFFFF))

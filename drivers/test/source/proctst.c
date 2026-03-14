@@ -31,7 +31,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	
 	// TODO: locking?
 	
-	MiMapAnonPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PTE_READWRITE, true);
+	MiMapAnonPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, MM_PROT_READ | MM_PROT_WRITE, true);
 	
 	// Probe the memory.
 	int Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);

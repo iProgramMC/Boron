@@ -1,17 +1,17 @@
 # Boron application root makefile
 
-# TODO: Remove the ".j" suffix (stands for job).  But it conflicts with the dir names.
-
 # Add your libraries applications to this list.
 # They will be built in this order - make sure to put libraries and
-# applications their dependencies!
+# applications *after* what they depend on!
 APPS := \
 	libboron \
 	libflanterm \
 	libCoreGraphics \
 	init \
+	test \
 	VideoTerminal \
-	test
+	TestHarness \
+	MinimalShell
 
 ### Do not modify below ###
 

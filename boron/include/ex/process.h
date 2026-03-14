@@ -19,6 +19,8 @@ Author:
 
 typedef struct EPROCESS_tag EPROCESS, *PEPROCESS;
 
+#define MAX_IMAGE_NAME (32)
+
 struct EPROCESS_tag
 {
 	// The kernel side process.
@@ -26,6 +28,9 @@ struct EPROCESS_tag
 	
 	// The exit code of the process.
 	int ExitCode;
+	
+	// The ID of the process.
+	HANDLE ProcessId;
 	
 	// The Virtual Address Descriptor list of this process.
 	MMVAD_LIST VadList;
@@ -39,6 +44,9 @@ struct EPROCESS_tag
 	
 	// Object handle table.  This handle table manages objects opened by the process.
 	void* HandleTable;
+	
+	// A "friendly name" for the process.
+	char ImageName[MAX_IMAGE_NAME];
 };
 
 #define PsGetCurrentProcess() ((PEPROCESS)KeGetCurrentProcess())

@@ -36,10 +36,11 @@ PMMPTE MiGetSubPteAddress(PMMPTE PteAddress)
 static bool MmpIsPteListCompletelyEmpty(PMMPTE Pte)
 {
 	bool AllZeroes = true;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	for (size_t PteIndex = 0; PteIndex < PTES_PER_LEVEL; PteIndex++)
 	{
-		if (Pte[PteIndex] != 0)
+		if (!MmIsEqualPte(Pte[PteIndex], ZeroPte))
 		{
 			AllZeroes = false;
 			break;
@@ -59,6 +60,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	
 	MMADDRESS_CONVERT Address;
 	PMMPTE Pte;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	Address.Long = StartVa;
 	Pte = (PMMPTE) MI_PML2_LOCATION + Address.Level2Index;
@@ -66,14 +68,14 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	// Scan each page table in the range.
 	for (size_t i = 0; i < SizePages; i += PTES_COVERED_BY_ONE_PT, ++Pte)
 	{
-		if (!MM_PTE_ISPRESENT(*Pte))
+		if (!MmIsPresentPte(*Pte))
 			continue;
 		
 		PMMPTE SubPte = MiGetSubPteAddress(Pte);
 		if (MmpIsPteListCompletelyEmpty(SubPte))
 		{
-			MmFreePhysicalPage((*Pte & MI_PML_ADDRMASK) >> 12);
-			*Pte = 0;
+			MmFreePhysicalPage(MmGetPfnPte(*Pte));
+			*Pte = ZeroPte;
 		}
 	}
 }

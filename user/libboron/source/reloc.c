@@ -59,7 +59,7 @@ extern NO_RETURN HIDDEN void DLLEntryPoint(PPEB Peb);
 // loading them as shared libraries.  Instead, the loader should use
 // .init_array.
 NO_RETURN
-void RelocateSelf(PPEB Peb)
+void OSDLLRelocateSelf(PPEB Peb)
 {
 	size_t RelOffset = 0, RelSize = 0, RelaOffset = 0, RelaSize = 0, RelrOffset = 0, RelrSize = 0;
 	

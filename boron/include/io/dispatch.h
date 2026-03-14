@@ -48,9 +48,6 @@ typedef struct _FCB FCB, *PFCB;
 //   lookup again on the name.  If it is false, the other fields must be IGNORED and the file name must be taken into
 //   account.
 //
-// - In IO_MAKE_FILE_METHOD, IO_MAKE_DIRECTORY_METHOD, and IO_MAKE_LINK_METHOD, anything but IO_DIRECTORY_ENTRY->Name is
-//   ignored.
-//
 // - IO_REMOVE_DIR_METHOD removes an empty directory by unlinking it from the parent.  Requires special processing, because
 //   on some file systems, such as ext2, the link count of the parent and child directory's inodes is biased by 1 due to
 //   their cyclic dependency.
@@ -115,35 +112,46 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - TODO: Add a function that creates a symbolic link.
 //
-typedef BSTATUS(*IO_MOUNT_METHOD)      (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
-//typedef BSTATUS(*IO_CREATE_METHOD)     (PFCB Fcb, void* Context);
-//typedef void   (*IO_DELETE_METHOD)     (PFCB Fcb);
-typedef void   (*IO_CREATE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
-typedef void   (*IO_DELETE_OBJ_METHOD) (PFCB Fcb, PFILE_OBJECT FileObject);
-typedef void   (*IO_REFERENCE_METHOD)  (PFCB Fcb);
-typedef void   (*IO_DEREFERENCE_METHOD)(PFCB Fcb);
-typedef bool   (*IO_SEEKABLE_METHOD)   (PFCB Fcb);
-typedef BSTATUS(*IO_OPEN_METHOD)       (PFCB Fcb, uint32_t OpenFlags);
-typedef BSTATUS(*IO_CLOSE_METHOD)      (PFCB Fcb, int LastHandleCount);
-typedef BSTATUS(*IO_READ_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
-typedef BSTATUS(*IO_WRITE_METHOD)      (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
-typedef BSTATUS(*IO_OPEN_DIR_METHOD)   (PFCB Fcb);
-typedef BSTATUS(*IO_CLOSE_DIR_METHOD)  (PFCB Fcb);
-typedef BSTATUS(*IO_READ_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_PARSE_DIR_METHOD)  (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount);
-typedef BSTATUS(*IO_RESIZE_METHOD)     (PFCB Fcb, uint64_t NewLength);
-typedef BSTATUS(*IO_MAKE_FILE_METHOD)  (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
-typedef BSTATUS(*IO_MAKE_DIR_METHOD)   (PFCB ContainingFcb, PIO_DIRECTORY_ENTRY Name);
-typedef BSTATUS(*IO_UNLINK_METHOD)     (PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_REMOVE_DIR_METHOD) (PFCB Fcb);
-typedef BSTATUS(*IO_MOVE_ENTRY_METHOD) (PFCB SourceDirFcb, PFCB DestDirFcb, bool IsOldEntryFromReadDir, PIO_DIRECTORY_ENTRY OldEntry, PIO_DIRECTORY_ENTRY NewEntry);
-typedef BSTATUS(*IO_IO_CONTROL_METHOD) (PFCB Fcb, int IoControlCode, const void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);
-typedef BSTATUS(*IO_CHANGE_MODE_METHOD)(PFCB Fcb, uintptr_t NewMode);
-typedef BSTATUS(*IO_CHANGE_TIME_METHOD)(PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
-typedef BSTATUS(*IO_MAKE_LINK_METHOD)  (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
-typedef BSTATUS(*IO_TOUCH_METHOD)      (PFCB Fcb, bool IsWrite);
-typedef BSTATUS(*IO_BACKING_MEM_METHOD)(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset);
-typedef size_t (*IO_ALIGN_INFO_METHOD) (PFCB Fcb);
+// - In IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, IO_MAKE_LINK_METHOD, and IO_MAKE_SYMLINK_METHOD, anything but
+//   IO_DIRECTORY_ENTRY->Name is ignored for now.  Soon, I'll add permission information and more which will be used too.
+//   Information about the *type* of a file (FILE_TYPE) is, and will remain, ignored.
+//
+// - IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, IO_MAKE_LINK_METHOD, and IO_MAKE_SYMLINK_METHOD aren't called with any locks
+//   held, so the driver must take care of locking.
+//
+// - IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, and IO_MAKE_SYMLINK_METHOD return pointers to the new file object corresponding
+//   to the newly-created FCB.  IO_MAKE_LINK_METHOD does not, because the caller already has a reference to the same file.
+//
+typedef BSTATUS(*IO_MOUNT_METHOD)       (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
+//typedef BSTATUS(*IO_CREATE_METHOD)    (PFCB Fcb, void* Context);
+//typedef void   (*IO_DELETE_METHOD)    (PFCB Fcb);
+typedef void   (*IO_CREATE_OBJ_METHOD)  (PFCB Fcb, PFILE_OBJECT FileObject);
+typedef void   (*IO_DELETE_OBJ_METHOD)  (PFCB Fcb, PFILE_OBJECT FileObject);
+typedef void   (*IO_REFERENCE_METHOD)   (PFCB Fcb);
+typedef void   (*IO_DEREFERENCE_METHOD) (PFCB Fcb);
+typedef bool   (*IO_SEEKABLE_METHOD)    (PFCB Fcb);
+typedef BSTATUS(*IO_OPEN_METHOD)        (PFCB Fcb, uint32_t OpenFlags);
+typedef BSTATUS(*IO_CLOSE_METHOD)       (PFCB Fcb, int LastHandleCount);
+typedef BSTATUS(*IO_READ_METHOD)        (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
+typedef BSTATUS(*IO_WRITE_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
+typedef BSTATUS(*IO_OPEN_DIR_METHOD)    (PFCB Fcb);
+typedef BSTATUS(*IO_CLOSE_DIR_METHOD)   (PFCB Fcb);
+typedef BSTATUS(*IO_READ_DIR_METHOD)    (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_PARSE_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount);
+typedef BSTATUS(*IO_RESIZE_METHOD)      (PFCB Fcb, uint64_t NewLength);
+typedef BSTATUS(*IO_MAKE_FILE_METHOD)   (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
+typedef BSTATUS(*IO_MAKE_DIR_METHOD)    (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
+typedef BSTATUS(*IO_MAKE_SYMLINK_METHOD)(PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName, const char* DestinationName, size_t DestinationNameLength);
+typedef BSTATUS(*IO_MAKE_LINK_METHOD)   (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
+typedef BSTATUS(*IO_UNLINK_METHOD)      (PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
+typedef BSTATUS(*IO_REMOVE_DIR_METHOD)  (PFCB Fcb);
+typedef BSTATUS(*IO_MOVE_ENTRY_METHOD)  (PFCB SourceDirFcb, PFCB DestDirFcb, bool IsOldEntryFromReadDir, PIO_DIRECTORY_ENTRY OldEntry, PIO_DIRECTORY_ENTRY NewEntry);
+typedef BSTATUS(*IO_IO_CONTROL_METHOD)  (PFCB Fcb, int IoControlCode, const void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);
+typedef BSTATUS(*IO_CHANGE_MODE_METHOD) (PFCB Fcb, uintptr_t NewMode);
+typedef BSTATUS(*IO_CHANGE_TIME_METHOD) (PFCB Fcb, uintptr_t CreateTime, uintptr_t ModifyTime, uintptr_t AccessTime);
+typedef BSTATUS(*IO_TOUCH_METHOD)       (PFCB Fcb, bool IsWrite);
+typedef BSTATUS(*IO_BACKING_MEM_METHOD) (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset);
+typedef size_t (*IO_ALIGN_INFO_METHOD)  (PFCB Fcb);
 
 enum
 {
@@ -178,36 +186,37 @@ enum
 
 typedef struct _IO_DISPATCH_TABLE
 {
-	uint32_t              Flags;
-	LIST_ENTRY            FileSystemListEntry;
-	IO_MOUNT_METHOD       Mount;
-	//IO_CREATE_METHOD      Create;
-	//IO_DELETE_METHOD      Delete;
-	IO_CREATE_OBJ_METHOD  CreateObject;
-	IO_DELETE_OBJ_METHOD  DeleteObject;
-	IO_REFERENCE_METHOD   Reference;
-	IO_DEREFERENCE_METHOD Dereference;
-	IO_SEEKABLE_METHOD    Seekable;
-	IO_OPEN_METHOD        Open;
-	IO_CLOSE_METHOD       Close;
-	IO_READ_METHOD        Read;
-	IO_WRITE_METHOD       Write;
-	IO_OPEN_DIR_METHOD    OpenDir;
-	IO_CLOSE_DIR_METHOD   CloseDir;
-	IO_READ_DIR_METHOD    ReadDir;
-	IO_PARSE_DIR_METHOD   ParseDir;
-	IO_RESIZE_METHOD      Resize;
-	IO_MAKE_FILE_METHOD   MakeFile;
-	IO_MAKE_DIR_METHOD    MakeDir;
-	IO_UNLINK_METHOD      Unlink;
-	IO_REMOVE_DIR_METHOD  RemoveDir;
-	IO_MOVE_ENTRY_METHOD  MoveEntry;
-	IO_IO_CONTROL_METHOD  IoControl;
-	IO_CHANGE_MODE_METHOD ChangeMode;
-	IO_CHANGE_TIME_METHOD ChangeTime;
-	IO_MAKE_LINK_METHOD   MakeLink;
-	IO_TOUCH_METHOD       Touch;
-	IO_BACKING_MEM_METHOD BackingMemory;
-	IO_ALIGN_INFO_METHOD  GetAlignmentInfo;
+	uint32_t               Flags;
+	LIST_ENTRY             FileSystemListEntry;
+	IO_MOUNT_METHOD        Mount;
+	//IO_CREATE_METHOD     Create;
+	//IO_DELETE_METHOD     Delete;
+	IO_CREATE_OBJ_METHOD   CreateObject;
+	IO_DELETE_OBJ_METHOD   DeleteObject;
+	IO_REFERENCE_METHOD    Reference;
+	IO_DEREFERENCE_METHOD  Dereference;
+	IO_SEEKABLE_METHOD     Seekable;
+	IO_OPEN_METHOD         Open;
+	IO_CLOSE_METHOD        Close;
+	IO_READ_METHOD         Read;
+	IO_WRITE_METHOD        Write;
+	IO_OPEN_DIR_METHOD     OpenDir;
+	IO_CLOSE_DIR_METHOD    CloseDir;
+	IO_READ_DIR_METHOD     ReadDir;
+	IO_PARSE_DIR_METHOD    ParseDir;
+	IO_RESIZE_METHOD       Resize;
+	IO_MAKE_FILE_METHOD    MakeFile;
+	IO_MAKE_DIR_METHOD     MakeDirectory;
+	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink;
+	IO_MAKE_LINK_METHOD    MakeHardLink;
+	IO_UNLINK_METHOD       Unlink;
+	IO_REMOVE_DIR_METHOD   RemoveDir;
+	IO_MOVE_ENTRY_METHOD   MoveEntry;
+	IO_IO_CONTROL_METHOD   IoControl;
+	IO_CHANGE_MODE_METHOD  ChangeMode;
+	IO_CHANGE_TIME_METHOD  ChangeTime;
+	IO_TOUCH_METHOD        Touch;
+	IO_BACKING_MEM_METHOD  BackingMemory;
+	IO_ALIGN_INFO_METHOD   GetAlignmentInfo;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;

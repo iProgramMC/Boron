@@ -555,40 +555,104 @@ BSTATUS IoDeviceIoControl(
 	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
 }
 
-// =========== User-facing API ===========
-
-BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
+BSTATUS IoMakeFile(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, const char* Name)
 {
-	BSTATUS Status;
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_FILE_METHOD MakeFile = Fcb->DispatchTable->MakeFile;
 	
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
-	if (FAILED(Status))
-		return Status;
+	if (!MakeFile)
+		return STATUS_UNSUPPORTED_FUNCTION;
 	
-	PFILE_OBJECT FileObject = FileObjectV;
-	
-	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
-	
-	ObDereferenceObject(FileObject);
-	return Status;
+	return MakeFile(OutFileObject, Fcb, Name);
 }
 
-BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
+BSTATUS IoMakeDirectory(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, const char* Name)
 {
-	BSTATUS Status;
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_DIR_METHOD MakeDirectory = Fcb->DispatchTable->MakeDirectory;
 	
-	void* FileObjectV;
-	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (!MakeDirectory)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeDirectory(OutFileObject, Fcb, Name);
+}
+
+BSTATUS IoMakeSymbolicLink(
+	PFILE_OBJECT* OutFileObject,
+	PFILE_OBJECT DirectoryObject,
+	const char* Name,
+	const char* DestinationName,
+	size_t DestinationNameLength
+)
+{
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink = Fcb->DispatchTable->MakeSymbolicLink;
+	
+	if (!MakeSymbolicLink)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeSymbolicLink(
+		OutFileObject,
+		Fcb,
+		Name,
+		DestinationName,
+		DestinationNameLength
+	);
+}
+
+BSTATUS IoMakeHardLink(
+	PFILE_OBJECT DirectoryObject,
+	PIO_DIRECTORY_ENTRY Name,
+	PFILE_OBJECT ReferencedFileObject
+)
+{
+	PFCB Fcb = DirectoryObject->Fcb;
+	IO_MAKE_LINK_METHOD MakeHardLink = Fcb->DispatchTable->MakeHardLink;
+	
+	if (!MakeHardLink)
+		return STATUS_UNSUPPORTED_FUNCTION;
+	
+	return MakeHardLink(Fcb, Name, ReferencedFileObject->Fcb);
+}
+
+BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)
+{
+	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
 	
-	PFILE_OBJECT FileObject = FileObjectV;
-	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
+	// You may not seek to anywhere but offset 0 (start of the directory).
+	if (FileObject->Fcb->FileType == FILE_TYPE_DIRECTORY && Offset != 0 && Whence != IO_SEEK_SET)
+	{
+		KeReleaseMutex(&FileObject->FileOffsetMutex);
+		return STATUS_INVALID_PARAMETER;
+	}
 	
-	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
+	int64_t ResultOffset = 0;
+	switch (Whence)
+	{
+		case IO_SEEK_CUR:
+			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
+			break;
+		
+		case IO_SEEK_END:
+			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
+			break;
+		
+		case IO_SEEK_SET:
+			ResultOffset = Offset;
+			break;
+	}
 	
-	ObDereferenceObject(FileObject);
+	if (ResultOffset < 0) {
+		Status = STATUS_INVALID_PARAMETER;
+	}
+	else {
+		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
+		FileObject->CurrentDirectoryVersion = 0;
+	}
+	
+	KeReleaseMutex(&FileObject->FileOffsetMutex);
 	return Status;
 }
 
@@ -648,6 +712,43 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 	}
 	
 	return Status2;
+}
+
+// =========== User-facing API ===========
+
+BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
+{
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	
+	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
+	
+	ObDereferenceObject(FileObject);
+	return Status;
+}
+
+BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
+{
+	BSTATUS Status;
+	
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+	
+	PFILE_OBJECT FileObject = FileObjectV;
+	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
+	
+	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
+	
+	ObDereferenceObject(FileObject);
+	return Status;
 }
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags)
@@ -765,39 +866,6 @@ EarlyExit:
 	return Status;
 }
 
-BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)
-{
-	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
-	if (FAILED(Status))
-		return Status;
-	
-	int64_t ResultOffset = 0;
-	switch (Whence)
-	{
-		case IO_SEEK_CUR:
-			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
-			break;
-		
-		case IO_SEEK_END:
-			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
-			break;
-		
-		case IO_SEEK_SET:
-			ResultOffset = Offset;
-			break;
-	}
-	
-	if (ResultOffset < 0) {
-		Status = STATUS_INVALID_PARAMETER;
-	}
-	else {
-		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
-	}
-	
-	KeReleaseMutex(&FileObject->FileOffsetMutex);
-	return Status;
-}
-
 BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutNewOffset)
 {
 	if (Whence != IO_SEEK_CUR && Whence != IO_SEEK_SET && Whence != IO_SEEK_END)
@@ -819,4 +887,155 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 		Status = MmSafeCopy(OutNewOffset, &OutNewOffset2, sizeof(uint64_t), KeGetPreviousMode(), true);
 	
 	return STATUS_SUCCESS;
+}
+
+// TODO: add more parameters like permissions etc.
+//
+// Creates a new object inside of a directory.
+BSTATUS IoCreateObjectInDirectory(
+	PHANDLE OutFileHandle,
+	HANDLE DirectoryHandle,
+	const char* FileName,
+	size_t FileNameLength,
+	int FileType,
+	const char* TargetName,
+	size_t TargetNameLength
+)
+{
+	BSTATUS Status;
+	if (!OutFileHandle || !FileName || !FileNameLength)
+		return STATUS_INVALID_PARAMETER;
+	
+	if (FileNameLength >= IO_MAX_NAME)
+		return STATUS_NAME_TOO_LONG;
+	
+	char* FileNameCopy = MmAllocatePool(POOL_PAGED, FileNameLength + 1);
+	if (!FileNameCopy)
+		return STATUS_INSUFFICIENT_MEMORY;
+	
+	FileNameCopy[FileNameLength] = 0;
+	Status = MmSafeCopy(FileNameCopy, FileName, FileNameLength, KeGetPreviousMode(), false);
+	if (FAILED(Status))
+	{
+		MmFreePool(FileNameCopy);
+		return Status;
+	}
+
+	char* TargetNameCopy = NULL;
+	if (TargetName)
+	{
+		if (TargetNameLength > PAGE_SIZE)
+			return STATUS_NAME_TOO_LONG;
+		
+		TargetNameCopy = MmAllocatePool(POOL_PAGED, TargetNameLength + 1);
+		if (!TargetNameCopy)
+		{
+			MmFreePool(FileNameCopy);
+			return STATUS_INSUFFICIENT_MEMORY;
+		}
+		
+		TargetNameCopy[TargetNameLength] = 0;
+		
+		Status = MmSafeCopy(TargetNameCopy, TargetName, TargetNameLength, KeGetPreviousMode(), false);
+		if (FAILED(Status))
+		{
+		Fail:
+			MmFreePool(FileNameCopy);
+			
+			if (TargetNameCopy)
+				MmFreePool(TargetNameCopy);
+			
+			return Status;
+		}
+	}
+	
+	void* DirectoryObjectV;
+	Status = ObReferenceObjectByHandle(DirectoryHandle, IoFileType, &DirectoryObjectV);
+	if (FAILED(Status))
+		goto Fail;
+	
+	PFILE_OBJECT DirectoryObject = DirectoryObjectV;
+	PFILE_OBJECT NewFileObject = NULL;
+	
+	switch (FileType)
+	{
+		case FILE_TYPE_FILE:
+			Status = IoMakeFile(&NewFileObject, DirectoryObject, FileNameCopy);
+			break;
+		case FILE_TYPE_DIRECTORY:
+			Status = IoMakeDirectory(&NewFileObject, DirectoryObject, FileNameCopy);
+			break;
+		case FILE_TYPE_SYMBOLIC_LINK:
+			Status = IoMakeSymbolicLink(&NewFileObject, DirectoryObject, FileNameCopy, TargetNameCopy, TargetNameLength);
+			break;
+		default:
+			DbgPrint("IoCreateObjectInDirectory(%d, '%s') unimplemented.", FileType, FileNameCopy);
+			Status = STATUS_UNIMPLEMENTED;
+			break;
+	}
+	
+	ObDereferenceObject(DirectoryObject);
+	
+	if (FAILED(Status))
+		goto Fail;
+	
+	// OK, we have a reference to the new file object, but we still need to add it to our handle
+	// table.  So do so now.
+	HANDLE Handle = HANDLE_NONE;
+	Status = ObInsertObject(NewFileObject, &Handle, 0);
+	
+	if (FAILED(Status))
+	{
+		ObDereferenceObject(NewFileObject);
+		goto Fail;
+	}
+	
+	// Then, copy it in.
+	Status = MmSafeCopy(OutFileHandle, &Handle, sizeof Handle, KeGetPreviousMode(), true);
+	if (FAILED(Status))
+	{
+		// Failed, so close the handle.
+		OSClose(Handle);
+	}
+	
+	ObDereferenceObject(NewFileObject);
+	MmFreePool(FileNameCopy);
+	
+	if (TargetNameCopy)
+		MmFreePool(TargetNameCopy);
+	
+	return Status;
+}
+
+// Creates an empty file in a directory.
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength)
+{
+	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, FileName, FileNameLength, FILE_TYPE_FILE, NULL, 0);
+}
+
+// Creates an empty directory in a directory.
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength)
+{
+	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, FileName, FileNameLength, FILE_TYPE_DIRECTORY, NULL, 0);
+}
+
+// Creates a symbolic link in a directory.
+BSTATUS OSCreateSymbolicLink(
+	PHANDLE OutFileHandle,
+	HANDLE DirectoryHandle,
+	const char* FileName,
+	size_t FileNameLength,
+	const char* TargetName,
+	size_t TargetNameLength
+)
+{
+	return IoCreateObjectInDirectory(
+		OutFileHandle,
+		DirectoryHandle,
+		FileName,
+		FileNameLength,
+		FILE_TYPE_SYMBOLIC_LINK,
+		TargetName,
+		TargetNameLength
+	);
 }

@@ -46,17 +46,17 @@ bool MmCheckPteLocation(uintptr_t Address, bool GenerateMissingLevels)
 	PMMPTE Pte;
 	
 	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(MI_PTE_LOC(Address))));
-	if (!MM_PTE_ISPRESENT(*Pte))
+	if (!MmIsPresentPte(*Pte))
 		goto Missing;
 	
 	// PML4 exists, check PML3
 	Pte = MmGetPteLocation(MI_PTE_LOC(MI_PTE_LOC(Address)));
-	if (!MM_PTE_ISPRESENT(*Pte))
+	if (!MmIsPresentPte(*Pte))
 		goto Missing;
 	
 	// PML3 exists, check PML2
 	Pte = MmGetPteLocation(MI_PTE_LOC(Address));
-	if (!MM_PTE_ISPRESENT(*Pte))
+	if (!MmIsPresentPte(*Pte))
 	{
 	Missing:
 		if (GenerateMissingLevels)
@@ -98,7 +98,7 @@ HPAGEMAP MiCreatePageMapping()
 	// copy the kernel's 256 entries, and zero out the first 256
 	for (int i = 0; i < 256; i++)
 	{
-		NewPageMappingAccess[i] = 0;
+		NewPageMappingAccess[i] = MmBuildZeroPte();
 	}
 	
 	// Lock the kernel space's lock to not get any surprises.
@@ -110,97 +110,12 @@ HPAGEMAP MiCreatePageMapping()
 	}
 	
 	// For recursive paging
-	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = (uintptr_t)NewPageMappingResult | MM_PTE_PRESENT | MM_PTE_READWRITE | MM_PTE_NOEXEC;
+	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = 
+		MmBuildPte(NewPageMappingPFN, MM_PROT_READ | MM_PROT_WRITE);
 	
 	MmUnlockKernelSpace();
 	
 	return (HPAGEMAP) NewPageMappingResult;
-}
-
-// Frees a page mapping.
-void MiFreePageMapping(HPAGEMAP PageMap)
-{
-	return MmFreePhysicalPage(MmPhysPageToPFN(PageMap));
-}
-
-// TODO: this will most likely be rewritten
-bool MmpCloneUserHalfLevel(int Level, PMMPTE New, PMMPTE Old, int Index)
-{
-	New[Index] = 0;
-	
-	MMPFN PageForThisLevelPFN = MmAllocatePhysicalPage();
-	if (PageForThisLevelPFN == PFN_INVALID)
-		return false;
-	
-	if (!MM_PTE_ISPRESENT(Old[Index]))
-	{
-		// TODO handle a non present page... Currently just exit.
-		New[Index] = 0;
-		return true;
-	}
-	
-	if (Level == 1)
-	{
-		// TODO: Copy on write
-		// return true;
-	}
-	
-	uintptr_t PageForThisLevel = MmPFNToPhysPage (PageForThisLevelPFN);
-	
-	// write it to the new with the same flags as old, except that we set the PMM flag
-	New[Index] = PageForThisLevel | (Old[Index] & 0xFFF) | MM_PTE_ISFROMPMM;
-	
-	PMMPTE PageAccess = MmGetHHDMOffsetAddr (PageForThisLevel);
-	
-	if (Level == 1)
-	{
-		// Copy the contents of the page.
-		PMMPTE OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
-		
-		memcpy (PageAccess, OldPageAccess, PAGE_SIZE);
-		
-		return true;
-	}
-	
-	// Recursively copy the next level.
-	for (int i = 0; i < 512; i++)
-	{
-		PMMPTE OldPageAccess = MmGetHHDMOffsetAddr (Old[Index] & MM_PTE_ADDRESSMASK);
-		
-		MmpCloneUserHalfLevel (Level - 1, PageAccess, OldPageAccess, i);
-	}
-	
-	return true;
-}
-
-// TODO: this will most likely be rewritten
-// Clones a user page mapping
-HPAGEMAP MmClonePageMapping(HPAGEMAP OldPageMapping)
-{
-	HPAGEMAP NewPageMapping = MiCreatePageMapping();
-	
-	// If the new page mapping is zero, we can't proceed!
-	if (NewPageMapping == 0)
-		return 0;
-	
-	PMMPTE NewPageMappingAccess = MmGetHHDMOffsetAddr (NewPageMapping);
-	PMMPTE OldPageMappingAccess = MmGetHHDMOffsetAddr (OldPageMapping);
-	
-	// Clone the user half now.
-	for (int i = 0; i < 256; i++)
-	{
-		if (!MmpCloneUserHalfLevel(4, NewPageMappingAccess, OldPageMappingAccess, i))
-		{
-			//LogMsg("Error, can't fully clone a page mapping. i = %d", i);
-			
-			// TODO: rollback all clones so far
-			
-			MmFreePhysicalPageHHDM(NewPageMappingAccess);
-			return 0;
-		}
-	}
-	
-	return NewPageMapping;
 }
 
 /***
@@ -242,11 +157,11 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 	MMPTE  PtesOriginals[5];
 	PMMPTE PtesModified [5];
 	
-	MMPTE SupervisorBit;
+	uintptr_t SupervisorBit;
 	if (Address >= MM_KERNEL_SPACE_BASE)
 		SupervisorBit = 0;
 	else
-		SupervisorBit = MM_PTE_USERACCESS;
+		SupervisorBit = MM_PROT_USER;
 	
 	HPAGEMAP CurrentLevel = Mapping;
 	PMMPTE EntryPointer = NULL;
@@ -259,7 +174,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 		
 		MMPTE Entry = *EntryPointer;
 		
-		if (pml > 1 && !MM_PTE_ISPRESENT(Entry))
+		if (pml > 1 && !MmIsPresentPte(Entry))
 		{
 			// not present!! Do we allocate it?
 			if (!AllocateMissingPMLs)
@@ -287,10 +202,10 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 			
 			memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(pfn)), 0, PAGE_SIZE);
 			
-			*EntryPointer = Entry = MM_PTE_PRESENT | MM_PTE_READWRITE | SupervisorBit | MmPFNToPhysPage(pfn);
+			*EntryPointer = Entry = MmBuildPte(pfn, MM_PROT_READ | MM_PROT_WRITE | MM_PROT_EXEC | SupervisorBit);
 		}
 		
-		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
+		if (pml > 1 && MmIsUnsupportedHigherLevelPte(Entry))
 		{
 			// Higher page size, we can't allocate here.  Probably HHDM or something - the kernel itself doesn't use this
 			//DbgPrint("MiGetPTEPointer: Address %p contains a higher page size, we don't support that for now", Address);
@@ -301,7 +216,7 @@ PMMPTE MiGetPTEPointer(HPAGEMAP Mapping, uintptr_t Address, bool AllocateMissing
 		//for (int i = 0; i < 512; i++)
 		//	DbgPrint("[%d] = %p", i, Entries[i]);
 		
-		CurrentLevel = Entry & MM_PTE_ADDRESSMASK;
+		CurrentLevel = MmPFNToPhysPage(MmGetPfnPte(Entry));
 	}
 	
 	return EntryPointer;
@@ -335,6 +250,7 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 	
 	HPAGEMAP CurrentLevel = Mapping;
 	PMMPTE EntryPointer = NULL, ParentEntryPointer = NULL;
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	for (int pml = 4; pml >= 1; pml--)
 	{
@@ -344,7 +260,7 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 		
 		MMPTE Entry = *EntryPointer;
 		
-		if (pml > 1 && !MM_PTE_ISPRESENT(Entry))
+		if (pml > 1 && !MmIsPresentPte(Entry))
 		{
 			// if we don't have a parent, return
 			if (!ParentEntryPointer)
@@ -353,24 +269,24 @@ static void MmpFreeVacantPMLsSub(HPAGEMAP Mapping, uintptr_t Address)
 			// check if this entire page is vacant
 			for (int i = 0; i < 512; i++)
 			{
-				if (Entries[i] != 0)
+				if (!MmIsEqualPte(Entries[i], ZeroPte))
 					return; // isn't vacant
 			}
 			
 			// is vacant, so free it
-			*ParentEntryPointer = 0;
+			*ParentEntryPointer = MmBuildZeroPte();
 			
 			MMPFN pfn = MmPhysPageToPFN(CurrentLevel);
 			MmFreePhysicalPage(pfn);
 		}
 		
-		if (pml > 1 && (Entry & MM_PTE_PAGESIZE))
+		if (pml > 1 && MmIsUnsupportedHigherLevelPte(Entry))
 		{
 			// Higher page size, we can't do that here.  Probably HHDM or something - the kernel itself doesn't use this
 			return;
 		}
 		
-		CurrentLevel = Entry & MM_PTE_ADDRESSMASK;
+		CurrentLevel = MmPFNToPhysPage(MmGetPfnPte(Entry));
 		ParentEntryPointer = EntryPointer;
 	}
 }
@@ -406,7 +322,7 @@ static void MmpFreeVacantPMLs(HPAGEMAP Mapping, uintptr_t Address)
 		
 		SizePages - The size (in pages) of the mapped range
 		
-		Permissions - The permission bits of the mapped range
+		Permissions - The permission and cache bits of the mapped range, if non paged.
 		
 		NonPaged - Whether to allow page faults on the mapped range
 	
@@ -433,12 +349,12 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 			return false;
 		}
 		
-		*Pte = MM_PTE_PRESENT | MM_PTE_ISFROMPMM | Permissions | MmPFNToPhysPage(pfn);
+		*Pte = MmBuildPte(pfn, MM_MISC_IS_FROM_PMM | Permissions);
 		return true;
 	}
 	
-	*Pte = MM_DPTE_COMMITTED | Permissions;
-	
+	(void) Permissions;
+	*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 	return true;
 }
 
@@ -453,7 +369,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 		
 		SizePages - The size (in pages) of the mapped range
 		
-		Permissions - The permission bits of the mapped range
+		Permissions - The permission bits of the mapped range, if non-paged.
 		
 		NonPaged - Whether to allow page faults on the mapped range
 	
@@ -496,8 +412,7 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 	if (!Pte)
 		return false;
 	
-	*Pte = (PhysicalPage & MM_PTE_ADDRESSMASK) | Permissions | MM_PTE_PRESENT;
-	
+	*Pte = MmBuildPte(MmPhysPageToPFN(PhysicalPage), Permissions);
 	return true;
 }
 
@@ -516,6 +431,7 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 {
 	HPAGEMAP Mapping = MiGetCurrentPageMap();
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	// Step 1. Unset the PRESENT bit on all pages in the range.
 	for (size_t i = 0; i < LengthPages; i++)
@@ -525,16 +441,11 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		*pPTE &= ~MM_DPTE_COMMITTED;
-		
-		if (MM_PTE_ISPRESENT(*pPTE))
-		{
-			*pPTE &= ~MM_PTE_PRESENT;
-			*pPTE |= MM_DPTE_WASPRESENT;
+		if (MmIsPresentPte(*pPTE)) {
+			*pPTE = MmBuildWasPresentPte(*pPTE);
 		}
-		else
-		{
-			*pPTE &= ~MM_DPTE_WASPRESENT;
+		else {
+			*pPTE = ZeroPte;
 		}
 	}
 	
@@ -550,15 +461,11 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		if (!pPTE)
 			continue;
 		
-		uintptr_t Flags = MM_DPTE_WASPRESENT | MM_PTE_ISFROMPMM;
-		
-		if ((*pPTE & Flags) == Flags)
+		if (MmIsFromPmmPte(*pPTE))
 		{
-			uintptr_t PhysPage = *pPTE & MM_PTE_ADDRESSMASK;
-			
-			MmFreePhysicalPage(MmPhysPageToPFN(PhysPage));
-			
-			*pPTE = 0;
+			MMPFN Pfn = MmGetPfnPte(*pPTE);
+			MmFreePhysicalPage(Pfn);
+			*pPTE = ZeroPte;
 		}
 	}
 	
@@ -611,7 +518,7 @@ uintptr_t MiGetTopOfPoolManagedArea()
 		
 		SizePages - The size (in pages) of the mapped range
 		
-		Permissions - The permission bits of the mapped range.
+		Permissions - The permission bits of the mapped range, if non-paged.
 		
 		NonPaged - See the function description.
 	
@@ -657,15 +564,15 @@ ROLLBACK:
 	return false;
 }
 
-MMPTE MmGetPteBitsFromProtection(int Protection)
+uintptr_t MmGetPteBitsFromProtection(int Protection)
 {
-	MMPTE Pte = 0;
-	
+	uintptr_t Bits = 0;
+	if (Protection & PAGE_READ)
+		Bits |= MM_PROT_READ;
 	if (Protection & PAGE_WRITE)
-		Pte |= MM_PTE_READWRITE;
+		Bits |= MM_PROT_WRITE;
+	if (Protection & PAGE_EXECUTE)
+		Bits |= MM_PROT_EXEC;
 	
-	if (~Protection & PAGE_EXECUTE)
-		Pte |= MM_PTE_NOEXEC;
-	
-	return Pte;
+	return Bits;
 }

@@ -380,39 +380,52 @@ PEX_RW_LOCK_OWNER ExFindOwnerRwLock(PEX_RW_LOCK Lock, PKTHREAD Thread, KIPL Ipl)
 	// know about that directly instead of forcing.
 	PEX_RW_LOCK_OWNER NewTable;
 	
-	do
-	{
-		KeReleaseSpinLock(&Lock->GuardLock, Ipl);
-		
+	KeReleaseSpinLock(&Lock->GuardLock, Ipl);
+
+#ifdef DEBUG
+	bool Stalling = false;
+#endif
+	do {
 		NewTable = MmAllocatePool(POOL_NONPAGED, sizeof(EX_RW_LOCK_OWNER) * NewSize);
+		DbgPrint("ExFindOwnerRwLock: allocating new table of size %d, at %p", NewSize, NewTable);
 		
-		KeAcquireSpinLock(&Lock->GuardLock, &Ipl);
-		
-		// If someone expanded it already:
-		if (Lock->OwnerTableSize > OldSize)
-		{
-			// Free what we did, if we did anything, and retry.
-			if (NewTable)
-				MmFreePool(NewTable);
-			
-			NewTable = NULL;
+#ifdef DEBUG
+		if (!NewTable && !Stalling) {
+			Stalling = true;
+			DbgPrint("ExFindOwnerRwLock: stall for thread %p started because we're out of memory", KeGetCurrentThread());
 		}
+#endif
 	}
 	while (!NewTable);
+
+#ifdef DEBUG
+	if (Stalling) {
+		DbgPrint("ExFindOwnerRwLock: stall for thread %p is over", KeGetCurrentThread());
+	}
+#endif
+
+	KeAcquireSpinLock(&Lock->GuardLock, &Ipl);
+
+	if (Lock->OwnerTableSize != OldSize)
+	{
+		// someone already grew it... free what we did and return to retry
+		DbgPrint("ExFindOwnerRwLock: freeing new table at %p and retrying", NewTable);
+		MmFreePool(NewTable);
+		return NULL;
+	}
 	
-	// Allocated something, and no one expanded it already.
-	memcpy(NewTable, Lock->OwnerTable, sizeof(EX_RW_LOCK_OWNER) * OldSize);
-	memset(NewTable + OldSize, 0, sizeof(EX_RW_LOCK_OWNER) * (NewSize - OldSize));
-	
-	FreeEntry = &NewTable[OldSize];
-	
-	if (Lock->OwnerTable)
+	if (Lock->OwnerTable) {
+		memcpy(NewTable, Lock->OwnerTable, sizeof(EX_RW_LOCK_OWNER) * OldSize);
+		DbgPrint("ExFindOwnerRwLock: freeing old table at %p and retrying", Lock->OwnerTable);
 		MmFreePool(Lock->OwnerTable);
+	}
+	
+	memset(NewTable + OldSize, 0, sizeof(EX_RW_LOCK_OWNER) * (NewSize - OldSize));
 	
 	Lock->OwnerTable = NewTable;
 	Lock->OwnerTableSize = NewSize;
 	
-	return FreeEntry;
+	return NULL;
 }
 
 void ExReleaseRwLock(PEX_RW_LOCK Lock)

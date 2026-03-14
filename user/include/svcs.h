@@ -22,11 +22,17 @@ BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCloseAllUninheritableHandles();
 
+BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
+
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
+
+BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
+
+BSTATUS OSCreateSymbolicLink(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength, const char* TargetName, size_t TargetNameLength);
 
 #ifdef IS_BORON_DLL
 
@@ -119,6 +125,13 @@ BSTATUS OSQueryEvent(HANDLE EventHandle, int* EventState);
 
 BSTATUS OSQueryMutex(HANDLE MutexHandle, int* MutexState);
 
+BSTATUS OSQuerySystemInformation(
+	uint32_t QueryType,
+	void* UserBuffer,
+	size_t UserBufferSize,
+	size_t* SizeOfReturnedDataOut
+);
+
 BSTATUS OSQueryVirtualMemoryInformation(
 	HANDLE ProcessHandle,
 	PVIRTUAL_MEMORY_INFORMATION OutInformation,
@@ -144,6 +157,8 @@ BSTATUS OSSetCurrentTeb(void* Ptr);
 BSTATUS OSSetEvent(HANDLE EventHandle);
 
 BSTATUS OSSetExitCode(int ExitCode);
+
+BSTATUS OSSetImageNameProcess(HANDLE ProcessHandle, const char* ImageName, size_t ImageNameLength);
 
 BSTATUS OSSetPebProcess(HANDLE ProcessHandle, void* PebPtr);
 

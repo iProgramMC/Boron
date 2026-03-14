@@ -134,10 +134,12 @@ NO_RETURN void KeCrashBeforeSMPInit(const char* message, ...)
 	int chars = vsnprintf(buffer, sizeof buffer - 3, message, va);
 	strcpy(buffer + chars, "\n");
 	va_end(va);
-	
+
+#ifdef DEBUG
 	KiPrintLock.Locked = 0;
 	KiDebugPrintLock.Locked = 0;
-	
+#endif
+
 #ifdef DEBUG
 	DbgPrintString("\x1B[35m*** Init error: \x1B[0m");
 	DbgPrintString(buffer);
@@ -247,7 +249,7 @@ void KeInitSMP()
 	PsInitSystemProcess();
 	
 	int VersionNumber = KeGetVersionNumber();
-	LogMsg("Boron (TM), January 2026 - v%d.%d.%d (%s)", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber), BORON_TARGET);
+	LogMsg("Boron (TM), March 2026 - v%d.%d.%d (%s)", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber), BORON_TARGET);
 	LogMsg("%u System Processors [%u Kb System Memory] " UNI_OR_MULTI "Processor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
 	for (uint64_t i = 0; i < MpInfo->Count; i++)

@@ -3,7 +3,7 @@
 	Copyright (C) 2024-2025 iProgramInCpp
 
 Module name:
-	ps/process.h
+	ps/process.c
 	
 Abstract:
 	This module implements the process manager process
@@ -16,7 +16,7 @@ Author:
 
 void PspDeleteProcess(void* ProcessV)
 {
-	UNUSED PEPROCESS Process = ProcessV;
+	PEPROCESS Process = ProcessV;
 	
 	// TODO:
 	// I suppose that, when a process is started, the reference count should be biased by one,
@@ -35,6 +35,8 @@ void PspDeleteProcess(void* ProcessV)
 	// (Verify that the deletion succeeded.  It should always succeed but just to be sure)
 	(void) Status;
 	ASSERT(Status == STATUS_SUCCESS);
+	
+	PspRemoveProcessFromList(Process);
 }
 
 INIT
@@ -95,6 +97,12 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	if (FAILED(Status))
 		return Status;
 	
+	// Add the process to the global list of processes.  If any further initialization steps fail,
+	// then we can simply leave it in there, and remove it in PspDeleteProcess.
+	Status = PspAddProcessToList(Process);
+	if (FAILED(Status))
+		return Status;
+	
 	MmInitializeVadList(&Process->VadList);
 	
 	// Set the exit code to 0.
@@ -129,6 +137,10 @@ BSTATUS PspInitializeProcessObject(void* ProcessV, void* Context)
 	if (SUCCEEDED(Status))
 	{
 		Pic->Process = Process;
+		
+		memset(&Process->ImageName, 0, MAX_IMAGE_NAME);
+		strcpy(Process->ImageName, "[unknown]");
+		
 		//ObReferenceObjectByPointer(Process);
 		return Status;
 	}
@@ -161,7 +173,6 @@ BSTATUS OSCreateProcess(
 	// processes without a parent process handle get added.
 	if ((InheritHandles || DeepCloneHandles) && !ParentProcessHandle)
 		return STATUS_INVALID_PARAMETER;
-	
 	
 	OBJECT_ATTRIBUTES Copy;
 	if (ObjectAttributes)
@@ -265,4 +276,38 @@ BSTATUS OSSetExitCode(int ExitCode)
 	PEPROCESS Process = PsGetCurrentProcess();
 	Process->ExitCode = ExitCode;
 	return STATUS_SUCCESS;
+}
+
+// Sets the image name of a newly-created process.
+//
+// TODO: Make it so this field is write-once, or only written from libboron.so.
+BSTATUS OSSetImageNameProcess(HANDLE ProcessHandle, const char* ImageName, size_t ImageNameLength)
+{
+	// Truncate the Image name if needed.
+	if (ImageNameLength >= MAX_IMAGE_NAME - 1)
+		ImageNameLength =  MAX_IMAGE_NAME - 1;
+	
+	BSTATUS Status;
+	void* ProcessV;
+	PEPROCESS Process;
+	
+	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &ProcessV);
+	if (FAILED(Status))
+		return Status;
+	
+	Process = ProcessV;
+	
+	char NewImageName[MAX_IMAGE_NAME];
+	memset(NewImageName, 0, sizeof NewImageName);
+	Status = MmSafeCopy(NewImageName, ImageName, ImageNameLength, KeGetPreviousMode(), false);
+	
+	if (FAILED(Status)) {
+		ObDereferenceObject(ProcessV);
+		return Status;
+	}
+	
+	memcpy(Process->ImageName, NewImageName, MAX_IMAGE_NAME);
+	
+	ObDereferenceObject(ProcessV);
+	return Status;
 }

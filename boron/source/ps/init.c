@@ -93,6 +93,10 @@ void PsInitSystemProcess()
 	{
 		KeCrash("Ps: Could not create handle table for System process");
 	}
+	
+	// Assign an image name.
+	memset(PsSystemProcess.ImageName, 0, MAX_IMAGE_NAME);
+	strcpy(PsSystemProcess.ImageName, PspSystemProcessName);
 }
 
 INIT
@@ -103,6 +107,8 @@ bool PsInitSystem()
 	
 	if (!PsCreateProcessType())
 		return false;
+	
+	PspInitializeProcessList();
 	
 	PspSystemProcessNpHeader.ObjectType = PsProcessObjectType;
 	

@@ -156,9 +156,11 @@ void KiReadyThread(PKTHREAD Thread)
 	KeReleaseSpinLock(&KiGlobalThreadListLock, Ipl);
 	
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
-	
+
+#ifdef DEBUG
 	Thread->EnqueuedTime = HalGetTickCount();
-	
+#endif
+
 	Scheduler->ThreadsOnQueueCount++;
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
 	
@@ -212,9 +214,11 @@ void KiUnwaitThread(PKTHREAD Thread, int Status, KPRIORITY Increment)
 	// Emplace ourselves on the execution queue.
 	InsertTailList(&Scheduler->ExecQueue[Thread->Priority], &Thread->EntryQueue);
 	Scheduler->ExecQueueMask |= QUEUE_BIT(Thread->Priority);
-	
+
+#ifdef DEBUG
 	Thread->EnqueuedTime = HalGetTickCount();
-	
+#endif
+
 	KiCheckOverloadedExecQueues();
 	
 	KiCancelTimer(&Thread->WaitTimer);
@@ -423,8 +427,10 @@ void KiEndThreadQuantum()
 		
 		// Set the last processor ID of the thread.
 		CurrentThread->LastProcessor = KeGetCurrentPRCB()->Id;
+#ifdef DEBUG
 		CurrentThread->EnqueuedTime = HalGetTickCount();
-		
+#endif
+
 		KiCheckOverloadedExecQueues();
 	}
 	

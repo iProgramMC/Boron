@@ -152,5 +152,10 @@ int _start(int ArgumentCount, char** ArgumentArray)
 		Buffer[sizeof Buffer - 1] = 0;
 		Buffer[Iosb.BytesRead] = 0;
 		OSPrintf("You typed in: '%s'.\n", Buffer);
+		
+		if (memcmp(Buffer, "exitplease", 10) == 0)
+			break;
 	}
+	
+	return 0;
 }

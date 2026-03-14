@@ -17,6 +17,7 @@ Author:
 
 #include <ke/ipl.h>
 #include <ke/locks.h>
+#include "pte.h"
 
 // handle to a page mapping.
 typedef uintptr_t HPAGEMAP;
@@ -101,7 +102,7 @@ BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMo
 void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);
 
 // Turn access flags (PAGE_X) into PTE protection bits.
-MMPTE MmGetPteBitsFromProtection(int Protection);
+uintptr_t MmGetPteBitsFromProtection(int Protection);
 
 // Self explanatory
 void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages);
