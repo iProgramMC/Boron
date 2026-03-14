@@ -13,13 +13,15 @@ Author:
 	iProgramInCpp - 30 December 2025
 ***/
 #include "../mi.h"
+#include <mm.h>
 
 #define P2V(n) ((void*)(MI_IDENTMAP_START + (n))
 #define V2P(p) ((uintptr_t)(p) - MI_IDENTMAP_START)
 
 // TODO: keep these mnemonics in one place
-#define L1PTE(Address) (((uintptr_t)(Address) & ~0x3FF) | MM_PTEL1_COARSE_PAGE_TABLE)
-#define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE)
+#define L1PTE(Address) (((uintptr_t)(Address) & ~0x3FF) | MM_ARM_PTEL1_COARSE_PAGE_TABLE)
+#define L2PTE(Pfn) MmHardwarePte(MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE))
+/* #define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_ARM_PTEL2_TYPE_SMALLPAGE | MM_PTE_READWRITE) */
 
 #define L1PTE_FLAGS_SEC 0b111010000001110 // Level 1 PTE flags for Section
 
@@ -42,7 +44,7 @@ void MiInitializeBaseIdentityMapping()
 	for (uintptr_t i = 0; i < MI_POOL_HEADERS_SIZE; i += 1024 * 4096)
 	{
 		uintptr_t Address = MI_POOL_HEADERS_START + i;
-		KiRootPageTable[Address >> 20] = ((uintptr_t) &KiPoolHeadersPageTables[i / PAGE_SIZE]) | MM_PTEL1_COARSE_PAGE_TABLE;
+		KiRootPageTable[Address >> 20] = ((uintptr_t) &KiPoolHeadersPageTables[i / PAGE_SIZE]) | MM_ARM_PTEL1_COARSE_PAGE_TABLE;
 	}
 	
 	// setup a linear page table view of the root page table.
@@ -61,7 +63,7 @@ void MiInitializeBaseIdentityMapping()
 	
 	for (int i = 512; i < 1024; i++) {
 		if (KiRootPageTable[i * 4]) {
-			MMPFN Pfn = MM_PTE_PFN(KiRootPageTable[i * 4]);
+			MMPFN Pfn = MM_ARM_PTE_PFN(KiRootPageTable[i * 4]);
 			KiRootPageTableDebbie[i] = L2PTE(Pfn);
 		}
 		else {

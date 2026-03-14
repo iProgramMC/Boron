@@ -311,50 +311,22 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	if (!MmCheckPteLocationAllocator(address, true, MiAllocatePfnFromMemMap))
 		return false;
 	
-	MMADDRESS_CONVERT Convert;
-	Convert.Long = address;
-	
-	PMMPTE Level1, Level2;
-	
-	Level2 = (PMMPTE)MI_PML2_LOCATION;
-	Level1 = (PMMPTE)(MI_PML1_LOCATION + 4096 * Convert.Level2Index);
-	
-	if (!MmIsPresentPte(Level2[Convert.Level2Index]))
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		Level2[Convert.Level2Index] = MmBuildPte(MmPhysPageToPFN(Addr), MM_PROT_READ | MM_PROT_WRITE);
+	MMPTE ZeroPte = MmBuildZeroPte();
+	PMMPTE Pte = MmGetPteLocation(address);
+	if (!MmIsEqualPte(*Pte, ZeroPte)) {
+		return true;
 	}
 	
-	if (!MmIsPresentPte(Level1[Convert.Level1Index]))
-	{
-		uintptr_t Addr = MiAllocatePageFromMemMap();
-		
-		if (!Addr)
-		{
-			// TODO: Allow rollback
-			return false;
-		}
-		
-		MmBeginUsingHHDM();
-		memset(MmGetHHDMOffsetAddr(Addr), 0, PAGE_SIZE);
-		MmEndUsingHHDM();
-		
-		Level1[Convert.Level1Index] = MmBuildPte(MmPhysPageToPFN(Addr), MM_PROT_READ | MM_PROT_WRITE);
+	MMPFN Pfn = MiAllocatePfnFromMemMap();
+	if (Pfn == PFN_INVALID) {
+		return false;
 	}
 	
 	MmBeginUsingHHDM();
 	memset(MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn)), 0, PAGE_SIZE);
 	MmEndUsingHHDM();
 	
-	*Pte = MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE;
-	
+	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE);
 	return true;
 #endif
 }

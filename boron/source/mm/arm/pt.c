@@ -19,8 +19,12 @@ Author:
 #include <arch.h>
 #include "../mi.h"
 
-#define L1PTE(Address) (((Address) & ~0x3FF) | MM_PTEL1_COARSE_PAGE_TABLE)
-#define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_PTE_PRESENT | MM_PTE_READWRITE)
+static MMPTE MmBuildL1Pte(uintptr_t Address)
+{
+	MMPTE Pte;
+	Pte.PteHardware = (Address & 0x3FF) | MM_ARM_PTEL1_COARSE_PAGE_TABLE;
+	return Pte;
+}
 
 extern char KiExceptionHandlerTable[]; // NOTE: This is a *PHYSICAL* address!
 
@@ -73,15 +77,15 @@ HPAGEMAP MiCreatePageMapping()
 	memset(JibbiePtr, 0, PAGE_SIZE);
 	
 	for (int i = 0; i < 4; i++)
-		JibbiePtr[i] = L2PTE(NewPageMapping + i);
+		JibbiePtr[i] = MmBuildPte(NewPageMapping + i, MM_PROT_READ | MM_PROT_WRITE);
 	
-	JibbiePtr[4] = L2PTE(Jibbie);
-	JibbiePtr[5] = L2PTE(Debbie);
+	JibbiePtr[4] = MmBuildPte(Jibbie, MM_MISC_IS_FROM_PMM | MM_PROT_READ | MM_PROT_WRITE);
+	JibbiePtr[5] = MmBuildPte(Debbie, MM_MISC_IS_FROM_PMM | MM_PROT_READ | MM_PROT_WRITE);
 	
 	// The 1008th entry of Jibbie maps the exception handler pointers
 	// (at 0xFFFF0000), so map it too.  Note that KiExceptionHandlerTable
 	// is a physical address.
-	JibbiePtr[1008] = L2PTE((uintptr_t)KiExceptionHandlerTable);
+	JibbiePtr[1008] = MmBuildPte((uintptr_t)KiExceptionHandlerTable, MM_PROT_READ | MM_PROT_WRITE);
 	
 	PMMPTE RootPtr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPageMapping));
 	PMMPTE OldRootPtr = (PMMPTE) MI_PML1_LOCATION;
@@ -96,10 +100,11 @@ HPAGEMAP MiCreatePageMapping()
 	PMMPTE DebbiePtr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Debbie));
 	memset(DebbiePtr, 0, PAGE_SIZE);
 	
+	MMPTE ZeroPte = MmBuildZeroPte();
 	for (int i = 512; i < 1024; i++) {
-		if (OldRootPtr[i * 4]) {
-			MMPFN Pfn = MM_PTE_PFN(OldRootPtr[i * 4]);
-			DebbiePtr[i] = L2PTE(Pfn);
+		if (!MmIsEqualPte(OldRootPtr[i * 4], ZeroPte)) {
+			MMPFN Pfn = MmGetPfnPte(OldRootPtr[i * 4]);
+			DebbiePtr[i] = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE);
 		}
 	}
 	
@@ -107,8 +112,8 @@ HPAGEMAP MiCreatePageMapping()
 	uintptr_t JibbieAddress = Jibbie * PAGE_SIZE;
 	uintptr_t DebbieAddress = Debbie * PAGE_SIZE;
 	for (int i = 0; i < 4; i++) {
-		RootPtr[4088 + i] = L1PTE(DebbieAddress + i * 1024);
-		RootPtr[4092 + i] = L1PTE(JibbieAddress + i * 1024);
+		RootPtr[4088 + i] = MmBuildL1Pte(DebbieAddress + i * 1024);
+		RootPtr[4092 + i] = MmBuildL1Pte(JibbieAddress + i * 1024);
 	}
 	
 	MmEndUsingHHDM();
@@ -129,8 +134,8 @@ void MiFreePageMapping(HPAGEMAP PageMap)
 	
 	// this works because MM_PTE_PFN fetches bits [31..12], and the root entries
 	// have the coarse page table address from bits [31..10]
-	Debbie = MM_PTE_PFN(RootPtr[4088]);
-	Jibbie = MM_PTE_PFN(RootPtr[4092]);
+	Debbie = MmGetPfnPte(RootPtr[4088]);
+	Jibbie = MmGetPfnPte(RootPtr[4092]);
 	
 	MmEndUsingHHDM();
 	
@@ -150,9 +155,13 @@ bool MmCheckPteLocationAllocator(
 	MMADDRESS_CONVERT Convert;
 	Convert.Long = Address;
 	
+	uintptr_t IsFromPmmFlag = 0;
+	if (PageAllocate == &MmAllocatePhysicalPage)
+		IsFromPmmFlag = MM_MISC_IS_FROM_PMM;
+	
 	// check if the corresponding L1 page table is present through Jibbie.
 	PMMPTE PtePtr = (PMMPTE) MI_PML1_LOCATION;
-	if ((PtePtr[Convert.Level1Index] & MM_PTEL1_TYPE) == 0)
+	if (!MmIsPresentPte(PtePtr[Convert.Level1Index]))
 	{
 		if (!GenerateMissingLevels)
 			return false;
@@ -165,12 +174,12 @@ bool MmCheckPteLocationAllocator(
 		}
 		
 		for (int i = 0; i < 4; i++) {
-			PtePtr[Index + i] = L1PTE(Pfn * PAGE_SIZE + i * 1024);
+			PtePtr[Index + i] = MmBuildL1Pte(Pfn * PAGE_SIZE + i * 1024);
 		}
 		
 		// Debbie must also be updated.
 		PtePtr = (PMMPTE) MI_PML2_MIRROR_LOCATION;
-		PtePtr[Convert.Level1Index >> 2] = L2PTE(Pfn);
+		PtePtr[Convert.Level1Index >> 2] = MmBuildPte(Pfn, IsFromPmmFlag | MM_PROT_READ | MM_PROT_WRITE);
 	}
 	
 	// Page table exists.
@@ -225,11 +234,12 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 			return false;
 		}
 		
-		*Pte = MM_PTE_PRESENT | Permissions | MmPFNToPhysPage(pfn);
+		*Pte = MmBuildPte(pfn, MM_MISC_IS_FROM_PMM | Permissions);
 		return true;
 	}
 	
-	*Pte = MM_DPTE_COMMITTED | Permissions;
+	(void) Permissions;
+	*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 	return true;
 }
 
@@ -245,12 +255,14 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 	if (!Pte)
 		return false;
 	
-	*Pte = MM_PTE_NEWPFN(MmPhysPageToPFN(PhysicalPage)) | Permissions | MM_PTE_PRESENT;
+	*Pte = MmBuildPte(MmPhysPageToPFN(PhysicalPage), Permissions);
 	return true;
 }
 
 void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 {
+	MMPTE ZeroPte = MmBuildZeroPte();
+	
 	for (size_t i = 0; i < LengthPages; i++)
 	{
 		PMMPTE pPTE = MmGetPteLocationCheck(Address + i * PAGE_SIZE, false);
@@ -258,10 +270,10 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 			continue;
 		
 		MMPTE Pte = *pPTE;
-		*pPTE = 0;
+		*pPTE = ZeroPte;
 		
-		if (Pte & MM_PTE_PRESENT)
-			MmFreePhysicalPage(MM_PTE_PFN(Pte));
+		if (MmIsPresentPte(Pte))
+			MmFreePhysicalPage(MmGetPfnPte(Pte));
 	}
 	
 	MmIssueTLBShootDown(Address, LengthPages);
@@ -317,15 +329,15 @@ ROLLBACK:
 	return false;
 }
 
-MMPTE MmGetPteBitsFromProtection(int Protection)
+uintptr_t MmGetPteBitsFromProtection(int Protection)
 {
-	MMPTE Pte = 0;
-	
+	uintptr_t Bits = 0;
+	if (Protection & PAGE_READ)
+		Bits |= MM_PROT_READ;
 	if (Protection & PAGE_WRITE)
-		Pte |= MM_PTE_READWRITE;
+		Bits |= MM_PROT_WRITE;
+	if (Protection & PAGE_EXECUTE)
+		Bits |= MM_PROT_EXEC;
 	
-	if (~Protection & PAGE_EXECUTE)
-		Pte |= MM_PTE_NOEXEC;
-	
-	return Pte;
+	return Bits;
 }

@@ -101,7 +101,7 @@ static uint16_t HalFramebuffer[SCREEN_WIDTH * SCREEN_HEIGHT];
 
 void HalVpbInitCLCD()
 {
-	HalPL111 = MmMapIoSpace(PL110_BASE, 4096, MM_PTE_READWRITE, POOL_TAG("CLCD"));
+	HalPL111 = MmMapIoSpace(PL110_BASE, 4096, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE, POOL_TAG("CLCD"));
 	if (!HalPL111)
 		KeCrash("ERROR: Cannot map CLCD");
 	

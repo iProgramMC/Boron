@@ -5,7 +5,7 @@ BLD  ?= arm-none-eabi-ld
 BASM ?= unknown
 # ^^ note: we will be using .S files
 
-SUBTARGET ?= v5
+SUBTARGET ?= v6
 $(eval $(call validate-option,SUBTARGET,v5 v6 v7))
 
 ifeq ($(SUBTARGET),v5)

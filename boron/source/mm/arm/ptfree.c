@@ -18,9 +18,10 @@ static bool MmpIsPteListCompletelyEmpty(PMMPTE Pte)
 {
 	bool AllZeroes = true;
 	
+	MMPTE ZeroPte = MmBuildZeroPte();
 	for (size_t PteIndex = 0; PteIndex < 1024; PteIndex++)
 	{
-		if (Pte[PteIndex] != 0)
+		if (!MmIsEqualPte(Pte[PteIndex], ZeroPte))
 		{
 			AllZeroes = false;
 			break;
@@ -41,25 +42,26 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 	PMMPTE Pml1 = (PMMPTE) MI_PML1_LOCATION;
 	PMMPTE Pml2 = (PMMPTE) MI_PML1_LOCATION;
 	PMMPTE Pte = &Pml1[(StartVa >> 20) & ~3];
+	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	for (size_t i = 0; i < SizePages; i += 1024, Pte += 4)
 	{
-		if (!*Pte)
+		if (MmIsEqualPte(*Pte, ZeroPte))
 			continue;
 		
 		PMMPTE SubPte = &Pml2[(StartVa >> 12)];
 		if (MmpIsPteListCompletelyEmpty(SubPte))
 		{
-			MMPFN Pfn = (*Pte >> 12);
+			MMPFN Pfn = MmGetPfnPte(*Pte);
 			MmFreePhysicalPage(Pfn);
 			
 			for (int m = 0; m < 4; m++) {
-				Pte[m] = 0;
+				Pte[m] = ZeroPte;
 			}
 			
 			// also clear the pml2 mirror:
 			PMMPTE Pml2Mirror = (PMMPTE) MI_PML2_MIRROR_LOCATION;
-			Pml2Mirror[(StartVa >> 22)] = 0;
+			Pml2Mirror[(StartVa >> 22)] = ZeroPte;
 		}
 	}
 	

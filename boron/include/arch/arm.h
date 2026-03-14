@@ -59,79 +59,57 @@ MMADDRESS_CONVERT;
 #define MM_PFNDB_BASE     (0xD4000000U)
 
 // -- L1 PTEs --
-#define MM_PTEL1_TYPE              (3U << 0)
-#define MM_PTEL1_COARSE_PAGE_TABLE (1U << 0) // Type = b01, Coarse Page Table
-#define MM_PTEL1_SECTION_SETUP     ((3U << 2) | (7U << 12) | (1U << 10) | (2U << 0)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0, Type = 0b10
+#define MM_ARM_PTEL1_TYPE              (3U << 0)
+#define MM_ARM_PTEL1_COARSE_PAGE_TABLE (1U << 0) // Type = b01, Coarse Page Table
+#define MM_ARM_PTEL1_SECTION_SETUP     ((3U << 2) | (7U << 12) | (1U << 10) | (2U << 0)) // CB = 0b11, TEX = 0b111, AP = 0b01, APX=0, Type = 0b10
 
 // -- L2 PTEs --
 
 #ifdef TARGET_ARMV5
 
 // ARMv5 first level PTEs aren't different, but second level PTEs are.
-#define MM_PTEL2_B (1 << 2)
-#define MM_PTEL2_C (1 << 3)
+#define MM_ARM_PTEL2_B (1 << 2)
+#define MM_ARM_PTEL2_C (1 << 3)
 
-#define MM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
-#define MM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
-#define MM_PTEL2_AP_USERREADONLY   ((2U << 4)) // super R/W, user R/O
-#define MM_PTEL2_AP_USERREADWRITE  ((3U << 4)) // super R/W, user R/W
+#define MM_ARM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
+#define MM_ARM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
+#define MM_ARM_PTEL2_AP_USERREADONLY   ((2U << 4)) // super R/W, user R/O
+#define MM_ARM_PTEL2_AP_USERREADWRITE  ((3U << 4)) // super R/W, user R/W
 
-#define MM_PTEL2_AP_ALL(x) ((x) | ((x) << 2) | ((x) << 4) | ((x) << 6))
-#define MM_PTEL2_AP_ALL_NOACCESS       (0)
-#define MM_PTEL2_AP_ALL_SUPERREADWRITE MM_PTEL2_AP_ALL(MM_PTEL2_AP_SUPERREADWRITE)
-#define MM_PTEL2_AP_ALL_USERREADONLY   MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADONLY)
-#define MM_PTEL2_AP_ALL_USERREADWRITE  MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADWRITE)
+#define MM_ARM_PTEL2_AP_ALL(x) ((x) | ((x) << 2) | ((x) << 4) | ((x) << 6))
+#define MM_ARM_PTEL2_AP_ALL_NOACCESS       (0)
+#define MM_ARM_PTEL2_AP_ALL_SUPERREADWRITE MM_PTEL2_AP_ALL(MM_PTEL2_AP_SUPERREADWRITE)
+#define MM_ARM_PTEL2_AP_ALL_USERREADONLY   MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADONLY)
+#define MM_ARM_PTEL2_AP_ALL_USERREADWRITE  MM_PTEL2_AP_ALL(MM_PTEL2_AP_USERREADWRITE)
 
-#define MM_PTEL2_TYPE_TRANSFAULT  (0U << 0)
-#define MM_PTEL2_TYPE_LARGEPAGE   (1U << 0)
-#define MM_PTEL2_TYPE_SMALLPAGE   (2U << 0)
-#define MM_PTEL2_TYPE_EXSMALLPAGE (3U << 0)
-
-#define MM_PTE_PRESENT     (MM_PTEL2_TYPE_SMALLPAGE)// | MM_PTEL2_B | MM_PTEL2_C)
-#define MM_PTE_READWRITE   (MM_PTEL2_AP_ALL_SUPERREADWRITE)
-#define MM_PTE_USERACCESS  (MM_PTEL2_AP_ALL_USERREADONLY)
-#define MM_PTE_NOEXEC      (0)
-#define MM_PTE_ISPRESENT(Pte) (((Pte) & 0x3) != 0)
+#define MM_ARM_PTEL2_TYPE_TRANSFAULT  (0U << 0)
+#define MM_ARM_PTEL2_TYPE_LARGEPAGE   (1U << 0)
+#define MM_ARM_PTEL2_TYPE_SMALLPAGE   (2U << 0)
+#define MM_ARM_PTEL2_TYPE_EXSMALLPAGE (3U << 0)
 
 #else // ARMv6
 
 // AP = PTE[5:4], APX = PTE[9]
-#define MM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
-#define MM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
-#define MM_PTEL2_AP_USERREADONLY   ((2U << 4)) // super R/W, user R/O
-#define MM_PTEL2_AP_USERREADWRITE  ((3U << 4)) // super R/W, user R/W
-#define MM_PTEL2_AP_SUPERREADONLY  ((1U << 4) | (1U << 9)) // super R/O, user N/A
-#define MM_PTEL2_AP_BOTHREADONLY   ((3U << 4) | (1U << 9)) // super R/O, user R/O
+#define MM_ARM_PTEL2_AP_NOACCESS       ((0U << 4)) // super N/A, user N/A
+#define MM_ARM_PTEL2_AP_SUPERREADWRITE ((1U << 4)) // super R/W, user N/A
+#define MM_ARM_PTEL2_AP_USERREADONLY   ((2U << 4)) // super R/W, user R/O
+#define MM_ARM_PTEL2_AP_USERREADWRITE  ((3U << 4)) // super R/W, user R/W
+#define MM_ARM_PTEL2_AP_SUPERREADONLY  ((1U << 4) | (1U << 9)) // super R/O, user N/A
+#define MM_ARM_PTEL2_AP_BOTHREADONLY   ((3U << 4) | (1U << 9)) // super R/O, user R/O
 
 // TEX = PTE[8:6], C = PTE[3], B = PTE[2]
-#define MM_PTEL2_TEXCB_STRONGORDER  ((0U << 6) | (0U << 2))
-#define MM_PTEL2_TEXCB_SHAREDDEVICE ((0U << 6) | (1U << 2))
-#define MM_PTEL2_TEXCB_CACHEABLE    ((7U << 6) | (3U << 2)) // b11 inner and outer policy.
-#define MM_PTEL2_TEXCB_NORMALMEM    ((1U << 6) | (3U << 2)) // TEX=0b001, CB=0b11
+#define MM_ARM_PTEL2_TEXCB_STRONGORDER  ((0U << 6) | (0U << 2))
+#define MM_ARM_PTEL2_TEXCB_SHAREDDEVICE ((0U << 6) | (1U << 2))
+#define MM_ARM_PTEL2_TEXCB_CACHEABLE    ((7U << 6) | (3U << 2)) // b11 inner and outer policy.
+#define MM_ARM_PTEL2_TEXCB_NORMALMEM    ((1U << 6) | (3U << 2)) // TEX=0b001, CB=0b11
 
 // Type
-#define MM_PTEL2_TYPE_TRANSFAULT  (0U << 0)
-#define MM_PTEL2_TYPE_LARGEPAGE   (1U << 0)
-#define MM_PTEL2_TYPE_SMALLPAGE   (2U << 0)
-#define MM_PTEL2_TYPE_SMALLPAGENX (3U << 0)
-
-#define MM_PTE_PRESENT    (MM_PTEL2_TYPE_SMALLPAGE | MM_PTEL2_TEXCB_NORMALMEM)
-#define MM_PTE_READWRITE  MM_PTEL2_AP_SUPERREADWRITE
-#define MM_PTE_USERACCESS MM_PTEL2_AP_USERREADONLY   // USERREADONLY | SUPERREADWRITE = USERREADWRITE
-#define MM_PTE_NOEXEC     MM_PTEL2_TYPE_LARGEPAGE    // LARGEPAGE | SMALLPAGE = SMALLPAGENX
-#define MM_PTE_ISPRESENT(Pte) (((Pte) & 0x3) != 0)
+#define MM_ARM_PTEL2_TYPE_TRANSFAULT  (0U << 0)
+#define MM_ARM_PTEL2_TYPE_LARGEPAGE   (1U << 0)
+#define MM_ARM_PTEL2_TYPE_SMALLPAGE   (2U << 0)
+#define MM_ARM_PTEL2_TYPE_SMALLPAGENX (3U << 0)
 
 #endif
-
-#define MM_PTE_WRITETHRU  (0) // seemingly unused
-#define MM_PTE_NOCACHE    (0) // TODO: supported by hardware, but to use it you must *turn off* bits
-#define MM_PTE_ACCESSED   (0) // TODO: supported by hardware (through an exception), but ForceAP must be set and we kind of rely on permission bits
-#define MM_PTE_DIRTY      (0) // TODO: unused
-#define MM_PTE_GLOBAL     (0) // TODO: unsupported?
-#define MM_PTE_ISFROMPMM  (0) // there are no software usable free bits on ARM :(
-#define MM_PTE_COW        (0) // unused
-#define MM_PTE_TRANSITION (0) // unused
-#define MM_PTE_PKMASK     (0) // no such thing on 32-bit
 
 // Disabled PTEs
 // bits 9 and 5:4 - Permission bits as usual
@@ -140,17 +118,17 @@ MMADDRESS_CONVERT;
 // bit  6 - Was present
 // bit  7 - Is decommitted (was previously committed but is no longer)
 
-#define MM_DPTE_ISPOOLHDR    (1U << 2)
-#define MM_DPTE_COMMITTED    (1U << 3)
-#define MM_DPTE_WASPRESENT   (1U << 6)
-#define MM_DPTE_DECOMMITTED  (1U << 7)
+#define MM_ARM_DPTE_ISPOOLHDR    (1U << 2)
+#define MM_ARM_DPTE_COMMITTED    (1U << 3)
+#define MM_ARM_DPTE_WASPRESENT   (1U << 6)
+#define MM_ARM_DPTE_DECOMMITTED  (1U << 7)
 
-// TODO: just assume all of them are from PMM
-#define MM_PTE_CHECKFROMPMM(Pte) (true)
+// TODO: just assumes all of them are from PMM
+#define MM_ARM_PTE_CHECKFROMPMM(Pte) (true)
 
-#define MM_PTE_PFN(Pte) (((Pte) >> 12) & 0xFFFFF)
-#define MM_PTE_NEWPFN(Pfn) ((Pfn) << 12)
-#define MM_PTE_ADDRESSMASK (0xFFFFF000U)
+#define MM_ARM_PTE_PFN(Pte) (((Pte) >> 12) & 0xFFFFF)
+#define MM_ARM_PTE_NEWPFN(Pfn) ((Pfn) << 12)
+#define MM_ARM_PTE_ADDRESSMASK (0xFFFFF000U)
 
 // for the DFSR/IFSR, we currently only care about whether the page fault
 // was due to a write or not.
@@ -162,7 +140,7 @@ MMADDRESS_CONVERT;
 
 #define PAGE_SIZE (0x1000) // 4K
 
-typedef uint32_t MMPTE, *PMMPTE;
+typedef uint32_t MMPTE_HW, *PMMPTE_HW;
 
 #define PT_L1_IDX(addr) (((addr) >> 20) & 0xFFF)
 #define PT_L2_IDX(addr) (((addr) >> 12) & 0xFF)
