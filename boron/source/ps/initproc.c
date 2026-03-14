@@ -31,8 +31,11 @@ const char* PspInitialProcessEnvironment =
 
 bool PsShouldStartInitialProcess()
 {
-	return false;
+#ifdef TARGET_ARM
+	return false; // TEMPORARY
+#else
 	return !ExIsConfigValue("NoInit", CONFIG_YES);
+#endif
 }
 
 // TODO: Share a lot of this code with Ldr.

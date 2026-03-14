@@ -12,6 +12,8 @@ Abstract:
 Author:
 	iProgramInCpp - 1 February 2026
 ***/
+#ifdef TARGET_ARM
+
 #include <ke.h>
 #include <string.h>
 #include "hali.h"
@@ -146,3 +148,5 @@ HAL_API void HalVpbDisplayString(const char* Message)
 	flanterm_write(HalpTerminalContext, Message, Length);
 	KeReleaseSpinLock(&SpinLock, Ipl);
 }
+
+#endif

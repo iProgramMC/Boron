@@ -118,6 +118,12 @@ HPAGEMAP MiCreatePageMapping()
 	return (HPAGEMAP) NewPageMappingResult;
 }
 
+// Frees a page mapping.
+void MiFreePageMapping(HPAGEMAP PageMap)
+{
+	return MmFreePhysicalPage(MmPhysPageToPFN(PageMap));
+}
+
 /***
 	Function description:
 		Gets the PTE (Page Table Entry) pointer for the specified address.
