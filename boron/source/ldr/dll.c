@@ -287,15 +287,19 @@ INIT
 static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 {
 	// Create a driver object.
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	BSTATUS Status;
 	void* ObjectPtr = NULL;
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	
 	// The first DLL to be loaded is the HAL. Therefore, check if this
 	// matches with KeLoadedDLLs[0].
 	if (Dll == &KeLoadedDLLs[0])
 	{
 		// Yes, this is the HAL.
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 		ObjectPtr = &LdrpHalReservedDriverObject;
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	}
 	else
 	{
@@ -324,9 +328,11 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 			KeCrash("Could not create driver object at /Drivers/%s: error %d", DriverName, Status);
 	}
 	
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	PDRIVER_OBJECT Driver = ObjectPtr;
 	Dll->DriverObject = Driver;
 	
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	// Initialize the driver object with basic details.
 	// The driver itself will fill in the rest.
 	memset(Driver, 0, sizeof * Driver);
@@ -334,23 +340,20 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 	Driver->DriverEntry = Dll->EntryPoint;
 	InitializeListHead(&Driver->DeviceList);
 	
+	DbgPrint("%s:%d   %p", __FILE__, __LINE__, Dll->EntryPoint);
 	// Call the entry point now.
 	BSTATUS Result = Dll->EntryPoint(Driver);
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 	if (Result != 0)
 		// XXX: Maybe should be an error instead?
 		LogMsg(ANSI_YELLOW "Warning" ANSI_DEFAULT ": Driver %s returned %d at init (%s)", Dll->Name, Result, RtlGetStatusString(Result));
+	DbgPrint("%s:%d", __FILE__, __LINE__);
 }
 
 INIT
 void LdrInitializeHal()
 {
-#ifndef TARGET_ARM
 	LdrpInitializeDllByIndex(&KeLoadedDLLs[0]);
-#else
-	extern BSTATUS HAL_DriverEntry(PDRIVER_OBJECT Object);
-	DbgPrint("calling fake built-in HAL");
-	HAL_DriverEntry(NULL);
-#endif
 }
 
 INIT

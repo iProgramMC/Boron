@@ -27,7 +27,7 @@ static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is alread
 #elif defined TARGET_ARM
 
 static uintptr_t LdrpCurrentBase = 0xD2000000;
-static const char* LdrpHalPath = "halarmqv.sys"; // TODO: make this configurable. for now, ARM QEMU virt machine.
+static const char* LdrpHalPath = "halipod1,1.sys"; // TODO: make this configurable. temporary
 
 #else
 	
@@ -102,16 +102,11 @@ void LdrInit()
 	
 	if (!HalFile)
 	{
-		/*
 		KeCrashBeforeSMPInit("No HAL loaded");
 		return;
-		*/
 	}
 	
-	if (HalFile)
-	{
-		LdriLoadFile(HalFile);
-	}
+	LdriLoadDll(HalFile);
 }
 
 INIT
