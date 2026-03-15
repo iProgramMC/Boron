@@ -1,28 +1,28 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2026 iProgramInCpp
+
+Module name:
+	ha/crash.c
+	
+Abstract:
+	This module contains the iPod1,1 platform's specific crash routine.
+	
+Author:
+	iProgramInCpp - 15 March 2026
+***/
+#include <ke.h>
 #include "hali.h"
 
-NO_RETURN
+HAL_API
 void HalProcessorCrashed()
 {
-	DbgPrint("%s NYI", __func__);
-	
-	KeDisableInterrupts();
-	while (1) {
-		ASM("wfi");
-	}
+	KeStopCurrentCPU();
 }
 
 NO_RETURN
 void HalCrashSystem(const char* Message)
 {
-	DbgPrint("%s(%s) NYI", __func__, Message);
-	
-	KeDisableInterrupts();
-	while (1) {
-		ASM("wfi");
-	}
-}
-
-void HalDisplayString(const char* Message)
-{
-	DbgPrint("%s(%s) NYI", __func__, Message);
+	DISABLE_INTERRUPTS();
+	KeCrashConclusion(Message);
 }
