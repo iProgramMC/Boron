@@ -39,11 +39,11 @@ ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
 ifeq ($(TARGET),AMD64)
-	GENERATE_SYMBOLS = 1
+	GENERATE_SYMBOLS = nasm
 else ifeq ($(TARGET),I386)
-	GENERATE_SYMBOLS = 1
+	GENERATE_SYMBOLS = nasm
 else
-	GENERATE_SYMBOLS = 0
+	GENERATE_SYMBOLS = gas
 endif
 
 # This is the name that our final kernel executable will have.
@@ -183,7 +183,7 @@ VER_BUILD = $(shell cat $(BUILD_NUMBER_FILE))
 CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BUILD=$(VER_BUILD)
 
 # Link rules for the final kernel executable.
-ifeq ($(GENERATE_SYMBOLS),1)
+ifeq ($(GENERATE_SYMBOLS),nasm)
 
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
@@ -191,8 +191,29 @@ $(KERNEL): $(SYMBOLS)
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_nasm.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
 	@$(BASM) $(NASMFLAGS) $(BUILD_DIR)/_symtab.$(TARGETL).asm -o $(BUILD_DIR)/_symtab.$(TARGETL).o
+	
+$(KERNEL2): $(KERNEL_PARTIAL)
+	@echo "[LD]\tLinking kernel to extract symbols"
+	@$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
+
+# Link rules for the amalgam object file.
+$(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
+	@echo "[LD]\tPartially linking kernel"
+	@$(BLD) -m $(LINK_ARCH) -r $(OBJ) $(LDFLAGSBASE) -o $@
+
+else ifeq ($(GENERATE_SYMBOLS),gas)
+
+# TODO: deduplicate
+$(KERNEL): $(SYMBOLS)
+	@echo "[LD]\tBuilding $(KERNEL)"
+	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
+	
+$(SYMBOLS): $(KERNEL2)
+	@echo "[NM]\tDumping and compiling symbols"
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_gas.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).S
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.$(TARGETL).S -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
 	@echo "[LD]\tLinking kernel to extract symbols"
