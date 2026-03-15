@@ -1,6 +1,6 @@
 #include "hali.h"
 
-void HalIpodInitTerminal()
+void HalInitCLCD()
 {
 	DbgPrint("%s NYI", __func__);
 }

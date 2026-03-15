@@ -15,7 +15,6 @@ INC_DIR = include
 DDK_DIR = ../../common/include
 KE_DIR = ../../boron/include
 SCRIPTS_DIR = scripts
-LINKER_FILE = linker.ld
 
 DRIVER_ENTRY ?= DriverEntry
 

@@ -4,4 +4,5 @@
 IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).tar
 
 DRIVERS_LIST = \
+	halipod1,1 \
 	test

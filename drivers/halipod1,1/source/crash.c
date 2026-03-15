@@ -1,7 +1,7 @@
 #include "hali.h"
 
 NO_RETURN
-void HalIpodProcessorCrashed()
+void HalProcessorCrashed()
 {
 	DbgPrint("%s NYI", __func__);
 	
@@ -12,7 +12,7 @@ void HalIpodProcessorCrashed()
 }
 
 NO_RETURN
-void HalIpodCrashSystem(const char* Message)
+void HalCrashSystem(const char* Message)
 {
 	DbgPrint("%s(%s) NYI", __func__, Message);
 	
@@ -22,7 +22,7 @@ void HalIpodCrashSystem(const char* Message)
 	}
 }
 
-void HalIpodDisplayString(const char* Message)
+void HalDisplayString(const char* Message)
 {
 	DbgPrint("%s(%s) NYI", __func__, Message);
 }

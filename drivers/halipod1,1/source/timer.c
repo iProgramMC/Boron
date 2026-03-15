@@ -1,48 +1,48 @@
 #include "hali.h"
 
-uint64_t HalIpodGetIntTimerFrequency()
+uint64_t HalGetIntTimerFrequency()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1000000;
 }
 
-uint64_t HalIpodGetTickCount()
+uint64_t HalGetTickCount()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1;
 }
 
-uint64_t HalIpodGetTickFrequency()
+uint64_t HalGetTickFrequency()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1000000;
 }
 
-uint64_t HalIpodGetIntTimerDeltaTicks()
+uint64_t HalGetIntTimerDeltaTicks()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1000;
 }
 
-uint64_t HalIpodGetInterruptDeltaTime()
+uint64_t HalGetInterruptDeltaTime()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1000;
 }
 
-bool HalIpodUseOneShotTimer()
+bool HalUseOneShotTimer()
 {
 	DbgPrint("%s NYI", __func__);
 	return false;
 }
 
-bool HalIpodUseOneShotIntTimer()
+bool HalUseOneShotIntTimer()
 {
 	DbgPrint("%s NYI", __func__);
 	return false;
 }
 
-void HalIpodRequestInterruptInTicks(uint64_t ticks)
+void HalRequestInterruptInTicks(uint64_t ticks)
 {
 	DbgPrint("%s NYI", __func__);
 }
