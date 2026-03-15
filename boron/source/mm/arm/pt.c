@@ -85,7 +85,7 @@ HPAGEMAP MiCreatePageMapping()
 	// The 1008th entry of Jibbie maps the exception handler pointers
 	// (at 0xFFFF0000), so map it too.  Note that KiExceptionHandlerTable
 	// is a physical address.
-	JibbiePtr[1008] = MmBuildPte((uintptr_t)KiExceptionHandlerTable, MM_PROT_READ | MM_PROT_WRITE);
+	JibbiePtr[1008] = MmBuildPte((uintptr_t)KiExceptionHandlerTable, MM_PROT_READ | MM_PROT_WRITE | MM_PROT_EXEC);
 	
 	PMMPTE RootPtr = MmGetHHDMOffsetAddr(MmPFNToPhysPage(NewPageMapping));
 	PMMPTE OldRootPtr = (PMMPTE) MI_PML1_LOCATION;

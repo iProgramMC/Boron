@@ -180,7 +180,9 @@ enum
 	R_ARM_XPC25,     // S - P + A (ARM BLX)
 	R_ARM_THM_XPC22, // S - P + A (Thumb BLX pair)
 	
-	R_ARM_RELATIVE = 23, // B + A
+	R_ARM_GLOB_DAT = 21,  // S
+	R_ARM_JUMP_SLOT,      // S
+	R_ARM_RELATIVE,       // B + A
 #else
 #error Hey! Add ELF relocation types here
 #endif

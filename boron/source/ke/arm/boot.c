@@ -24,27 +24,7 @@ LOADER_PARAMETER_BLOCK KeLoaderParameterBlock;
 
 extern PLOADER_PARAMETER_BLOCK KiBootloaderLpb;
 
-#ifndef DEBUG
 #define P2V(Ptr) ((Ptr) ? (void*)((uintptr_t)(Ptr) + 0xC0000000) : NULL)
-#else
-void* P2V_(void* Ptr)
-{
-	if (!Ptr)
-		return NULL;
-	
-	return (void*) ((uintptr_t)Ptr + 0xC0000000);
-}
-
-void* P2V__(void* Ptr, int Line)
-{
-	void* P2 = P2V_(Ptr);
-	DbgPrint("KiInitLoaderParameterBlock: P2V(line %d, %p) => %p", Line, Ptr, P2);
-	return P2;
-}
-
-#define P2V(Ptr) P2V__(Ptr, __LINE__)
-#endif
-
 #define FIXUP(Addr) ((Addr) = P2V(Addr))
 
 INIT

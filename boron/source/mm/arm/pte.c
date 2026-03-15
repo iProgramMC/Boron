@@ -105,9 +105,9 @@ MMPTE MmSetPageBitsPte(MMPTE Pte, uintptr_t PageBits)
 	if (IsPresent)
 	{
 		if (PageBits & MM_PROT_EXEC)
-			MmHardwarePte(Pte) |= MM_ARM_PTEL2_TYPE_SMALLPAGENX;
-		else
 			MmHardwarePte(Pte) |= MM_ARM_PTEL2_TYPE_SMALLPAGE;
+		else
+			MmHardwarePte(Pte) |= MM_ARM_PTEL2_TYPE_SMALLPAGENX;
 	}
 	
 	if (~PageBits & MM_MISC_DISABLE_CACHE)
