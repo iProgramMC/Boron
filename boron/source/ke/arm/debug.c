@@ -95,7 +95,7 @@ void DbgInit()
 	UART0_CON  = (1 << 2) | (1 << 0);
 	UART0_BRDIV   = 53;
 	UART0_FRACVAL = 4;
-	DbgPrintString("test!!\n");
+	DbgPrintString("ARMBoron is alive!\n");
 }
 
 #endif

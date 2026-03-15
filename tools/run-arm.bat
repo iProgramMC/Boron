@@ -16,7 +16,7 @@ set ipodQemuPath=W:\iphone-qemu\qemu-ios\build
 set qemu=%ipodQemuPath%\qemu-system-arm.exe
 set ibootPath=%ipodDataPath%\ipt_1g_openiboot.dec
 set nandPath=%ipodDataPath%\nand.img
-set oibElfPath=%NSPath%\build\arm\kernel.elf
+set oibElfPath=%NSPath%\build\image.arm.tar
 set bootromPath=%ipodDataPath%\bootrom_s5l8900
 set norPath=%ipodDataPath%\nor_n45ap.bin
 
