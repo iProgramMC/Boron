@@ -1,1 +1,1 @@
-../../../external/tamsyn_font.h
+../../../external/tamsyn6x12.h

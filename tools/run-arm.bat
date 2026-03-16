@@ -38,6 +38,8 @@ set machineType=iPod-Touch,bootrom=%bootromPath%,iboot=%ibootPath%,nand=%nandPat
 	-monitor telnet:127.0.0.1:56789,server,nowait ^
 	-no-reboot ^
 	-no-shutdown ^
+	-d int ^
+	-D %nspath%\keep\armlog.txt ^
 	-s
 
 	@rem -d int ^

@@ -21,6 +21,7 @@ void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();
 void HalDisplayString(const char* Message);
+void HalDisplayString2(const char* Message);
 void HalCrashSystem(const char* Message);
 bool HalUseOneShotIntTimer();
 void HalProcessorCrashed() NO_RETURN;

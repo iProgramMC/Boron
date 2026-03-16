@@ -117,6 +117,7 @@ HPAGEMAP MiCreatePageMapping()
 	}
 	
 	MmEndUsingHHDM();
+	MmFlushTlbUpdates();
 	MmUnlockKernelSpace();
 	
 	uintptr_t NewPageMappingResult = MmPFNToPhysPage (NewPageMapping);
@@ -180,6 +181,7 @@ bool MmCheckPteLocationAllocator(
 		// Debbie must also be updated.
 		PtePtr = (PMMPTE) MI_PML2_MIRROR_LOCATION;
 		PtePtr[Convert.Level1Index >> 2] = MmBuildPte(Pfn, IsFromPmmFlag | MM_PROT_READ | MM_PROT_WRITE);
+		MmFlushTlbUpdates();
 	}
 	
 	// Page table exists.
@@ -240,6 +242,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 	
 	(void) Permissions;
 	*Pte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
+	MmFlushTlbUpdates();
 	return true;
 }
 
@@ -256,6 +259,7 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 		return false;
 	
 	*Pte = MmBuildPte(MmPhysPageToPFN(PhysicalPage), Permissions);
+	MmFlushTlbUpdates();
 	return true;
 }
 
@@ -276,6 +280,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 			MmFreePhysicalPage(MmGetPfnPte(Pte));
 	}
 	
+	MmFlushTlbUpdates();
 	MmIssueTLBShootDown(Address, LengthPages);
 }
 

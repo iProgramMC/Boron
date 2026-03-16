@@ -77,5 +77,5 @@ void MiInitializeBaseIdentityMapping()
 		KiRootPageTable[4092 + i] = L1PTE(JibbieAddress + i * 1024);
 	}
 	
-	KeFlushTLB();
+	MmFlushTlbUpdates();
 }

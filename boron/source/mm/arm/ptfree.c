@@ -62,6 +62,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 			// also clear the pml2 mirror:
 			PMMPTE Pml2Mirror = (PMMPTE) MI_PML2_MIRROR_LOCATION;
 			Pml2Mirror[(StartVa >> 22)] = ZeroPte;
+			MmFlushTlbUpdates();
 		}
 	}
 	

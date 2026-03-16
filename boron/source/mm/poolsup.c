@@ -170,6 +170,7 @@ void MiInitializeRootPageTable(int Idx)
 		KeCrashBeforeSMPInit("MiInitializeRootPageTable ERROR: Out of memory!");
 	
 	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
+	MmFlushTlbUpdates();
 }
 
 #elif defined TARGET_ARM
@@ -403,6 +404,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	ASSERT(MmIsEqualPte(*PtePtr, MmBuildPoolHeaderPte(Handle)));
 	*PtePtr = MmBuildZeroPte();
 	
+	MmFlushTlbUpdates();
 	MmUnlockKernelSpace();
 	
 	// Now actually free that handle.

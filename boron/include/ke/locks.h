@@ -17,12 +17,19 @@ Author:
 
 #include <ke/ipl.h>
 
+#define SPINLOCK_TRACK_PC
+
 // simple spin locks, for when contention is rare
 typedef struct
 {
-	bool Locked;
+	uint32_t Locked;
+
 #if defined(DEBUG) && defined(SPINLOCK_TRACK_PC)
+#ifdef IS_64_BIT
 	uint64_t Pc : 48; // Locking program counter - debug only
+#else
+	uintptr_t Pc;
+#endif
 #endif
 }
 KSPIN_LOCK, *PKSPIN_LOCK;

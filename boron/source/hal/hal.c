@@ -71,6 +71,19 @@ void HalDisplayString(const char* Message)
 	HalpVftable.DisplayString(Message);
 }
 
+void HalDisplayString2(const char* Message)
+{
+	if (!HalWasInitted())
+	{
+	#ifdef DEBUG
+		DbgPrintString(Message);
+	#endif
+		return;
+	}
+	
+	HalpVftable.DisplayString2(Message);
+}
+
 NO_RETURN void HalCrashSystem(const char* Message)
 {
 	HalpVftable.CrashSystem(Message);

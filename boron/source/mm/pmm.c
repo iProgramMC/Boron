@@ -136,7 +136,9 @@ static void MiUpdateHHDMWindowBase(uintptr_t PhysAddr)
 		
 		Ptes[Convert.Level2Index * PtesPerLevel + Convert.Level1Index] =
 			MmBuildPte(MmPhysPageToPFN(PhysAddr + i), MM_PROT_READ | MM_PROT_WRITE);
+		
 		KeInvalidatePage((void*)Address);
+		MmFlushTlbUpdates();
 	}
 	
 	MiUnlockPfdb(Ipl);
@@ -301,6 +303,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 				Flags |= MM_MISC_GLOBAL;
 			
 			pPML[i]->entries[index] = MmBuildPte(MmPhysPageToPFN(Addr), Flags);
+			MmFlushTlbUpdates();
 		}
 	}
 	
@@ -327,6 +330,7 @@ static bool MiMapNewPageAtAddressIfNeeded(uintptr_t pageTable, uintptr_t address
 	MmEndUsingHHDM();
 	
 	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE);
+	MmFlushTlbUpdates();
 	return true;
 #endif
 }
@@ -581,6 +585,7 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 				*Pte = MmBuildPte(PfnAlloc, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 				
 				KeInvalidatePage((void*) currPage);
+				MmFlushTlbUpdates();
 			}
 			
 			lastAllocatedPage = currPage;

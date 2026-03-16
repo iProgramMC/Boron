@@ -19,6 +19,7 @@ Author:
 	.global KeSetCurrentPageTable
 KeSetCurrentPageTable:
 	mcr p15, 0, r0, c2, c0, 0    @ Write TTBR0
+	bl  KeFlushTLB
 	bx  lr
 
 	@ HPAGEMAP KeSetCurrentPageTable();
@@ -30,5 +31,21 @@ KeGetCurrentPageTable:
 	@ void KeFlushTLB(void);
 	.global KeFlushTLB
 KeFlushTLB:
-	mcr p15, 0, r0, c8, c7, 0    @ Invalidate Unified TLB Register
+	mcr p15, 0, r0, c7, c10, 4   @ DSB - data sync barrier
+	mcr p15, 0, r0, c8, c7, 0    @ invalidate unified TLB
+	mcr p15, 0, r0, c7, c10, 4   @ DSB again
+	mcr p15, 0, r0, c7, c5, 4    @ flush prefetch buffer
+	bx  lr
+
+	@void KeSweepIcache(void);
+	.global KeSweepIcache
+KeSweepIcache:
+	mcr p15, 0, r0, c7, c5, 4    @ flush prefetch buffer
+	bx  lr
+
+	@void KeSweepDcache(void);
+	.global KeSweepDcache
+KeSweepDcache:
+	mcr p15, 0, r0, c7, c10, 4   @ DSB
+	mcr p15, 0, r0, c7, c10, 5   @ DMB
 	bx  lr

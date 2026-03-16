@@ -470,6 +470,7 @@ void MiCleanUpVad(PMMVAD Vad)
 		ASSERT(!MmIsPresentPte(*Pte));
 		
 		*Pte = ZeroPte;
+		MmFlushTlbUpdates();
 		Pte++;
 		CurrentVa += PAGE_SIZE;
 	}

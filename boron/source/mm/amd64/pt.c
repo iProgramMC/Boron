@@ -113,6 +113,7 @@ HPAGEMAP MiCreatePageMapping()
 	NewPageMappingAccess[MI_RECURSIVE_PAGING_START] = 
 		MmBuildPte(NewPageMappingPFN, MM_PROT_READ | MM_PROT_WRITE);
 	
+	MmFlushTlbUpdates();
 	MmUnlockKernelSpace();
 	
 	return (HPAGEMAP) NewPageMappingResult;

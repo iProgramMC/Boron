@@ -3,7 +3,7 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ke/armv6/debug.c
+	ke/arm/debug.c
 	
 Abstract:
 	This module implements architecture specific debugging
@@ -15,8 +15,9 @@ Author:
 #include <ke.h>
 
 // TODO: do not hardcode the UART's location in the kernel.
+
 //#define USE_PL011
-#define USE_EXYNOS4210
+//#define USE_EXYNOS4210
 
 void DbgPrintDouble(const char* String)
 {
@@ -56,9 +57,7 @@ void DbgInit()
 	UART0_CR = (1 << 0) | (1 << 8) | (1 << 9);
 }
 
-#endif // USE_PL011
-
-#ifdef USE_EXYNOS4210
+#elif defined USE_EXYNOS4210
 
 #define UART0_BASE    (0xD1800000)
 #define UART0_LCON    (*(volatile unsigned int *)(UART0_BASE + 0x00))
@@ -76,7 +75,6 @@ void DbgInit()
 #define UART0_INTP    (*(volatile unsigned int *)(UART0_BASE + 0x30))
 #define UART0_INTSP   (*(volatile unsigned int *)(UART0_BASE + 0x34))
 #define UART0_INTM    (*(volatile unsigned int *)(UART0_BASE + 0x38))
-
 
 void DbgPrintChar(char c)
 {
@@ -96,6 +94,18 @@ void DbgInit()
 	UART0_BRDIV   = 53;
 	UART0_FRACVAL = 4;
 	DbgPrintString("ARMBoron is alive!\n");
+}
+
+#else
+
+// no debug for you, scream into the void
+void DbgPrintChar(char c)
+{
+	(void) c;
+}
+
+void DbgInit()
+{
 }
 
 #endif

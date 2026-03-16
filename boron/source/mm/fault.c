@@ -53,6 +53,7 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, uintptr_t PageBits)
 	}
 	
 	*PtePtr = MmBuildPte(Pfn, PageBits | MM_MISC_IS_FROM_PMM);
+	MmFlushTlbUpdates();
 	return STATUS_SUCCESS;
 }
 
@@ -72,6 +73,7 @@ static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection)
 		return STATUS_INSUFFICIENT_MEMORY;
 	
 	*PtePtr = MmBuildPte(Pfn, PageBits | MmGetPteBitsFromProtection(Protection));
+	MmFlushTlbUpdates();
 	return STATUS_SUCCESS;
 }
 
@@ -393,6 +395,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 	}
 	
+	MmFlushTlbUpdates();
 	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;

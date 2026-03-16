@@ -3,7 +3,7 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ke/i386/debug.c
+	ke/i386/debug.c
 	
 Abstract:
 	This module implements architecture specific debugging

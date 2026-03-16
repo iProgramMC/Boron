@@ -172,3 +172,8 @@ bool MmIsFromPmmPte(MMPTE Pte)
 {
 	return (MmIsPresentPte(Pte) || MmWasPresentPte(Pte)) && (MmHardwarePte(Pte) & MM_I386_PTE_ISFROMPMM);
 }
+
+void MmFlushTlbUpdates()
+{
+	// On i386, the TLB is coherent against the data cache, so no need for anything
+}

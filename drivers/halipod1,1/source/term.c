@@ -53,6 +53,10 @@ static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 
 bool HalpIsSerialAvailable;
 
+HAL_API void HalDisplayString(const char* Message);
+
+static KSPIN_LOCK HalTerminalLock;
+
 void HalInitTerminal()
 {
 	if (KeLoaderParameterBlock.FramebufferCount == 0)
@@ -65,7 +69,8 @@ void HalInitTerminal()
 	// on a 1280x800 screen, the term will have a rez of 160x50 (8000 chars).
 	// 52 bytes per character.
 	
-	const int charWidth = 8, charHeight = 16;
+	//const int charWidth = 8, charHeight = 16;
+	const int charWidth = 6, charHeight = 12;
 	int termBufWidth  = Framebuffer->Width  / charWidth;
 	int termBufHeight = Framebuffer->Height / charHeight;
 	
@@ -121,6 +126,14 @@ void HalInitTerminal()
 	{
 		KeCrashBeforeSMPInit("Error, no terminal context");
 	}
+	
+	HalTerminalLock.Locked = false;
+	
+	HalDisplayString("Does this at least work?!\n");
+	
+	char buffer[128];
+	snprintf(buffer,sizeof buffer,"HalDisplayString Address: %p\n", &HalDisplayString);
+	HalDisplayString(buffer);
 }
 
 HAL_API void HalDisplayString(const char* Message)
@@ -133,9 +146,25 @@ HAL_API void HalDisplayString(const char* Message)
 	
 	size_t Length = strlen(Message);
 	
-	static KSPIN_LOCK SpinLock;
+	//static KSPIN_LOCK SpinLock;
+	//char buffer[32];
+	//snprintf(buffer, sizeof buffer, "State of Spinlock: %d  IPL: %d\n", SpinLock.Locked, KeGetIPL());
+	
 	KIPL Ipl;
-	KeAcquireSpinLock(&SpinLock, &Ipl);
+	KeAcquireSpinLock(&HalTerminalLock, &Ipl);
+	//flanterm_write(HalpTerminalContext, buffer, strlen(buffer));
 	flanterm_write(HalpTerminalContext, Message, Length);
-	KeReleaseSpinLock(&SpinLock, Ipl);
+	KeReleaseSpinLock(&HalTerminalLock, Ipl);
+}
+
+HAL_API void HalDisplayString2(const char* Message)
+{
+	if (!HalpTerminalContext)
+	{
+		HalPrintStringDebug(Message);
+		return;
+	}
+	
+	size_t Length = strlen(Message);
+	flanterm_write(HalpTerminalContext, Message, Length);
 }

@@ -318,3 +318,8 @@ bool MmIsFromPmmPte(MMPTE Pte)
 	(void) Pte;
 	return true;
 }
+
+void MmFlushTlbUpdates()
+{
+	KeFlushTLB();
+}

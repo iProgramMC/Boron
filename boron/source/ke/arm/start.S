@@ -24,8 +24,9 @@ Author:
 /* define a Level 1 "Section" PTE */
 /*#define L1PTE(Address) (((Address) & 0xFFF00000) | 0b111010000001110)*/
 
-/* TEX = 0b111, AP = 0b01, P = 0, Domain = 0, CB = 0b11 */
-.equ L1PTE_FLAGS_SEC, 0b111010000001110
+/* TEX = 0b001, AP = 0b01, P = 0, Domain = 0, CB = 0b11 */
+/* .equ L1PTE_FLAGS_SEC, 0b111010000001110 */
+.equ L1PTE_FLAGS_SEC, 0b000010000000010
 
 /* P = 0, Domain = 0, Type = 0b01 */
 .equ L1PTE_FLAGS_CPT, 0b0000000001
@@ -45,6 +46,8 @@ KiExceptionHandlerTable:
 	b KiFiqHandler
 
 KiBeforeSystemStartup:
+	cpsid if
+
 	/* store the LPB pointer from r0 */
 	ldr r1, =(KiBootloaderLpb - 0xC0000000)
 	str r0, [r1, #0x0000]
@@ -66,6 +69,11 @@ KiBeforeSystemStartup:
 	ldr r1, =0x300000
 	orr r1, r1, r2
 	str r1, [r0, #0x000C]
+	
+	/* TEMP: map framebuffer to 0x400000 */
+	ldr r1, =0x0FD00000
+	orr r1, r1, r2
+	str r1, [r0, #0x0010]
 	
 	/* map first 4MB with 0xC0000000 offset */
 	ldr r0, =(KiRootPageTable + 0x3000)
@@ -100,19 +108,27 @@ KiBeforeSystemStartup:
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	
+	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
+	
 	ldr r0, =KiRootPageTable
 	mcr p15, 0, r0, c2, c0, 0   /* write TTBR0 */
+	mcr p15, 0, r1, c8, c7, 0   /* TLB invalidate */
 	
 	mov r0, #0x1
 	mcr p15, 0, r0, c3, c0, 0   /* Domain Access Control: Domain 0 = Client */
 	
-	mov r0, #0x0                /* clear TTBCR to always use TTBR0 */
-	mcr p15, 0, r0, c2, c0, 2
+	mov r1, #0x0
+	mcr p15, 0, r1, c2, c0, 2   /* clear TTBCR to always use TTBR0 */
+	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
+	mcr p15, 0, r1, c7, c6, 0   /* d-cache sweep */
+	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
+	mcr p15, 0, r1, c8, c7, 0   /* TLB invalidate */
 	
 	mrc p15, 0, r0, c1, c0, 0   /* read SCTLR */
 	orr r0, r0, #1              /* enable MMU */
 	orr r0, r0, #(1<<2)         /* enable dcache, icache */
 	orr r0, r0, #(1<<12)        /* enable icache */
+	bic r0, r0, #(1<<28)        /* clear TEX remap, if needed */
 	orr r0, r0, #(1<<13)        /* enable V - interrupt vectors start at 0xFFFF0000 */
 	
 #ifndef TARGET_ARMV5
@@ -120,6 +136,12 @@ KiBeforeSystemStartup:
 #endif
 
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
+	
+	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
+	mcr p15, 0, r1, c8, c7, 0   /* TLB invalidate */
+	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
+	mcr p15, 0, r1, c7, c6, 0   /* d-cache sweep */
+	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
 	
     /* Set up a simple stack */
     ldr sp, =KiInitStackBottom

@@ -156,6 +156,7 @@ PMIPOOL_ENTRY_SLAB MiAllocatePoolHeaderSlab()
 	PMMPTE Pte = (PMMPTE) MI_PTE_LOC((uintptr_t) Address);
 	*Pte = MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
 	KeInvalidatePage(Pte);
+	MmFlushTlbUpdates();
 	
 	KeReleaseSpinLock(&MiPoolHeaderMapLock, Ipl);
 	return Address;

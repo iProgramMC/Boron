@@ -22,7 +22,7 @@ Author:
 #include "ki.h"
 
 KPRCB**  KeProcessorList;
-int      KeProcessorCount = 0;
+int      KeProcessorCount = 1;
 uint32_t KeBootstrapLapicId = 0;
 
 KPRCB** KiGetProcessorList() { return KeProcessorList; }
@@ -59,6 +59,7 @@ NO_RETURN void ExpInitializeExecutive(void* Context);
 
 void MmSwitchKernelSpaceLock();
 
+void Marker(int i);
 // An atomic write to this field causes the parked CPU to jump to the written address,
 // on a 64KiB (or Stack Size Request size) stack. A pointer to the struct limine_smp_info
 // structure of the CPU is passed in RDI
@@ -184,22 +185,29 @@ void KeInitSMP()
 	#define UNI_OR_MULTI "Uni"
 #endif
 
+	Marker(11);
 	PLOADER_MP_INFO MpInfo = &KeLoaderParameterBlock.Multiprocessor;
 	PLOADER_AP BspAp = NULL;
 	
+	Marker(12);
 	KeBootstrapLapicId = MpInfo->BootstrapHardwareId;
 	
+	LogMsg("this one should work");
+	
+	Marker(13);
 	// TODO, restore to 512. Affinity is a bit mask, and there's no uint512_t. Use a bitmap instead later if you care.
 	const uint64_t ProcessorLimit = 64;
 	
 	if (MpInfo->Count > ProcessorLimit)
 		KeCrashBeforeSMPInit("Error, unsupported amount of CPUs: %llu (limit is %llu)", MpInfo->Count, ProcessorLimit);
 	
+	Marker(14);
 #ifdef CONFIG_SMP
 	MMPFN cpuListPFN = MmAllocatePhysicalPage();
 	if (cpuListPFN == PFN_INVALID)
 		KeCrashBeforeSMPInit("Error, can't initialize CPU list, we don't have enough memory");
 	
+	Marker(15);
 	// TODO: don't use MmGetHHDMOffsetAddr on 32-bit builds?
 	KeProcessorList  = MmGetHHDMOffsetAddr(MmPFNToPhysPage(cpuListPFN));
 	KeProcessorCount = MpInfo->Count;
@@ -214,6 +222,7 @@ void KeInitSMP()
 	}
 #endif
 	
+	Marker(16);
 	// Initialize all the CPUs in series.
 	for (uint64_t i = 0; i < MpInfo->Count; i++)
 	{
@@ -250,22 +259,26 @@ void KeInitSMP()
 			BspAp = LoaderAp;
 	}
 	
+	Marker(17);
 	// After the below point, KeCrashBeforeSMPInit can't be used, and KeCrash proper doesn't
 	// work because the CPUs haven't booted yet
 	KiSmpInitted = true;
 	
 	// Initialize system process.
+	Marker(18);
 	PsInitSystemProcess();
 	
 	int VersionNumber = KeGetVersionNumber();
 	LogMsg("Boron (TM), March 2026 - v%d.%d.%d (%s)", VER_MAJOR(VersionNumber), VER_MINOR(VersionNumber), VER_BUILD(VersionNumber), BORON_TARGET);
 	LogMsg("%u System Processors [%u Kb System Memory] " UNI_OR_MULTI "Processor Kernel", MpInfo->Count, MmTotalAvailablePages * PAGE_SIZE / 1024);
 	
+	Marker(19);
 	for (uint64_t i = 0; i < MpInfo->Count; i++)
 	{
 		// Launch the CPU! We won't actually go there immediately if we are the bootstrap processor.
 		KeJumpstartAp(i);
 	}
 	
+	Marker(20);
 	KiCPUBootstrap(BspAp);
 }
