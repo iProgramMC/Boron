@@ -109,6 +109,7 @@ KiBeforeSystemStartup:
 	orr r1, r1, r2
 	str r1, [r0, #0x0000]
 	
+	mcr p15, 0, r1, c7, c10, 0  /* clean dcache */
 	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
 	
 	ldr r0, =KiRootPageTable
@@ -120,10 +121,11 @@ KiBeforeSystemStartup:
 	
 	mov r1, #0x0
 	mcr p15, 0, r1, c2, c0, 2   /* clear TTBCR to always use TTBR0 */
-	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
-	mcr p15, 0, r1, c7, c6, 0   /* d-cache sweep */
+	mcr p15, 0, r1, c7, c10, 0  /* clean dcache */
 	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
+	mcr p15, 0, r1, c7, c6, 0   /* d-cache sweep */
 	mcr p15, 0, r1, c8, c7, 0   /* TLB invalidate */
+	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
 	
 	mrc p15, 0, r0, c1, c0, 0   /* read SCTLR */
 	orr r0, r0, #1              /* enable MMU */
@@ -138,10 +140,11 @@ KiBeforeSystemStartup:
 
 	mcr p15, 0, r0, c1, c0, 0   /* write SCTLR */
 	
+	mcr p15, 0, r1, c7, c10, 0  /* clean dcache */
 	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
 	mcr p15, 0, r1, c8, c7, 0   /* TLB invalidate */
-	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
 	mcr p15, 0, r1, c7, c6, 0   /* d-cache sweep */
+	mcr p15, 0, r1, c7, c5, 0   /* i-cache sweep */
 	mcr p15, 0, r1, c7, c10, 4  /* data sync buffer */
 	
     /* Set up a simple stack */

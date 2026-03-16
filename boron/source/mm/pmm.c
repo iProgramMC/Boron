@@ -577,6 +577,7 @@ void MmRegisterMMIOAsMemory(uintptr_t Base, uintptr_t Length)
 				KeCrash("MmRegisterMMIOAsMemory: could not ensure PTE location %p exists", currPage);
 			
 			PMMPTE Pte = MmGetPteLocation(currPage);
+			MmFlushTlbUpdates();
 			if (!MmIsPresentPte(*Pte))
 			{
 				// allocate it

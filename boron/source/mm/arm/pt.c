@@ -143,6 +143,7 @@ void MiFreePageMapping(HPAGEMAP PageMap)
 	MmFreePhysicalPage(Jibbie);
 	MmFreePhysicalPage(Debbie);
 	MmFreePhysicalContiguousRegion(Root, 4);
+	MmFlushTlbUpdates();
 }
 
 bool MmCheckPteLocationAllocator(
@@ -214,6 +215,7 @@ PMMPTE MmGetPteLocation(uintptr_t Address)
 	// I know this is bad, but come on, when are we *ever* going to
 	// *not* go through this function?
 	KeInvalidatePage(PtePtr);
+	MmFlushTlbUpdates();
 	
 	return PtePtr;
 }
@@ -237,6 +239,7 @@ static bool MmpMapSingleAnonPageAtPte(PMMPTE Pte, uintptr_t Permissions, bool No
 		}
 		
 		*Pte = MmBuildPte(pfn, MM_MISC_IS_FROM_PMM | Permissions);
+		MmFlushTlbUpdates();
 		return true;
 	}
 	
@@ -275,6 +278,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 		
 		MMPTE Pte = *pPTE;
 		*pPTE = ZeroPte;
+		MmFlushTlbUpdates();
 		
 		if (MmIsPresentPte(Pte))
 			MmFreePhysicalPage(MmGetPfnPte(Pte));
@@ -331,6 +335,7 @@ bool MiMapAnonPages(uintptr_t Address, size_t SizePages, uintptr_t Permissions, 
 ROLLBACK:
 	// Unmap all the pages that we have mapped.
 	MiUnmapPages(Address, DonePages);
+	MmFlushTlbUpdates();
 	return false;
 }
 

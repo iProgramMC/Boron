@@ -250,16 +250,19 @@ void KeSpinningHint()
 
 FORCE_INLINE
 void KeInvalidatePage(void* Address) {
-	uint32_t Zero = 0;
-    ASM(
-        "mcr p15, 0, %1, c7, c10, 4\n" // data synchronization barrier (DSB)
-        "mcr p15, 0, %0, c8, c7, 1\n"
-        "mcr p15, 0, %1, c7, c10, 4\n" // DSB
-        "mcr p15, 0, %1, c7, c5, 4\n"  // flush prefetch buffer
-        :
-        : "r"(Address), "r"(Zero)
-        : "memory"
-    );
+	//uint32_t Zero = 0;
+    //ASM(
+    //    "mcr p15, 0, %1, c7, c10, 4\n" // data synchronization barrier (DSB)
+    //    "mcr p15, 0, %0, c8, c7, 1\n"
+    //    "mcr p15, 0, %1, c7, c10, 4\n" // DSB
+    //    "mcr p15, 0, %1, c7, c5, 4\n"  // flush prefetch buffer
+    //    :
+    //    : "r"(Address), "r"(Zero)
+    //    : "memory"
+    //);
+	(void) Address;
+	void KeFlushTLB(void);
+	KeFlushTLB();
 }
 
 FORCE_INLINE

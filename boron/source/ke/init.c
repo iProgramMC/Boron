@@ -19,7 +19,7 @@ Author:
 #include "ki.h"
 #include <rtl/symdefs.h>
 
-int colors[] = {
+static int colors[] = {
 	0b1111100000000000, // 0-RED
 	0b1111101111100000, // 1-ORANGE
 	0b1111111111100000, // 2-YELLOW

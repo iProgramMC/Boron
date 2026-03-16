@@ -40,7 +40,7 @@ set machineType=iPod-Touch,bootrom=%bootromPath%,iboot=%ibootPath%,nand=%nandPat
 	-no-shutdown ^
 	-d int ^
 	-D %nspath%\keep\armlog.txt ^
-	-s
+	-s -S
 
 	@rem -d int ^
 	@rem -D %nspath%\keep\armlog.txt ^
