@@ -78,6 +78,12 @@ void MiInitializeBaseIdentityMapping()
 		KiRootPageTable[4092 + i] = L1PTE(JibbieAddress + i * 1024);
 	}
 	
+	// Disable Lower Half
+	uint32_t* RootPageTableUpperHalf = (uint32_t*)((uintptr_t)KiRootPageTable | 0xC0000000);
+	for (size_t i = 0; i < 2048; i++) {
+		RootPageTableUpperHalf[i] = 0;
+	}
+	
 	MmFlushTlbUpdates();
 	KeSweepIcache();
 	KeSweepDcache();

@@ -32,7 +32,8 @@ void KiInitLoaderParameterBlock()
 {
 	MiInitializeBaseIdentityMapping();
 	
-	KeLoaderParameterBlock = *KiBootloaderLpb;
+	PLOADER_PARAMETER_BLOCK LpbSrc = P2V(KiBootloaderLpb);
+	KeLoaderParameterBlock = *LpbSrc;
 	
 	// Fix up certain addresses to be virtual.
 	PLOADER_PARAMETER_BLOCK Lpb = &KeLoaderParameterBlock;
