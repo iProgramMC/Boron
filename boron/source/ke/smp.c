@@ -73,7 +73,6 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	
 #ifdef TARGET_ARM
 	LogMsg("TODO TEMPORARY: Stopping execution for now! Didn't implement everything...");
-	DISABLE_INTERRUPTS();
 	while (true) {
 		ASM("wfi");
 	}

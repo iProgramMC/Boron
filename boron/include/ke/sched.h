@@ -88,4 +88,8 @@ NO_RETURN void KeSchedulerCommit();
 
 void KeTimerTick();
 
+#if defined KERNEL || defined IS_HAL
+void KeDispatchPendingSoftInterrupts();
+#endif
+
 #endif//BORON_KE_SCHED_H

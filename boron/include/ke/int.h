@@ -120,3 +120,9 @@ int KeSynchronizeExecution(
 	PKSYNCHRONIZE_ROUTINE Routine,
 	void* SynchronizeContext
 );
+
+#if defined KERNEL || defined IS_HAL
+
+void KeDispatchInterruptRequest(int Number);
+
+#endif

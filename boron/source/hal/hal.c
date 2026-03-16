@@ -204,10 +204,19 @@ int HalGetMaximumInterruptCount()
 	return HalpVftable.GetMaximumInterruptCount();
 }
 
-// NOTE: This is low level and should not be used directly!
-void HalRegisterInterruptHandler(int Irq, void(*Func)())
+void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl)
 {
-	return HalpVftable.RegisterInterruptHandler(Irq, Func);
+	HalpVftable.OnUpdateIpl(NewIpl, OldIpl);
+}
+
+void HalVicRegisterInterrupt(int Vector, KIPL Ipl)
+{
+	HalpVftable.VicRegisterInterrupt(Vector, Ipl);
+}
+
+void HalVicDeregisterInterrupt(int Vector, KIPL Ipl)
+{
+	HalpVftable.VicDeregisterInterrupt(Vector, Ipl);
 }
 
 PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)

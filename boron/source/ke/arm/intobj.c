@@ -47,7 +47,10 @@ void KeInitializeInterrupt(
 	bool SharedVector)
 {
 	if (Vector >= HalGetMaximumInterruptCount())
-		DbgPrint("WARNING: KeInitializeInterrupt -- interrupt vector %d may not be called", Vector);
+	{
+		DbgPrint("WARNING: KeInitializeInterrupt -- interrupt vector %d will not be called", Vector);
+		return;
+	}
 	
 	ASSERT(InterruptIpl > IPL_DPC   && "The caller may not override this IPL");
 	ASSERT(InterruptIpl < IPL_CLOCK && "The caller may not override this IPL");
@@ -59,6 +62,7 @@ void KeInitializeInterrupt(
 	Interrupt->ServiceRoutine = ServiceRoutine;
 	Interrupt->ServiceContext = ServiceContext;
 	Interrupt->SpinLock = SpinLock;
+	
 }
 
 bool KeConnectInterrupt(PKINTERRUPT Interrupt)
@@ -86,7 +90,7 @@ bool KeConnectInterrupt(PKINTERRUPT Interrupt)
 	}
 	else
 	{
-		//HalPicRegisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
+		HalVicRegisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
 	}
 	
 	// Connect the interrupt now.
@@ -111,6 +115,9 @@ void KeDisconnectInterrupt(PKINTERRUPT Interrupt)
 	// Disconnect the interrupt now.
 	RemoveEntryList(&Interrupt->Entry);
 	Interrupt->Connected = false;
+	
+	if (IsListEmpty(&InterruptList->List))
+		HalVicDeregisterInterrupt(Interrupt->Vector, Interrupt->Ipl);
 	
 	KeReleaseSpinLock(&InterruptList->Lock, IplUnused);
 	KeLowerIPL(Ipl);
@@ -161,4 +168,9 @@ void KeDispatchInterruptRequest(int Number)
 	
 	// Acknowledge the interrupt.
 	HalEndOfInterrupt(Number);
+}
+
+void KeOnUpdateIPL(KIPL NewIpl, KIPL OldIpl)
+{
+	HalOnUpdateIpl(NewIpl, OldIpl);
 }

@@ -551,3 +551,12 @@ void KiDispatchSoftwareInterrupts(KIPL NewIpl)
 	
 	KeRestoreInterrupts(Restore);
 }
+
+void KeDispatchPendingSoftInterrupts()
+{
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	KIPL Ipl = Prcb->Ipl;
+	
+	if (Prcb->PendingSoftInterrupts >> Ipl)
+		KiDispatchSoftwareInterrupts(Ipl);
+}

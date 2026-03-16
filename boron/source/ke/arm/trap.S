@@ -43,11 +43,6 @@ KeRestoreInterrupts:
 #endif
 1:	bx    lr
 
-	@ void KeOnUpdateIPL(KIPL OldIpl, KIPL NewIpl);
-	.global KeOnUpdateIPL
-KeOnUpdateIPL:
-	bx    lr
-
 	@ NO_RETURN void KeDescendIntoUserMode(
 	@     void* InstructionPointer,
 	@     void* StackPointer,

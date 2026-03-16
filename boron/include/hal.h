@@ -38,7 +38,9 @@ void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl);
 #endif
 #ifdef TARGET_ARM
 int HalGetMaximumInterruptCount();
-void HalRegisterInterruptHandler(int Irq, void(*Func)());
+void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl);
+void HalVicRegisterInterrupt(int Vector, KIPL Ipl);
+void HalVicDeregisterInterrupt(int Vector, KIPL Ipl);
 PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers);
 PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
 #endif

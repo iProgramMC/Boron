@@ -1,18 +1,19 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2026 iProgramInCpp
+
+Module name:
+	ha/timer.c
+	
+Abstract:
+	This module contains the platform's timer driver.
+	
+Author:
+	iProgramInCpp - 15 March 2026
+***/
 #include "hali.h"
 
 uint64_t HalGetIntTimerFrequency()
-{
-	DbgPrint("%s NYI", __func__);
-	return 1000000;
-}
-
-uint64_t HalGetTickCount()
-{
-	DbgPrint("%s NYI", __func__);
-	return 1;
-}
-
-uint64_t HalGetTickFrequency()
 {
 	DbgPrint("%s NYI", __func__);
 	return 1000000;
@@ -30,12 +31,6 @@ uint64_t HalGetInterruptDeltaTime()
 	return 1000;
 }
 
-bool HalUseOneShotTimer()
-{
-	DbgPrint("%s NYI", __func__);
-	return false;
-}
-
 bool HalUseOneShotIntTimer()
 {
 	DbgPrint("%s NYI", __func__);
@@ -50,4 +45,8 @@ void HalRequestInterruptInTicks(uint64_t ticks)
 void HalInitTimer()
 {
 	DbgPrint("%s NYI", __func__);
+	
+	
+	// Also initialize the clock
+	HalInitClock();
 }

@@ -29,7 +29,9 @@ uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
 int HalGetMaximumInterruptCount();
-void HalRegisterInterruptHandler(int Irq, void(*Func)());
+void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl);
+void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl);
+void HalVicDeregisterInterrupt(int InterruptNumber, KIPL Ipl);
 PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers);
 PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
 bool HalUseOneShotTimer();
@@ -71,7 +73,9 @@ static const HAL_VFTABLE HalpVfTable =
 	.GetTickFrequency = HalGetTickFrequency,
 	.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
 	.GetMaximumInterruptCount = HalGetMaximumInterruptCount,
-	.RegisterInterruptHandler = HalRegisterInterruptHandler,
+	.OnUpdateIpl = HalOnUpdateIpl,
+	.VicRegisterInterrupt = HalVicRegisterInterrupt,
+	.VicDeregisterInterrupt = HalVicDeregisterInterrupt,
 	.OnInterruptRequest = HalOnInterruptRequest,
 	.OnFastInterruptRequest = HalOnFastInterruptRequest,
 	.Flags = HAL_VFTABLE_LOADED,
