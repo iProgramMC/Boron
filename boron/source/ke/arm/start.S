@@ -26,7 +26,7 @@ Author:
 
 /* TEX = 0b001, AP = 0b01, P = 0, Domain = 0, CB = 0b11 */
 /* .equ L1PTE_FLAGS_SEC, 0b111010000001110 */
-.equ L1PTE_FLAGS_SEC, 0b000010000000010
+.equ L1PTE_FLAGS_SEC, 0b001010000001110
 
 /* P = 0, Domain = 0, Type = 0b01 */
 .equ L1PTE_FLAGS_CPT, 0b0000000001
@@ -72,7 +72,8 @@ KiBeforeSystemStartup:
 	
 	/* TEMP: map framebuffer to 0x400000 */
 	ldr r1, =0x0FD00000
-	orr r1, r1, r2
+	ldr r3, =0b000010000000010 /* map fb differently */
+	orr r1, r1, r3
 	str r1, [r0, #0x0010]
 	
 	/* map first 4MB with 0xC0000000 offset */

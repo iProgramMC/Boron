@@ -34,18 +34,22 @@ KeFlushTLB:
 	mcr p15, 0, r0, c7, c10, 4   @ DSB - data sync barrier
 	mcr p15, 0, r0, c8, c7, 0    @ invalidate unified TLB
 	mcr p15, 0, r0, c7, c10, 4   @ DSB again
+	mcr p15, 0, r0, c7, c7, 0    @ flush icache+dcache+BPcache
 	mcr p15, 0, r0, c7, c5, 4    @ flush prefetch buffer
 	bx  lr
 
 	@void KeSweepIcache(void);
 	.global KeSweepIcache
 KeSweepIcache:
+	mcr p15, 0, r0, c7, c5, 0    @ flush icache + branch predictor cache
 	mcr p15, 0, r0, c7, c5, 4    @ flush prefetch buffer
 	bx  lr
 
 	@void KeSweepDcache(void);
 	.global KeSweepDcache
 KeSweepDcache:
+	ldr r0, =0
 	mcr p15, 0, r0, c7, c10, 4   @ DSB
 	mcr p15, 0, r0, c7, c10, 5   @ DMB
+	mcr p15, 0, r0, c7, c6,  0   @ flush dcache
 	bx  lr
