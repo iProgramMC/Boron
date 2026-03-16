@@ -95,6 +95,13 @@ void HalInitPL192()
 	// Clear the IPL list.
 	for (int i = 0; i < MAX_INTERRUPTS; i++)
 		HalInterruptIpls[i] = IPL_UNDEFINED;
+	
+	// Acknowledge all possible interrupts.
+	for (int i = 0; i < 0x20; i++)
+	{
+		VICADDRESS(0) = 0;
+		VICADDRESS(1) = 0;
+	}
 }
 
 int HalGetMaximumInterruptCount()
@@ -143,9 +150,6 @@ void HalOnUpdateIpl(KIPL NewIpl, UNUSED KIPL OldIpl)
 	if (NewIpl != IPL_NORMAL)
 		Mask = (0xFFFF >> (NewIpl + 1)) & 0xFFFF;
 	
-	char buffer[32];
-	snprintf(buffer,sizeof buffer,"New mask: %x  NewIpl: %d\n",Mask,NewIpl);
-	DbgPrintString(buffer);
 	VICSWPRIORITYMASK(0) = Mask;
 	VICSWPRIORITYMASK(1) = Mask;
 }
@@ -210,17 +214,6 @@ void HalExitHardwareInterrupt(int InterruptNumber, KIPL OldIpl)
 	Prcb->Ipl = OldIpl;
 	HalOnUpdateIpl(OldIpl, PrevIpl);
 	
-/*
-	// Check if the current thread is terminated and we are about to
-	// return to user mode.
-	if (KeGetCurrentThread()->PendingTermination &&
-		Registers->OldIpl == IPL_NORMAL &&
-		Registers->cs == SEG_RING_3_CODE)
-	{
-		KiTerminateUserModeThread(KeGetCurrentThread()->IncrementTerminated);
-	}
-*/
-
 	(void) InterruptNumber;
 	
 	// Note: safe to call here because KeDispatchPendingSoftInterrupts
@@ -248,10 +241,6 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 		DbgPrintString("spurious interrupt?\n");
 		return Registers;
 	}
-	
-	char buff[36];
-	snprintf(buff, sizeof buff, "HalOnInterruptRequest(%d)\n", InterruptNumber);
-	DbgPrintString(buff);
 	
 	KIPL OldIpl = HalEnterHardwareInterrupt(InterruptNumber);
 	KeDispatchInterruptRequest(InterruptNumber);

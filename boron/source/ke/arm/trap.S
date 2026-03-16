@@ -301,7 +301,6 @@ KiDataAbortHandler:
 	
 	.global KiUndefinedInstructionHandler
 KiUndefinedInstructionHandler:
-	sub   lr, lr, #8
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}

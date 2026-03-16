@@ -96,7 +96,7 @@ static const int HalTimerOffsets[] = {
 #define TIMER_SPECIAL_BIT_2 0x02000000
 
 #define TIMER_TICKS_PER_SEC 12000000
-#define IRQS_PER_SEC 100
+#define IRQS_PER_SEC 3
 
 static KINTERRUPT HalTimerInterrupt;
 static KSPIN_LOCK HalTimerInterruptLock;
@@ -155,6 +155,14 @@ static void HalTimerSetUnkReg0ForInit()
 	TIMER_UNKREG0 |= 0xA;
 }
 
+static KDPC TimerDpc;
+
+static void TimerDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* SysArg1, UNUSED void* SysArg2)
+{
+	static int Value = 0;
+	LogMsg("Timer!  Value = %d", Value++);
+}
+
 void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 {
 	ASSERT(Interrupt == &HalTimerInterrupt);
@@ -173,15 +181,14 @@ void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 
 	// uhhhhh
 	// n.b.  emulator always returns 0xFFFFFFFF
-	char buffer[64];
-	snprintf(buffer, sizeof buffer, "HalTimerHandler!  Stat = %08x\n", Stat);
-	DbgPrintString(buffer);
-	
+	//DbgPrintString("HalTimerHandler\n");
 	uint32_t Timer4Flags = Stat >> (8 * (TIMER_COUNT - TIMER_EVENT - 1));
 	if (Timer4Flags & (1 << 0))
 	{
-		DbgPrintString("calling KeTimerTick\n");
-		KeTimerTick();
+		//KeTimerTick();
+		KeInitializeDpc(&TimerDpc, TimerDpcRoutine, NULL);
+		KeSetImportantDpc(&TimerDpc, true);
+		KeEnqueueDpc(&TimerDpc, NULL, NULL);
 	}
 	
 	TIMER_IRQLATCH = Stat;
@@ -199,6 +206,13 @@ void HalInitTimer()
 	);
 	ASSERT(HalTimerBase);
 	
+	for (int i = 0; i < TIMER_COUNT; i++) {
+		HalTimerStop(i);
+	}
+}
+
+void HalInitTimerPart2()
+{
 	HalClockSetGateEnabled(CLOCK_GATE_TIMER, true);
 	
 	for (int i = 0; i < TIMER_COUNT; i++) {
@@ -208,6 +222,8 @@ void HalInitTimer()
 	HalTimerSetUnkReg0ForInit();
 	
 	HalTimerInitRtc();
+	
+	bool Restore = KeDisableInterrupts();
 	
 	KeInitializeInterrupt(
 		&HalTimerInterrupt,
@@ -231,7 +247,7 @@ void HalInitTimer()
 		true
 	);
 	
-	DbgPrint("We getting here?");
+	KeRestoreInterrupts(Restore);
 }
 
 uint64_t HalGetIntTimerFrequency()
