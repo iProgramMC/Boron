@@ -27,7 +27,6 @@ typedef void(*PFHAL_REQUEST_IPI)(uint32_t LapicId, uint32_t Flags, int Vector);
 typedef void(*PFHAL_INIT_SYSTEM_UP)(void);
 typedef void(*PFHAL_INIT_SYSTEM_MP)(void);
 typedef void(*PFHAL_DISPLAY_STRING)(const char* Message);
-typedef void(*PFHAL_DISPLAY_STRING2)(const char* Message);
 typedef void(*PFHAL_CRASH_SYSTEM)(const char* Message) NO_RETURN;
 typedef bool(*PFHAL_USE_ONE_SHOT_INT_TIMER)(void);
 typedef void(*PFHAL_PROCESSOR_CRASHED)(void);
@@ -70,7 +69,6 @@ typedef struct
 	PFHAL_INIT_SYSTEM_UP InitSystemUP;
 	PFHAL_INIT_SYSTEM_MP InitSystemMP;
 	PFHAL_DISPLAY_STRING DisplayString;
-	PFHAL_DISPLAY_STRING2 DisplayString2;
 	PFHAL_CRASH_SYSTEM CrashSystem;
 	PFHAL_USE_ONE_SHOT_INT_TIMER UseOneShotIntTimer;
 	PFHAL_PROCESSOR_CRASHED ProcessorCrashed;

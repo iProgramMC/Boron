@@ -15,18 +15,19 @@ Author:
 
 	.section .text
 
-	@ void KeSetCurrentPageTable(HPAGEMAP PageMap);
-	.global KeSetCurrentPageTable
-KeSetCurrentPageTable:
-	mcr p15, 0, r0, c2, c0, 0    @ Write TTBR0
-	bl  KeFlushTLB
-	bx  lr
-
 	@ HPAGEMAP KeSetCurrentPageTable();
 	.global KeGetCurrentPageTable
 KeGetCurrentPageTable:
 	mrc p15, 0, r0, c2, c0, 0    @ Read TTBR0
 	bx  lr
+
+	@ void KeSetCurrentPageTable(HPAGEMAP PageMap);
+	.global KeSetCurrentPageTable
+KeSetCurrentPageTable:
+	mcr p15, 0, r0, c7, c10, 0   @ clean dcache
+	mcr p15, 0, r0, c7, c10, 4   @ DSB - data sync barrier
+	mcr p15, 0, r0, c2, c0, 0    @ write TTBR0
+	@ fallthrough to KeFlushTLB
 
 	@ void KeFlushTLB(void);
 	.global KeFlushTLB

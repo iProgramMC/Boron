@@ -52,27 +52,19 @@ PEPROCESS PsGetSystemProcess()
 INIT
 void PsInitSystemProcess()
 {
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	// Initialize the object header.
 	POBJECT_HEADER Hdr = &PspSystemProcessObject.ObjectHeader;
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	Hdr->ObjectName = PspSystemProcessName;
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	Hdr->Flags = OB_FLAG_PERMANENT;
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	Hdr->NonPagedObjectHeader = &PspSystemProcessNpHeader;
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	Hdr->BodySize = sizeof(EPROCESS);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 #ifdef DEBUG
 	Hdr->Signature = OBJECT_HEADER_SIGNATURE;
 #endif
 	
 	PspSystemProcessNpHeader.ObjectType = NULL; // TBD in PsInitSystem
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	PspSystemProcessNpHeader.NormalHeader = Hdr;
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	// Initialize the kernel side process.
 	BSTATUS Status = KeInitializeProcess(
@@ -80,26 +72,20 @@ void PsInitSystemProcess()
 		PRIORITY_NORMAL,
 		AFFINITY_ALL
 	);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	if (FAILED(Status))
 		KeCrashBeforeSMPInit("KeInitializeProcess failed!");
 	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	// Use the new page mapping.
 	KeSetCurrentPageTable(PsSystemProcess.Pcb.PageMap);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	MmInitializeVadList(&PsSystemProcess.VadList);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	// Initialize the heap with a default range.
 	MmInitializeHeap(&PsSystemProcess.Heap, sizeof(MMVAD), INITIAL_BEG_VA, (INITIAL_END_VA - INITIAL_BEG_VA) / PAGE_SIZE);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	// Initialize the address lock.
 	ExInitializeRwLock(&PsSystemProcess.AddressLock);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	
 	// Initialize the handle table.
 	// TODO: Defaults chosen arbitrarily.
@@ -109,11 +95,8 @@ void PsInitSystemProcess()
 	}
 	
 	// Assign an image name.
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	memset(PsSystemProcess.ImageName, 0, MAX_IMAGE_NAME);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	strcpy(PsSystemProcess.ImageName, PspSystemProcessName);
-	LogMsg("%s:%d", __FILE__, __LINE__);
 }
 
 INIT
