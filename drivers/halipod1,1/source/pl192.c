@@ -10,10 +10,11 @@ Abstract:
 	VIC (vectored interrupt controller) driver.
 	
 Author:
-	iProgramInCpp - 15 March 2026
+	iProgramInCpp - 16 March 2026
 ***/
 #include "hali.h"
 #include <mm.h>
+#include <string.h>
 
 // N.B.  Each PL192 has support for 32 interrupts, so 64 total
 #define MAX_INTERRUPTS 64
@@ -110,7 +111,7 @@ void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl)
 	if (InterruptNumber >= 32)
 	{
 		VICVECTPRIORITY(1)[InterruptNumber & 0x1F] = Priority;
-		VICINTENABLE(0) = 1U << (InterruptNumber & 0x1F);
+		VICINTENABLE(1) = 1U << (InterruptNumber & 0x1F);
 	}
 	else
 	{
@@ -124,7 +125,7 @@ void HalVicDeregisterInterrupt(int InterruptNumber, UNUSED KIPL Ipl)
 	HalInterruptIpls[InterruptNumber] = IPL_UNDEFINED;
 	
 	if (InterruptNumber >= 32)
-		VICINTENCLEAR(0) = 1U << (InterruptNumber & 0x1F);
+		VICINTENCLEAR(1) = 1U << (InterruptNumber & 0x1F);
 	else
 		VICINTENCLEAR(0) = 1U << (InterruptNumber & 0x1F);
 }
@@ -220,6 +221,11 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 {
 	// Interrupts are disabled at this point.  Also, the VIC should handle IPLs for us.
 	int InterruptNumber = (int) VICADDRESS(0);
+	
+	char buff[36];
+	snprintf(buff, sizeof buff, "HalOnInterruptRequest(%d)\n", InterruptNumber);
+	DbgPrintString(buff);
+	
 	KIPL OldIpl = HalEnterHardwareInterrupt(InterruptNumber);
 	KeDispatchInterruptRequest(InterruptNumber);
 	HalExitHardwareInterrupt(InterruptNumber, OldIpl);
