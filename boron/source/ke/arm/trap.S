@@ -187,6 +187,8 @@ KiRestoreInterruptStacks:
 
 #ifdef TARGET_ARMV5
 
+#warning TODO: rewrite this for armv5 too
+
 .macro ABORT_HANDLER name, handle, ps
 	.global \name
 	.extern \handle
@@ -231,11 +233,90 @@ KiRestoreInterruptStacks:
 
 #endif
 
-ABORT_HANDLER KiPrefetchAbortHandler, KiHandleInstructionFault, 0x17
-ABORT_HANDLER KiDataAbortHandler, KiHandleDataFault, 0x17
-ABORT_HANDLER KiUndefinedInstructionHandler, KeOnUndefinedInstruction, 0x17
-ABORT_HANDLER KiIrqHandler, HalOnInterruptRequest, 0x12
-ABORT_HANDLER KiFiqHandler, HalOnFastInterruptRequest, 0x11
+@ABORT_HANDLER KiPrefetchAbortHandler, KiHandleInstructionFault, 0x17
+@ABORT_HANDLER KiDataAbortHandler, KiHandleDataFault, 0x17
+@ABORT_HANDLER KiUndefinedInstructionHandler, KeOnUndefinedInstruction, 0x17
+@ABORT_HANDLER KiIrqHandler, HalOnInterruptRequest, 0x12
+@ABORT_HANDLER KiFiqHandler, HalOnFastInterruptRequest, 0x11
+
+	.global KiIrqHandler
+KiIrqHandler:
+	sub   lr, lr, #4
+	push  {r0-r12, lr}
+	mrs   r0, spsr
+	push  {r0}
+	mov   r0, sp
+	cps   #0x13
+	bl    HalOnInterruptRequest
+	cps   #0x12
+	pop   {r0}
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
+	
+	.global KiFiqHandler
+KiFiqHandler:
+	sub   lr, lr, #4
+	push  {r0-r12, lr}
+	mrs   r0, spsr
+	push  {r0}
+	mov   r0, sp
+	cps   #0x13
+	bl    HalOnFastInterruptRequest
+	cps   #0x11
+	pop   {r0}
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
+	
+	.global KiPrefetchAbortHandler
+KiPrefetchAbortHandler:
+	sub   lr, lr, #4
+	push  {r0-r12, lr}
+	mrs   r0, spsr
+	push  {r0}
+	mov   r0, sp
+	cps   #0x13
+	bl    KiHandleInstructionFault
+	cps   #0x17
+	pop   {r0}
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
+	
+	.global KiDataAbortHandler
+KiDataAbortHandler:
+	sub   lr, lr, #8
+	push  {r0-r12, lr}
+	mrs   r0, spsr
+	push  {r0}
+	mov   r0, sp
+	cps   #0x13
+	bl    KiHandleDataFault
+	cps   #0x17
+	pop   {r0}
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
+	
+	.global KiUndefinedInstructionHandler
+KiUndefinedInstructionHandler:
+	sub   lr, lr, #8
+	push  {r0-r12, lr}
+	mrs   r0, spsr
+	push  {r0}
+	mov   r0, sp
+	cps   #0x13
+	bl    KeOnUndefinedInstruction
+	cps   #0x1B
+	pop   {r0}
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
+
+
+
+
 
 	.global KiSoftwareInterruptHandler
 	.extern KiSystemServiceHandler
