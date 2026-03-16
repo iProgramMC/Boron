@@ -71,13 +71,6 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	// Update the IPL when initing. Currently we start at the highest IPL
 	KeOnUpdateIPL(KeGetIPL(), 0);
 	
-#ifdef TARGET_ARM
-	LogMsg("TODO TEMPORARY: Stopping execution for now! Didn't implement everything...");
-	while (true) {
-		ASM("wfi");
-	}
-#endif
-	
 	ENABLE_INTERRUPTS();
 	
 	KeInitCPU();
@@ -86,6 +79,13 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	KeSchedulerInit(MmAllocateKernelStack());
 	
 	HalInitSystemMP();
+	
+#ifdef TARGET_ARM
+	LogMsg("TODO TEMPORARY: Stopping execution for now! Didn't implement everything...");
+	while (true) {
+		ASM("wfi");
+	}
+#endif
 	
 	if (Prcb->IsBootstrap)
 	{

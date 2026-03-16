@@ -18,35 +18,34 @@ Author:
 #include <hal.h>
 #include <except.h>
 
-#define MAX_IRQS (32) // PL192 has 32 IRQs, PL190 has only 16
+bool KiInitHandlingInstructionFault;
 
-static KSPIN_LOCK KiTrapLock;
-
-extern void* const KiTrapList[];
-int8_t KiTrapIplList[MAX_IRQS];
-void*  KiTrapCallList[MAX_IRQS];
-
-void KeRegisterInterrupt(int Vector, PKINTERRUPT_HANDLER Handler)
+bool KiHandlingInstructionFault()
 {
-	KIPL Ipl;
-	KeAcquireSpinLock(&KiTrapLock, &Ipl);
-	KiTrapCallList[Vector] = Handler;
-	KeReleaseSpinLock(&KiTrapLock, Ipl);
+	if (!KeGetCurrentThread())
+		return KiInitHandlingInstructionFault;
+	
+	return KeGetCurrentThread()->HandlingInstructionFault;
 }
 
-void KeSetInterruptIPL(int Vector, KIPL Ipl)
+static void KiSetHandlingInstructionFault(bool If)
 {
-	KiTrapIplList[Vector] = Ipl;
+	if (!KeGetCurrentThread()) {
+		KiInitHandlingInstructionFault = If;;
+		return;
+	}
+	
+	KeGetCurrentThread()->HandlingInstructionFault = If;
 }
 
 void KiHandleInstructionFault(PKREGISTERS Registers)
 {
-	KeGetCurrentThread()->HandlingInstructionFault = true;
+	KiSetHandlingInstructionFault(true);
 	KeOnPageFault(Registers);
 }
 
 void KiHandleDataFault(PKREGISTERS Registers)
 {
-	KeGetCurrentThread()->HandlingInstructionFault = false;
+	KiSetHandlingInstructionFault(false);
 	KeOnPageFault(Registers);
 }

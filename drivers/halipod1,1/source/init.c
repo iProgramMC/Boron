@@ -40,6 +40,7 @@ uint64_t HalGetInterruptDeltaTime();
 void HalInitCLCD();
 void HalInitTerminal();
 void HalInitPL192();
+void HalInitClock();
 void HalInitTimer();
 
 // Initialize the HAL on the BSP, for all processors.
@@ -54,6 +55,7 @@ HAL_API void HalInitSystemUP()
 // This function is run on ALL processors.
 HAL_API void HalInitSystemMP()
 {
+	HalInitClock();
 	HalInitTimer();
 }
 

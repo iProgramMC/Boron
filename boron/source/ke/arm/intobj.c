@@ -52,8 +52,8 @@ void KeInitializeInterrupt(
 		return;
 	}
 	
-	ASSERT(InterruptIpl > IPL_DPC   && "The caller may not override this IPL");
-	ASSERT(InterruptIpl < IPL_CLOCK && "The caller may not override this IPL");
+	ASSERT(InterruptIpl >  IPL_DPC   && "The caller may not override this IPL");
+	ASSERT(InterruptIpl <= IPL_CLOCK && "The caller may not override this IPL");
 	
 	Interrupt->Connected = false;
 	Interrupt->SharedVector = SharedVector;
@@ -62,7 +62,6 @@ void KeInitializeInterrupt(
 	Interrupt->ServiceRoutine = ServiceRoutine;
 	Interrupt->ServiceContext = ServiceContext;
 	Interrupt->SpinLock = SpinLock;
-	
 }
 
 bool KeConnectInterrupt(PKINTERRUPT Interrupt)

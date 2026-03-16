@@ -87,6 +87,9 @@ void HalInitPL192()
 	{
 		VICVECTADDR(0)[i] = i;
 		VICVECTADDR(1)[i] = 0x20 + i;
+		
+		VICVECTPRIORITY(0)[i] = 0xF;
+		VICVECTPRIORITY(1)[i] = 0xF;
 	}
 	
 	// Clear the IPL list.
@@ -132,11 +135,17 @@ void HalVicDeregisterInterrupt(int InterruptNumber, UNUSED KIPL Ipl)
 
 void HalOnUpdateIpl(KIPL NewIpl, UNUSED KIPL OldIpl)
 {
-	// 0 is lowest, 1 is highest, meaning that the mask goes 0b111...000
-	int Mask = 0;
-	if (NewIpl != IPL_NORMAL)
-		Mask = (0xFFFF >> (0xF - NewIpl)) & 0xFFFF;
+	if (!HalVic0Base || !HalVic1Base)
+		return;
 	
+	// 0 is lowest, 1 is highest, meaning that the mask goes 0b111...000
+	int Mask = 0xFFFF;
+	if (NewIpl != IPL_NORMAL)
+		Mask = (0xFFFF >> (NewIpl + 1)) & 0xFFFF;
+	
+	char buffer[32];
+	snprintf(buffer,sizeof buffer,"New mask: %x  NewIpl: %d\n",Mask,NewIpl);
+	DbgPrintString(buffer);
 	VICSWPRIORITYMASK(0) = Mask;
 	VICSWPRIORITYMASK(1) = Mask;
 }
@@ -157,10 +166,12 @@ void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 
 void HalEndOfInterrupt(int InterruptNumber)
 {
-	if (InterruptNumber >= 32)
+	if (InterruptNumber >= 32) {
 		VICADDRESS(1) = 0;
-	
-	VICADDRESS(0) = 0;
+	}
+	else {
+		VICADDRESS(0) = 0;
+	}
 }
 
 KIPL HalEnterHardwareInterrupt(int InterruptNumber)
@@ -220,7 +231,23 @@ void HalExitHardwareInterrupt(int InterruptNumber, KIPL OldIpl)
 PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 {
 	// Interrupts are disabled at this point.  Also, the VIC should handle IPLs for us.
-	int InterruptNumber = (int) VICADDRESS(0);
+	int InterruptNumber = -1;
+	
+	// TODO: this might be bad if a higher priority interrupt from VIC1 is taken.
+	// Thankfully the timer is on IRQ 7, so it should be okay.
+	if (VICIRQSTATUS(0) != 0)
+	{
+		InterruptNumber = (int) VICADDRESS(0);
+	}
+	else if (VICIRQSTATUS(1) != 0)
+	{
+		InterruptNumber = 32 + (int) VICADDRESS(1);
+	}
+	else
+	{
+		DbgPrintString("spurious interrupt?\n");
+		return Registers;
+	}
 	
 	char buff[36];
 	snprintf(buff, sizeof buff, "HalOnInterruptRequest(%d)\n", InterruptNumber);

@@ -39,7 +39,7 @@ Author:
 	UNUSED uint32_t FaultPC = TrapFrame->Lr; \
 	UNUSED uint32_t FaultAddress, FaultMode; \
 	UNUSED uint32_t Vector = 0; \
-	if (KeGetCurrentThread()->HandlingInstructionFault) { \
+	if (KiHandlingInstructionFault()) { \
 		FaultAddress = KiReadIfar(); \
 		FaultMode = KiReadIfsr(); \
 	} else { \
@@ -92,8 +92,8 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 	KI_EXCEPTION_HANDLER_INIT();
 	
 #ifdef DEBUG2
-	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 #endif
+	DbgPrint("handling fault ip=%p, faultaddr=%p, faultmode=%p", FaultPC, FaultAddress, FaultMode);
 	
 	BSTATUS FaultReason = STATUS_SUCCESS;
 	PKTHREAD Thread = KeGetCurrentThread();
@@ -108,7 +108,7 @@ void KeOnPageFault(PKREGISTERS TrapFrame)
 		// instead, immediately return the specific status.
 		FaultReason = STATUS_IPL_TOO_HIGH;
 	}
-	else
+	else if (Thread)
 	{
 		// If there are any other immediately observable bad accesses, handle them here.
 		// For example, perhaps we might force the first page (0-0xFFF) to always be

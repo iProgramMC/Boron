@@ -114,18 +114,23 @@ bool KiCancelTimer(PKTIMER Timer);
 void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread);
 
 #ifdef TARGET_ARM
+
 void KiSaveInterruptStacks(
 	uintptr_t* AbortStack,
 	uintptr_t* UndefinedStack,
 	uintptr_t* IrqStack,
 	uintptr_t* FiqStack
 );
+
 void KiRestoreInterruptStacks(
 	uintptr_t AbortStack,
 	uintptr_t UndefinedStack,
 	uintptr_t IrqStack,
 	uintptr_t FiqStack
 );
+
+bool KiHandlingInstructionFault();
+
 #endif
 
 #endif//BORON_KE_KI_H
