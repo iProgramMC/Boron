@@ -25,6 +25,122 @@ void DbgPrintDouble(const char* String)
 	HalDisplayString(String);
 }
 
+void DbgPrintStackTrace(uintptr_t Rbp)
+{
+	(void) Rbp;
+	
+	DbgPrintDouble("TODO: DbgPrintStackTrace\n");
+}
+
+void DbgDumpPageTables()
+{
+	uintptr_t Ttbr0 = (uintptr_t) KeGetCurrentPageTable();
+	
+	KeFlushTLB();
+	KeSweepIcache();
+	KeSweepDcache();
+	
+	// we're lucky that (right now) the entire system memory fits inside 256MB
+	// otherwise we'd be screwed
+	
+	DbgPrint("Dumping page table at %p:", Ttbr0);
+	
+	uintptr_t* L1 = (uintptr_t*) (0xC0000000 | Ttbr0);
+	for (int i = 0; i < 4096; i++)
+	{
+		uintptr_t L1Pte = L1[i];
+		uintptr_t PhysPage;
+		int L1Type = L1Pte & 0b11;
+		if (L1Type == 0b00)
+			// Unmapped
+			continue;
+		
+		if (L1Type == 0b10)
+		{
+			// Section
+			int Ap = (L1Pte >> 10) & 0b11;
+			int Tex = (L1Pte >> 12) & 0b111;
+			int Cb = (L1Pte >> 2) & 0b11;
+			
+			int SuperSection = L1Pte & (1 << 18);
+			PhysPage = L1Pte & ~((1 << 20) - 1);
+			
+			DbgPrint("	%p - %d - %p - %s AP:%x TEX:%x CB:%x  RawPte:%p",
+				i << 20,
+				i,
+				PhysPage,
+				SuperSection ? "super-section" : "section",
+				Ap,
+				Tex,
+				Cb,
+				L1Pte
+			);
+			
+			continue;
+		}
+		else if (L1Type == 0b11)
+		{
+			DbgPrint("	%p - %d - Reserved (this entry's presence is an error) RawPte:%p", i << 20, i, L1Pte);
+			continue;
+		}
+		
+		// Coarse Page Table
+		PhysPage = L1Pte & ~((1 << 10) - 1);
+		DbgPrint("	%p - %d - %p - Coarse Page Table  RawPte:%p", i << 20, i, PhysPage, L1Pte);
+		
+		uintptr_t* L2 = (uintptr_t*) (0xC0000000 | PhysPage);
+		
+		for (int j = 0; j < 256; j++)
+		{
+			uintptr_t Pte = L2[j];
+			uintptr_t RealAddr = (i << 20) | (j << 12);
+			int Type = Pte & 0b11;
+			
+			if (Type == 0b00)
+				// Unmapped
+				continue;
+			
+			PhysPage = Pte & ~((1 << 12) - 1);
+			if (Type == 0b01)
+			{
+				DbgPrint(
+					"		%p - %d - %d - %p - Large Page (this entry's presence is an error) RawPte:%p",
+					RealAddr,
+					i,
+					j,
+					PhysPage,
+					Pte
+				);
+				continue;
+			}
+			
+			bool IsNX = Type == 0b11;
+			int Ap = (Pte >> 4) & 0b11;
+			int Tex = (Pte >> 6) & 0b111;
+			int Cb = (Pte >> 2) & 0b11;
+			int Apx = (Pte >> 9) & 0b1;
+			int S = (Pte >> 10) & 0b1;
+			int nG = (Pte >> 11) & 0b1;
+			
+			DbgPrint(
+				"		%p - %d - %d - %p - page NX:%d TEX:%x CB:%x AP:%x APX:%x S:%d NG:%d  RawPte:%p",
+				RealAddr,
+				i,
+				j,
+				PhysPage,
+				IsNX,
+				Tex,
+				Cb,
+				Ap,
+				Apx,
+				S,
+				nG,
+				Pte
+			);
+		}
+	}
+}
+
 #ifdef DEBUG
 
 #ifdef USE_PL011
@@ -119,13 +235,6 @@ void DbgPrintString(const char* str)
 		DbgPrintChar(*str);
 		str++;
 	}
-}
-
-void DbgPrintStackTrace(uintptr_t Rbp)
-{
-	(void) Rbp;
-	
-	DbgPrintDouble("TODO: DbgPrintStackTrace\n");
 }
 
 KSPIN_LOCK KiPrintLock;

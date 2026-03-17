@@ -111,6 +111,12 @@ void DbgPrintDouble(const char* String)
 	HalDisplayString(String);
 }
 
+void DbgDumpPageTables()
+{
+	// TODO
+	DbgPrint("You really need this?  Add it.  It's supposed to dump the current page table.");
+}
+
 void DbgPrintStackTrace(uintptr_t Rbp)
 {
 	if (Rbp == 0)
