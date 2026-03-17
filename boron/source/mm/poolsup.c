@@ -179,7 +179,7 @@ void MiInitializeRootPageTable(int Idx)
 
 void MiInitializeRootPageTable(int Idx)
 {
-	PMMPTE Pte = (PMMPTE) MI_PML1_LOCATION + Idx;
+	PMMPTE Pte = (PMMPTE) MI_PML1_LOCATION;
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	
 	if (Pfn == PFN_INVALID)
@@ -189,8 +189,12 @@ void MiInitializeRootPageTable(int Idx)
 		// HACK for now.
 		MMPTE hPte;
 		hPte.PteHardware = ((Pfn << 12) + i * 1024) | L1PTE_FLAGS_CPT;
-		Pte[i] = hPte;
+		Pte[Idx * 4 + i] = hPte;
 	}
+	
+	// Also update Debbie
+	Pte = (PMMPTE) MI_PML2_MIRROR_LOCATION;
+	Pte[Idx] = MmBuildPte(Pfn, MM_MISC_IS_FROM_PMM | MM_PROT_READ | MM_PROT_WRITE);
 }
 
 #endif
@@ -207,6 +211,8 @@ void MiInitializePoolPageTables()
 	
 	for (int i = MI_GLOBAL_AREA_START_2ND; i < MI_GLOBAL_AREA_START_2ND + Size2; i++)
 		MiInitializeRootPageTable(i);
+	
+	MmFlushTlbUpdates();
 }
 
 #endif

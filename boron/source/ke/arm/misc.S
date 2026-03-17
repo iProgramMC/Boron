@@ -19,6 +19,7 @@ Author:
 	.global KeGetCurrentPageTable
 KeGetCurrentPageTable:
 	mrc p15, 0, r0, c2, c0, 0    @ Read TTBR0
+	bic r0, r0, #255             @ Clear lower 8 bits because that contains our cache policy
 	bx  lr
 
 	@ void KeSetCurrentPageTable(HPAGEMAP PageMap);
