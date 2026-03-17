@@ -46,8 +46,6 @@ static KIPL HalInterruptIpls[MAX_INTERRUPTS];
 
 void HalInitPL192()
 {
-	DbgPrint("%s...", __func__);
-	
 	// step 1: map the VICs
 	HalVic0Base = MmMapIoSpace(
 		VIC0_BASE_PHYS,
@@ -238,7 +236,7 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 	}
 	else
 	{
-		DbgPrintString("spurious interrupt?\n");
+		DbgPrintString("HalOnInterruptRequest: spurious interrupt?\n");
 		return Registers;
 	}
 	

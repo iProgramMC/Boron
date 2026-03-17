@@ -36,16 +36,16 @@ void HalClockSetGateEnabled(uint32_t Gate, bool Enabled)
 	if (Gate < CLOCK1_CL3_SEPARATOR)
 	{
 		if (Enabled)
-			CLOCK1_CL2_GATES |= 1 << (Gate & 0x1F);
-		else
 			CLOCK1_CL2_GATES &= ~(1 << (Gate & 0x1F));
+		else
+			CLOCK1_CL2_GATES |= 1 << (Gate & 0x1F);
 	}
 	else
 	{
 		if (Enabled)
-			CLOCK1_CL3_GATES |= 1 << (Gate & 0x1F);
-		else
 			CLOCK1_CL3_GATES &= ~(1 << (Gate & 0x1F));
+		else
+			CLOCK1_CL3_GATES |= 1 << (Gate & 0x1F);
 	}
 }
 
@@ -66,6 +66,10 @@ void HalInitClock()
 		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("Clk1")
 	);
+	
+	// DO NOT DO THIS!  This seems to stop every clock on the system and nothing works anymore
+	//CLOCK1_CL2_GATES = 0xFFFFFFFF;
+	//CLOCK1_CL3_GATES = 0xFFFFFFFF;
 }
 
 uint64_t HalGetTickCount()

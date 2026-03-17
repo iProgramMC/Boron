@@ -155,14 +155,6 @@ static void HalTimerSetUnkReg0ForInit()
 	TIMER_UNKREG0 |= 0xA;
 }
 
-static KDPC TimerDpc;
-
-static void TimerDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* SysArg1, UNUSED void* SysArg2)
-{
-	static int Value = 0;
-	LogMsg("Timer!  Value = %d", Value++);
-}
-
 void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 {
 	ASSERT(Interrupt == &HalTimerInterrupt);
@@ -181,14 +173,10 @@ void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 
 	// uhhhhh
 	// n.b.  emulator always returns 0xFFFFFFFF
-	//DbgPrintString("HalTimerHandler\n");
 	uint32_t Timer4Flags = Stat >> (8 * (TIMER_COUNT - TIMER_EVENT - 1));
 	if (Timer4Flags & (1 << 0))
 	{
-		//KeTimerTick();
-		KeInitializeDpc(&TimerDpc, TimerDpcRoutine, NULL);
-		KeSetImportantDpc(&TimerDpc, true);
-		KeEnqueueDpc(&TimerDpc, NULL, NULL);
+		KeTimerTick();
 	}
 	
 	TIMER_IRQLATCH = Stat;
@@ -196,8 +184,6 @@ void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 
 void HalInitTimer()
 {
-	DbgPrint("%s...", __func__);
-	
 	HalTimerBase = MmMapIoSpace(
 		TIMER1_MEM_BASE,
 		PAGE_SIZE * 0x11, // yeah, we also need access to IRQSTAT
@@ -205,14 +191,7 @@ void HalInitTimer()
 		POOL_TAG("Tmr1")
 	);
 	ASSERT(HalTimerBase);
-	
-	for (int i = 0; i < TIMER_COUNT; i++) {
-		HalTimerStop(i);
-	}
-}
 
-void HalInitTimerPart2()
-{
 	HalClockSetGateEnabled(CLOCK_GATE_TIMER, true);
 	
 	for (int i = 0; i < TIMER_COUNT; i++) {
