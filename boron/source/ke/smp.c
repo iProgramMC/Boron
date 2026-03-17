@@ -80,13 +80,6 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	
 	HalInitSystemMP();
 	
-#ifdef TARGET_ARM
-	LogMsg("TODO TEMPORARY: Stopping execution for now! Didn't implement everything...");
-	while (true) {
-		ASM("wfi");
-	}
-#endif
-	
 	if (Prcb->IsBootstrap)
 	{
 		void* Stack = MmAllocateKernelStack();
