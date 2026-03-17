@@ -30,7 +30,8 @@ Author:
 
 // ####### GRAPHICS BACKEND #######
 
-#define BACKGROUND_COLOR 0x09090F
+//#define BACKGROUND_COLOR 0x09090F
+#define BACKGROUND_COLOR 0
 
 uint8_t* PixBuff;
 int PixWidth, PixHeight, PixPitch, PixBPP;

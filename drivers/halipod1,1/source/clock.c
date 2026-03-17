@@ -72,20 +72,7 @@ void HalInitClock()
 	//CLOCK1_CL3_GATES = 0xFFFFFFFF;
 }
 
-uint64_t HalGetTickCount()
-{
-	DbgPrint("%s NYI", __func__);
-	return 1;
-}
-
-uint64_t HalGetTickFrequency()
-{
-	DbgPrint("%s NYI", __func__);
-	return 1000000;
-}
-
 bool HalUseOneShotTimer()
 {
-	DbgPrint("%s NYI", __func__);
 	return false;
 }

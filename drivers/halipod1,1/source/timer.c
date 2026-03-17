@@ -229,6 +229,34 @@ void HalInitTimer()
 	KeRestoreInterrupts(Restore);
 }
 
+uint64_t HalGetTickCount()
+{
+	uint32_t TicksHigh, TicksLow, TicksHigh2;
+	
+	bool Restore = KeDisableInterrupts();
+	if (!HalTimerBase)
+	{
+		KeRestoreInterrupts(Restore);
+		return 0;
+	}
+	
+	do
+	{
+		TicksHigh  = TIMER_TICKSHIGH;
+		TicksLow   = TIMER_TICKSLOW;
+		TicksHigh2 = TIMER_TICKSHIGH;
+	}
+	while (TicksHigh != TicksHigh2);
+	
+	KeRestoreInterrupts(Restore);
+	return ((uint64_t)TicksHigh << 32ULL) | TicksLow;
+}
+
+uint64_t HalGetTickFrequency()
+{
+	return TIMER_TICKS_PER_SEC;
+}
+
 uint64_t HalGetIntTimerFrequency()
 {
 	DbgPrint("%s NYI", __func__);
@@ -249,7 +277,6 @@ uint64_t HalGetInterruptDeltaTime()
 
 bool HalUseOneShotIntTimer()
 {
-	DbgPrint("%s NYI", __func__);
 	return false;
 }
 
