@@ -219,8 +219,6 @@ void HalExitHardwareInterrupt(int InterruptNumber, KIPL OldIpl)
 	KeDispatchPendingSoftInterrupts();
 }
 
-HAL_API void HalDisplayString2(const char* Message);
-
 PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 {
 	// Interrupts are disabled at this point.  Also, the VIC should handle IPLs for us.
@@ -242,12 +240,8 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 		return Registers;
 	}
 	
-	HalDisplayString2("HalOnInterruptRequest\n");
-	
 	KIPL OldIpl = HalEnterHardwareInterrupt(InterruptNumber);
 	KeDispatchInterruptRequest(InterruptNumber);
 	HalExitHardwareInterrupt(InterruptNumber, OldIpl);
-	
-	HalDisplayString2("HalOnInterruptRequest exiting\n");
 	return Registers;
 }

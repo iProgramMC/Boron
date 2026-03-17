@@ -78,22 +78,16 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	
 	KeSchedulerInit(MmAllocateKernelStack());
 	
-	LogMsg("Initting Hal MP...");
-	
 	HalInitSystemMP();
-	
-	LogMsg("HAL MP initted...");
 	
 	if (Prcb->IsBootstrap)
 	{
-		LogMsg("Allocating kernel stack...");
 		void* Stack = MmAllocateKernelStack();
 		if (!Stack)
 			KeCrash("Could not allocate kernel stack for executive init.");
 		
 		// Spawn a new thread on this CPU that performs initialization
 		// of the rest of the kernel.
-		LogMsg("Initializing init thread...");
 		KeInitializeThread2(
 			&KiExInitThread,
 			Stack,
@@ -102,18 +96,13 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 			NULL,
 			KeGetSystemProcess()
 		);
-		LogMsg("Setting priority of the init thread...");
 		KeSetPriorityThread(&KiExInitThread, PRIORITY_NORMAL);
-		
-		LogMsg("Marking init thread ready...");
 		KeReadyThread(&KiExInitThread);
 	}
 	
 	// Perform switch to Rwlock for kernel space. This can wait a small amount of time.
-	LogMsg("Switching to rwlock...");
 	MmSwitchKernelSpaceLock();
 	
-	LogMsg("Committing scheduler...");
 	KeSchedulerCommit();
 }
 

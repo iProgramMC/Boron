@@ -137,16 +137,8 @@ HAL_API void HalDisplayString(const char* Message)
 	size_t Length = strlen(Message);
 	
 	static KSPIN_LOCK SpinLock;
-	bool b = KeDisableInterrupts();
+	KIPL Ipl;
+	KeAcquireSpinLock(&SpinLock, &Ipl);
 	flanterm_write(HalpTerminalContext, Message, Length);
-	KeRestoreInterrupts(b);
-}
-
-
-HAL_API void HalDisplayString2(const char* Message)
-{
-	size_t Length = strlen(Message);
-	bool b = KeDisableInterrupts();
-	flanterm_write(HalpTerminalContext, Message, Length);
-	KeRestoreInterrupts(b);
+	KeReleaseSpinLock(&SpinLock, Ipl);
 }

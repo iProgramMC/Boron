@@ -21,11 +21,9 @@ Author:
 INIT
 bool ExInitSystem()
 {
-	LogMsg("Calling ExpCreateMutexType");
 	if (!ExpCreateMutexType())
 		return false;
 	
-	LogMsg("Calling ExpCreateEventType");
 	if (!ExpCreateEventType())
 		return false;
 	
@@ -37,7 +35,6 @@ bool ExInitSystem()
 		return false;
 #endif
 	
-	LogMsg("Calling ExInitBootConfig");
 	ExInitBootConfig();
 	return true;
 }
@@ -47,39 +44,30 @@ bool ExInitSystem()
 INIT
 NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 {
-	LogMsg("Calling ObInitSystem");
 	if (!ObInitSystem())
 		KeCrash("Could not initialize object manager");
 	
-	LogMsg("Calling ExInitSystem");
 	if (!ExInitSystem())
 		KeCrash("Could not initialize executive");
 	
-	LogMsg("Calling MmInitSystem");
 	if (!MmInitSystem())
 		KeCrash("Could not initialize memory manager");
 	
-	LogMsg("Calling PsInitSystem");
 	if (!PsInitSystem())
 		KeCrash("Could not initialize process manager");
 	
-	LogMsg("Calling IoInitSystem");
 	if (!IoInitSystem())
 		KeCrash("Could not initialize I/O manager");
 	
-	LogMsg("Calling LdrPrepareInitialRoot");
 	if (!LdrPrepareInitialRoot())
 		KeCrash("Could not prepare initial root");
 	
-	LogMsg("Calling PsInitSystemPart2");
 	if (!PsInitSystemPart2())
 		KeCrash("Could not initialize process manager - part 2");
 	
-	LogMsg("Calling TtyInitSystem");
 	if (!TtyInitSystem())
 		KeCrash("Could not initialize pseudoterminal subsystem");
 	
-	LogMsg("Calling ObLinkRootDirectory");
 	if (!ObLinkRootDirectory())
 		KeCrash("Could not create a symbolic link to the root directory");
 	
@@ -88,10 +76,8 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	// context needed to resolve the bug.
 	//
 	// We should do it like this:
-	LogMsg("Calling MmInitializeModifiedPageWriter");
 	MmInitializeModifiedPageWriter();
 	
-	LogMsg("Executive Initialization done");
 	KeTerminateThread(0);
 }
 

@@ -202,10 +202,8 @@ void HalInitTimer()
 	
 	HalTimerInitRtc();
 	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	bool Restore = KeDisableInterrupts();
 	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	KeInitializeInterrupt(
 		&HalTimerInterrupt,
 		&HalTimerHandler,
@@ -216,11 +214,9 @@ void HalInitTimer()
 		false
 	);
 	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	KeConnectInterrupt(&HalTimerInterrupt);
 	
 	// Enable event timer
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	HalTimerConfig(
 		TIMER_EVENT,
 		HalEventTimerConfig,
@@ -230,10 +226,7 @@ void HalInitTimer()
 		true
 	);
 	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 	KeRestoreInterrupts(Restore);
-	
-	LogMsg("%s:%d", __FILE__, __LINE__);
 }
 
 uint64_t HalGetTickCount()
