@@ -175,7 +175,7 @@ void MiInitializeRootPageTable(int Idx)
 
 #elif defined TARGET_ARM
 
-#define L1PTE_FLAGS_CPT 0b111010000001101
+#define L1PTE_FLAGS_CPT 0b01
 
 void MiInitializeRootPageTable(int Idx)
 {
@@ -188,7 +188,7 @@ void MiInitializeRootPageTable(int Idx)
 	for (int i = 0; i < 4; i++) {
 		// HACK for now.
 		MMPTE hPte;
-		hPte.PteHardware = ((Pfn << 12) + i) | L1PTE_FLAGS_CPT;
+		hPte.PteHardware = ((Pfn << 12) + i * 1024) | L1PTE_FLAGS_CPT;
 		Pte[i] = hPte;
 	}
 }
