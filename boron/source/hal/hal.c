@@ -90,12 +90,13 @@ uint64_t HalGetTickCount()
 {
 #ifdef TICK_DEBUG
 	static uint64_t LastTickCount = 0;
+	
+	bool Restore = KeDisableInterrupts();
 #endif
 
 	uint64_t TickCount = HalpVftable.GetTickCount();
 
 #ifdef TICK_DEBUG
-	bool Restore = KeDisableInterrupts();
 	if (LastTickCount > TickCount)
 	{
 		KeCrash(
