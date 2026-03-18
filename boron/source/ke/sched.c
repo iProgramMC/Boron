@@ -677,6 +677,10 @@ void KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
 	
+#ifdef TARGET_ARM
+	bool Restore = KeDisableInterrupts();
+#endif
+	
 	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	// Load other properties about the thread.
@@ -760,6 +764,9 @@ void KiSwitchToNextThread()
 
 	if (OldThread == Thread)
 	{
+	#ifdef TARGET_ARM
+		KeRestoreInterrupts(Restore);
+	#endif
 		// The old thread is the same as the new thread, there's no need to
 		// do anything anymore.
 		return;
@@ -778,6 +785,9 @@ void KiSwitchToNextThread()
 	else
 		KiSwitchThreadStackForever(Thread->StackPointer);
 	
+#ifdef TARGET_ARM
+	KeRestoreInterrupts(Restore);
+#endif
 	// NOTE: Beyond this point, you CANNOT use "Thread" anymore to refer to the
 	// thread that was just switched to.  You have to use "OldThread" - that was
 	// the thread that was switched from when it saved its state in

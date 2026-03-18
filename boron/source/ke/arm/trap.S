@@ -26,7 +26,7 @@ KeDisableInterrupts:
 	orr   r12, r12, #0x80   @ set I bit
 	msr   cpsr_c, r12
 #else
-	cpsid i
+	cpsid if
 #endif
 	bx    lr
 
@@ -39,7 +39,7 @@ KeRestoreInterrupts:
 	mrs   r0, cpsr
 	bic   r0, r0, #0x80   @ clear I bit
 #else
-	cpsie i
+	cpsie if
 #endif
 1:	bx    lr
 
@@ -83,6 +83,7 @@ KiThreadEntryPoint:
 	mov   r0, #0
 	bl    KiUnlockDispatcher  @ unlock the dispatcher and lower to normal IPL
 	mov   r0, r5
+	cpsie if                  @ enable interrupts now
 	bx    r4
 
 	@ void KiSaveInterruptStacks(
@@ -95,6 +96,7 @@ KiThreadEntryPoint:
 KiSaveInterruptStacks:
 
 #ifdef TARGET_ARMV5
+	#warning TODO: update this to match armv6 behavior
 	mrs   r12, cpsr
 	orr   r12, r12, #0xC0  @ set I and F bits
 	bic   r12, r12, #0x1F
@@ -121,7 +123,6 @@ KiSaveInterruptStacks:
 	orr   r12, r12, #0x13  @ supervisor mode
 	msr   cpsr_c, r12
 #else
-	cpsid if
 	cps   #0x17  @ Abort Mode
 	str   sp, [r0]
 	cps   #0x1B  @ Undefined Mode
@@ -131,7 +132,6 @@ KiSaveInterruptStacks:
 	cps   #0x11  @ FIQ Mode
 	str   sp, [r3]
 	cps   #0x13  @ Supervisor Mode
-	cpsie if
 #endif
 	bx    lr
 
@@ -145,6 +145,7 @@ KiSaveInterruptStacks:
 KiRestoreInterruptStacks:
 
 #ifdef TARGET_ARMV5
+	#warning TODO: update this to match armv6 behavior
 	mrs   r12, cpsr
 	orr   r12, r12, #0xC0  @ set I and F bits
 	bic   r12, r12, #0x1F
@@ -171,7 +172,6 @@ KiRestoreInterruptStacks:
 	orr   r12, r12, #0x13  @ supervisor mode
 	msr   cpsr_c, r12
 #else
-	cpsid if
 	cps   #0x17  @ Abort Mode
 	mov   sp, r0
 	cps   #0x1B  @ Undefined Mode
@@ -181,7 +181,6 @@ KiRestoreInterruptStacks:
 	cps   #0x11  @ FIQ Mode
 	mov   sp, r3
 	cps   #0x13  @ Supervisor Mode
-	cpsie if
 #endif
 	bx    lr
 
