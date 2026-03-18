@@ -292,13 +292,14 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 	memset(&Data, 0, sizeof Data);
 	
 	int OffsetX = PixWidth * 400 / 1024;
+	int OffsetY = PixHeight * 400 / 768;
 	
 	// This is a fire, so it doesn't have a base.
 	Data.m_x = PixWidth / 2;
 	Data.m_y = PixHeight - 1;
 	Data.m_actX = INT_TO_FP(Data.m_x);
 	Data.m_actY = INT_TO_FP(Data.m_y);
-	Data.m_velY = -INT_TO_FP(400 + Rand() % 400);
+	Data.m_velY = -INT_TO_FP(OffsetY + Rand() % OffsetY);
 	Data.m_velX = OffsetX * RandFPSign();
 	Data.m_color = GetRandomColor();
 	Data.m_explosionRange = Rand() % 100 + 100;
