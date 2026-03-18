@@ -96,7 +96,7 @@ static const int HalTimerOffsets[] = {
 #define TIMER_SPECIAL_BIT_2 0x02000000
 
 #define TIMER_TICKS_PER_SEC 12000000
-#define IRQS_PER_SEC 3
+#define IRQS_PER_SEC 240
 
 static KINTERRUPT HalTimerInterrupt;
 static KSPIN_LOCK HalTimerInterruptLock;
