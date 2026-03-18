@@ -442,6 +442,15 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 		// declare failure instantly.
 		if ((~MmGetPageBitsPte(*PtePtr) & MM_PROT_USER) && IsUserModeCode)
 		{
+			PFDbgPrint("AV: Page is valid, but this is a user mode access for a kernel region.");
+			Status = STATUS_ACCESS_VIOLATION;
+			MmUnlockSpace(OldIpl, FaultAddress);
+			goto EarlyExit;
+		}
+		
+		if ((~MmGetPageBitsPte(*PtePtr) & MM_PROT_EXEC) && (FaultMode & MM_FAULT_INSNFETCH))
+		{
+			PFDbgPrint("AV: Page is valid, but this is an attempt to execute code that isn't marked executable.");
 			Status = STATUS_ACCESS_VIOLATION;
 			MmUnlockSpace(OldIpl, FaultAddress);
 			goto EarlyExit;

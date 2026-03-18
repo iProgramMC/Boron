@@ -140,6 +140,7 @@ MMADDRESS_CONVERT;
 // for the DFSR/IFSR, we currently only care about whether the page fault
 // was due to a write or not.
 #define MM_FAULT_WRITE (1U << 11) // RW bit
+#define MM_FAULT_INSNFETCH (1U << 31) // fake bit we append. NOT part of IFSR/DFSR.
 
 // strange sizes in here!
 #define MM_L1PT_SIZE (0x4000) // 16K

@@ -41,11 +41,12 @@ Author:
 	UNUSED uint32_t Vector = 0; \
 	if (KiHandlingInstructionFault()) { \
 		FaultAddress = KiReadIfar(); \
-		FaultMode = KiReadIfsr(); \
+		FaultMode = KiReadIfsr() & 0xFFFF; \
+		FaultMode |= MM_FAULT_INSNFETCH; \
 	} else { \
 		FaultAddress = KiReadDfar(); \
-		FaultMode = KiReadDfsr(); \
-	}
+		FaultMode = KiReadDfsr() & 0xFFFF; \
+	} \
 
 #else
 
