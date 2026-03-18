@@ -188,6 +188,7 @@ struct KREGISTERS_tag
 // This restrained struct represents only the registers saved in each IRQ handler.
 struct KREGISTERS_tag
 {
+	uint32_t Lr_Svc;
 	uint32_t Cpsr;
 	uint32_t R0;
 	uint32_t R1;

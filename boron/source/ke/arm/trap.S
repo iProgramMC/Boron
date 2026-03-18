@@ -244,10 +244,14 @@ KiIrqHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
 	cps   #0x13
+	str   lr, [r0]
 	bl    HalOnInterruptRequest
+	ldr   lr, [r0]
 	cps   #0x12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -259,10 +263,14 @@ KiFiqHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
 	cps   #0x13
+	str   lr, [r0]
 	bl    HalOnFastInterruptRequest
+	ldr   lr, [r0]
 	cps   #0x11
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -274,10 +282,14 @@ KiPrefetchAbortHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
 	cps   #0x13
+	str   lr, [r0]
 	bl    KiHandleInstructionFault
+	ldr   lr, [r0]
 	cps   #0x17
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -289,10 +301,14 @@ KiDataAbortHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
 	cps   #0x13
+	str   lr, [r0]
 	bl    KiHandleDataFault
+	ldr   lr, [r0]
 	cps   #0x17
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -303,10 +319,14 @@ KiUndefinedInstructionHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
 	cps   #0x13
+	str   lr, [r0]
 	bl    KeOnUndefinedInstruction
+	ldr   lr, [r0]
 	cps   #0x1B
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
