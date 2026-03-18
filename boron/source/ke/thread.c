@@ -31,9 +31,9 @@ void KiInitializeThread(PKTHREAD Thread, void* KernelStack, size_t KernelStackSi
 	
 #ifdef TARGET_ARM
 	ASSERT(KernelStackSize > KERNEL_INTERRUPT_STACK_SIZE);
-	KernelStackSize -= KERNEL_INTERRUPT_STACK_SIZE;
 	
 	Thread->InterruptStack = (void*)((uintptr_t) KernelStack + KernelStackSize - KERNEL_INTERRUPT_STACK_SIZE);
+	KernelStackSize -= KERNEL_INTERRUPT_STACK_SIZE;
 #endif
 	
 	Thread->Stack.Top    = KernelStack;
