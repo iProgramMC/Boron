@@ -344,10 +344,16 @@ KiSoftwareInterruptHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	push  {lr}
+	cps   #0x1F     @ enter system mode temporarily
+	mov   r1, sp    @ to back up user SP
+	cpsie if, #0x13
+	push  {r1}      @ this is the Lr_Svc slot in KREGISTERS, but reuse it
 	mov   r0, sp
 	bl    KiSystemServiceHandler
-	pop   {lr}
+	pop   {r1}
+	cpsid if, #0x1F @ enter system mode temporarily
+	mov   sp, r1    @ to restore user SP
+	cps   #0x13
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}

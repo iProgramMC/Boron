@@ -41,3 +41,13 @@ void KeInitCPU()
 	
 	// TODO
 }
+
+extern uintptr_t KiSystemServiceTable[];
+
+// If system call tracing is enabled, this shows all of the system calls happening.
+void KePrintSystemServiceDebug(size_t Syscall)
+{
+	// Format: "[ThreadPointer] - Syscall [Number] ([FunctionName])"
+	const char* FunctionName = DbgLookUpRoutineNameByAddressExact(KiSystemServiceTable[Syscall]);
+	DbgPrint("SYSCALL: %p - %d %s", KeGetCurrentThread(), (int) Syscall, FunctionName);
+}
