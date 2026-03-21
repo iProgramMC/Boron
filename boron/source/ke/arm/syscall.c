@@ -160,6 +160,16 @@ void KiSystemServiceHandler(PKREGISTERS Regs, uintptr_t Sp_Usr)
 	Regs->R0 = Return;
 	
 	KiCheckTerminatedUserMode();
-	
-	KeCrash("NYI KiSystemServiceHandler");
 }
+
+#ifdef ENABLE_SYSCALL_TRACE
+
+void KePrintSystemServiceDebug(size_t Syscall)
+{
+	// Format: "[ThreadPointer] - Syscall [Number] (FunctionPointer) ([FunctionName])"
+	const void* Handler = KiSystemServiceTable[Syscall];
+	const char* FunctionName = DbgLookUpRoutineNameByAddressExact((uintptr_t) Handler);
+	DbgPrint("SYSCALL: %p - %d %p %s", KeGetCurrentThread(), (int) Syscall, Handler, FunctionName);
+}
+
+#endif
