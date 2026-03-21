@@ -36,6 +36,7 @@ MmSafeCopySub:
 	@ int MmProbeAddressSub(void* Address, size_t Length, bool ProbeWrite);
 	.global MmProbeAddressSub
 MmProbeAddressSub:
+	push {r4}
 	add  r3, r0, r1   @ AddressEnd = Address + Length
 	cmp  r0, r3
 	bhs 3f
@@ -50,10 +51,12 @@ MmProbeAddressSub:
 	blo  1b           @ Address < AddressEnd
 3:
 	mov  r0, #0
+	pop  {r4}
 	bx   lr
 
 	@ Returns early from MmProbeAddressSub and MmSafeCopySub.
 	@ Called by the invalid page fault handler.
 	.global MmProbeAddressSubEarlyReturn
 MmProbeAddressSubEarlyReturn:
+	pop  {r4}
 	bx   lr
