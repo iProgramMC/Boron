@@ -31,11 +31,7 @@ const char* PspInitialProcessEnvironment =
 
 bool PsShouldStartInitialProcess()
 {
-#ifdef TARGET_ARM
-	return false; // TEMPORARY
-#else
 	return !ExIsConfigValue("NoInit", CONFIG_YES);
-#endif
 }
 
 // TODO: Share a lot of this code with Ldr.
@@ -398,6 +394,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 INIT
 bool PsInitSystemPart2()
 {
+	LogMsg("PsInitSystemPart2");
 	PETHREAD Thread = NULL;
 	BSTATUS Status;
 	
