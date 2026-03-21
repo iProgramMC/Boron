@@ -40,7 +40,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 		return;
 	
 	PMMPTE Pml1 = (PMMPTE) MI_PML1_LOCATION;
-	PMMPTE Pml2 = (PMMPTE) MI_PML1_LOCATION;
+	PMMPTE Pml2 = (PMMPTE) MI_PML2_LOCATION;
 	PMMPTE Pte = &Pml1[(StartVa >> 20) & ~3];
 	MMPTE ZeroPte = MmBuildZeroPte();
 	
@@ -49,7 +49,7 @@ void MiFreeUnusedMappingLevelsInCurrentMap(uintptr_t StartVa, size_t SizePages)
 		if (MmIsEqualPte(*Pte, ZeroPte))
 			continue;
 		
-		PMMPTE SubPte = &Pml2[(StartVa >> 12)];
+		PMMPTE SubPte = &Pml2[(StartVa >> 22) << 10];
 		if (MmpIsPteListCompletelyEmpty(SubPte))
 		{
 			MMPFN Pfn = MmGetPfnPte(*Pte);
