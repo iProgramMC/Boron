@@ -3,6 +3,7 @@
 # DEBUG flags
 DEBUG ?= yes
 DEBUG2 ?= no
+DWARF_SYMBOLS ?= yes
 
 # User parms
 USER_DEFINES ?=
@@ -54,16 +55,26 @@ define DEFAULT_VAR =
 	endif
 endef
 
-DEFINES = -DIS_DRIVER
-OPT = -O2
-
+DEFINES=
 ifeq ($(DEBUG), yes)
 	DEFINES += -DDEBUG
-	OPT = -O3
 endif
 
 ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
+endif
+
+ifeq ($(SECURE), yes)
+	DEFINES += -DSECURE
+endif
+
+OPT = -O2
+
+ifeq ($(DWARF_SYMBOLS), yes)
+	DEFINES += -gdwarf-4
+	OPT = -O0
+else
+	OPT = -O3
 endif
 
 include ../../tools/toolchain.$(TARGETL).mk
