@@ -31,21 +31,29 @@ bool KiHandlingInstructionFault()
 static void KiSetHandlingInstructionFault(bool If)
 {
 	if (!KeGetCurrentThread()) {
-		KiInitHandlingInstructionFault = If;;
+		KiInitHandlingInstructionFault = If;
 		return;
 	}
 	
 	KeGetCurrentThread()->HandlingInstructionFault = If;
 }
 
-void KiHandleInstructionFault(PKREGISTERS Registers)
+PKREGISTERS KiHandleInstructionFault(PKREGISTERS Registers)
 {
 	KiSetHandlingInstructionFault(true);
 	KeOnPageFault(Registers);
+	return Registers;
 }
 
-void KiHandleDataFault(PKREGISTERS Registers)
+PKREGISTERS KiHandleDataFault(PKREGISTERS Registers)
 {
 	KiSetHandlingInstructionFault(false);
 	KeOnPageFault(Registers);
+	return Registers;
+}
+
+PKREGISTERS KiHandleUndefinedInstructionFault(PKREGISTERS Registers)
+{
+	KeOnUndefinedInstruction(Registers);
+	return Registers;
 }

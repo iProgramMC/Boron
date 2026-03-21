@@ -329,7 +329,7 @@ KiUndefinedInstructionHandler:
 	mov   r0, sp
 	cps   #0x13
 	str   lr, [r0]
-	bl    KeOnUndefinedInstruction
+	bl    KiHandleUndefinedInstructionFault
 	ldr   lr, [r0]
 	cps   #0x1B
 	pop   {r0}
