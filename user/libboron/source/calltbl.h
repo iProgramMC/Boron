@@ -64,14 +64,34 @@ CALL 57, 6, OSCreateSymbolicLink
 CALL 58, 3, OSSetImageNameProcess
 CALL 59, 4, OSQuerySystemInformation
 
+// The following system calls use at least one 64-bit parameter.
+// On 32-bit, 64-bit arguments typically get passed as high/low pairs of 32-bit arguments.
 #ifdef IS_64_BIT
+
 CALL 24, 7, OSMapViewOfObject
 CALL 33, 6, OSReadFile
 CALL 37, 4, OSSeekFile
 CALL 49, 7, OSWriteFile
+
+#elif defined TARGET_ARM
+
+// ARM is a special exception: 64-bit arguments placed on the stack are 8-byte aligned.
+// So we need to take care of that in the following functions.
+
+// insert a dummy padding parameter before SectionOffset low/high pair
+CALL 24, 9, OSMapViewOfObject
+// no change, ByteOffset occupies r2 and r3
+CALL 33, 7, OSReadFile
+// r0 = FileHandle, r1 = dummy padding, r2 and r3 = Offset
+CALL 37, 5, OSSeekFile
+// no change, ByteOffset occupies r2 and r3
+CALL 49, 8, OSWriteFile
+
 #else
+
 CALL 24, 8, OSMapViewOfObject
 CALL 33, 7, OSReadFile
 CALL 37, 5, OSSeekFile
 CALL 49, 8, OSWriteFile
+
 #endif

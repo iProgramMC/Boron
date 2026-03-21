@@ -23,6 +23,44 @@ Author:
 
 //#define ENABLE_SYSCALL_TRACE
 
+static BSTATUS OSMapViewOfObject_Call(
+	HANDLE ProcessHandle,
+	HANDLE MappedObject,
+	void** BaseAddressInOut,
+	size_t ViewSize,
+	int AllocationType,
+	UNUSED int DummyPadding,
+	uint64_t SectionOffset,
+	int Protection
+)
+{
+	return OSMapViewOfObject(
+		ProcessHandle,
+		MappedObject,
+		BaseAddressInOut,
+		ViewSize,
+		AllocationType,
+		SectionOffset,
+		Protection
+	);
+}
+
+static BSTATUS OSSeekFile_Call(
+	HANDLE FileHandle,
+	UNUSED int DummyPadding,
+	int64_t Offset,
+	int Whence,
+	uint64_t* NewOutOffset
+)
+{
+	return OSSeekFile(
+		FileHandle,
+		Offset,
+		Whence,
+		NewOutOffset
+	);
+}
+
 const void* const KiSystemServiceTable[] =
 {
 	OSAllocateVirtualMemory,
@@ -49,7 +87,7 @@ const void* const KiSystemServiceTable[] =
 	OSGetTickCount,
 	OSGetTickFrequency,
 	OSGetVersionNumber,
-	OSMapViewOfObject,
+	OSMapViewOfObject_Call,
 	OSOpenEvent,
 	OSOpenFile,
 	OSOpenMutex,
@@ -62,7 +100,7 @@ const void* const KiSystemServiceTable[] =
 	OSReadVirtualMemory,
 	OSReleaseMutex,
 	OSResetEvent,
-	OSSeekFile,
+	OSSeekFile_Call,
 	OSSetCurrentPeb,
 	OSSetCurrentTeb,
 	OSSetEvent,
