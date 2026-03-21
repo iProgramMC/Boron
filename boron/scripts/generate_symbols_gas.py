@@ -43,6 +43,9 @@ for Line in sys.stdin:
     else:
         Size = int(Tokens[3], 16)
     
+    if Name == '$d' or Name == '$a':
+        continue
+    
     if Type == 'T' or Type == 't':
         SymbolList.append((Address, Size, Name))
 
