@@ -1,13 +1,13 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2025 iProgramInCpp
+	Copyright (C) 2025-2026 iProgramInCpp
 
 Module name:
-	ke/armv6/syscall.c
+	ke/arm/syscall.c
 	
 Abstract:
 	This module implements the system service dispatcher
-	for the armv6 architecture.
+	for the arm architecture.
 	
 Author:
 	iProgramInCpp - 30 December 2025

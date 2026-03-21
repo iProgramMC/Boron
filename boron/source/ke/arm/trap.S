@@ -1,9 +1,9 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2025 iProgramInCpp
+	Copyright (C) 2025-2026 iProgramInCpp
 
 Module name:
-	ke/armv6/trap.S
+	ke/arm/trap.S
 	
 Abstract:
     This module implements functions related to interrupt management
@@ -338,19 +338,17 @@ KiUndefinedInstructionHandler:
 	pop   {r0-r12, lr}
 	movs  pc, lr
 
-
-
-
-
 	.global KiSoftwareInterruptHandler
 	.extern KiSystemServiceHandler
 KiSoftwareInterruptHandler:
-	push  {r0-r7,lr}                 @ push GPRs and the LR. r8-r12 are saved by the C code
-	mrs   r0, spsr                   @ prepare CPSR for saving
+	push  {r0-r12, lr}
+	mrs   r0, spsr
 	push  {r0}
-	mov   r0, sp                     @ prepare register pointer
-	bl    KiSystemServiceHandler     @ handle the call here
+	push  {lr}
+	mov   r0, sp
+	bl    KiSystemServiceHandler
+	pop   {lr}
 	pop   {r0}
-	msr   spsr, r0                   @ restore old CPSR
-	pop   {r0-r7,lr}                 @ restore GPRs and the LR
-	subs  pc, lr, #4                 @ and finally return
+	msr   spsr, r0
+	pop   {r0-r12, lr}
+	movs  pc, lr
