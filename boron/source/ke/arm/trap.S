@@ -46,19 +46,25 @@ KeRestoreInterrupts:
 	@ NO_RETURN void KeDescendIntoUserMode(
 	@     void* InstructionPointer,
 	@     void* StackPointer,
-	@     void* UserContext,
-	@     uintptr_t ReturnCode
+	@     void* UserContext
 	@ );
 	.global KeDescendIntoUserMode
-	.extern KeCrash
 KeDescendIntoUserMode:
-	@ TODO: actually implement this
-	ldr  r0, =KeDescendIntoUserModeUnimplementedMessage
-	bl   KeCrash
-	bx   lr
-KeDescendIntoUserModeUnimplementedMessage:
-	.asciz "NYI KeDescendIntoUserMode"
-	.align 4
+	@ Enter system mode.
+	cps #0x1F
+	
+	@ Prepare SP, LR, and R0.
+	mov sp, r1
+	mov lr, r0
+	mov r0, r2
+	
+	@ Prepare SPSR to enter user mode.
+	@ M = 0x10, A = 1 (imprecise abort)
+	mov r1, #0x110
+	msr spsr_cxsf, r1
+	
+	@ Finally, enter user mode.
+	movs pc, lr
 
 	@ void KiSwitchThreadStack(void** OldStack, void** NewStack);
 	.global KiSwitchThreadStack
