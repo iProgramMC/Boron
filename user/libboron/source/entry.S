@@ -47,12 +47,21 @@ OSDLLEntry:
 
 #elif TARGET_ARM
 
-#warning Implement this TODO
-
+	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
 	.globl OSDLLJumpToEntry
 	.type  OSDLLJumpToEntry, %function
 OSDLLJumpToEntry:
+	mov sp, r0
+	mov lr, r1
+	mov r0, r2
 	bx  lr
+
+	/* Entry point of libboron.so. */
+	.globl  OSDLLEntry
+	.extern OSDLLRelocateSelf
+	.type   OSDLLEntry, %function
+OSDLLEntry:
+	bl      OSDLLRelocateSelf
 
 #else
 
