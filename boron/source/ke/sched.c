@@ -794,16 +794,19 @@ void KiSwitchToNextThread()
 	// KiSwitchThreadStack. But, well, there's nothing here for now, so fine.
 }
 
-void KiHandleQuantumEnd()
+void KiHandleQuantumEndDispatcherLockHeld()
 {
-	KIPL Ipl = KiLockDispatcher();
-	
 	KiPerformYield();
 	
 	if (KiGetCurrentScheduler()->NextThread) {
 		KiSwitchToNextThread();
 	}
-	
+}
+
+void KiHandleQuantumEnd()
+{
+	KIPL Ipl = KiLockDispatcher();
+	KiHandleQuantumEndDispatcherLockHeld();
 	KiUnlockDispatcher(Ipl);
 }
 
@@ -873,8 +876,7 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	Thread->IncrementTerminated = Increment;
 	
 	// Unlock the dispatcher and request an end to current quantum.
-	KiUnlockDispatcher(IPL_DPC);
-	KiHandleQuantumEnd();
+	KiHandleQuantumEndDispatcherLockHeld();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

@@ -73,6 +73,8 @@ void KiDispatchSoftwareInterrupts(KIPL NewIpl);
 
 void KiHandleQuantumEnd();
 
+void KiHandleQuantumEndDispatcherLockHeld();
+
 void KiSetPendingQuantumEnd();
 
 void KiOnKillProcess(PKPROCESS Process);
