@@ -100,10 +100,10 @@ BSTATUS SetupTerminal()
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
-	uint32_t DefaultBg = CGConvertColorToNative(SubContext, DEFAULT_BG);
-	uint32_t DefaultFg = CGConvertColorToNative(SubContext, DEFAULT_FG);
-	uint32_t DefaultBgBright = CGConvertColorToNative(SubContext, DEFAULT_BG_BRIGHT);
-	uint32_t DefaultFgBright = CGConvertColorToNative(SubContext, DEFAULT_FG_BRIGHT);
+	uint32_t DefaultBg = DEFAULT_BG;
+	uint32_t DefaultFg = DEFAULT_FG;
+	uint32_t DefaultBgBright = DEFAULT_BG_BRIGHT;
+	uint32_t DefaultFgBright = DEFAULT_FG_BRIGHT;
 	
 	FlantermContext = flanterm_fb_init_alt(
 		OSAllocate,
