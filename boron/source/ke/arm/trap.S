@@ -244,29 +244,20 @@ KiRestoreInterruptStacks:
 @ABORT_HANDLER KiIrqHandler, HalOnInterruptRequest, 0x12
 @ABORT_HANDLER KiFiqHandler, HalOnFastInterruptRequest, 0x11
 
-/* TODO OPTIMIZE: These IRQ handlers are, like, *really* slow.  Maybe do not */
-/* save SYS mode lr/sp every IRQ, even with kernel threads?! */
-
 	.global KiIrqHandler
 KiIrqHandler:
 	sub   lr, lr, #4
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	sub   sp, sp, #12   @ prepare space for lr_svc, lr_usr, sp_usr
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
-	cps   #0x1F
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
 	cps   #0x13
 	str   lr, [r0]
 	bl    HalOnInterruptRequest
 	ldr   lr, [r0]
-	cps   #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
 	cps   #0x12
-	add   sp, sp, #12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -277,20 +268,15 @@ KiFiqHandler:
 	sub   lr, lr, #4
 	push  {r0-r12, lr}
 	mrs   r0, spsr
-	sub   sp, sp, #12   @ prepare space for lr_svc, lr_usr, sp_usr
+	push  {r0}
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
-	cps   #0x1F
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
 	cps   #0x13
 	str   lr, [r0]
 	bl    HalOnFastInterruptRequest
 	ldr   lr, [r0]
-	cps   #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
 	cps   #0x11
-	add   sp, sp, #12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -302,20 +288,14 @@ KiPrefetchAbortHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	sub   sp, sp, #12   @ prepare space for lr_svc, lr_usr, sp_usr
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
-	cps   #0x1F
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
 	cps   #0x13
 	str   lr, [r0]
 	bl    KiHandleInstructionFault
 	ldr   lr, [r0]
-	cps   #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
 	cps   #0x17
-	add   sp, sp, #12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -327,20 +307,14 @@ KiDataAbortHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	sub   sp, sp, #12   @ prepare space for lr_svc, lr_usr, sp_usr
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
-	cps   #0x1F
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
 	cps   #0x13
 	str   lr, [r0]
 	bl    KiHandleDataFault
 	ldr   lr, [r0]
-	cps   #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
 	cps   #0x17
-	add   sp, sp, #12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -351,20 +325,14 @@ KiUndefinedInstructionHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	sub   sp, sp, #12   @ prepare space for lr_svc, lr_usr, sp_usr
+	push  {r0}  @ dummy to push lr_svc
 	mov   r0, sp
-	cps   #0x1F
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
 	cps   #0x13
 	str   lr, [r0]
 	bl    KiHandleUndefinedInstructionFault
 	ldr   lr, [r0]
-	cps   #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
 	cps   #0x1B
-	add   sp, sp, #12
+	pop   {r0}
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}
@@ -376,20 +344,20 @@ KiSoftwareInterruptHandler:
 	push  {r0-r12, lr}
 	mrs   r0, spsr
 	push  {r0}
-	sub   sp, sp, #12 @ prepare space for lr_svc, lr_usr, sp_usr. lr_svc is unused
-	mov   r0, sp
-	cps   #0x1F       @ enter system mode temporarily
-	str   lr, [r0, #4]
-	str   sp, [r0, #8]
+	cps   #0x1F     @ enter system mode temporarily
+	mov   r1, sp    @ to back up user SP
+	mov   r2, lr    @ and user LR
 	cpsie if, #0x13
-	@str   lr, [sp]
-	bl    KiSystemServiceHandler
+	push  {r2}      @ this is the Lr_Svc slot in KREGISTERS, but reuse it
 	mov   r0, sp
-	cpsid if, #0x1F
-	ldr   lr, [r0, #4]
-	ldr   sp, [r0, #8]
+	push  {r1}
+	bl    KiSystemServiceHandler
+	pop   {r1}
+	pop   {r2}
+	cpsid if, #0x1F @ enter system mode temporarily
+	mov   sp, r1    @ to restore user SP
+	mov   lr, r2    @ and user LR
 	cps   #0x13
-	add   sp, sp, #12
 	pop   {r0}
 	msr   spsr, r0
 	pop   {r0-r12, lr}

@@ -189,8 +189,6 @@ struct KREGISTERS_tag
 struct KREGISTERS_tag
 {
 	uint32_t Lr_Svc;
-	uint32_t Lr_Usr;
-	uint32_t Sp_Usr;
 	uint32_t Cpsr;
 	uint32_t R0;
 	uint32_t R1;
@@ -207,15 +205,6 @@ struct KREGISTERS_tag
 	uint32_t R12;
 	uint32_t Lr;
 };
-
-#define CPSR_MODE_MASK (0x1F)
-#define CPSR_MODE_USR  (0x10)
-#define CPSR_MODE_FIQ  (0x11)
-#define CPSR_MODE_IRQ  (0x12)
-#define CPSR_MODE_SVC  (0x13)
-#define CPSR_MODE_ABT  (0x17)
-#define CPSR_MODE_UND  (0x1B)
-#define CPSR_MODE_SYS  (0x1F)
 
 typedef struct
 {
