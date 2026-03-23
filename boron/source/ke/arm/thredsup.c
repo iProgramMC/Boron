@@ -3,7 +3,7 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ke/armv6/thredsup.c
+	ke/arm/thredsup.c
 	
 Abstract:
 	This module implements the architecture specific
@@ -12,8 +12,7 @@ Abstract:
 Author:
 	iProgramInCpp - 29 December 2025
 ***/
-#include <arch.h>
-#include <ke.h>
+#include "../ki.h"
 #include <string.h>
 
 typedef struct {
@@ -49,18 +48,37 @@ void KiSetupRegistersThread(PKTHREAD Thread)
 	memset(&Thread->ArchContext, 0, sizeof Thread->ArchContext);
 	
 	uintptr_t IntStack = (uintptr_t) Thread->InterruptStack;
-	Thread->AbtStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 1 / 4;
-	Thread->UndStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 2 / 4;
-	Thread->IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
-	Thread->FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE;
+	Thread->ArchContext.AbtStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 1 / 4;
+	Thread->ArchContext.UndStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 2 / 4;
+	Thread->ArchContext.IrqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE * 3 / 4;
+	Thread->ArchContext.FiqStack = IntStack + KERNEL_INTERRUPT_STACK_SIZE;
 }
 
-void KiSwitchArchSpecificContext(PKTHREAD NewThread, PKTHREAD OldThread)
+void KiSwitchArchSpecificContext(PKTHREAD Thread, PKTHREAD OldThread)
 {
-	if (!OldThread)
-		return;
+	if (OldThread) {
+		KiSaveInterruptStacks(
+			&OldThread->ArchContext.AbtStack,
+			&OldThread->ArchContext.UndStack,
+			&OldThread->ArchContext.IrqStack,
+			&OldThread->ArchContext.FiqStack
+		);
+		
+		KiSaveUserModeContext(
+			&OldThread->ArchContext.UserLr,
+			&OldThread->ArchContext.UserSp
+		);
+	}
 	
-	// TODO
-	(void) NewThread;
-	(void) OldThread;
+	KiRestoreInterruptStacks(
+		Thread->ArchContext.AbtStack,
+		Thread->ArchContext.UndStack,
+		Thread->ArchContext.IrqStack,
+		Thread->ArchContext.FiqStack
+	);
+	
+	KiRestoreUserModeContext(
+		Thread->ArchContext.UserLr,
+		Thread->ArchContext.UserSp
+	);
 }

@@ -742,34 +742,6 @@ void KiSwitchToNextThread()
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
 
-#elif defined TARGET_ARM
-
-	if (OldThread) {
-		KiSaveInterruptStacks(
-			&OldThread->AbtStack,
-			&OldThread->UndStack,
-			&OldThread->IrqStack,
-			&OldThread->FiqStack
-		);
-		
-		KiSaveUserModeContext(
-			&OldThread->UserLr,
-			&OldThread->UserSp
-		);
-	}
-	
-	KiRestoreInterruptStacks(
-		Thread->AbtStack,
-		Thread->UndStack,
-		Thread->IrqStack,
-		Thread->FiqStack
-	);
-	
-	KiRestoreUserModeContext(
-		Thread->UserLr,
-		Thread->UserSp
-	);
-
 #endif
 
 	if (OldThread == Thread)

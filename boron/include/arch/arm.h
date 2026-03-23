@@ -208,7 +208,8 @@ struct KREGISTERS_tag
 
 typedef struct
 {
-	int Dummy;
+	uintptr_t AbtStack, UndStack, IrqStack, FiqStack;
+	uintptr_t UserLr, UserSp;
 }
 KTHREAD_ARCH_CONTEXT;
 
