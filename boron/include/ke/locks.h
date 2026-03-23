@@ -16,13 +16,18 @@ Author:
 #define BORON_KE_LOCKS_H
 
 #include <ke/ipl.h>
+#include <arch.h>
 
 #define SPINLOCK_TRACK_PC
 
 // simple spin locks, for when contention is rare
 typedef struct
 {
-	uint32_t Locked;
+#ifdef FULL_WORD_LENGTH_SPINLOCKS
+	uintptr_t Locked;
+#else
+	bool Locked;
+#endif
 
 #if defined(DEBUG) && defined(SPINLOCK_TRACK_PC)
 #ifdef IS_64_BIT

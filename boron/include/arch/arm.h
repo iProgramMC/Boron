@@ -307,3 +307,6 @@ static_assert(sizeof(int) == 4);
 #define TRAP_CODE_PREFETCH_ABORT  (0x20) // Prefetch Abort means page fault fetching an instruction
 #define TRAP_CODE_DATA_ABORT      (0x21) // Data Abort means page fault fetching data or writing to data
 #define TRAP_CODE_SYSTEM_SERVICE  (0x22) // System Service (user mode ran "svc")
+
+// Configuration
+#define FULL_WORD_LENGTH_SPINLOCKS
