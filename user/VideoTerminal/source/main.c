@@ -43,6 +43,8 @@ int _start(int ArgumentCount, char** ArgumentArray)
 			FramebufferName = ArgumentArray[i + 1];
 		if (strcmp(ArgumentArray[i], "--keyboard") == 0)
 			KeyboardName = ArgumentArray[i + 1];
+		if (strcmp(ArgumentArray[i], "--frameless") == 0)
+			Frameless = true;
 	}
 	
 	if (!FramebufferName)

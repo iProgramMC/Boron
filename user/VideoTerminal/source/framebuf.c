@@ -24,6 +24,8 @@ struct flanterm_context* FlantermContext;
 int MarginVert = 100;
 int MarginHorz = 120;
 
+bool Frameless = false;
+
 void DrawFrame(int Left, int Top, int Right, int Bottom)
 {
 	PGRAPHICS_CONTEXT Ctx = GraphicsContext;
@@ -63,21 +65,30 @@ BSTATUS SetupTerminal()
 	PGRAPHICS_CONTEXT Ctx = GraphicsContext;
 	int Left, Right, Top, Bottom;
 	
-	Left = MarginHorz;
-	Right = Ctx->Width - MarginHorz;
-	if (Left > Right) {
-		Left = 0;
+	if (Frameless)
+	{
+		Left = Top = 0;
 		Right = Ctx->Width;
-	}
-	
-	Top = MarginVert;
-	Bottom = Ctx->Height - MarginVert;
-	if (Top > Bottom) {
-		Top = 0;
 		Bottom = Ctx->Height;
 	}
-	
-	DrawFrame(Left, Top, Right, Bottom);
+	else
+	{
+		Left = MarginHorz;
+		Right = Ctx->Width - MarginHorz;
+		if (Left > Right) {
+			Left = 0;
+			Right = Ctx->Width;
+		}
+		
+		Top = MarginVert;
+		Bottom = Ctx->Height - MarginVert;
+		if (Top > Bottom) {
+			Top = 0;
+			Bottom = Ctx->Height;
+		}
+		
+		DrawFrame(Left, Top, Right, Bottom);
+	}
 	
 	int RMSz, GMSz, BMSz, RMSh, GMSh, BMSh;
 	CGGetColorFormatInfo(GraphicsContext->ColorFormat, &RMSz, &GMSz, &BMSz, &RMSh, &GMSh, &BMSh);
@@ -187,6 +198,10 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		MarginHorz /= 2;
 	if (FbInfo.Height < 600)
 		MarginVert /= 2;
+	
+	if (FbInfo.Width < 700 || FbInfo.Height < 500) {
+		Frameless = true;
+	}
 
 	GraphicsContext = CGCreateContextFromBuffer(
 		FbAddress,
