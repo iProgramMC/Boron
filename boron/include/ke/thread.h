@@ -72,6 +72,7 @@ struct KTHREAD_tag
 #ifdef TARGET_ARM
 	void* InterruptStack;
 	uintptr_t AbtStack, UndStack, IrqStack, FiqStack;
+	uintptr_t UserLr, UserSp;
 #endif
 	
 	void* StackPointer; // Pass this into KiSwitchThreadStack.

@@ -751,6 +751,11 @@ void KiSwitchToNextThread()
 			&OldThread->IrqStack,
 			&OldThread->FiqStack
 		);
+		
+		KiSaveUserModeContext(
+			&OldThread->UserLr,
+			&OldThread->UserSp
+		);
 	}
 	
 	KiRestoreInterruptStacks(
@@ -758,6 +763,11 @@ void KiSwitchToNextThread()
 		Thread->UndStack,
 		Thread->IrqStack,
 		Thread->FiqStack
+	);
+	
+	KiRestoreUserModeContext(
+		Thread->UserLr,
+		Thread->UserSp
 	);
 
 #endif

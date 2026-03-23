@@ -131,6 +131,10 @@ void KiRestoreInterruptStacks(
 	uintptr_t FiqStack
 );
 
+void KiSaveUserModeContext(uintptr_t* Lr, uintptr_t* Sp);
+
+void KiRestoreUserModeContext(uintptr_t Lr, uintptr_t Sp);
+
 bool KiHandlingInstructionFault();
 
 #endif

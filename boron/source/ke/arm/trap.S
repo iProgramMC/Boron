@@ -92,6 +92,30 @@ KiThreadEntryPoint:
 	cpsie if                  @ enable interrupts now
 	bx    r4
 
+	@ void KiSaveUserModeContext(
+	@     uintptr_t* Lr,
+	@     uintptr_t* Sp
+	@ );
+	.global KiSaveUserModeContext
+KiSaveUserModeContext:
+	cps #0x1F
+	str lr, [r0]
+	str sp, [r1]
+	cps #0x13
+	bx  lr
+
+	@ void KiRestoreUserModeContext(
+	@     uintptr_t Lr,
+	@     uintptr_t Sp
+	@ );
+	.global KiRestoreUserModeContext
+KiRestoreUserModeContext:
+	cps #0x1F
+	mov lr, r0
+	mov sp, r1
+	cps #0x13
+	bx  lr
+
 	@ void KiSaveInterruptStacks(
 	@     uintptr_t* AbortStack,
 	@     uintptr_t* UndefinedStack,
