@@ -394,7 +394,6 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 INIT
 bool PsInitSystemPart2()
 {
-	LogMsg("PsInitSystemPart2");
 	PETHREAD Thread = NULL;
 	BSTATUS Status;
 	

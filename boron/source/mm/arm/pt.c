@@ -120,10 +120,6 @@ HPAGEMAP MiCreatePageMapping()
 	MmFlushTlbUpdates();
 	MmUnlockKernelSpace();
 	
-	DbgPrint("ROOT: %p", NewPageMapping*PAGE_SIZE);
-	DbgPrint("Jibbie: %p", Jibbie*PAGE_SIZE);
-	DbgPrint("Debbie: %p", Debbie*PAGE_SIZE);
-	
 	uintptr_t NewPageMappingResult = MmPFNToPhysPage (NewPageMapping);
 	return (HPAGEMAP) NewPageMappingResult;
 }
