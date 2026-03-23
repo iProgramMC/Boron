@@ -70,7 +70,7 @@ int _start(int ArgumentCount, char** ArgumentArray)
 	if (FAILED(Status))
 	{
 		DbgPrint("ERROR: Keyboard '%s' couldn't be used. %s", KeyboardName, RtlGetStatusString(Status));
-		return 1;
+		//return 1;
 	}
 	
 	Status = SetupTerminal();
