@@ -2,17 +2,29 @@
 #include "flanterm/src/flanterm.h"
 #include "flanterm_alt_fb.h"
 
+#define DARK_MODE
+
 #define TERM_TITLE_HEIGHT 23
 #define TERM_BACKGROUND_COLOR RGB(85, 85, 85)
-#define TERM_BORDER_COLOR RGB(0, 0, 0)
-#define TERM_TITLE_COLOR RGB(0, 0, 0)
 #define TERM_SHINE_A_COLOR RGB(170, 170, 170)
 #define TERM_SHINE_B_COLOR RGB(85, 85, 85)
 
+
+#ifdef DARK_MODE
+#define TERM_BORDER_COLOR RGB(255, 255, 255)
+#define TERM_TITLE_COLOR RGB(255, 255, 255)
+#define DEFAULT_BG RGB(0, 0, 0)
+#define DEFAULT_FG RGB(192, 192, 192)
+#define DEFAULT_BG_BRIGHT RGB(64, 64, 64)
+#define DEFAULT_FG_BRIGHT RGB(255, 255, 255)
+#else
+#define TERM_BORDER_COLOR RGB(0, 0, 0)
+#define TERM_TITLE_COLOR RGB(0, 0, 0)
 #define DEFAULT_BG RGB(255, 255, 255)
 #define DEFAULT_FG RGB(0, 0, 0)
 #define DEFAULT_BG_BRIGHT RGB(255, 255, 255)
 #define DEFAULT_FG_BRIGHT RGB(64, 64, 64)
+#endif
 
 static uint8_t Font[] = {
 #include "font.h"
