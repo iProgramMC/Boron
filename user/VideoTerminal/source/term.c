@@ -76,6 +76,12 @@ void CharactersTyped(char* OutputBuffer, size_t* OutputBufferIndex, const char* 
 NO_RETURN
 void OutputLoop(UNUSED void* Context)
 {
+	if (KeyboardHandle == HANDLE_NONE)
+	{
+		DbgPrint("No keyboard attached - this session will be uninteractable!");
+		OSExitThread();
+	}
+	
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	char Buffer[16];

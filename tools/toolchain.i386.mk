@@ -11,10 +11,10 @@ ARCH_CFLAGS =        \
 	-mno-mmx         \
 	-mno-sse         \
 	-mno-sse2
-	
+
 ARCH_LDFLAGS = \
 	-z max-page-size=0x1000  \
-	-L$(DDK_DIR)/../../boron \
+	-L$(DDK_DIR)/../../tools \
 	-lgcc-i686
 
 ARCH_ASFLAGS = \

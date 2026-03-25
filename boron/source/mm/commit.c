@@ -151,6 +151,7 @@ BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protectio
 	}
 	
 	// Okay, everything's committed. Success!
+	MmFlushTlbUpdates();
 	MmUnlockSpace(Ipl, StartVa);
 	return STATUS_SUCCESS;
 }

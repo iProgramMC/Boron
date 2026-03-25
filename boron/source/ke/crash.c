@@ -53,7 +53,13 @@ void KeCrashConclusion(const char* Message)
 	KiDebugPrintLock.Locked = 0;
 #endif
 	
-	snprintf(CrashBuffer, sizeof CrashBuffer, "\n\x1B[91m*** STOP (CPU %u): \x1B[0m %s\n", KeGetCurrentPRCB()->LapicId, Message);
+	snprintf(
+		CrashBuffer,
+		sizeof CrashBuffer,
+		"\n\x1B[91m*** STOP (CPU %u): \x1B[0m %s\n",
+		(unsigned)KeGetCurrentPRCB()->LapicId,
+		Message
+	);
 	
 	HalDisplayString(CrashBuffer);
 	

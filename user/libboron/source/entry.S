@@ -2,9 +2,9 @@
 // Copyright (C) 2026 iProgramInCpp
 
 .section .text
-.att_syntax
 
 #ifdef TARGET_AMD64
+	.att_syntax
 
 	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
 	.globl OSDLLJumpToEntry
@@ -24,6 +24,7 @@ OSDLLEntry:
 	call    OSDLLRelocateSelf /* note: this function is NORETURN */
 
 #elif defined TARGET_I386
+	.att_syntax
 
 	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
 	.globl OSDLLJumpToEntry
@@ -43,6 +44,24 @@ OSDLLJumpToEntry:
 	.type   OSDLLEntry, @function
 OSDLLEntry:
 	jmp     OSDLLRelocateSelf
+
+#elif TARGET_ARM
+
+	/* void OSDLLJumpToEntry(uintptr_t StackBottom, void* EntryPoint, void* Context); */
+	.globl OSDLLJumpToEntry
+	.type  OSDLLJumpToEntry, %function
+OSDLLJumpToEntry:
+	mov sp, r0
+	mov lr, r1
+	mov r0, r2
+	bx  lr
+
+	/* Entry point of libboron.so. */
+	.globl  OSDLLEntry
+	.extern OSDLLRelocateSelf
+	.type   OSDLLEntry, %function
+OSDLLEntry:
+	bl      OSDLLRelocateSelf
 
 #else
 

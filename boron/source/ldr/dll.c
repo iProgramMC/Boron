@@ -86,6 +86,7 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 			if (!MmIsEqualPte(Pte1, *Pte))
 				KeInvalidatePage((void*) VirtAddr);
 			
+			VirtAddr += PAGE_SIZE;
 			continue;
 		}
 		

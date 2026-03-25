@@ -26,8 +26,9 @@ This project is licensed under the three clause BSD license, **except the follow
 ### Supported platforms
 
 Currently, Boron supports running on:
-- x86_64
+- x86_64 (64-bit)
 - x86 (32-bit)
+- ARMv6 (32-bit)
 
 Note: The supporting code for 32-bit x86 is called `i386`, but there is a long way to actually running on the original 80386.)
 
@@ -39,16 +40,97 @@ Boron is planned to be ported to:
 - AArch64 (64-bit)
 
 ## Building
-In a terminal, run the following commands:
+
+To set up the repo for building, run the following commands:
 ```
-git submodule update      # downloads limine and flanterm
+git submodule update --init --recursive
 make -C limine
+```
+
+### AMD64
+
+To build for amd64, you will need to use an x86_64 native distribution of `gcc`, `binutils`, `nasm`,
+and then additionally, `tar` and `xorriso`.
+
+AMD64 is the default platform, so you can simply run:
+```
 make
 ```
-(note: these are to be done on Linux or WSL. Cygwin/MinGW32 were not tested and don't work due to the differences in executable formats.)
 
-To run, invoke `./run-unix.sh` or `make run`. If you are using WSL 1, you can do `./run.sh`
-to run the built iso using your native QEMU installation on Windows.
+Or, if you want to be explicit,
+```
+make TARGET=AMD64
+```
+
+To run, invoke `qemu-system-x86_64` with `-cdrom build/image.amd64.iso -boot d`.  The run scripts
+available in `tools` might not work.
+
+### i386
+
+To build for i386, you will need to use `clang-22`, `binutils`, `nasm`, and then additionally,
+`tar` and `xorriso`.
+
+Run:
+```
+make TARGET=I386
+```
+
+To run, invoke `qemu-system-i386` with `-cdrom build/image.i386.iso -boot d`. The available run
+scripts in `tools` probably won't work.
+
+### ARM
+
+The ARM port currently targets legacy Apple devices such as the **iPhone 3G** and **1st gen iPod touch**.
+As such, setting up this port is a little harder.
+
+First, check out and compile [my fork of OpeniBoot](https://github.com/iProgramMC/openiBoot). This
+is not a prerequisite to *build* the kernel, but you won't be able to run it in the original version
+of OpeniBoot.
+
+This will require an ancient Linux distro (e.g. Debian 8.7.0), since the [arm-elf gcc 4.x toolchain](https://github.com/iDroid-Project/OpeniBoot-toolchain)
+won't build with modern compilers.  I have tried with the modern `arm-none-eabi-gcc` toolchain, but
+it straight-up doesn't work.  It will also require `python2.7-dev` and `sconscript`.  To compile,
+run `scons iPhone3G` or `scons iPodTouch1G`.
+
+Then, get `arm-none-eabi-gcc`, `arm-none-eabi-ld`, and `tar`.
+
+Finally, you should be able to compile using:
+```
+make TARGET=ARM
+```
+
+To run, put your iPod/iPhone in recovery mode, then `loadibec ipt_1g_openiboot.img3` from the OpeniBoot
+dir (or `loadibec iphone_3g_openiboot.img3`).
+
+Press the Home button on your device when it lets you select `Console`, and then type in `sudo oibc`
+on your computer, with the device still connected. Afterwards, type in `!`, and then the path to
+`build/image.arm.tar`. Finally, type `borongo`. Boron should boot on your iDevice. It's not even
+minimally interactable on there, though.
+
+#### Running In An Emulator
+
+There is actually an emulator (admittedly, half-baked) for the iPod touch 1G.
+
+First, check out and compile [my fork of devos50's qemu-ios](https://github.com/iProgramMC/qemu-ios).
+
+Then you should be able to use the following command line to run Boron on it. (Note: you will still
+need OpeniBoot to boot)
+```
+./qemu-system-arm \
+	-M iPod-Touch,bootrom=[bootrom path],iboot=[openiboot raw image path],nand=[nand path],oib-elf=[path to build/image.arm.tar] \
+	-serial stdio \
+	-cpu max \
+	-m 1G \
+	-d unimp \
+	-pflash [nor path]
+```
+
+For details on how you can get the bootrom, nand dump, and nor flash data, check out
+[devos50's article on emulating the iPod touch](https://devos50.github.io/blog/2022/ipod-touch-qemu-pt2).
+
+Note: as it is, the NAND image will not work, since it's in a bunch of folders.  You will need to
+build a unified nand image by running `tools/ipt_1g_ungenerate_nand.cpp` with your nand folder and
+it'll generate a `nand.img` for use in my fork.
 
 ## Goals/plans
 

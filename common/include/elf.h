@@ -161,6 +161,28 @@ enum
 	R_386_GOTOFF,    // S + A - GOT
 	R_386_GOTPC,     // GOT + A - P
 	R_386_32PLT,     // L + A
+#elif defined TARGET_ARM
+	R_ARM_NONE,      // none
+	R_ARM_PC24,      // S - P + A (ARM B/BL)
+	R_ARM_ABS32,     // S + A
+	R_ARM_REL32,     // S - P + A
+	R_ARM_PC13,      // S - P + A (ARM LDR r, [pc, ...])
+	R_ARM_ABS16,     // S + A (16-bit half-word)
+	R_ARM_ABS12,     // S + A (ARM LDR/STR)
+	R_ARM_THM_ABS5,  // S + A (Thumb LDR/STR)
+	R_ARM_ABS8,      // S + A (8-bit Byte)
+	R_ARM_SBREL32,   // S - B + A (32-bit Word)
+	R_ARM_THM_PC22,  // S - P + A (Thumb BL pair)
+	R_ARM_THM_PC8,   // S - P + A (Thumb LDR r, [pc, ...])
+	R_ARM_AMP_VCALL9,// S - B + A (AMP VCALL)
+	R_ARM_SWI24,     // S + A (ARM SWI)
+	R_ARM_THM_SWI8,  // S + A (Thumb SWI)
+	R_ARM_XPC25,     // S - P + A (ARM BLX)
+	R_ARM_THM_XPC22, // S - P + A (Thumb BLX pair)
+	
+	R_ARM_GLOB_DAT = 21,  // S
+	R_ARM_JUMP_SLOT,      // S
+	R_ARM_RELATIVE,       // B + A
 #else
 #error Hey! Add ELF relocation types here
 #endif

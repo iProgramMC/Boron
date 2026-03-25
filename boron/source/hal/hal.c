@@ -90,12 +90,13 @@ uint64_t HalGetTickCount()
 {
 #ifdef TICK_DEBUG
 	static uint64_t LastTickCount = 0;
+	
+	bool Restore = KeDisableInterrupts();
 #endif
 
 	uint64_t TickCount = HalpVftable.GetTickCount();
 
 #ifdef TICK_DEBUG
-	bool Restore = KeDisableInterrupts();
 	if (LastTickCount > TickCount)
 	{
 		KeCrash(
@@ -195,6 +196,40 @@ uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 {
 	return HalpVftable.PciReadBarAddress(Address, BarIndex);
 }
+#endif
+
+#ifdef TARGET_ARM
+
+int HalGetMaximumInterruptCount()
+{
+	return HalpVftable.GetMaximumInterruptCount();
+}
+
+void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl)
+{
+	HalpVftable.OnUpdateIpl(NewIpl, OldIpl);
+}
+
+void HalVicRegisterInterrupt(int Vector, KIPL Ipl)
+{
+	HalpVftable.VicRegisterInterrupt(Vector, Ipl);
+}
+
+void HalVicDeregisterInterrupt(int Vector, KIPL Ipl)
+{
+	HalpVftable.VicDeregisterInterrupt(Vector, Ipl);
+}
+
+PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
+{
+	return HalpVftable.OnInterruptRequest(Registers);
+}
+
+PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers)
+{
+	return HalpVftable.OnFastInterruptRequest(Registers);
+}
+
 #endif
 
 NO_RETURN void HalProcessorCrashed()

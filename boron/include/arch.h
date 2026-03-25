@@ -8,6 +8,10 @@
 #include <arch/amd64.h>
 #elif defined TARGET_I386
 #include <arch/i386.h>
+#elif defined TARGET_ARM
+#include <arch/arm.h>
+#else
+#error Define your architecture here!
 #endif
 
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
@@ -15,38 +19,15 @@ typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
 
 // Functions that do different things based on architecture,
 // but exist everywhere
-#if defined TARGET_AMD64 || defined TARGET_I386
-
-FORCE_INLINE
-void KeWaitForNextInterrupt(void)
-{
-	ASM("hlt":::"memory");
-}
-
-FORCE_INLINE
-void KeSpinningHint(void)
-{
-	ASM("pause":::"memory");
-}
-
-FORCE_INLINE
-void KeInvalidatePage(void* Address)
-{
-	ASM("invlpg (%0)"::"r"((uintptr_t)Address):"memory");
-}
-
-#else
-
 void KeWaitForNextInterrupt(void);
 void KeSpinningHint(void);
 void KeInvalidatePage(void* Page);
-
-#endif
-
 void KeSetCPUPointer(void* CpuPointer);
 void* KeGetCPUPointer(void);
 uintptr_t KeGetCurrentPageTable(void);
 void KeFlushTLB(void);
+void KeSweepIcache(void);
+void KeSweepDcache(void);
 void KeSetCurrentPageTable(uintptr_t PageTable);
 bool KeDisableInterrupts(); // returns old state
 void KeRestoreInterrupts(bool OldState);

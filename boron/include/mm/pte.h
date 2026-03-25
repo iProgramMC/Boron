@@ -155,3 +155,6 @@ MM_PTE_API bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2);
 
 // Checks if the PTE has unsupported parameters.
 MM_PTE_API bool MmIsUnsupportedHigherLevelPte(MMPTE Pte);
+
+// Flushes PTE modifications.
+MM_PTE_API void MmFlushTlbUpdates();

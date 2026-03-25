@@ -3,7 +3,7 @@
 	Copyright (C) 2023 iProgramInCpp
 
 Module name:
-	ke/amd64/debug.c
+	ke/amd64/debug.c
 	
 Abstract:
 	This module implements architecture specific debugging
@@ -109,6 +109,12 @@ void DbgPrintDouble(const char* String)
 {
 	DbgPrintString(String);
 	HalDisplayString(String);
+}
+
+void DbgDumpPageTables()
+{
+	// TODO
+	DbgPrint("You really need this?  Add it.  It's supposed to dump the current page table.");
 }
 
 void DbgPrintStackTrace(uintptr_t Rbp)

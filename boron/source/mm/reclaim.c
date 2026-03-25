@@ -35,6 +35,7 @@ void MiReclaimInitText()
 		// the memory region will never be read from again. However, in debug
 		// mode, a TLB shootdown will be performed anyway.
 		*PtePtr = ZeroPte;
+		MmFlushTlbUpdates();
 		
 		MMPFN Pfn = MmGetPfnPte(Pte);
 		MmFreePhysicalPage(Pfn);

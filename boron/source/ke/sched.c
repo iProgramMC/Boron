@@ -677,6 +677,10 @@ void KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
 	
+#ifdef TARGET_ARM
+	bool Restore = KeDisableInterrupts();
+#endif
+	
 	PKSCHEDULER Scheduler = KiGetCurrentScheduler();
 	
 	// Load other properties about the thread.
@@ -737,10 +741,14 @@ void KiSwitchToNextThread()
 	// Set the relevant MSRs.
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
+
 #endif
 
 	if (OldThread == Thread)
 	{
+	#ifdef TARGET_ARM
+		KeRestoreInterrupts(Restore);
+	#endif
 		// The old thread is the same as the new thread, there's no need to
 		// do anything anymore.
 		return;
@@ -759,22 +767,28 @@ void KiSwitchToNextThread()
 	else
 		KiSwitchThreadStackForever(Thread->StackPointer);
 	
+#ifdef TARGET_ARM
+	KeRestoreInterrupts(Restore);
+#endif
 	// NOTE: Beyond this point, you CANNOT use "Thread" anymore to refer to the
 	// thread that was just switched to.  You have to use "OldThread" - that was
 	// the thread that was switched from when it saved its state in
 	// KiSwitchThreadStack. But, well, there's nothing here for now, so fine.
 }
 
-void KiHandleQuantumEnd()
+void KiHandleQuantumEndDispatcherLockHeld()
 {
-	KIPL Ipl = KiLockDispatcher();
-	
 	KiPerformYield();
 	
 	if (KiGetCurrentScheduler()->NextThread) {
 		KiSwitchToNextThread();
 	}
-	
+}
+
+void KiHandleQuantumEnd()
+{
+	KIPL Ipl = KiLockDispatcher();
+	KiHandleQuantumEndDispatcherLockHeld();
 	KiUnlockDispatcher(Ipl);
 }
 
@@ -844,8 +858,7 @@ NO_RETURN void KeTerminateThread(KPRIORITY Increment)
 	Thread->IncrementTerminated = Increment;
 	
 	// Unlock the dispatcher and request an end to current quantum.
-	KiUnlockDispatcher(IPL_DPC);
-	KiHandleQuantumEnd();
+	KiHandleQuantumEndDispatcherLockHeld();
 	
 	KeCrash("KeTerminateThread: After yielding, terminated thread was scheduled back in");
 }

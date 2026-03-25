@@ -18,6 +18,10 @@ Author:
 #include <limreq.h>
 #include "utils.h"
 
+#if defined TARGET_I386 || defined TARGET_AMD64
+#define USE_TSC
+#endif
+
 // 2023... It was a year of giant changes for me. I'm sorry that I couldn't
 // get a fully stable demo (it seems to be reasonably stable on 4 cores but
 // cracks on 32 cores...), but yeah, it is what it is, I'll fix it in 2024.
@@ -26,7 +30,8 @@ Author:
 
 // ####### GRAPHICS BACKEND #######
 
-#define BACKGROUND_COLOR 0x09090F
+//#define BACKGROUND_COLOR 0x09090F
+#define BACKGROUND_COLOR 0
 
 uint8_t* PixBuff;
 int PixWidth, PixHeight, PixPitch, PixBPP;
@@ -139,6 +144,8 @@ void Init()
 
 // ####### UTILITY LIBRARY #######
 
+#ifdef USE_TSC
+
 uint64_t ReadTsc()
 {
 	uintptr_t low, high;
@@ -155,6 +162,8 @@ unsigned RandTscBased()
 	uint64_t Tsc = ReadTsc();
 	return ((uint32_t)Tsc ^ (uint32_t)(Tsc >> 32));
 }
+
+#endif
 
 int g_randGen = 0x9521af17;
 int Rand()
@@ -283,13 +292,14 @@ NO_RETURN void T_Explodeable(UNUSED void* Parameter)
 	memset(&Data, 0, sizeof Data);
 	
 	int OffsetX = PixWidth * 400 / 1024;
+	int OffsetY = PixHeight * 400 / 768;
 	
 	// This is a fire, so it doesn't have a base.
 	Data.m_x = PixWidth / 2;
 	Data.m_y = PixHeight - 1;
 	Data.m_actX = INT_TO_FP(Data.m_x);
 	Data.m_actY = INT_TO_FP(Data.m_y);
-	Data.m_velY = -INT_TO_FP(400 + Rand() % 400);
+	Data.m_velY = -INT_TO_FP(OffsetY + Rand() % OffsetY);
 	Data.m_velX = OffsetX * RandFPSign();
 	Data.m_color = GetRandomColor();
 	Data.m_explosionRange = Rand() % 100 + 100;
@@ -360,7 +370,9 @@ NO_RETURN void CoreUsage(void* LookedAtThread);
 void PerformFireworksTest()
 {
 	Init();
+#ifdef USE_TSC
 	g_randGen ^= RandTscBased();
+#endif
 	
 	FillScreen(BACKGROUND_COLOR);
 	//HalDisplayString("\x1B[40m\x1B[1;1HThe Boron Operating System - Fireworks test\nHappy New Year 2024!");

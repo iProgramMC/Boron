@@ -14,6 +14,7 @@ extern struct flanterm_context* FlantermContext;
 extern PGRAPHICS_CONTEXT GraphicsContext;
 extern HANDLE TerminalHandle, TerminalHostHandle, TerminalSessionHandle;
 extern HANDLE KeyboardHandle;
+extern bool Frameless;
 
 // Initialization
 BSTATUS UseFramebuffer(const char* FramebufferPath);

@@ -38,6 +38,14 @@ LINKER_FILE = linker.$(TARGETL).ld
 ISO_DIR=$(BUILD_DIR)/iso_root
 IMAGE_TARGET=$(BUILD_DIR)/image.iso
 
+ifeq ($(TARGET),AMD64)
+	GENERATE_SYMBOLS = nasm
+else ifeq ($(TARGET),I386)
+	GENERATE_SYMBOLS = nasm
+else
+	GENERATE_SYMBOLS = gas
+endif
+
 # This is the name that our final kernel executable will have.
 # Change as needed.
 override KERNEL := $(BUILD_DIR)/kernel.$(TARGETL).elf
@@ -150,10 +158,10 @@ NASMFLAGS += $(ARCH_ASFLAGS)
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 EXCLUDE_WRONG_ARCH = '(' '(' -path 'source/ke/$(TARGETL)/*' ')' -o '(' -path 'source/mm/$(TARGETL)/*' ')' -o '(' -not -path 'source/ke/*/*' -not -path 'source/mm/*/*' ')' ')'
-override CFILES      := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.c')
-override CXXFILES    := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.cpp')
-override ASFILES     := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.S')
-override NASMFILES   := $(shell find $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.asm')
+override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.c')
+override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.cpp')
+override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.S')
+override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' $(EXCLUDE_WRONG_ARCH) -type f -name '*.asm')
 override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
@@ -175,13 +183,15 @@ VER_BUILD = $(shell cat $(BUILD_NUMBER_FILE))
 CFLAGS += -D__BORON_MAJOR=$(VER_MAJOR) -D__BORON_MINOR=$(VER_MINOR) -D__BORON_BUILD=$(VER_BUILD)
 
 # Link rules for the final kernel executable.
+ifeq ($(GENERATE_SYMBOLS),nasm)
+
 $(KERNEL): $(SYMBOLS)
 	@echo "[LD]\tBuilding $(KERNEL)"
 	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_nasm.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
 	@$(BASM) $(NASMFLAGS) $(BUILD_DIR)/_symtab.$(TARGETL).asm -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
@@ -192,6 +202,35 @@ $(KERNEL2): $(KERNEL_PARTIAL)
 $(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
 	@echo "[LD]\tPartially linking kernel"
 	@$(BLD) -m $(LINK_ARCH) -r $(OBJ) $(LDFLAGSBASE) -o $@
+
+else ifeq ($(GENERATE_SYMBOLS),gas)
+
+# TODO: deduplicate
+$(KERNEL): $(SYMBOLS)
+	@echo "[LD]\tBuilding $(KERNEL)"
+	@$(BLD) $(OBJ) $(SYMBOLS) $(LDFLAGS) -o $@
+	
+$(SYMBOLS): $(KERNEL2)
+	@echo "[NM]\tDumping and compiling symbols"
+	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_gas.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).S
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.$(TARGETL).S -o $(BUILD_DIR)/_symtab.$(TARGETL).o
+	
+$(KERNEL2): $(KERNEL_PARTIAL)
+	@echo "[LD]\tLinking kernel to extract symbols"
+	@$(BLD) $(KERNEL_PARTIAL) -static $(LDFLAGS) -o $@
+
+# Link rules for the amalgam object file.
+$(KERNEL_PARTIAL): $(OBJ) $(LINKER_FILE)
+	@echo "[LD]\tPartially linking kernel"
+	@$(BLD) -m $(LINK_ARCH) -r $(OBJ) $(LDFLAGSBASE) -o $@
+
+else
+
+$(KERNEL): $(OBJ) $(LINKER_FILE)
+	@echo "[LD]\tLinking kernel"
+	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
+
+endif
 
 $(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TARGETL).o, $(OBJ)) $(SRC_DIR)/ke/version.c
 	@echo "[CC]\tCompiling $(SRC_DIR)/ke/version.c"

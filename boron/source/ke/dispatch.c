@@ -360,10 +360,7 @@ BSTATUS KeWaitForMultipleObjects(
 		// FIX 04/03/2026 - Do not release the dispatcher lock to yield.
 		// Thanks to https://github.com/monkuous for finding this bug.
 		Thread->QuantumUntil = 0;
-		KiPerformYield();
-		
-		if (KiGetCurrentScheduler()->NextThread)
-			KiSwitchToNextThread();
+		KiHandleQuantumEndDispatcherLockHeld();
 		
 		// Fetch the wait status.
 		Status = Thread->WaitStatus;
@@ -550,4 +547,13 @@ void KiDispatchSoftwareInterrupts(KIPL NewIpl)
 	Prcb->Ipl = NewIpl;
 	
 	KeRestoreInterrupts(Restore);
+}
+
+void KeDispatchPendingSoftInterrupts()
+{
+	PKPRCB Prcb = KeGetCurrentPRCB();
+	KIPL Ipl = Prcb->Ipl;
+	
+	if (Prcb->PendingSoftInterrupts >> Ipl)
+		KiDispatchSoftwareInterrupts(Ipl);
 }

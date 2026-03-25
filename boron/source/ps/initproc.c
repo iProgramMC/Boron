@@ -93,8 +93,9 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 		false
 	);
 	
-	if (FAILED(Status))
-		KeCrash("%s: Failed to create initial process: %s (%d)", RtlGetStatusString(Status), Status);
+	if (FAILED(Status)) {
+		KeCrash("%s: Failed to create initial process: %s (%d)", __func__, RtlGetStatusString(Status), Status);
+	}
 	
 	PEPROCESS Process = NULL;
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);

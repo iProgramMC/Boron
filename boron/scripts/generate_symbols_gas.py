@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+# The Boron Operating System - Copyright (C) 2026 iProgramInCpp
+#
+# This Python script generates the symbol definitions.
+# Note: The input piped into it MUST be the output of `nm` with the `-P` switch.
+
+import sys
+
+def SymKey(s):
+    return s[0]  # Return the address member
+
+if len(sys.argv) < 1:
+    print('bad usage')
+    exit()
+
+if sys.argv[1] == 'arm':
+    DefineWord = '.word'
+elif sys.argv[1] == 'i386':
+    DefineWord = '.long'
+else:
+    DefineWord = '.quad'
+
+print(' /*********** The Boron Operating System ***********/')
+print(' .section .rodata')
+print(' .global KiSymbolTable')
+print(' .global KiSymbolTableEnd')
+print('KiSymbolTable:')
+
+Names = "   .section .rodata\n"
+
+SymbolList = []
+
+for Line in sys.stdin:
+    Line = Line.rstrip()
+    Tokens = Line.split()
+    
+    Name = Tokens[0]
+    Type = Tokens[1]
+    Address = int(Tokens[2], 16)
+    
+    if len(Tokens) < 4:
+        Size = 1
+    else:
+        Size = int(Tokens[3], 16)
+    
+    if Name == '$d' or Name == '$a':
+        continue
+    
+    if Type == 'T' or Type == 't':
+        SymbolList.append((Address, Size, Name))
+
+SymbolList.sort(key=SymKey)
+
+Count = 0
+for Symbol in SymbolList:
+    Address = Symbol[0]
+    Size = Symbol[1]
+    Name = Symbol[2]
+
+    if Count < len(SymbolList) - 1:
+        UpdateSize = False
+        
+        # Attempt to correct the size of small asm functions
+        # that aren't aligned to sixteen bytes. Their size is reported
+        # as bigger than it actually is for some reason
+        if Address + Size > SymbolList[Count + 1][0]:
+            UpdateSize = True
+        
+        # If the symbol has at most 15 bytes until the next symbol,
+        # expand the size to include the padding.
+        # Some no_return functions are missed without this fix.
+        Thing = (Address + Size + 0xF) & 0xFFFFFFFFFFFFFFF0
+        
+        if Thing == SymbolList[Count + 1][0]:
+            UpdateSize = True
+        
+        # TODO FIXME: If we're KiTrapCommon or siblings, update the size anyway
+        if Name.startswith('KiTrapCommon'):
+            UpdateSize = True
+        
+        if UpdateSize:
+            Size = SymbolList[Count + 1][0] - Address
+           
+    
+    print(f'    {DefineWord} 0x{Address:x}')
+    print(f'    {DefineWord} 0x{Size:x}')
+    print(f'    {DefineWord} name_{Count}')
+    Names += f'name_{Count}: .asciz "{Name}"\n'
+    Count += 1
+
+print('KiSymbolTableEnd:')
+print(Names)

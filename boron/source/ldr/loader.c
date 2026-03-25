@@ -24,6 +24,11 @@ static const char* LdrpHalPath = "halx86.sys";
 static uintptr_t LdrpCurrentBase = 0xD2000000;
 static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
 
+#elif defined TARGET_ARM
+
+static uintptr_t LdrpCurrentBase = 0xD2000000;
+static const char* LdrpHalPath = "hals5l8900.sys"; // TODO: make this configurable. temporary
+
 #else
 	
 #error Define your loader base and HAL path here.
@@ -101,7 +106,7 @@ void LdrInit()
 		return;
 	}
 	
-	LdriLoadFile(HalFile);
+	LdriLoadDll(HalFile);
 }
 
 INIT

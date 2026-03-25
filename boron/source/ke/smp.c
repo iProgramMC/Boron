@@ -22,7 +22,7 @@ Author:
 #include "ki.h"
 
 KPRCB**  KeProcessorList;
-int      KeProcessorCount = 0;
+int      KeProcessorCount = 1;
 uint32_t KeBootstrapLapicId = 0;
 
 KPRCB** KiGetProcessorList() { return KeProcessorList; }
@@ -70,6 +70,7 @@ void KiCPUBootstrap(PLOADER_AP LoaderAp)
 	
 	// Update the IPL when initing. Currently we start at the highest IPL
 	KeOnUpdateIPL(KeGetIPL(), 0);
+	
 	ENABLE_INTERRUPTS();
 	
 	KeInitCPU();

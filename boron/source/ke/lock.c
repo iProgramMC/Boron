@@ -15,6 +15,7 @@ Author:
 
 #include <ke.h>
 #include <arch.h>
+#include <string.h>
 
 // Note! The reason we raise IPL when locking a spinlock is that we don't want
 // the scheduler to interrupt the critical section, thus wasting precious cycles
@@ -47,14 +48,18 @@ void KeAcquireSpinLock(PKSPIN_LOCK SpinLock, PKIPL OldIpl)
 	if (KeGetProcessorCount() == 1 && SpinLock->Locked)
 	{
 #ifdef SPINLOCK_TRACK_PC
+	#ifdef IS_64_BIT
 		KeCrash("KeAcquireSpinLock: spinlock already locked by %p", SpinLock->Pc | 0xFFFF000000000000);
+	#else
+		KeCrash("KeAcquireSpinLock: spinlock already locked by %p", SpinLock->Pc);
+	#endif
 #else
 		KeCrash("KeAcquireSpinLock: spinlock already locked");
 #endif
 	}
 		
 #endif
-	
+
 	while (true)
 	{
 		if (!AtTestAndSetMO(SpinLock->Locked, ATOMIC_MEMORD_ACQUIRE))
@@ -76,7 +81,9 @@ void KeAcquireSpinLock(PKSPIN_LOCK SpinLock, PKIPL OldIpl)
 		
 		// Use regular reads instead of atomic reads to minimize bus contention
 		while (SpinLock->Locked)
+		{
 			KeSpinningHint();
+		}
 	}
 }
 

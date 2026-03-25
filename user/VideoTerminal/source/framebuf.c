@@ -2,17 +2,29 @@
 #include "flanterm/src/flanterm.h"
 #include "flanterm_alt_fb.h"
 
+#define DARK_MODE
+
 #define TERM_TITLE_HEIGHT 23
 #define TERM_BACKGROUND_COLOR RGB(85, 85, 85)
-#define TERM_BORDER_COLOR RGB(0, 0, 0)
-#define TERM_TITLE_COLOR RGB(0, 0, 0)
 #define TERM_SHINE_A_COLOR RGB(170, 170, 170)
 #define TERM_SHINE_B_COLOR RGB(85, 85, 85)
 
+
+#ifdef DARK_MODE
+#define TERM_BORDER_COLOR RGB(255, 255, 255)
+#define TERM_TITLE_COLOR RGB(255, 255, 255)
+#define DEFAULT_BG RGB(0, 0, 0)
+#define DEFAULT_FG RGB(192, 192, 192)
+#define DEFAULT_BG_BRIGHT RGB(64, 64, 64)
+#define DEFAULT_FG_BRIGHT RGB(255, 255, 255)
+#else
+#define TERM_BORDER_COLOR RGB(0, 0, 0)
+#define TERM_TITLE_COLOR RGB(0, 0, 0)
 #define DEFAULT_BG RGB(255, 255, 255)
 #define DEFAULT_FG RGB(0, 0, 0)
 #define DEFAULT_BG_BRIGHT RGB(255, 255, 255)
 #define DEFAULT_FG_BRIGHT RGB(64, 64, 64)
+#endif
 
 static uint8_t Font[] = {
 #include "font.h"
@@ -23,6 +35,8 @@ struct flanterm_context* FlantermContext;
 
 int MarginVert = 100;
 int MarginHorz = 120;
+
+bool Frameless = false;
 
 void DrawFrame(int Left, int Top, int Right, int Bottom)
 {
@@ -63,21 +77,30 @@ BSTATUS SetupTerminal()
 	PGRAPHICS_CONTEXT Ctx = GraphicsContext;
 	int Left, Right, Top, Bottom;
 	
-	Left = MarginHorz;
-	Right = Ctx->Width - MarginHorz;
-	if (Left > Right) {
-		Left = 0;
+	if (Frameless)
+	{
+		Left = Top = 0;
 		Right = Ctx->Width;
-	}
-	
-	Top = MarginVert;
-	Bottom = Ctx->Height - MarginVert;
-	if (Top > Bottom) {
-		Top = 0;
 		Bottom = Ctx->Height;
 	}
-	
-	DrawFrame(Left, Top, Right, Bottom);
+	else
+	{
+		Left = MarginHorz;
+		Right = Ctx->Width - MarginHorz;
+		if (Left > Right) {
+			Left = 0;
+			Right = Ctx->Width;
+		}
+		
+		Top = MarginVert;
+		Bottom = Ctx->Height - MarginVert;
+		if (Top > Bottom) {
+			Top = 0;
+			Bottom = Ctx->Height;
+		}
+		
+		DrawFrame(Left, Top, Right, Bottom);
+	}
 	
 	int RMSz, GMSz, BMSz, RMSh, GMSh, BMSh;
 	CGGetColorFormatInfo(GraphicsContext->ColorFormat, &RMSz, &GMSz, &BMSz, &RMSh, &GMSh, &BMSh);
@@ -89,10 +112,10 @@ BSTATUS SetupTerminal()
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
-	uint32_t DefaultBg = CGConvertColorToNative(SubContext, DEFAULT_BG);
-	uint32_t DefaultFg = CGConvertColorToNative(SubContext, DEFAULT_FG);
-	uint32_t DefaultBgBright = CGConvertColorToNative(SubContext, DEFAULT_BG_BRIGHT);
-	uint32_t DefaultFgBright = CGConvertColorToNative(SubContext, DEFAULT_FG_BRIGHT);
+	uint32_t DefaultBg = DEFAULT_BG;
+	uint32_t DefaultFg = DEFAULT_FG;
+	uint32_t DefaultBgBright = DEFAULT_BG_BRIGHT;
+	uint32_t DefaultFgBright = DEFAULT_FG_BRIGHT;
 	
 	FlantermContext = flanterm_fb_init_alt(
 		OSAllocate,
@@ -187,6 +210,10 @@ BSTATUS UseFramebuffer(const char* FramebufferPath)
 		MarginHorz /= 2;
 	if (FbInfo.Height < 600)
 		MarginVert /= 2;
+	
+	if (FbInfo.Width < 700 || FbInfo.Height < 500) {
+		Frameless = true;
+	}
 
 	GraphicsContext = CGCreateContextFromBuffer(
 		FbAddress,
