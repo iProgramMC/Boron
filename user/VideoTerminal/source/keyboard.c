@@ -160,7 +160,7 @@ void TranslateKeyCode(char* Input, uint8_t KeyCode)
 		// ^A == 0x01, ^Z == 0x1A
 		char Ascii = KeyboardMap[KeyCode];
 		char Typed = Ascii;
-		if (Ascii >= 'a' || Ascii <= 'z')
+		if (Ascii >= 'a' && Ascii <= 'z')
 		{
 			Typed = 1 + (Ascii - 'a');
 		}
@@ -169,9 +169,9 @@ void TranslateKeyCode(char* Input, uint8_t KeyCode)
 			case KEY_BRACKET_LEFT:   Typed = '\x1B'; break;
 			case KEY_BACKSLASH:      Typed = '\x1C'; break;
 			case KEY_BRACKET_RIGHT:  Typed = '\x1D'; break;
-			case KEY_2:              if (IsShiftPressed) Typed = '\x00'; break; // note: this won't work
-			case KEY_6:              if (IsShiftPressed) Typed = '\x1E'; break;
-			case KEY_MINUS:          if (IsShiftPressed) Typed = '\x1F'; break;
+			case KEY_2:              if (IsShiftPressed) { Typed = '\x00'; } break; // note: this won't work
+			case KEY_6:              if (IsShiftPressed) { Typed = '\x1E'; } break;
+			case KEY_MINUS:          if (IsShiftPressed) { Typed = '\x1F'; } break;
 		}
 		
 		Input[Offset++] = Typed;

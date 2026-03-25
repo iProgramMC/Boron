@@ -4,13 +4,13 @@
 #include <cg/color.h>
 #include <cg/prims.h>
 
-static inline ALWAYS_INLINE int Min(int a, int b) {
+static inline ALWAYS_INLINE UNUSED int Min(int a, int b) {
 	return a < b ? a : b;
 }
-static inline ALWAYS_INLINE int Max(int a, int b) {
+static inline ALWAYS_INLINE UNUSED int Max(int a, int b) {
 	return a > b ? a : b;
 }
-static inline ALWAYS_INLINE int Abs(int x) {
+static inline ALWAYS_INLINE UNUSED int Abs(int x) {
 	return x < 0 ? -x : x;
 }
 
@@ -216,6 +216,7 @@ void CGDrawLine(PGRAPHICS_CONTEXT Context, uint32_t Color, int X1, int Y1, int X
 		
 		for (int i = 0; X < Xe; i++)
 		{
+			(void) i;
 			X++;
 			if (Px < 0)
 			{
@@ -245,6 +246,7 @@ void CGDrawLine(PGRAPHICS_CONTEXT Context, uint32_t Color, int X1, int Y1, int X
 		
 		for (int i = 0; Y < Ye; i++)
 		{
+			(void) i;
 			Y++;
 			if (Py < 0)
 			{
