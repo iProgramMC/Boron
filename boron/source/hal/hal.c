@@ -15,7 +15,9 @@ Author:
 #include <hal.h>
 #include <ke.h>
 
-#if defined DEBUG && !defined CONFIG_SMP
+// i386: keep interrupts enabled, else the timer may be unreliable and may just
+// return the same value even if significantly more time has passed.
+#if defined DEBUG && !defined CONFIG_SMP && !defined CONFIG_I386
 #define TICK_DEBUG
 #endif
 

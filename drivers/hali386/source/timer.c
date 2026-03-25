@@ -22,7 +22,7 @@ Author:
 #define TIMER_RELOAD_VALUE 15000
 
 // This value is incremented by TIMER_RELOAD_VALUE on every timer interrupt.
-static uint64_t PitTicksPassed;
+static volatile uint64_t PitTicksPassed;
 static bool PitInitialized;
 
 HAL_API uint64_t HalGetTickFrequency()
@@ -34,27 +34,58 @@ HAL_API uint64_t HalGetTickCount()
 {
 	if (!PitInitialized)
 		return 0;
-	
-	KePortWriteByte(PIT_COMMAND_PORT, 0x00); // latch
-	
-	bool Restore = KeDisableInterrupts();
+
 	static uint64_t LastValue = 0;
+	bool Restore = KeDisableInterrupts();
 	
+	uint64_t Highest1, Highest2, Value;
 	uint8_t Low, High;
-	Low  = KePortReadByte(PIT_CHANNEL_0_PORT);
-	High = KePortReadByte(PIT_CHANNEL_0_PORT);
-	
-	uint16_t ReadIn = (Low | (High << 8));
-	uint16_t Timer = TIMER_RELOAD_VALUE - ReadIn;
-	uint64_t Value = PitTicksPassed + Timer;
-	
-	if (Value < LastValue)
+	do
 	{
-		// Seems like there's been an extended period of time where interrupts
-		// were disabled? Not sure. But what I know for sure is that timers
-		// can't go backwards. (unless they overflow)
-		Value += TIMER_RELOAD_VALUE;
+		do
+		{
+			Highest1 = AtLoad(PitTicksPassed);
+			
+			KePortWriteByte(PIT_COMMAND_PORT, 0x00); // latch
+			Low = KePortReadByte(PIT_CHANNEL_0_PORT);
+			High = KePortReadByte(PIT_CHANNEL_0_PORT);
+			
+			// Allow interrupts through (momentarily)
+			KeRestoreInterrupts(Restore);
+			ASM("nop":::"memory");
+			ASM("nop":::"memory");
+			ASM("nop":::"memory");
+			ASM("nop":::"memory");
+			Restore = KeDisableInterrupts();
+			
+			Highest2 = AtLoad(PitTicksPassed);
+		}
+		while (Highest1 != Highest2);
+		
+		uint16_t ReadIn = (Low | (High << 8));
+		uint16_t Timer = TIMER_RELOAD_VALUE - ReadIn;
+		
+		Value = Highest1 + Timer;
+		
+		if (Value < LastValue)
+		{
+			// The current value is lower than the last returned value.  This probably
+			// means there's been an extended period of time with interrupts disabled.
+			// I know timers can't go backwards (unless they overflow, but they really
+			// shouldn't).
+			//
+			// If interrupts are disabled, just return the last count, since this actually
+			// *won't* end up "fixing itself".
+			if (Restore == false) {
+				return LastValue;
+			}
+			
+			continue;
+		}
+		
+		break;
 	}
+	while (true);
 	
 	LastValue = Value;
 	KeRestoreInterrupts(Restore);
