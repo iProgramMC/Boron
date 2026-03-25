@@ -21,7 +21,6 @@ Author:
 // TODO: keep these mnemonics in one place
 #define L1PTE(Address) (((uintptr_t)(Address) & ~0x3FF) | MM_ARM_PTEL1_COARSE_PAGE_TABLE)
 #define L2PTE(Pfn) MmHardwarePte(MmBuildPte(Pfn, MM_PROT_READ | MM_PROT_WRITE))
-/* #define L2PTE(Pfn) (MM_PTE_NEWPFN(Pfn) | MM_ARM_PTEL2_TYPE_SMALLPAGE | MM_PTE_READWRITE) */
 
 #define L1PTE_FLAGS_SEC 0b001010000001110 // Level 1 PTE flags for Section
 

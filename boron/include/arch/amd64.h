@@ -93,63 +93,6 @@ MMADDRESS_CONVERT;
 
 typedef uint64_t MMPTE_HW, *PMMPTE_HW;
 
-#if 0
-
-// Page table entry bits
-#define MM_PTE_PRESENT    (1ULL <<  0)
-#define MM_PTE_READWRITE  (1ULL <<  1)
-#define MM_PTE_USERACCESS (1ULL <<  2)
-#define MM_PTE_WRITETHRU  (1ULL <<  3)
-#define MM_PTE_NOCACHE    (1ULL <<  4)
-#define MM_PTE_ACCESSED   (1ULL <<  5)
-#define MM_PTE_DIRTY      (1ULL <<  6)
-#define MM_PTE_PAT        (1ULL <<  7)
-#define MM_PTE_PAGESIZE   (1ULL <<  7) // in terms of PML3/PML2 entries, for 1GB/2MB pages respectively. Not Used by the kernel
-#define MM_PTE_GLOBAL     (1ULL <<  8) // doesn't invalidate the pages from the TLB when CR3 is changed
-#define MM_PTE_ISFROMPMM  (1ULL <<  9) // if the allocated memory is managed by the PFN database
-#define MM_PTE_COW        (1ULL << 10) // if this page is to be copied after a write (UNUSED)
-#define MM_PTE_TRANSITION (1ULL << 11) // if this page is in transition (3) (UNUSED)
-#define MM_PTE_NOEXEC     (1ULL << 63) // aka eXecute Disable
-#define MM_PTE_PKMASK     (15ULL<< 59) // protection key mask. We will not use it.
-
-#define MM_PTE_ADDRESSMASK (0x000FFFFFFFFFF000) // description of the other bits that aren't 1 in the mask:
-	// 63 - execute disable
-	// 62..59 - protection key (unused)
-	// 58..52 - more available bits
-
-#define MM_PTE_PFN(Pte) (((Pte) & MM_PTE_ADDRESSMASK) / PAGE_SIZE)
-#define MM_PTE_NEWPFN(Pfn) (((Pfn) * PAGE_SIZE) & MM_PTE_ADDRESSMASK)
-
-#define MM_PTE_CHECKFROMPMM(Pte) ((Pte) & MM_PTE_ISFROMPMM)
-#define MM_PTE_ISPRESENT(Pte) (((Pte) & MM_PTE_PRESENT) != 0)
-
-// Disabled PTE (present bit is zero):
-// bits 0..2 and 63 - Permission bits as usual
-// bit  3           - Is decommitted (was previously committed but is no longer)
-// bit  8           - Is demand paged
-// bit  9           - 0 if from PMM (anonymous), 1 if mapped from a file
-// bit  10          - Was swapped to pagefile (2)
-// bit  62          - used by the unmap code, see (1)
-
-// NOTES:
-//
-// (1) - If MM_DPTE_WASPRESENT is set, it's treated as a regular PTE in terms of flags, except that MM_PTE_PRESENT is zero.
-//       It contains a valid PMM address which should be freed.
-//
-// (2) - If MM_DPTE_SWAPPED is set, bits 52...12 represent the offset into the pagefile, and bits 57...53 mean the pagefile index.
-//
-// (3) - If the PTE is in transition, then the physical page is part of either the standby or the modified page list.
-
-#define MM_DPTE_DECOMMITTED  (1ULL << 3)
-#define MM_DPTE_COMMITTED    (1ULL << 8)
-#define MM_DPTE_BACKEDBYFILE (1ULL << 9)
-#define MM_DPTE_SWAPPED      (1ULL << 10)
-#define MM_DPTE_ISPOOLHDR    (1ULL << 58) // if the PTE actually contains the address of a pool entry (subtracted MM_KERNEL_SPACE_BASE from it)
-#define MM_DPTE_WASPRESENT   (1ULL << 62)
-
-#endif
-
-
 // Page fault reasons
 #define MM_FAULT_PROTECTION (1ULL << 0) // 0: Page wasn't marked present; 1: Page protection violation (e.g. writing to a readonly page)
 #define MM_FAULT_WRITE      (1ULL << 1) // 0: Caused by a read; 1: Caused by a write
