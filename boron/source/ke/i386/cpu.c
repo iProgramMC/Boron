@@ -157,31 +157,6 @@ void KeInitCPU()
 	KepSetupTss(&Data->Tss);
 	KepSetupGdt(Data);
 	KepLoadIdt();
-/*
-	// Set up the system call parameters now.
-	// Enable the SYSCALL/SYSRET instructions and the NX bit.
-	KeSetMSR(MSR_IA32_EFER, KeGetMSR(MSR_IA32_EFER) | MSR_IA32_EFER_SCE | 0);
-	
-	// Set the system call handler.
-	KeSetMSR(MSR_IA32_LSTAR, (uint64_t) KiSystemServiceHandler);
-	
-	// Set the system call CS and SS.
-	//
-	// ARCHITECTURAL CRIMES AGAINST HUMANITY:
-	// For the kernel CS/SS, you cannot pick SS.  It is automatically
-	// picked as STAR_47_32 + 8.  But CS is the proper value of STAR_47_32.
-	//
-	// For the *user* CS/SS, you cannot pick SS.  It is automatically
-	// picked as STAR_63_48 + 8.  But CS is NOT the proper value
-	// of STAR_63_48, instead, it's STAR_63_48 + 16.  Why AMD?!
-	//
-	// (Or was it Intel?)
-	uint64_t Star = SEG_RING_0_CODE | (((SEG_RING_3_DATA - 8) | 3) << 16);
-	KeSetMSR(MSR_IA32_STAR, Star << 32);
-	
-	// Set the mask to disable interrupts on syscall.
-	KeSetMSR(MSR_IA32_FMASK, 0x200);
-*/
 }
 
 extern uintptr_t KiSystemServiceTable[];

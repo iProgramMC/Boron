@@ -728,20 +728,18 @@ void KiSwitchToNextThread()
 	uintptr_t StackBottom = (uintptr_t) Thread->Stack.Top + Thread->Stack.Size;
 	KeGetCurrentPRCB()->SysCallStack = StackBottom;
 	
-#if defined TARGET_AMD64 || defined TARGET_I386
-
 	// When an interrupt or exception happens and the CPL is ring 3,
 	// this is fetched for a transition to ring 0.
-#if   defined TARGET_AMD64
+#ifdef TARGET_AMD64
 	KeGetCurrentPRCB()->ArchData.Tss.RSP[0] = StackBottom;
-#elif defined TARGET_I386
-	KeGetCurrentPRCB()->ArchData.Tss.Esp0 = StackBottom;
-#endif
 	
 	// Set the relevant MSRs.
 	KeSetMSR(MSR_GS_BASE_KERNEL, (uintptr_t) Thread->Process->PebPointer);
 	KeSetMSR(MSR_FS_BASE,        (uintptr_t) Thread->TebPointer);
+#endif
 
+#ifdef TARGET_I386
+	KeGetCurrentPRCB()->ArchData.Tss.Esp0 = StackBottom;
 #endif
 
 	if (OldThread == Thread)
