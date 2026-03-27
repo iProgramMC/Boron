@@ -62,6 +62,13 @@ bool MmCheckPteLocationAllocator(
 			return false;
 		
 		*Pte = MmBuildPte(PtAllocated, MM_PROT_READ | MM_PROT_WRITE | SupervisorBit);
+		
+		// Reset it to zero if needed.
+		if (PageAllocate != MmAllocatePhysicalPage)
+		{
+			PMMPTE PteL2 = MmGetPteLocation(Address & 0xFFC00000);
+			memset(PteL2, 0, PAGE_SIZE);
+		}
 	}
 	
 	// Page table exists.
