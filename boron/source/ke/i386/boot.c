@@ -193,6 +193,13 @@ static void KiInitializeMemoryRegions()
 		if (Mmap->addr + Mmap->len > 0x100000000)
 			Mmap->len = 0x100000000 - Mmap->addr;
 		
+		// exclude the first megabyte of memory. this is a hack for now.
+		if (Mmap->addr < 0x100000) {
+			size_t Offset = 0x100000 - Mmap->addr;
+			Mmap->addr = 0x100000;
+			Mmap->len -= Offset;
+		}
+		
 		PLOADER_MEMORY_REGION MemoryRegion = &KiMemoryRegions[Index];
 		MemoryRegion->Base = Mmap->addr;
 		MemoryRegion->Size = Mmap->len;
