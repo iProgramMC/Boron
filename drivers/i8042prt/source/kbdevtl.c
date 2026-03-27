@@ -1,0 +1,146 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2026 iProgramInCpp
+
+Module name:
+	kbdevtl.c
+	
+Abstract:
+	This module implements the part of the i8042 keyboard device driver
+	that transforms raw PS/2 key codes into KBDEV key codes.
+	
+Author:
+	iProgramInCpp - 2 April 2024
+***/
+#include "kbd.h"
+#include <hal.h>
+
+const uint16_t KeyboardMap[] =
+{
+	KBDEV_KEY_NONE,
+	
+	// ROW 0
+	KBDEV_KEY_ESCAPE,
+	KBDEV_KEY_1,
+	KBDEV_KEY_2,
+	KBDEV_KEY_3,
+	KBDEV_KEY_4,
+	KBDEV_KEY_5,
+	KBDEV_KEY_6,
+	KBDEV_KEY_7,
+	KBDEV_KEY_8,
+	KBDEV_KEY_9,
+	KBDEV_KEY_0,
+	KBDEV_KEY_MINUS,
+	KBDEV_KEY_EQUALS,
+	KBDEV_KEY_BACKSPACE,
+	
+	// ROW 1
+	KBDEV_KEY_TAB,
+	KBDEV_KEY_Q,
+	KBDEV_KEY_W,
+	KBDEV_KEY_E,
+	KBDEV_KEY_R,
+	KBDEV_KEY_T,
+	KBDEV_KEY_Y,
+	KBDEV_KEY_U,
+	KBDEV_KEY_I,
+	KBDEV_KEY_O,
+	KBDEV_KEY_P,
+	KBDEV_KEY_OEM_LEFT_BRACKET,
+	KBDEV_KEY_OEM_RIGHT_BRACKET,
+	KBDEV_KEY_ENTER,
+	
+	// ROW 2
+	KBDEV_KEY_LEFT_CONTROL,
+	KBDEV_KEY_A,
+	KBDEV_KEY_S,
+	KBDEV_KEY_D,
+	KBDEV_KEY_F,
+	KBDEV_KEY_G,
+	KBDEV_KEY_H,
+	KBDEV_KEY_J,
+	KBDEV_KEY_K,
+	KBDEV_KEY_L,
+	KBDEV_KEY_OEM_SEMICOLON,
+	KBDEV_KEY_OEM_APOSTROPHE,
+	KBDEV_KEY_OEM_TILDE,
+	
+	// ROW 3
+	KBDEV_KEY_LEFT_SHIFT,
+	KBDEV_KEY_OEM_BACKSLASH,
+	KBDEV_KEY_Z,
+	KBDEV_KEY_X,
+	KBDEV_KEY_C,
+	KBDEV_KEY_V,
+	KBDEV_KEY_B,
+	KBDEV_KEY_N,
+	KBDEV_KEY_M,
+	KBDEV_KEY_OEM_COMMA,
+	KBDEV_KEY_OEM_PERIOD,
+	KBDEV_KEY_OEM_SLASH,
+	
+	// MORE
+	KBDEV_KEY_RIGHT_SHIFT,
+	KBDEV_KEY_NUMBER_PAD_MULTIPLY,
+	KBDEV_KEY_LEFT_ALT,
+	KBDEV_KEY_SPACE,
+	KBDEV_KEY_CAPS_LOCK,
+	KBDEV_KEY_F1,
+	KBDEV_KEY_F2,
+	KBDEV_KEY_F3,
+	KBDEV_KEY_F4,
+	KBDEV_KEY_F5,
+	KBDEV_KEY_F6,
+	KBDEV_KEY_F7,
+	KBDEV_KEY_F8,
+	KBDEV_KEY_F9,
+	KBDEV_KEY_F10,
+	KBDEV_KEY_NUM_LOCK,
+	KBDEV_KEY_SCROLL_LOCK,
+	KBDEV_KEY_NUMBER_PAD_7,
+	KBDEV_KEY_NUMBER_PAD_8,
+	KBDEV_KEY_NUMBER_PAD_9,
+	KBDEV_KEY_NUMBER_PAD_MINUS,
+	KBDEV_KEY_NUMBER_PAD_4,
+	KBDEV_KEY_NUMBER_PAD_5,
+	KBDEV_KEY_NUMBER_PAD_6,
+	KBDEV_KEY_NUMBER_PAD_PLUS,
+	KBDEV_KEY_NUMBER_PAD_1,
+	KBDEV_KEY_NUMBER_PAD_2,
+	KBDEV_KEY_NUMBER_PAD_3,
+	KBDEV_KEY_NUMBER_PAD_0,
+	KBDEV_KEY_NUMBER_PAD_POINT,
+	KBDEV_KEY_NONE,
+	KBDEV_KEY_NONE,
+	KBDEV_KEY_NONE,
+	KBDEV_KEY_F11,
+	KBDEV_KEY_F12,
+};
+
+uint16_t KbdTranslateToKbdevCode(uint16_t RawKeyCode)
+{
+	if (RawKeyCode == 0xFF)
+		return KBDEV_KEY_NONE;
+	
+	bool Release = RawKeyCode & 0x80;
+	bool Extended = (RawKeyCode & 0xFF00) == 0xE000;
+	RawKeyCode &= ~0x80;
+	
+	if (!Extended)
+	{
+		if (RawKeyCode >= ARRAY_COUNT(KeyboardMap)) {
+			DbgPrint("Unsupported key code %04x", RawKeyCode);
+			RawKeyCode = 0;
+		}
+		
+		uint16_t Code = KeyboardMap[RawKeyCode];
+		if (Release)
+			Code |= KBDEV_KEY_RELEASE;
+		
+		return Code;
+	}
+	
+	DbgPrint("Extended key code %04x not supported yet", RawKeyCode);
+	return KBDEV_KEY_NONE;
+}

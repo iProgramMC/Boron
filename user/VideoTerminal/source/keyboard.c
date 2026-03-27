@@ -3,129 +3,104 @@
 
 HANDLE KeyboardHandle;
 
-// Table copy pasted from NanoShell.
-const unsigned char KeyboardMap[256] =
-{
-	// shift not pressed.
-    0,  27, '1', '2',  '3',  '4', '5', '6',  '7', '8',
-  '9', '0', '-', '=', '\x7F', '\t', 'q', 'w',  'e', 'r',
-  't', 'y', 'u', 'i',  'o',  'p', '[', ']', '\n',   0,
-  'a', 's', 'd', 'f',  'g',  'h', 'j', 'k',  'l', ';',
- '\'', '`',   0,'\\',  'z',  'x', 'c', 'v',  'b', 'n',
-  'm', ',', '.', '/',   0,   '*',
-    0,	/* Alt */
-  ' ',	/* Space bar */
-    0,	/* Caps lock */
-    0,	/* 59 - F1 key ... > */
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,	/* < ... F10 */
-    0,	/* 69 - Num lock*/
-    0,	/* Scroll Lock */
-    0,	/* Home key */
-    0,	/* Up Arrow */
-    0,	/* Page Up */
-  '-',
-    0,	/* Left Arrow */
-    0,
-    0,	/* Right Arrow */
-  '+',
-    0,
-	0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	
-	// shift pressed.
-	0,  0, '!', '@', '#', '$', '%', '^', '&', '*',	/* 9 */
-  '(', ')', '_', '+', '\x7F',	/* Backspace */
-  '\t',			/* Tab */
-  'Q', 'W', 'E', 'R',	/* 19 */
-  'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',	/* Enter key */
-    0,			/* 29   - Control */
-  'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':',	/* 39 */
- '"', '~',   0,		/* Left shift */
- '|', 'Z', 'X', 'C', 'V', 'B', 'N',			/* 49 */
-  'M', '<', '>', '?',   0,				/* Right shift */
-  '*',
-    0,	/* Alt */
-  ' ',	/* Space bar */
-    0,	/* Caps lock */
-    0,	/* 59 - F1 key ... > */
-    0,   0,   0,   0,   0,   0,   0,   0,
-    0,	/* < ... F10 */
-    0,	/* 69 - Num lock*/
-    0,	/* Scroll Lock */
-    0,	/* Home key */
-    0,	/* Up Arrow */
-    0,	/* Page Up */
-  '-',
-    0,	/* Left Arrow */
-    0,
-    0,	/* Right Arrow */
-  '+',
-    0,
-	0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+static const uint8_t KeyboardMapNoShift[] = {
+	27,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // F1-F12
+	0, 0, 0, // PrtScr, ScrollLock, PauseBreak
+	'`', '-', '=', '\x7F',
+	0, // NumLock
+	'/', '*', '-', '+', '.', '\n',
+	'\t',
+	'[', ']', '\\',
+	0, // Caps Lock
+	';', '\'', '\n',
+	',', '.', '/', ' ',
+	0, 0, 0, 0, 0, 0, 0, 0, 0, // Modifiers and Menu
+	0, 0, 0, 0, // Arrow Keys
+	0, 0, 0, 0, 0, 0, // Ins, Del, Home, End, PgUp, PgDn
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
+	'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+	'u', 'v', 'w', 'x', 'y', 'z',
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 };
 
-#define KEY_2             0x03
-#define KEY_6             0x07
-#define KEY_MINUS         0x0c
-#define KEY_BRACKET_LEFT  0x1a
-#define KEY_BRACKET_RIGHT 0x1b
-#define KEY_BACKSLASH     0x2b
-#define KEY_CTRL          0x1d
-#define KEY_ALT           0x38
-#define KEY_LSHIFT        0x2a
-#define KEY_RSHIFT        0x36
-#define KEY_ARROW_UP      0x48
-#define KEY_ARROW_LEFT    0x4b
-#define KEY_ARROW_RIGHT   0x4d
-#define KEY_ARROW_DOWN    0x50
-#define KEY_F1            0x3b
-#define KEY_F2            0x3c
-#define KEY_F3            0x3d
-#define KEY_F4            0x3e
-#define KEY_F5            0x3f
-#define KEY_F6            0x40
-#define KEY_F7            0x41
-#define KEY_F8            0x42
-#define KEY_F9            0x43
-#define KEY_F10           0x44
-#define KEY_F11           0x57
-#define KEY_F12           0x58
+static const uint8_t KeyboardMapShift[] = {
+	27,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // F1-F12
+	0, 0, 0, // PrtScr, ScrollLock, PauseBreak
+	'~', '_', '+', '\x7F',
+	0, // NumLock
+	'/', '*', '-', '+', '.', '\n',
+	'\t',
+	'{', '}', '|',
+	0, // Caps Lock
+	':', '"', '\n',
+	'<', '>', '?', ' ',
+	0, 0, 0, 0, 0, 0, 0, 0, 0, // Modifiers and Menu
+	0, 0, 0, 0, // Arrow Keys
+	0, 0, 0, 0, 0, 0, // Ins, Del, Home, End, PgUp, PgDn
+	')', '!', '@', '#', '$', '%', '^', '&', '*', '(',
+	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+	'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+	'U', 'V', 'W', 'X', 'Y', 'Z',
+	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+};
+
+static const int FunctionKeyLookUp[] = {
+	15, 17, 18, 19, 20, 21, 23, 24 // F5-F12
+};
 
 bool IsShiftPressed = false, IsCtrlPressed = false, IsAltPressed = false;
 
-const char* ArrowKeyModifiers()
+int CalculateModifierFlags()
+{
+	return ((IsShiftPressed ? 1 : 0) |
+	        (IsAltPressed   ? 2 : 0) |
+	        (IsCtrlPressed  ? 4 : 0)) + 1;
+}
+
+const char* ModifierBuffer(const char* Format, const char* Default)
 {
 	static char Buffer[16];
-	*Buffer = 0;
-	
 	if (!IsShiftPressed && !IsCtrlPressed && !IsAltPressed)
-		return Buffer;
+		return Default;
 	
-	int Mod = (IsShiftPressed ? 1 : 0) |
-	          (IsAltPressed   ? 2 : 0) |
-	          (IsCtrlPressed  ? 4 : 0);
-	
-	snprintf(Buffer, sizeof Buffer, "1;%d", Mod + 1);
+	snprintf(Buffer, sizeof Buffer, Format, CalculateModifierFlags());
 	return Buffer;
 }
 
-void TranslateKeyCode(char* Input, uint8_t KeyCode)
+const char* ArrowKeyModifiers()
+{
+	return ModifierBuffer("1;%d", "");
+}
+
+const char* F1F4KeyModifiers()
+{
+	return ModifierBuffer("1;%d", "O");
+}
+
+const char* F5F12KeyModifiers()
+{
+	return ModifierBuffer(";%d", "");
+}
+
+void TranslateKeyCode(char* Input, uint16_t KeyCode)
 {
 	*Input = 0;
 	
-	bool IsRelease = KeyCode & 0x80;
-	KeyCode &= ~0x80;
-	if (KeyCode == KEY_LSHIFT || KeyCode == KEY_RSHIFT) {
+	bool IsRelease = KeyCode & KBDEV_KEY_RELEASE;
+	KeyCode &= ~KBDEV_KEY_RELEASE;
+	
+	if (KeyCode == KBDEV_KEY_LEFT_SHIFT || KeyCode == KBDEV_KEY_RIGHT_SHIFT) {
 		IsShiftPressed = !IsRelease;
 		return;
 	}
-	if (KeyCode == KEY_CTRL) {
+	if (KeyCode == KBDEV_KEY_LEFT_CONTROL || KeyCode == KBDEV_KEY_RIGHT_CONTROL) {
 		IsCtrlPressed = !IsRelease;
 		return;
 	}
-	if (KeyCode == KEY_ALT) {
+	if (KeyCode == KBDEV_KEY_LEFT_ALT || KeyCode == KBDEV_KEY_RIGHT_ALT) {
 		IsAltPressed = !IsRelease;
 		return;
 	}
@@ -133,32 +108,32 @@ void TranslateKeyCode(char* Input, uint8_t KeyCode)
 	if (IsRelease)
 		return;
 	
-	if (IsAltPressed)
-		strcpy(Input, "\x1B");
-	
 	size_t Offset = IsAltPressed;
 	switch (KeyCode)
 	{
-		case KEY_ARROW_UP:    snprintf(Input + Offset, 16 - Offset, "\x1B[%sA", ArrowKeyModifiers()); return;
-		case KEY_ARROW_DOWN:  snprintf(Input + Offset, 16 - Offset, "\x1B[%sB", ArrowKeyModifiers()); return;
-		case KEY_ARROW_RIGHT: snprintf(Input + Offset, 16 - Offset, "\x1B[%sC", ArrowKeyModifiers()); return;
-		case KEY_ARROW_LEFT:  snprintf(Input + Offset, 16 - Offset, "\x1B[%sD", ArrowKeyModifiers()); return;
+		case KBDEV_KEY_UP_ARROW:    snprintf(Input + Offset, 16 - Offset, "\x1B[%sA", ArrowKeyModifiers()); return;
+		case KBDEV_KEY_DOWN_ARROW:  snprintf(Input + Offset, 16 - Offset, "\x1B[%sB", ArrowKeyModifiers()); return;
+		case KBDEV_KEY_RIGHT_ARROW: snprintf(Input + Offset, 16 - Offset, "\x1B[%sC", ArrowKeyModifiers()); return;
+		case KBDEV_KEY_LEFT_ARROW:  snprintf(Input + Offset, 16 - Offset, "\x1B[%sD", ArrowKeyModifiers()); return;
 	}
 	
-	if (KeyCode >= KEY_F1 && KeyCode <= KEY_F10) {
-		snprintf(Input + Offset, 16 - Offset, "\x1B[%d~", KeyCode + 11 - KEY_F1);
+	if (KeyCode >= KBDEV_KEY_F1 && KeyCode <= KBDEV_KEY_F4) {
+		snprintf(Input + Offset, 16 - Offset, "\x1B%s%c", F1F4KeyModifiers(), 'P' + (KeyCode - KBDEV_KEY_F1));
 		return;
 	}
 	
-	if (KeyCode >= KEY_F11 && KeyCode <= KEY_F12) {
-		snprintf(Input + Offset, 16 - Offset, "\x1B[%d~", KeyCode + 23 - KEY_F11);
+	if (KeyCode >= KBDEV_KEY_F5 && KeyCode <= KBDEV_KEY_F12) {
+		snprintf(Input + Offset, 16 - Offset, "\x1B[%d%s~", FunctionKeyLookUp[KeyCode - KBDEV_KEY_F5], F5F12KeyModifiers());
 		return;
 	}
+	
+	if (IsAltPressed)
+		strcpy(Input, "\x1B");
 	
 	if (IsCtrlPressed)
 	{
 		// ^A == 0x01, ^Z == 0x1A
-		char Ascii = KeyboardMap[KeyCode];
+		char Ascii = KeyboardMapNoShift[KeyCode];
 		char Typed = Ascii;
 		if (Ascii >= 'a' && Ascii <= 'z')
 		{
@@ -166,19 +141,23 @@ void TranslateKeyCode(char* Input, uint8_t KeyCode)
 		}
 		else switch (Ascii)
 		{
-			case KEY_BRACKET_LEFT:   Typed = '\x1B'; break;
-			case KEY_BACKSLASH:      Typed = '\x1C'; break;
-			case KEY_BRACKET_RIGHT:  Typed = '\x1D'; break;
-			case KEY_2:              if (IsShiftPressed) { Typed = '\x00'; } break; // note: this won't work
-			case KEY_6:              if (IsShiftPressed) { Typed = '\x1E'; } break;
-			case KEY_MINUS:          if (IsShiftPressed) { Typed = '\x1F'; } break;
+			case KBDEV_KEY_OEM_LEFT_BRACKET:   Typed = '\x1B'; break;
+			case KBDEV_KEY_OEM_BACKSLASH:      Typed = '\x1C'; break;
+			case KBDEV_KEY_OEM_RIGHT_BRACKET:  Typed = '\x1D'; break;
+			case KBDEV_KEY_2:                  if (IsShiftPressed) { Typed = '\x00'; } break; // note: this won't work
+			case KBDEV_KEY_6:                  if (IsShiftPressed) { Typed = '\x1E'; } break;
+			case KBDEV_KEY_MINUS:              if (IsShiftPressed) { Typed = '\x1F'; } break;
 		}
 		
 		Input[Offset++] = Typed;
 	}
-	else
+	else if (IsShiftPressed && KeyCode < ARRAY_COUNT(KeyboardMapShift))
 	{
-		Input[Offset++] = KeyboardMap[IsShiftPressed * 128 + KeyCode];
+		Input[Offset++] = KeyboardMapShift[KeyCode];
+	}
+	else if (KeyCode < ARRAY_COUNT(KeyboardMapNoShift))
+	{
+		Input[Offset++] = KeyboardMapNoShift[KeyCode];
 	}
 	
 	Input[Offset++] = 0;

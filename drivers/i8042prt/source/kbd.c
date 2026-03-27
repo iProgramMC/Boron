@@ -39,6 +39,9 @@ static KEVENT KbdAvailableEvent;
 typedef struct FCB_EXTENSION
 {
 	uint8_t KeyCodes[256];
+	uint8_t HighByteLatch;
+	bool ReadingHighByte;
+	bool ReadingExtendedScanCode;
 	int Tail, Head;
 }
 FCB_EXTENSION, *PFCB_EXTENSION;
@@ -181,6 +184,22 @@ void KbdInitialize(int Vector, KIPL Ipl)
 		KePortReadByte(I8042_PORT_DATA);
 }
 
+#ifdef MEASURE_LATENCIES
+void KbdMeasuredLatency()
+{
+	uint64_t tickCount = HalGetTickCount();
+	DbgPrint(
+		"latency: %lld ticks since last interrupt (%lld since last DPC, %lld ticks between int and dpc), clock ticking at %lld ticks/s", 
+		tickCount - kbdLastInterruptTick,
+		tickCount - kbdLastDpcTick,
+		kbdLastDpcTick - kbdLastInterruptTick,
+		HalGetTickFrequency()
+	);
+}
+#else
+#define KbdMeasuredLatency()
+#endif
+
 BSTATUS KbdRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
@@ -206,24 +225,43 @@ BSTATUS KbdRead(
 	
 	for (size_t i = 0; i < Length; )
 	{
-		BufferBytes[i] = KbdReadKeyFromBuffer();
-		
-		if (BufferBytes[i] != 0xFF)
+		if (KbdFcbExtension->ReadingHighByte)
 		{
-		#ifdef MEASURE_LATENCIES
-			uint64_t tickCount = HalGetTickCount();
-			DbgPrint(
-				"latency: %lld ticks since last interrupt (%lld since last DPC, %lld ticks between int and dpc), clock ticking at %lld ticks/s", 
-				tickCount - kbdLastInterruptTick,
-				tickCount - kbdLastDpcTick,
-				kbdLastDpcTick - kbdLastInterruptTick,
-				HalGetTickFrequency()
-			);
-		#endif
+			KbdMeasuredLatency();
+			BufferBytes[i] = KbdFcbExtension->HighByteLatch;
+			KbdFcbExtension->ReadingHighByte = false;
 			i++;
 			continue;
 		}
+		else
+		{
+			uint16_t RawCode = KbdReadKeyFromBuffer();
+			if (RawCode == 0xE0)
+			{
+				KbdMeasuredLatency();
+				KbdFcbExtension->ReadingExtendedScanCode = true;
+				continue;
+			}
+			
+			if (KbdFcbExtension->ReadingExtendedScanCode && RawCode != 0xFF)
+			{
+				RawCode |= 0xE000;
+				KbdFcbExtension->ReadingExtendedScanCode = false;
+			}
+			
+			uint16_t Code = KbdTranslateToKbdevCode(RawCode);
+			if (RawCode != 0xFF && Code != KBDEV_KEY_NONE)
+			{
+				KbdMeasuredLatency();
+				BufferBytes[i] = Code & 0xFF;
+				KbdFcbExtension->ReadingHighByte = true;
+				KbdFcbExtension->HighByteLatch = (uint8_t)(Code >> 8);
+				i++;
+				continue;
+			}
+		}
 		
+		// Have to blok or return.
 		if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && i != 0))
 		{
 			// Can't block, so return now.

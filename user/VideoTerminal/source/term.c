@@ -84,7 +84,7 @@ void OutputLoop(UNUSED void* Context)
 	
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
-	char Buffer[16];
+	uint16_t Buffer[16];
 	
 	while (true)
 	{
@@ -109,12 +109,17 @@ void OutputLoop(UNUSED void* Context)
 			continue;
 		}
 		
+		if (Iosb.BytesRead % 2 != 0)
+		{
+			DbgPrint("Oops - read one extra byte?");
+		}
+		
 		char OutputBuffer[256];
 		size_t OutputBufferLength = 0;
-		for (size_t i = 0; i < Iosb.BytesRead; i++)
+		for (size_t i = 0; i < Iosb.BytesRead / 2; i++)
 		{
 			char InputBuffer[16];
-			TranslateKeyCode(InputBuffer, (uint8_t) Buffer[i]);
+			TranslateKeyCode(InputBuffer, (uint16_t) Buffer[i]);
 			CharactersTyped(OutputBuffer, &OutputBufferLength, InputBuffer);
 		}
 		

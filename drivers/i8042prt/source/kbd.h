@@ -22,3 +22,5 @@ extern IO_DISPATCH_TABLE KbdDispatchTable;
 
 extern BSTATUS KbdCreateDeviceObject();
 
+uint16_t KbdTranslateToKbdevCode(uint16_t RawKeyCode);
+
