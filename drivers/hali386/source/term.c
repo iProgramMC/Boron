@@ -53,10 +53,19 @@ static void HalpTerminalFree(UNUSED void* pMem, UNUSED size_t sz)
 
 bool HalpIsSerialAvailable;
 
+bool HalCheckForVideoBootArgument();
+
 void HalInitTerminal()
 {
 	if (KeLoaderParameterBlock.FramebufferCount == 0)
-		KeCrashBeforeSMPInit("HAL: No framebuffers found");
+	{
+		DbgPrint("HAL: No framebuffers provided through multiboot.");
+		
+		// grub4dos actually provides another way.  It appends a string parameter called "video".
+		// Example: "video=1024x768x16@fd000000,2048"
+		if (!HalCheckForVideoBootArgument())
+			KeCrashBeforeSMPInit("HAL: No framebuffers found");
+	}
 	
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
@@ -138,4 +147,137 @@ HAL_API void HalDisplayString(const char* Message)
 	KeAcquireSpinLock(&SpinLock, &Ipl);
 	flanterm_write(HalpTerminalContext, Message, Length);
 	KeReleaseSpinLock(&SpinLock, Ipl);
+}
+
+bool HalCheckForVideoBootArgument()
+{
+	// We have a problem: the boot configuration isn't actually initialized yet.
+	// Thus we'll need to fish it directly out of KeLoaderParameterBlock.
+	//
+	// Format: "video=1024x768x16@fd000000,2048"
+	const char* CommandLine = KeLoaderParameterBlock.CommandLine;
+	while (*CommandLine && memcmp(CommandLine, "video=", 6) != 0) {
+		CommandLine++;
+	}
+	
+	if (!*CommandLine) {
+		DbgPrint("not found!");
+		return false;
+	}
+	
+	int Width = 0, Height = 0, Bpp = 0, Pitch = 0;
+	uintptr_t Address = 0;
+	
+	CommandLine += 6;
+	
+	// Read Width
+	while (*CommandLine >= '0' && *CommandLine <= '9') {
+		Width = Width * 10 + (*CommandLine - '0');
+		CommandLine++;
+	}
+	
+	if (*CommandLine++ != 'x') return false;
+	
+	// Read Height
+	while (*CommandLine >= '0' && *CommandLine <= '9') {
+		Height = Height * 10 + (*CommandLine - '0');
+		CommandLine++;
+	}
+	
+	if (*CommandLine++ != 'x') return false;
+	
+	// Read Bpp
+	while (*CommandLine >= '0' && *CommandLine <= '9') {
+		Bpp = Bpp * 10 + (*CommandLine - '0');
+		CommandLine++;
+	}
+	
+	if (*CommandLine++ != '@') return false;
+	if (*CommandLine++ != '0') return false;
+	if (*CommandLine++ != 'x') return false;
+	
+	// Read Frame Buffer Address
+	while ((*CommandLine >= '0' && *CommandLine <= '9')
+		|| (*CommandLine >= 'A' && *CommandLine <= 'F')
+		|| (*CommandLine >= 'a' && *CommandLine <= 'f'))
+	{
+		Address <<= 4;
+		/**/ if (*CommandLine >= 'A' && *CommandLine <= 'F') Address += 10 + (*CommandLine - 'A');
+		else if (*CommandLine >= 'a' && *CommandLine <= 'f') Address += 10 + (*CommandLine - 'a');
+		else Address += (*CommandLine - '0');
+		CommandLine++;
+	}
+	
+	if (*CommandLine++ != ',') return false;
+	
+	// Read Pitch
+	while (*CommandLine >= '0' && *CommandLine <= '9') {
+		Pitch = Pitch * 10 + (*CommandLine - '0');
+		CommandLine++;
+	}
+	
+	// Basic Sanitization
+	if (Width == 0) {
+		DbgPrint("No width!");
+		return false;
+	}
+	
+	if (Height == 0) {
+		DbgPrint("No height!");
+		return false;
+	}
+	
+	if (Bpp != 16 && Bpp != 24 && Bpp != 32) {
+		DbgPrint("Bad bpp of %d!", Bpp);
+		return false;
+	}
+	
+	if (Pitch < Width * Bpp / 8) {
+		DbgPrint("Bad pitch of %d, with width of %d!", Pitch, Width);
+		return false;
+	}
+	
+	if ((Address & PAGE_SIZE) != 0) {
+		DbgPrint("Bad address of %p!", Address);
+		return false;
+	}
+	
+	// Okay, register the frame buffer into the LPB now.
+	// We can do this because the HAL is the first driver initialized.
+	
+	DbgPrint("Using command-line provided framebuffer parameters.");
+	DbgPrint("width: %d height: %d bpp: %d pitch: %d address: %p", Width,Height,Bpp,Pitch,Address);
+	
+	static LOADER_FRAMEBUFFER SaveFb;
+	SaveFb.Width = Width;
+	SaveFb.Height = Height;
+	SaveFb.Pitch = Pitch;
+	SaveFb.BitDepth = Bpp;
+	SaveFb.Address = (void*) Address;
+	
+	// Assume Hardcoded Properties
+	switch (Bpp)
+	{
+		case 16:
+			SaveFb.RedMaskSize     = 5;
+			SaveFb.RedMaskShift    = 11;
+			SaveFb.GreenMaskSize   = 6;
+			SaveFb.GreenMaskShift  = 5;
+			SaveFb.BlueMaskSize    = 5;
+			SaveFb.BlueMaskShift   = 0;
+			break;
+		case 24:
+		case 32:
+			SaveFb.RedMaskSize     = 8;
+			SaveFb.RedMaskShift    = 16;
+			SaveFb.GreenMaskSize   = 8;
+			SaveFb.GreenMaskShift  = 8;
+			SaveFb.BlueMaskSize    = 8;
+			SaveFb.BlueMaskShift   = 0;
+			break;
+	}
+	
+	KeLoaderParameterBlock.Framebuffers = &SaveFb;
+	KeLoaderParameterBlock.FramebufferCount = 1;
+	return true;
 }
