@@ -182,6 +182,14 @@ bool MmCheckPteLocationAllocator(
 		// Debbie must also be updated.
 		PtePtr = (PMMPTE) MI_PML2_MIRROR_LOCATION;
 		PtePtr[Convert.Level1Index >> 2] = MmBuildPte(Pfn, IsFromPmmFlag | MM_PROT_READ | MM_PROT_WRITE);
+		
+		// Reset it to zero if needed.
+		if (PageAllocate != MmAllocatePhysicalPage)
+		{
+			PMMPTE PteL2 = MmGetPteLocation(Address & 0xFFC00000);
+			memset(PteL2, 0, PAGE_SIZE);
+		}
+		
 		MmFlushTlbUpdates();
 	}
 	
