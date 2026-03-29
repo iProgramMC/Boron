@@ -383,7 +383,7 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 	if (FAILED(Status))
 		KeCrash("%s: Init process has failed. Status: %d (%s)", Func, Status, RtlGetStatusString(Status));
 	else
-		LogMsg(ANSI_YELLOW "Info" ANSI_DEFAULT ": Init process has exited successfully.");
+		DbgPrint("Init process has exited or has been terminated.");
 	
 	OSClose(ProcessHandle);
 	MmFreePool(InitCommandLine);

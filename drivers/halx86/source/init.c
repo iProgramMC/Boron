@@ -34,6 +34,8 @@ uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
+void HalBeginShutdown();
+void HalPerformPoweroff(bool Reboot);
 
 static const HAL_VFTABLE HalpVfTable =
 {
@@ -50,6 +52,8 @@ static const HAL_VFTABLE HalpVfTable =
 	.GetTickCount = HalGetTickCount,
 	.GetTickFrequency = HalGetTickFrequency,
 	.GetIntTimerDeltaTicks = HalGetIntTimerDeltaTicks,
+	.BeginShutdown = HalBeginShutdown,
+	.PerformPoweroff = HalPerformPoweroff,
 	.IoApicSetIrqRedirect = HalIoApicSetIrqRedirect,
 	.PciEnumerate = HalPciEnumerate,
 	.PciConfigReadDword = HalPciConfigReadDword,
