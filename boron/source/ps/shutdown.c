@@ -71,9 +71,7 @@ void PsShutDownWorker(UNUSED void* Context)
 	ASSERT(Status == STATUS_SUCCESS);
 	
 	DbgPrint("%s: Shutdown process initiated.", __func__);
-	
-	
-	LogMsg("Boron is now shutting down...");
+	HalBeginShutdown();
 	
 	// Step 1: Terminate every process.
 	//
@@ -104,9 +102,9 @@ void PsShutDownWorker(UNUSED void* Context)
 	// Step 3. Put the modified page writer into motion.
 	MmModifiedPageWriterShutDown();
 	
-	// Step 4. Mark the system as shut down.
-	LogMsg("The system is now ready for power-off.");
-	KeTerminateThread(1);
+	// Step 4. The system can be safely shut-down now.
+	DbgPrint("The system is now ready for power-off.");
+	HalPerformPoweroff(false);
 }
 
 void PsInitShutDownWorkerThread()

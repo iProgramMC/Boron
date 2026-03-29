@@ -34,6 +34,8 @@ typedef uint64_t(*PFHAL_GET_INT_TIMER_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_TICK_COUNT)(void);
 typedef uint64_t(*PFHAL_GET_TICK_FREQUENCY)(void);
 typedef uint64_t(*PFHAL_GET_INT_TIMER_DELTA_TICKS)(void);
+typedef void(*PFHAL_BEGIN_SHUTDOWN)(void);
+typedef void(*PFHAL_PERFORM_POWEROFF)(bool Reboot) NO_RETURN;
 
 #ifdef TARGET_AMD64
 typedef void(*PFHAL_IOAPIC_SET_IRQ_REDIRECT)(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
@@ -78,6 +80,8 @@ typedef struct
 	PFHAL_GET_TICK_COUNT GetTickCount;
 	PFHAL_GET_TICK_FREQUENCY GetTickFrequency;
 	PFHAL_GET_INT_TIMER_DELTA_TICKS GetIntTimerDeltaTicks;
+	PFHAL_BEGIN_SHUTDOWN BeginShutdown;
+	PFHAL_PERFORM_POWEROFF PerformPoweroff;
 	
 #ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;

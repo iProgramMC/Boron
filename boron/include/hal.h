@@ -29,6 +29,8 @@ uint64_t HalGetIntTimerFrequency();
 uint64_t HalGetTickCount();
 uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
+void HalBeginShutdown();
+void HalPerformPoweroff(bool Reboot) NO_RETURN;
 #ifdef TARGET_AMD64
 void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
 #endif
