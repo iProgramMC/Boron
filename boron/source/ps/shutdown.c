@@ -31,6 +31,35 @@ Author:
 static KTHREAD PsShutDownWorkerThread;
 static KEVENT PsShutDownEvent;
 
+static bool PspTerminateProcessFilter(void* Pointer, UNUSED void* Context)
+{
+	PEPROCESS Process = (PEPROCESS) Pointer;
+	
+	// If this is the system process, then we *will* remove it from the handle table.
+	// Makes things easier for us when we check that all *user* processes have exited.
+	if (Process == PsGetSystemProcess())
+	{
+		DbgPrint("Erasing system process");
+		return true;
+	}
+	
+	// NOTE: We will *NOT* be removing the process from the handle table just yet.
+	// We'll simply be marking it as terminated.  It'll automatically get removed when
+	//
+	// This kills *all* the threads from the current process, since the current thread
+	// doesn't belong to this process' list of threads.
+	DbgPrint("Terminating process '%s'...", Process->ImageName);
+	
+	KeTerminateOtherThreadsProcess(&Process->Pcb);
+	
+	return false;
+}
+
+static bool PspEraseProcessHandle(UNUSED void* Pointer, UNUSED void* Context)
+{
+	return true;
+}
+
 NO_RETURN
 void PsShutDownWorker(UNUSED void* Context)
 {
@@ -41,8 +70,28 @@ void PsShutDownWorker(UNUSED void* Context)
 	
 	DbgPrint("%s: Shutdown process initiated.", __func__);
 	
+	// Step 1: Terminate every process.
+	//
+	// Ideally, this will be done by asking the processes to terminate themselves nicely (sending
+	// a signal), but we don't have such machinery yet so we'll just terminate them.
 	
+	ExFilterHandleTable(
+		PspGetProcessHandleTable(),
+		PspTerminateProcessFilter,
+		PspEraseProcessHandle,
+		NULL,  // FilterContext
+		NULL   // KillContext
+	);
 	
+	// Now we wait until the process list is empty.
+	while (!ExIsEmptyHandleTable(PspGetProcessHandleTable()))
+	{
+		DbgPrint("Waiting 1 second for the process handle table to become empty...");
+		PspDumpProcessList();
+		OSSleep(1000);
+	}
+	
+	DbgPrint("All the processes have been terminated.");
 	
 	
 	DbgPrint("Well, there's nothing here...");

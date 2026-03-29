@@ -46,3 +46,7 @@ void PspInitializeProcessList();
 BSTATUS PspAddProcessToList(PEPROCESS Process);
 
 void PspRemoveProcessFromList(PEPROCESS Process);
+
+void* PspGetProcessHandleTable();
+
+void PspDumpProcessList();

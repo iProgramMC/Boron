@@ -23,10 +23,6 @@ void PspDeleteThread(void* ThreadV)
 	if (Thread->Initialized)
 		MmFreeThreadStack(Thread->Tcb.Stack.Top);
 	
-	// Remove our reference to the process object.
-	if (Thread->Tcb.Process)
-		ObDereferenceObject(Thread->Tcb.Process);
-	
 	// TODO: anything more?
 }
 
@@ -78,7 +74,11 @@ void PspTerminateThread(PKTHREAD Tcb)
 	// meaning that after this point, the Thread object might go invalid!
 	ObDereferenceObject(Thread);
 	
-	// TODO: anything more?
+	// Remove our reference to the process object.
+	if (Thread->Tcb.Process)
+	{
+		ObDereferenceObject(Thread->Tcb.Process);
+	}
 }
 
 static BSTATUS PspInitializeThread(PETHREAD Thread, PEPROCESS Process, PKTHREAD_START StartRoutine, void* StartContext, bool CreateSuspended)
