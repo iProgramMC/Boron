@@ -27,6 +27,8 @@ Author:
 	iProgramInCpp - 29 March 2025
 ***/
 #include "psp.h"
+#include <cc.h>
+#include <mm.h>
 
 static KTHREAD PsShutDownWorkerThread;
 static KEVENT PsShutDownEvent;
@@ -70,6 +72,9 @@ void PsShutDownWorker(UNUSED void* Context)
 	
 	DbgPrint("%s: Shutdown process initiated.", __func__);
 	
+	
+	LogMsg("Boron is now shutting down...");
+	
 	// Step 1: Terminate every process.
 	//
 	// Ideally, this will be done by asking the processes to terminate themselves nicely (sending
@@ -93,8 +98,14 @@ void PsShutDownWorker(UNUSED void* Context)
 	
 	DbgPrint("All the processes have been terminated.");
 	
+	// Step 2. Unmap the entire system view cache.
+	CcUnmapAllViews();
 	
-	DbgPrint("Well, there's nothing here...");
+	// Step 3. Put the modified page writer into motion.
+	MmModifiedPageWriterShutDown();
+	
+	// Step 4. Mark the system as shut down.
+	LogMsg("The system is now ready for power-off.");
 	KeTerminateThread(1);
 }
 

@@ -29,6 +29,8 @@ Author:
 
 KEVENT MmModifiedPageWriterEvent;
 
+volatile bool MmModifiedPageWriterShuttingDown = false;
+
 static BSTATUS MiFlushModifiedPage(MMPFN Pfn)
 {
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
@@ -53,10 +55,15 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			MODE_KERNEL
 		);
 		
+		if (MmModifiedPageWriterShuttingDown)
+			break;
+		
 		KIPL Ipl = MiLockPfdb();
 		
 		while (true)
 		{
+			DbgPrint("Modified page writer is awake and ready to flush data!");
+			
 			MMPFN Pfn = MiRemoveOneModifiedPfn();
 			if (Pfn == PFN_INVALID)
 			{
@@ -130,6 +137,31 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			}
 		}
 	}
+	
+	DbgPrint("MmModifiedPageWriterWorker: Shutting down.");
+	KeTerminateThread(1);
+}
+
+void MmStartFlushingModifiedPages()
+{
+	KeSetEvent(&MmModifiedPageWriterEvent, 100);
+}
+
+void MmModifiedPageWriterShutDown()
+{
+	// Prepares the modified page writer for shutdown.
+	for (int i = 0; i < 3; i++)
+	{
+		DbgPrint("Waking up modified page writer (%d/%d)", i + 1, 3);
+		MmStartFlushingModifiedPages();
+		OSSleep(1000);
+	}
+	
+	// While it's flushing modified pages, set the shutdown flag.
+	DbgPrint("Waiting for modified page writer to shut down");
+	MmModifiedPageWriterShuttingDown = true;
+	MmStartFlushingModifiedPages();
+	OSSleep(1000);
 }
 
 INIT
