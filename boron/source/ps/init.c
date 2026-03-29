@@ -112,5 +112,7 @@ bool PsInitSystem()
 	
 	PspSystemProcessNpHeader.ObjectType = PsProcessObjectType;
 	
+	PsInitShutDownWorkerThread();
+	
 	return true;
 }

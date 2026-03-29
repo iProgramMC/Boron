@@ -72,6 +72,7 @@ extern OSSetExitCode
 extern OSSetImageNameProcess
 extern OSSetPebProcess
 extern OSSetSuspendedThread
+extern OSShutDownSystem
 extern OSSleep
 extern OSTerminateThread
 extern OSTouchFile
@@ -143,6 +144,7 @@ KiSystemServiceTable:
 	dq OSCreateSymbolicLink
 	dq OSSetImageNameProcess
 	dq OSQuerySystemInformation
+	dq OSShutDownSystem
 KiSystemServiceTableEnd:
 	nop
 

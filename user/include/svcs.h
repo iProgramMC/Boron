@@ -164,6 +164,8 @@ BSTATUS OSSetPebProcess(HANDLE ProcessHandle, void* PebPtr);
 
 BSTATUS OSSetSuspendedThread(HANDLE ThreadHandle, bool IsSuspended);
 
+BSTATUS OSShutDownSystem(void);
+
 BSTATUS OSSleep(int Milliseconds);
 
 BSTATUS OSTerminateThread(HANDLE ThreadHandle);

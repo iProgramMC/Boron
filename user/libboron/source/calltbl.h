@@ -63,6 +63,7 @@ CALL 56, 4, OSCreateDirectory
 CALL 57, 6, OSCreateSymbolicLink
 CALL 58, 3, OSSetImageNameProcess
 CALL 59, 4, OSQuerySystemInformation
+CALL 60, 1, OSShutDownSystem
 
 // The following system calls use at least one 64-bit parameter.
 // On 32-bit, 64-bit arguments typically get passed as high/low pairs of 32-bit arguments.

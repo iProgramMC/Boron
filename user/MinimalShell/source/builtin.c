@@ -185,24 +185,38 @@ void CmdSystemInfoProcess()
 	OSPrintf("TODO\n");
 }
 
+void CmdShutDown()
+{
+	BSTATUS Status = OSShutDownSystem();
+	
+	if (FAILED(Status))
+	{
+		OSPrintf("Shutdown failed: %s\n", RtlGetStatusString(Status));
+		return;
+	}
+	
+	OSPrintf("Should be shutting down soon...\n");
+}
+
 // -- built-in commands end --
 
 #define ENTRY(name, func, desc) { name, func, desc }
 COMMAND_ENTRY CommandTable[] = {
-	ENTRY("help",  CmdHelp, "Print this stuff"),
-	ENTRY("?",     CmdHelp, "Same as help"),
-	ENTRY("async", CmdExecuteAsync, "Start async process"),
-	ENTRY("&",     CmdExecuteAsync, "Same as async"),
-	ENTRY("args",  CmdPrintArguments, "Print arguments from PEB"),
-	ENTRY("clear", CmdClearScreen, "Clear terminal display"),
-	ENTRY("env",   CmdPrintEnvironment, "Print environment from PEB"),
-	ENTRY("exit",  CmdExit, "Exits minimal shell"),
-	ENTRY("iname", CmdPrintImageName, "Print image name from PEB"),
-	ENTRY("time",  CmdExecuteAndTime, "Start process and print execution time"),
-	ENTRY("bi",    CmdSystemInfoBasic, "Get basic system info"),
-	ENTRY("mi",    CmdSystemInfoMemory, "Get system memory info"),
-	ENTRY("ps",    CmdSystemInfoProcess, "Get system process info"),
-	ENTRY("test1", CmdTest1, "Run the 'free memory' command in a loop"),
+	ENTRY("help",     CmdHelp, "Print this stuff"),
+	ENTRY("?",        CmdHelp, "Same as help"),
+	ENTRY("async",    CmdExecuteAsync, "Start async process"),
+	ENTRY("&",        CmdExecuteAsync, "Same as async"),
+	ENTRY("args",     CmdPrintArguments, "Print arguments from PEB"),
+	ENTRY("clear",    CmdClearScreen, "Clear terminal display"),
+	ENTRY("env",      CmdPrintEnvironment, "Print environment from PEB"),
+	ENTRY("exit",     CmdExit, "Exits minimal shell"),
+	ENTRY("iname",    CmdPrintImageName, "Print image name from PEB"),
+	ENTRY("time",     CmdExecuteAndTime, "Start process and print execution time"),
+	ENTRY("bi",       CmdSystemInfoBasic, "Get basic system info"),
+	ENTRY("mi",       CmdSystemInfoMemory, "Get system memory info"),
+	ENTRY("ps",       CmdSystemInfoProcess, "Get system process info"),
+	ENTRY("test1",    CmdTest1, "Run the 'free memory' command in a loop"),
+	ENTRY("shutdown", CmdShutDown, "Shuts down the system"),
 };
 
 void CmdHelp()
