@@ -12,7 +12,7 @@ Abstract:
 	
 	- Ensures every process on the system, except for the system process, is terminated
 	
-	- Unmaps every system cache view from system memory
+	- Unmaps every system cache view from the address space
 	
 	- Flushes all modified pages to their backing stores
 	
