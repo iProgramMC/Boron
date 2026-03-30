@@ -38,9 +38,15 @@ bool PsCreateProcessType();
 
 NO_RETURN void PspUserThreadStart(void* Context);
 
+void PsInitShutDownWorkerThread();
+
 // Process List
 void PspInitializeProcessList();
 
 BSTATUS PspAddProcessToList(PEPROCESS Process);
 
 void PspRemoveProcessFromList(PEPROCESS Process);
+
+void* PspGetProcessHandleTable();
+
+void PspDumpProcessList();

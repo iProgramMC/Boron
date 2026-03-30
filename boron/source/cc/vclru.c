@@ -109,3 +109,14 @@ void CcPurgeViewsOverLimit(int LeaveSpaceFor)
 #endif
 	}
 }
+
+void CcUnmapAllViews()
+{
+	while (AtLoad(CcViewCacheLruSize) != 0)
+	{
+		PMMVAD Vad = CcGetHeadOfViewCacheLru();
+		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, true);
+	}
+	
+	DbgPrint("CcViewCacheLruSize = %d", CcViewCacheLruSize);
+}

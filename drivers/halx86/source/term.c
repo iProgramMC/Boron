@@ -22,6 +22,9 @@ Author:
 #include "flanterm/src/flanterm.h"
 #include "flanterm/src/flanterm_backends/fb.h"
 
+#define BACKGROUND_COLOR 0x0000007F
+#define FOREGROUND_COLOR 0x00FFFFFF
+
 static uint8_t HalpBuiltInFont[] = {
 #include "font.h"
 };
@@ -63,8 +66,8 @@ void HalInitTerminal()
 		KeCrashBeforeSMPInit("HAL: No framebuffers found");
 	
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
-	uint32_t defaultBG = 0x0000007f;
-	uint32_t defaultFG = 0x00ffffff;
+	uint32_t defaultBG = BACKGROUND_COLOR;
+	uint32_t defaultFG = FOREGROUND_COLOR;
 	
 	// on a 1280x800 screen, the term will have a rez of 160x50 (8000 chars).
 	// 52 bytes per character.
@@ -121,6 +124,12 @@ void HalInitTerminal()
 	}
 }
 
+HAL_API void HalDisplayStringRaw(const char* Message)
+{
+	size_t Length = strlen(Message);
+	flanterm_write(HalpTerminalContext, Message, Length);
+}
+
 HAL_API void HalDisplayString(const char* Message)
 {
 	if (!HalpTerminalContext)
@@ -129,11 +138,34 @@ HAL_API void HalDisplayString(const char* Message)
 		return;
 	}
 	
-	size_t Length = strlen(Message);
-	
 	static KSPIN_LOCK SpinLock;
 	KIPL Ipl;
 	KeAcquireSpinLock(&SpinLock, &Ipl);
-	flanterm_write(HalpTerminalContext, Message, Length);
+	HalDisplayStringRaw(Message);
 	KeReleaseSpinLock(&SpinLock, Ipl);
+}
+
+void HalBeginShutdown()
+{
+	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
+	
+	// clear the screen
+	for (int y = 0; y < Framebuffer->Height; y++)
+	{
+		uint32_t* Pixels = (uint32_t*)((uintptr_t) Framebuffer->Address + y * Framebuffer->Pitch);
+		for (int x = 0; x < Framebuffer->Width; x++)
+			Pixels[x] = BACKGROUND_COLOR;
+	}
+	
+	// issue ANSI escape sequence
+	HalDisplayString("\x1B[1;1H\x1B[2J");
+	
+	LogMsg("Boron is shutting down...");
+}
+
+void HalPerformPoweroff(bool Reboot)
+{
+	HalLockUpOtherProcessors();
+	HalDisplayStringRaw("The system is now ready for power-off.\n");
+	HalProcessorCrashed();
 }

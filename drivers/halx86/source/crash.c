@@ -27,7 +27,7 @@ void HalProcessorCrashed()
 	KeStopCurrentCPU();
 }
 
-void HalCrashSystem(const char* Message)
+void HalLockUpOtherProcessors()
 {
 	KIPL Unused;
 	// lock the crash in so that no one else can crash but us
@@ -53,6 +53,10 @@ void HalCrashSystem(const char* Message)
 	//HalPrintStringDebug("CRASH: Waiting for all processors to halt!\n");
 	while (AtLoad(HalpCrashedProcessors) != ProcessorCount)
 		KeSpinningHint();
-	
+}
+
+void HalCrashSystem(const char* Message)
+{
+	HalLockUpOtherProcessors();
 	KeCrashConclusion(Message);
 }

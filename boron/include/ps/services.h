@@ -21,3 +21,5 @@ NO_RETURN void OSExitProcess(int ExitCode);
 BSTATUS OSSetExitCode(int ExitCode);
 
 BSTATUS OSGetExitCodeProcess(HANDLE ProcessHandle, int* ExitCodeOut);
+
+BSTATUS OSShutDownSystem();

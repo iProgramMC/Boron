@@ -863,8 +863,6 @@ void MmSetModifiedPfn(MMPFN Pfn)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
-extern KEVENT MmModifiedPageWriterEvent;
-
 void MmFreePhysicalPage(MMPFN pfn)
 {
 	ASSERT(pfn != PFN_INVALID);
@@ -914,7 +912,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 				// TODO: Only signal the modified page writer event when significant
 				// build up has happened, or shutdown is requested, or something else.
 				// This is just for debugging.
-				KeSetEvent(&MmModifiedPageWriterEvent, 100);
+				MmStartFlushingModifiedPages();
 			}
 			else
 			{

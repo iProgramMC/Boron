@@ -63,6 +63,9 @@ void CcPurgeViewsOverLimit(int LeaveSpaceFor);
 // This function is to be called when the FCB loses its last reference.
 void CcPurgeViewsForFile(PFCB Fcb);
 
+// Unmaps ALL the view cache mappings.
+void CcUnmapAllViews();
+
 // Reads the contents of a file and copies them to a buffer pinned by an MDL.
 // The MDL's ByteCount member is ignored for this one.
 BSTATUS CcReadFileMdl(

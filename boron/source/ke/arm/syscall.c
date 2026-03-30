@@ -123,6 +123,7 @@ const void* const KiSystemServiceTable[] =
 	OSCreateSymbolicLink,
 	OSSetImageNameProcess,
 	OSQuerySystemInformation,
+	OSShutDownSystem,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)

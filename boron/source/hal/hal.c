@@ -248,3 +248,23 @@ PKREGISTERS KiHandleCrashIpi(PKREGISTERS Regs)
 	KeStopCurrentCPU();
 	return Regs;
 }
+
+void HalBeginShutdown()
+{
+	if (HalpVftable.BeginShutdown)
+		HalpVftable.BeginShutdown();
+}
+
+NO_RETURN
+void HalPerformPoweroff(bool Reboot)
+{
+	if (!HalpVftable.PerformPoweroff)
+	{
+		KeCrash(
+			"Perform power off%s",
+			Reboot ? " (User requested a reboot)" : ""
+		);
+	}
+	
+	HalpVftable.PerformPoweroff(Reboot);
+}

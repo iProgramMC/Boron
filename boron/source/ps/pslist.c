@@ -23,6 +23,11 @@ Author:
 // NOTE: the handle table has its own mutex, so no need to create another.
 static void* PspProcessHandleTable;
 
+void* PspGetProcessHandleTable()
+{
+	return PspProcessHandleTable;
+}
+
 INIT
 void PspInitializeProcessList()
 {
@@ -78,7 +83,16 @@ bool PspDebugDumpFilter(void* Pointer, UNUSED void* Context)
 {
 	PEPROCESS Process = (PEPROCESS) Pointer;
 	
-	DbgPrint("Process %d, called '%s'.", Process->ProcessId, Process->ImageName);
+	DbgPrint("Process %p %d, called '%s'.  RC: %d", Process, Process->ProcessId, Process->ImageName, OBJECT_GET_HEADER(Process)->NonPagedObjectHeader->PointerCount);
+	
+	// Also dump its threads, if it has any.
+	for (PLIST_ENTRY Entry = Process->Pcb.ThreadList.Flink;
+		Entry != &Process->Pcb.ThreadList;
+		Entry = Entry->Flink)
+	{
+		PKTHREAD Thread = CONTAINING_RECORD(Entry, KTHREAD, EntryProc);
+		DbgPrint("\tThread %p, status %d.", Thread, Thread->Status);
+	}
 	
 	return false; // do not delete
 }
