@@ -9,6 +9,7 @@ APPS := \
 	libCoreGraphics \
 	init \
 	test \
+	ls \
 	VideoTerminal \
 	TestHarness \
 	MinimalShell
