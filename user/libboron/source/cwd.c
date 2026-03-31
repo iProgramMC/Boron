@@ -13,7 +13,7 @@ HANDLE OSGetCurrentDirectory()
 
 void OSSetCurrentDirectory(HANDLE NewDirectory)
 {
-	if (OSDLLGetCurrentPeb()->Override.GetCurrentDirectory) {
+	if (OSDLLGetCurrentPeb()->Override.SetCurrentDirectory) {
 		return OSDLLGetCurrentPeb()->Override.SetCurrentDirectory(NewDirectory);
 	}
 	
