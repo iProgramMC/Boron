@@ -33,6 +33,8 @@ BSTATUS IoReadDirectoryEntries(
 	
 	ASSERT(FileObject);
 	
+	Iosb->EntriesRead = 0;
+	
 	Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	Dispatch = Fcb->DispatchTable;
@@ -144,7 +146,7 @@ BSTATUS OSReadDirectoryEntries(
 	
 	ObDereferenceObject(FileObjectV);
 	
-	BSTATUS CopyStatus = MmSafeCopy(Iosb, &Iosb2, sizeof(Iosb), KeGetPreviousMode(), true);
+	BSTATUS CopyStatus = MmSafeCopy(Iosb, &Iosb2, sizeof(*Iosb), KeGetPreviousMode(), true);
 	
 	// If the operation failed, its status code prevails.
 	if (IOSUCCEEDED(Status))
