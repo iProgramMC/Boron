@@ -191,7 +191,7 @@ $(KERNEL): $(SYMBOLS)
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_nasm.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
+	@nm -P $(KERNEL2) | python3 $(SCRIPTS_DIR)/generate_symbols_nasm.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).asm
 	@$(BASM) $(NASMFLAGS) $(BUILD_DIR)/_symtab.$(TARGETL).asm -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)
@@ -212,7 +212,7 @@ $(KERNEL): $(SYMBOLS)
 	
 $(SYMBOLS): $(KERNEL2)
 	@echo "[NM]\tDumping and compiling symbols"
-	@nm -P $(KERNEL2) | $(SCRIPTS_DIR)/generate_symbols_gas.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).S
+	@nm -P $(KERNEL2) | python3 $(SCRIPTS_DIR)/generate_symbols_gas.py $(TARGETL) > $(BUILD_DIR)/_symtab.$(TARGETL).S
 	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $(BUILD_DIR)/_symtab.$(TARGETL).S -o $(BUILD_DIR)/_symtab.$(TARGETL).o
 	
 $(KERNEL2): $(KERNEL_PARTIAL)

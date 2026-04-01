@@ -28,6 +28,7 @@ Author:
 ***/
 #include "psp.h"
 #include <cc.h>
+#include <hal.h>
 #include <mm.h>
 #include <hal.h>
 
