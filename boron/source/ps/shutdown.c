@@ -29,6 +29,7 @@ Author:
 #include "psp.h"
 #include <cc.h>
 #include <mm.h>
+#include <hal.h>
 
 static KTHREAD PsShutDownWorkerThread;
 static KEVENT PsShutDownEvent;
