@@ -191,18 +191,13 @@ BSTATUS ObOpenObjectByName(
 	PHANDLE OutHandle)
 {
 	BSTATUS Status;
-	PEPROCESS Process = PsGetCurrentProcess();
-	
 	void* InitialParseObject = NULL;
 	
 	if (RootDirectory != HANDLE_NONE)
 	{
-		Status = ExGetPointerFromHandle(Process->HandleTable, RootDirectory, &InitialParseObject);
+		Status = ObReferenceObjectByHandle(RootDirectory, NULL, &InitialParseObject);
 		if (FAILED(Status))
 			return Status;
-		
-		ObReferenceObjectByPointer(InitialParseObject);
-		ExUnlockHandleTable(Process->HandleTable);
 	}
 	
 	void* Object = NULL;
