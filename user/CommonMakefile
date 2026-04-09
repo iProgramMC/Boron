@@ -131,6 +131,7 @@ CXXFLAGS +=                 \
 	-fno-rtti               \
 	-I.                     \
 	$(CXX_INCLUDES)         \
+	$(ARCH_CXXFLAGS)        \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \

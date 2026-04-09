@@ -1,6 +1,6 @@
 # AMD64 Compiler Toolchain
-BCC  ?= gcc
-BCXX ?= g++
+BCC  ?= gcc-14
+BCXX ?= g++-14
 BLD  ?= ld
 BASM ?= nasm
 

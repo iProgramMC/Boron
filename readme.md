@@ -49,8 +49,8 @@ make -C limine
 
 ### AMD64
 
-To build for amd64, you will need to use an x86_64 native distribution of `gcc`, `binutils`, `nasm`,
-and then additionally, `tar` and `xorriso`.
+To build for amd64, you will need to use an x86_64 native distribution of `gcc-14`, `binutils`,
+`nasm`, and then additionally, `tar` and `xorriso`.
 
 AMD64 is the default platform, so you can simply run:
 ```

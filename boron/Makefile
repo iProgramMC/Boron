@@ -137,6 +137,7 @@ CXXFLAGS +=                 \
 	-fno-exceptions         \
 	-fno-rtti               \
 	-I.                     \
+	$(ARCH_CXXFLAGS)        \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \
@@ -247,7 +248,7 @@ $(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TAR
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp

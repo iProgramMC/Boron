@@ -96,6 +96,7 @@ CXXFLAGS +=                 \
 	-fno-exceptions         \
 	-fno-rtti               \
 	-I.                     \
+	$(ARCH_CXXFLAGS)        \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \
