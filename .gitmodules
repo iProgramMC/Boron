@@ -5,3 +5,12 @@
 [submodule "external/flanterm"]
 	path = external/flanterm
 	url = https://codeberg.org/Mintsuki/Flanterm.git
+[submodule "external/frigg"]
+	path = external/frigg
+	url = https://github.com/managarm/frigg.git
+[submodule "external/freestnd-c-hdrs"]
+	path = external/freestnd-c-hdrs
+	url = https://github.com/osdev0/freestnd-c-hdrs.git
+[submodule "external/freestnd-cxx-hdrs"]
+	path = external/freestnd-cxx-hdrs
+	url = https://github.com/osdev0/freestnd-cxx-hdrs.git

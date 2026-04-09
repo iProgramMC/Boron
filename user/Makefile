@@ -7,12 +7,18 @@ APPS := \
 	libboron \
 	libflanterm \
 	libCoreGraphics \
+	libC++Support \
 	init \
 	test \
 	ls \
 	VideoTerminal \
 	TestHarness \
 	MinimalShell
+
+# Since I need to find freestanding C or C++ headers for this platform I can't compile these yet:
+ifneq ($(TARGET),ARM)
+	APPS += Desktop
+endif
 
 ### Do not modify below ###
 

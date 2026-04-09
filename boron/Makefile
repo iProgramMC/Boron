@@ -84,6 +84,7 @@ else
 endif
 
 IS_KERNEL = yes
+REPO_ROOT = ..
 include ../tools/toolchain.$(TARGETL).mk
 
 ifeq ($(SMP), yes)
@@ -246,7 +247,7 @@ $(BUILD_DIR)/ke/version.$(TARGETL).o: $(filter-out $(BUILD_DIR)/ke/version.$(TAR
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
 	@echo "[CC]\tCompiling $<"
 	@mkdir -p $(dir $@)
-	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for *.cpp files.
 $(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp

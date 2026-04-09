@@ -7,14 +7,17 @@ DWARF_SYMBOLS ?= yes
 
 # User parms
 USER_DEFINES ?=
+USE_FRIGG ?= no
 
 # Only turn on debug2 temporarily
+
+REPO_ROOT ?= ../..
 
 BUILD_DIR = build
 SRC_DIR = source
 INC_DIR = include
-DDK_DIR = ../../common/include
-SDK_DIR = ../../user/include
+DDK_DIR = $(REPO_ROOT)/common/include
+SDK_DIR = $(REPO_ROOT)/user/include
 LINKER_FILE = linker.ld
 
 TARGET ?= AMD64
@@ -32,10 +35,10 @@ endif
 
 # Path to Boron install directory
 ifeq ($(TARGETL),amd64)
-	BORON_SYSROOT_AMD64_PATH ?= ../../build/$(TARGETL)/initrd_root
+	BORON_SYSROOT_AMD64_PATH ?= $(REPO_ROOT)/build/$(TARGETL)/initrd_root
 	INSTALL_DIR = $(BORON_SYSROOT_AMD64_PATH)
 else
-	INSTALL_DIR = ../../build/$(TARGETL)/initrd_root
+	INSTALL_DIR = $(REPO_ROOT)/build/$(TARGETL)/initrd_root
 endif
 
 # This is the name that our final application executable will have.
@@ -77,7 +80,12 @@ else
 	OPT = -O3
 endif
 
-include ../../tools/toolchain.$(TARGETL).mk
+CXX_INCLUDES =
+ifeq ($(USE_FRIGG), yes)
+	CXX_INCLUDES += -I $(REPO_ROOT)/external/frigg/include
+endif
+
+include $(REPO_ROOT)/tools/toolchain.$(TARGETL).mk
 
 # User controllable CFLAGS.
 CFLAGS ?=
@@ -122,6 +130,7 @@ CXXFLAGS +=                 \
 	-fno-exceptions         \
 	-fno-rtti               \
 	-I.                     \
+	$(CXX_INCLUDES)         \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \
