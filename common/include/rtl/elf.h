@@ -16,6 +16,9 @@ Author:
 
 #include <elf.h>
 
+typedef void(*PELF_INIT_FUNC)();
+typedef void(*PELF_FINI_FUNC)();
+
 // Struct not part of the ELF format, but part of the loader.
 typedef struct ELF_DYNAMIC_INFO_tag
 {
@@ -34,6 +37,12 @@ typedef struct ELF_DYNAMIC_INFO_tag
 	PELF_SYMBOL SymbolTable;
 	size_t      SymbolTableSize;
 	PELF_HASH_TABLE HashTable;
+	PELF_INIT_FUNC* InitTable;
+	PELF_FINI_FUNC* FiniTable;
+	size_t          InitTableSize;
+	size_t          FiniTableSize;
+	PELF_INIT_FUNC  Init;
+	PELF_FINI_FUNC  Fini;
 }
 ELF_DYNAMIC_INFO, *PELF_DYNAMIC_INFO;
 

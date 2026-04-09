@@ -70,6 +70,12 @@ BSTATUS OSDeviceIoControl(
 
 BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, PHANDLE OutNewHandle, int OpenFlags);
 
+#ifdef IS_BORON_DLL
+
+NO_RETURN void OSExitProcessInternal(int ExitCode);
+
+#endif
+
 NO_RETURN void OSExitProcess(int ExitCode);
 
 NO_RETURN void OSExitThread();

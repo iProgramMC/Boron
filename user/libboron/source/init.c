@@ -591,7 +591,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, OSDLL_ENTRY_POINT* OutEntryPoint)
 		// Check if the DLL is already loaded.
 		PLIST_ENTRY DllEntry = OSDllsLoaded.Flink;
 		while (DllEntry != &OSDllsLoaded)
-		{
+		{	
 			PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
 			
 			if (strcmp(LoadedImage->Name, QueueItem->PathName) == 0)
@@ -713,6 +713,66 @@ uintptr_t OSDLLGetProcedureAddress(const char* ProcName)
 	return 0;
 }
 
+HIDDEN
+void OSDLLRunSharedObjectInit()
+{
+	// Run constructors in backwards order.  In the normal case, a library that depends on other
+	// libraries is almost always in front of (before) them in the list of loaded DLLs, so
+	// we need to initialize the dependents first.
+	//
+	// Note that libboron.so does *not* use global constructors/destructors.
+	PLIST_ENTRY DllEntry = OSDllsLoaded.Blink;
+	while (DllEntry != &OSDllsLoaded)
+	{
+		PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
+		
+		LdrDbgPrint("OSDLL: Calling init table for loaded image %s", LoadedImage->Name);
+		if (LoadedImage->DynamicInfo.Init)
+			LoadedImage->DynamicInfo.Init();
+		
+		if (LoadedImage->DynamicInfo.InitTable)
+		{
+			for (size_t i = 0; i < LoadedImage->DynamicInfo.FiniTableSize; i++)
+			{
+				if (LoadedImage->DynamicInfo.InitTable[i])
+					LoadedImage->DynamicInfo.InitTable[i]();
+			}
+		}
+		
+		DllEntry = DllEntry->Blink;
+	}
+}
+
+HIDDEN
+void OSDLLDestroySharedObjects()
+{
+	// Run destructors in forwards order.  In the normal case, a library that depends on other
+	// libraries is almost always in front of them in the list of loaded DLLs.
+	//
+	// Note that libboron.so does *not* use global constructors/destructors.
+	PLIST_ENTRY DllEntry = OSDllsLoaded.Flink;
+	while (DllEntry != &OSDllsLoaded)
+	{
+		PLOADED_IMAGE LoadedImage = CONTAINING_RECORD(DllEntry, LOADED_IMAGE, ListEntry);
+		
+		LdrDbgPrint("OSDLL: Calling fini table for loaded image %s", LoadedImage->Name);
+		if (LoadedImage->DynamicInfo.Fini)
+			LoadedImage->DynamicInfo.Fini();
+		
+		if (LoadedImage->DynamicInfo.FiniTable)
+		{
+			for (size_t i = 0; i < LoadedImage->DynamicInfo.FiniTableSize; i++)
+			{
+				if (LoadedImage->DynamicInfo.FiniTable[i])
+					LoadedImage->DynamicInfo.FiniTable[i]();
+			}
+		}
+		
+		DllEntry = DllEntry->Flink;
+	}
+}
+
+HIDDEN
 BSTATUS OSDLLSetupArgumentsAndEnvironment(PPEB Peb, int* OutArgumentCount, char*** OutArgumentArray, char*** OutEnvironmentArray)
 {
 	// Note: Argument count is biased by one because the image name is an argument.
@@ -778,6 +838,7 @@ void DLLEntryPoint(PPEB Peb)
 	OSDLLUnmapOldInterpreterIfNeeded(Peb);
 	
 	OSDLLInitializeGlobalHeap();
+	OSInitializeExitCallbackList();
 	InitializeListHead(&OSDllLoadQueue);
 	InitializeListHead(&OSDllsLoaded);
 	OSDLLAddSelfToDllList();
@@ -806,6 +867,8 @@ void DLLEntryPoint(PPEB Peb)
 		DbgPrint("OSDLL: Failed to set up arguments and environment: %s (%d)", RtlGetStatusString(Status), Status);
 		OSExitProcess(Status);
 	}
+	
+	OSDLLRunSharedObjectInit();
 	
 	LdrDbgPrint("OSDLL: Calling entry point %p...", EntryPoint);
 	Status = EntryPoint(ArgumentCount, ArgumentArray, EnvironmentArray);

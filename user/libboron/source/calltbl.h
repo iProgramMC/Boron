@@ -15,7 +15,7 @@ CALL 8,  3, OSCreateTerminalIoHandles
 CALL 9,  6, OSCreateThread
 CALL 10, 6, OSDeviceIoControl
 CALL 11, 4, OSDuplicateHandle
-CALL 12, 1, OSExitProcess
+CALL 12, 1, OSExitProcessInternal
 CALL 13, 0, OSExitThread
 CALL 14, 4, OSFreeVirtualMemory
 CALL 15, 2, OSGetAlignmentFile

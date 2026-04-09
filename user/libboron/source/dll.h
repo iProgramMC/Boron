@@ -3,8 +3,8 @@
 #include <rtl/elf.h>
 
 #ifdef DEBUG2
-#define LOADER_DEBUG
 #endif
+#define LOADER_DEBUG
 
 #ifdef LOADER_DEBUG
 #define LdrDbgPrint(...) DbgPrint(__VA_ARGS__)
@@ -90,3 +90,9 @@ void OSDLLReinitializeHeap();
 
 HIDDEN
 void OSDLLClearEntireHeap(POS_HEAP Heap);
+
+HIDDEN
+void OSInitializeExitCallbackList();
+
+HIDDEN
+void OSDLLDestroySharedObjects();
