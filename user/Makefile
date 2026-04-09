@@ -4,6 +4,7 @@
 # They will be built in this order - make sure to put libraries and
 # applications *after* what they depend on!
 APPS := \
+	crt0 \
 	libboron \
 	libflanterm \
 	libCoreGraphics \

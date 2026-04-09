@@ -168,12 +168,15 @@ else
 	LDFLAGS += -lboron
 endif
 
+# Append crt0.o to the object list.
+ADDITIONAL_OBJS = $(INSTALL_DIR)/lib/crt0.o
+
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
 override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
 override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
 override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
-override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
+override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))) $(ADDITIONAL_OBJS)
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # Default target.

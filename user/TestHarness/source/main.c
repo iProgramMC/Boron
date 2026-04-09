@@ -96,7 +96,7 @@ bool TestAssertionFailed(
 	return true;
 }
 
-int _start(int ArgumentCount, char** ArgumentArray)
+int main(int ArgumentCount, char** ArgumentArray)
 {
 	DbgPrint("Boron Operating System Test Harness");
 	DbgPrint("-----------------------------------");

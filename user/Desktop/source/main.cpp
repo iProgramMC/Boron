@@ -29,8 +29,7 @@ private:
 
 RAIITest gbl("Global");
 
-extern "C"
-int _start(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
+int main(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
 {
 	int* x = new int();
 	*x = 5;

@@ -9,7 +9,7 @@ void Usage()
 	OSExitProcess(1);
 }
 
-int _start(int ArgumentCount, char** Arguments)
+int main(int ArgumentCount, char** Arguments)
 {
 	BSTATUS Status;
 	DbgPrint("Init is running.");

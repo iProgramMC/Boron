@@ -10,7 +10,7 @@
 } while (0)
 
 
-int _start(int ArgumentCount, char** ArgumentArray)
+int main(int ArgumentCount, char** ArgumentArray)
 {
 	// write my own test code here
 	void* BaseAddress = NULL;
