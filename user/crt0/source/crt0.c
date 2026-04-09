@@ -7,7 +7,15 @@
 //  pieces of functionality required for C++ support.
 
 // NOTE: This must *all* be in 1 file!
+#include <boron.h>
+
 void* __dso_handle;
+
+__attribute__((destructor))
+void OSDLLTeardownThisSharedObject()
+{
+	OSCallExitCallbacks(&__dso_handle);
+}
 
 extern int main(int ArgumentCount, char** ArgumentValues, char** Environment);
 

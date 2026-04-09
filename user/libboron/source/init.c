@@ -732,7 +732,7 @@ void OSDLLRunSharedObjectInit()
 		
 		if (LoadedImage->DynamicInfo.InitTable)
 		{
-			for (size_t i = 0; i < LoadedImage->DynamicInfo.FiniTableSize; i++)
+			for (size_t i = 0; i < LoadedImage->DynamicInfo.InitTableSize; i += sizeof(uintptr_t))
 			{
 				if (LoadedImage->DynamicInfo.InitTable[i])
 					LoadedImage->DynamicInfo.InitTable[i]();
@@ -761,7 +761,7 @@ void OSDLLDestroySharedObjects()
 		
 		if (LoadedImage->DynamicInfo.FiniTable)
 		{
-			for (size_t i = 0; i < LoadedImage->DynamicInfo.FiniTableSize; i++)
+			for (size_t i = 0; i < LoadedImage->DynamicInfo.FiniTableSize; i += sizeof(uintptr_t))
 			{
 				if (LoadedImage->DynamicInfo.FiniTable[i])
 					LoadedImage->DynamicInfo.FiniTable[i]();

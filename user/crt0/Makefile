@@ -55,6 +55,7 @@ LDFLAGS ?=
 
 # Internal C flags that should not be changed by the user.
 CFLAGS +=                   \
+	-fPIC                   \
 	-fno-omit-frame-pointer \
 	-std=c11                \
 	-ffreestanding          \
@@ -68,6 +69,7 @@ CFLAGS +=                   \
 
 # Internal C++ flags that should not be changed by the user.
 CXXFLAGS +=                 \
+	-fPIC                   \
 	-fno-omit-frame-pointer \
 	-std=c++17              \
 	-ffreestanding          \
