@@ -49,6 +49,7 @@ ifeq ($(DEBUG2), yes)
 	DEFINES += -DDEBUG2
 endif
 
+REPO_ROOT = ../..
 include ../../tools/toolchain.$(TARGETL).mk
 
 # User controllable CFLAGS.
@@ -95,6 +96,7 @@ CXXFLAGS +=                 \
 	-fno-exceptions         \
 	-fno-rtti               \
 	-I.                     \
+	$(ARCH_CXXFLAGS)        \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \

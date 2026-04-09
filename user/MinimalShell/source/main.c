@@ -16,7 +16,7 @@ Author:
 
 #include "command.h"
 
-int _start(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
+int main(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
 {
 	CmdPrintInitMessage();
 	

@@ -31,7 +31,7 @@ void Usage()
 	DbgPrint("	--title [title]:          The terminal frame's title.  Ignored if '--frameless' is specified.");
 }
 
-int _start(int ArgumentCount, char** ArgumentArray)
+int main(int ArgumentCount, char** ArgumentArray)
 {
 	BSTATUS Status;
 	

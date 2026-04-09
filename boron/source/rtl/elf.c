@@ -400,6 +400,30 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 			case DYN_HASH:
 				Info->HashTable = (ELF_HASH_TABLE*)(LoadBase + DynItem->Pointer);
 				break;
+			
+			case DYN_INIT:
+				Info->Init = (PELF_INIT_FUNC)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_FINI:
+				Info->Fini = (PELF_FINI_FUNC)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_INIT_ARRAY:
+				Info->InitTable = (PELF_INIT_FUNC*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_FINI_ARRAY:
+				Info->FiniTable = (PELF_FINI_FUNC*)(LoadBase + DynItem->Pointer);
+				break;
+			
+			case DYN_INIT_ARRAYSZ:
+				Info->InitTableSize = DynItem->Value;
+				break;
+			
+			case DYN_FINI_ARRAYSZ:
+				Info->FiniTableSize = DynItem->Value;
+				break;
 		}
 	}
 	

@@ -84,6 +84,7 @@ else
 endif
 
 IS_KERNEL = yes
+REPO_ROOT = ..
 include ../tools/toolchain.$(TARGETL).mk
 
 ifeq ($(SMP), yes)
@@ -136,6 +137,7 @@ CXXFLAGS +=                 \
 	-fno-exceptions         \
 	-fno-rtti               \
 	-I.                     \
+	$(ARCH_CXXFLAGS)        \
 	$(ARCH_CFLAGS)
 	
 LDFLAGSBASE +=              \

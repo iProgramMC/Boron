@@ -90,3 +90,9 @@ void OSDLLReinitializeHeap();
 
 HIDDEN
 void OSDLLClearEntireHeap(POS_HEAP Heap);
+
+HIDDEN
+void OSInitializeExitCallbackList();
+
+HIDDEN
+void OSDLLDestroySharedObjects();

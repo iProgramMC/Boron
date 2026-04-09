@@ -8,6 +8,9 @@ BASM ?= unknown
 SUBTARGET ?= v6
 $(eval $(call validate-option,SUBTARGET,v5 v6 v7))
 
+# FREESTND_C_HDRS and FREESTND_CXX_HEADERS not defined.  Need to provide them separately.
+# Until then, C++ compilation can only be done in a limited manner.
+
 ifeq ($(SUBTARGET),v5)
 	ARCH_CFLAGS = \
 		-mcpu=arm926ej-s \

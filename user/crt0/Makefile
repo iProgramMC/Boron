@@ -1,0 +1,169 @@
+# Boron crt0 makefile
+REPO_ROOT ?= ../..
+
+BUILD_DIR = build
+SRC_DIR = source
+INC_DIR = include
+DDK_DIR = $(REPO_ROOT)/common/include
+SDK_DIR = $(REPO_ROOT)/user/include
+LINKER_FILE = linker.ld
+
+TARGET ?= AMD64
+
+# This sucks.
+TARGETL=$(subst A,a,$(subst B,b,$(subst C,c,$(subst D,d,$(subst E,e,$(subst F,f,$(subst G,g,$(subst H,h,$(subst I,i,$(subst J,j,$(subst K,k,$(subst L,l,$(subst M,m,$(subst N,n,$(subst O,o,$(subst P,p,$(subst Q,q,$(subst R,r,$(subst S,s,$(subst T,t,$(subst U,u,$(subst V,v,$(subst W,w,$(subst X,x,$(subst Y,y,$(subst Z,z,$(TARGET)))))))))))))))))))))))))))
+
+APP_NAME = crt0
+SUFFIX = o
+TYPE = lib
+
+# Path to Boron install directory
+ifeq ($(TARGETL),amd64)
+	BORON_SYSROOT_AMD64_PATH ?= $(REPO_ROOT)/build/$(TARGETL)/initrd_root
+	INSTALL_DIR = $(BORON_SYSROOT_AMD64_PATH)
+else
+	INSTALL_DIR = $(REPO_ROOT)/build/$(TARGETL)/initrd_root
+endif
+
+# This is the name that our final application executable will have.
+# Change as needed.
+override TARGET_FILE := $(BUILD_DIR)/$(APP_NAME).$(TARGETL).$(SUFFIX)
+override TARGET_INSTALL := $(INSTALL_DIR)/$(TYPE)/$(APP_NAME).$(SUFFIX)
+
+override LIBS_DIR := $(INSTALL_DIR)/lib
+
+include $(REPO_ROOT)/tools/toolchain.$(TARGETL).mk
+
+# User controllable CFLAGS.
+CFLAGS ?=
+CFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+
+# User controllable CXXFLAGS.
+CXXFLAGS ?=
+CXXFLAGS += $(OPT) -pipe -Wall -Wextra -DTARGET_$(TARGET) -DBORON_TARGET=\"$(TARGETL)\" -DIS_USER_MODE $(DEFINES) $(USER_DEFINES)
+
+# User controllable preprocessor flags.
+CPPFLAGS ?=
+CPPFLAGS += -I $(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+
+# User controllable nasm flags.
+NASMFLAGS ?=
+NASMFLAGS += -F dwarf -I$(SRC_DIR) -I$(INC_DIR) -I $(SDK_DIR) -I $(DDK_DIR)
+
+# User controllable linker flags. We set none by default.
+LDFLAGS ?=
+
+# Internal C flags that should not be changed by the user.
+CFLAGS +=                   \
+	-fPIC                   \
+	-fno-omit-frame-pointer \
+	-std=c11                \
+	-ffreestanding          \
+	-fno-stack-protector    \
+	-fno-stack-check        \
+	-fno-lto                \
+	-MMD                    \
+	-MP                     \
+	-I.                     \
+	$(ARCH_CFLAGS)
+
+# Internal C++ flags that should not be changed by the user.
+CXXFLAGS +=                 \
+	-fPIC                   \
+	-fno-omit-frame-pointer \
+	-std=c++17              \
+	-ffreestanding          \
+	-fno-stack-protector    \
+	-fno-stack-check        \
+	-fno-lto                \
+	-fno-exceptions         \
+	-fno-rtti               \
+	-I.                     \
+	$(CXX_INCLUDES)         \
+	$(ARCH_CXXFLAGS)        \
+	$(ARCH_CFLAGS)
+	
+LDFLAGSBASE +=              \
+	-nostdlib               \
+	-z max-page-size=0x1000 \
+	-m $(LINK_ARCH)         \
+	-L$(LIBS_DIR)           \
+	$(ARCH_LDFLAGS)
+
+# Internal linker flags that should not be changed by the user.
+LDFLAGS +=  \
+	$(LDFLAGSBASE)
+
+# Internal nasm flags that should not be changed by the user.
+NASMFLAGS += $(ARCH_ASFLAGS)
+
+ifeq ($(IS_LIBRARY),yes)
+	# Flags for libraries
+	LDFLAGS += -shared
+	CFLAGS += -fPIC
+else
+	# Flags for user applications
+	LDFLAGS += --dynamic-linker libboron.so
+
+	ifeq ($(TARGET),ARM)
+		# I'm too lazy to fix the actual issue at hand, which is that the heap allocator
+		# allocates within the first 1 MB, so here it is.
+		LDFLAGS += -Ttext-segment=0x00100000
+	endif
+endif
+
+ifeq ($(INCLUDE_LIBBORON),no)
+else
+	LDFLAGS += -lboron
+endif
+
+# Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
+override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
+override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
+override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
+override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
+override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
+override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
+
+# Default target.
+.PHONY: all
+all: application
+
+# Include header dependencies.
+-include $(HEADER_DEPS)
+
+# Compilation rules for *.c files.
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.c
+	@echo "[CC]\tCompiling $<"
+	@mkdir -p $(dir $@)
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Compilation rules for *.cpp files.
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.cpp
+	@echo "[CXX]\tCompiling $<"
+	@mkdir -p $(dir $@)
+	@$(BCXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+# Compilation rules for *.S files.
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.S
+	@echo "[AS]\tCompiling $<"
+	@mkdir -p $(dir $@)
+	@$(BCC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+# Compilation rules for *.asm (nasm) files.
+$(BUILD_DIR)/%.$(TARGETL).o: $(SRC_DIR)/%.asm
+	@echo "[AS]\tCompiling $<"
+	@mkdir -p $(dir $@)
+	@$(BASM) $(NASMFLAGS) $< -o $@
+
+# Remove object files and the final executable.
+.PHONY: clean
+clean:
+	@echo "Cleaning"
+	@rm -rf $(TARGET_FILE) $(OBJ) $(HEADER_DEPS)
+
+application: $(TARGET_FILE) install_application
+
+install_application:
+	@mkdir -p $(dir $(TARGET_INSTALL))
+	@cp -f $(TARGET_FILE) $(TARGET_INSTALL)

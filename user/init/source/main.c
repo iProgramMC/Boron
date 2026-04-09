@@ -9,13 +9,31 @@ void Usage()
 	OSExitProcess(1);
 }
 
-int _start(int ArgumentCount, char** Arguments)
+int main(int ArgumentCount, char** Arguments)
 {
 	BSTATUS Status;
 	DbgPrint("Init is running.");
 	
 	if (ArgumentCount <= 1)
 		Usage();
+	
+	// Open the current directory if needed.
+	if (OSGetCurrentDirectory() == HANDLE_NONE)
+	{
+		HANDLE Directory;
+		OBJECT_ATTRIBUTES Attributes;
+		OSInitializeObjectAttributes(&Attributes);
+		OSSetNameObjectAttributes(&Attributes, "/");
+		
+		Status = OSOpenFile(&Directory, &Attributes);
+		if (FAILED(Status))
+		{
+			DbgPrint("Could not open root directory '/': %s", RtlGetStatusString(Status));
+			return Status;
+		}
+		
+		OSSetCurrentDirectory(Directory);
+	}
 	
 	char* ConfigFile = NULL;
 	for (int i = 1; i < ArgumentCount; i++)

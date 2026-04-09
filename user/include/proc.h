@@ -59,6 +59,20 @@ BSTATUS OSReplaceProcess(
 	size_t ContextSize
 );
 
+typedef void(*PEXIT_CALLBACK)(void* Context);
+
+// Registers a callback function to be called upon the exit of a process.
+//
+// The UniqueIdentifier may be used to associate a callback with a DSO.
+BSTATUS OSRegisterExitCallback(
+	PEXIT_CALLBACK Callback,
+	void* Context,
+	void* UniqueIdentifier
+);
+
+// Call exit callbacks associated with a DSO.
+void OSCallExitCallbacks(void* UniqueIdentifier);
+
 #ifdef __cplusplus
 }
 #endif

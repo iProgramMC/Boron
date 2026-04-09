@@ -38,7 +38,7 @@ void PrintListing(HANDLE DirectoryHandle, const char* DirectoryName)
 	}
 }
 
-int _start(int ArgumentCount, char** ArgumentArray)
+int main(int ArgumentCount, char** ArgumentArray)
 {
 	HANDLE CurrentDirectory = OSGetCurrentDirectory();
 
