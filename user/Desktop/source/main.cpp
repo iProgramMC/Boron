@@ -6,44 +6,45 @@
 //
 #include <boron.h>
 #include <stdarg.h>
-#include <new>
-#include <frg/vector.hpp>
-#include <frg/std_compat.hpp>
+#include "frg.h"
 
-frg::vector<int, frg::stl_allocator> vc;
-
-class RAIITest
+void Usage()
 {
-public:
-	RAIITest(const char* _tag) {
-		OSPrintf("RAIITest constructed: %s.\n", _tag);
-		tag = _tag;
-	}
-	~RAIITest() {
-		OSPrintf("RAIITest destructed: %s.\n", tag);
-	}
-	
-private:
-	const char* tag;
-};
-
-RAIITest gbl("Global");
+	DbgPrint("Desktop - help");
+	DbgPrint("	--framebuffer [fileName]: The frame buffer device to which this desktop instance will output.");
+	DbgPrint("	--keyboard [fileName]:    The keyboard from which this desktop instance will read user input.");
+	DbgPrint("	--keyboard [fileName]:    The keyboard from which this desktop instance will read user input.");
+}
 
 int main(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
 {
-	int* x = new int();
-	*x = 5;
-	OSPrintf("*x = %d\n", *x);
-	delete x;
+	BSTATUS Status;
 	
-	RAIITest t("Local");
-	vc.push(1);
-	vc.push(2);
-	vc.push(3);
+	char* FramebufferName = NULL, *KeyboardName = NULL;
 	
-	for (size_t i = 0; i < vc.size(); i++) {
-		OSPrintf("vc[i] = %d\n", vc[i]);
+	for (int i = 1; i < ArgumentCount; i++)
+	{
+		if (strcmp(ArgumentArray[i], "--framebuffer") == 0)
+			FramebufferName = ArgumentArray[i + 1];
+		if (strcmp(ArgumentArray[i], "--keyboard") == 0)
+			KeyboardName = ArgumentArray[i + 1];
 	}
+	
+	if (!FramebufferName)
+	{
+		DbgPrint("ERROR: No framebuffer specified.");
+		Usage();
+		return 1;
+	}
+	
+	if (!KeyboardName)
+	{
+		DbgPrint("ERROR: No keyboard specified.");
+		Usage();
+		return 1;
+	}
+	
+	
 	
 	return 0;
 }

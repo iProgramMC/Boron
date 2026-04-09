@@ -5,6 +5,10 @@
 
 typedef struct _GRAPHICS_CONTEXT GRAPHICS_CONTEXT, *PGRAPHICS_CONTEXT;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Fills a rectangle.
 void CGFillRectangle(PGRAPHICS_CONTEXT Context, uint32_t Color, int X, int Y, int Width, int Height);
 
@@ -34,3 +38,7 @@ void CGFillCircle(
 	int YCenter,
 	int Radius
 );
+
+#ifdef __cplusplus
+}
+#endif

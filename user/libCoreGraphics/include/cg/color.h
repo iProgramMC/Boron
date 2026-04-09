@@ -17,6 +17,10 @@ typedef union { struct { uint32_t i : 4; } PACKED; uint32_t n; } COLOR_I4;
 typedef union { struct { uint32_t p : 4; } PACKED; uint32_t n; } COLOR_P4;
 typedef union { struct { uint32_t i : 1; } PACKED; uint32_t n; } COLOR_I1;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 uint32_t CGConvertColorToNative(PGRAPHICS_CONTEXT Context, uint32_t Color);
 
 void CGGetColorFormatInfo(
@@ -28,3 +32,7 @@ void CGGetColorFormatInfo(
 	int* GreenMaskShift,
 	int* BlueMaskShift
 );
+
+#ifdef __cplusplus
+}
+#endif

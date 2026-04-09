@@ -17,6 +17,10 @@ typedef struct _GRAPHICS_CONTEXT
 }
 GRAPHICS_CONTEXT, *PGRAPHICS_CONTEXT;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Creates a graphics context from a frame buffer specification.
 PGRAPHICS_CONTEXT CGCreateContextFromBuffer(
 	void* BufferAddress,
@@ -39,3 +43,7 @@ PGRAPHICS_CONTEXT CGCreateSubContext(
 );
 
 void CGFreeContext(PGRAPHICS_CONTEXT Context);
+
+#ifdef __cplusplus
+}
+#endif
