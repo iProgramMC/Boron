@@ -9,13 +9,20 @@
 #include <boron.h>
 #include <cg/context.h>
 
+#include "File.hpp"
+
 class Screen
 {
 public:
-	Screen(HANDLE framebufferHandle);
+	Screen(HANDLE FramebufferHandle);
 	~Screen();
+	
+	BSTATUS GetCreateStatus() const {
+		return m_CreateStatus;
+	}
 
 private:
-	HANDLE m_handle;
-	PGRAPHICS_CONTEXT m_context;
+	File m_FramebufferFile;
+	PGRAPHICS_CONTEXT m_Context;
+	BSTATUS m_CreateStatus = STATUS_SUCCESS;
 };

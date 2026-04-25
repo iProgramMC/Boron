@@ -85,7 +85,7 @@ BSTATUS File::Seek(int64_t Offset, int Whence, uint64_t* NewOutOffset)
 	return OSSeekFile(m_Handle, Offset, Whence, NewOutOffset);
 }
 
-BSTATUS File::MapView(void** BaseAddressInOut, size_t ViewSize, int AllocationType, uint64_t SectionOffset, int Protection, HANDLE ProcessHandle)
+BSTATUS File::MapView(void** BaseAddressInOut, size_t ViewSize, int AllocationType, int Protection, uint64_t SectionOffset, HANDLE ProcessHandle)
 {
 	return OSMapViewOfObject(
 		ProcessHandle,
@@ -95,5 +95,17 @@ BSTATUS File::MapView(void** BaseAddressInOut, size_t ViewSize, int AllocationTy
 		AllocationType,
 		SectionOffset,
 		Protection
+	);
+}
+
+BSTATUS File::DeviceIoControl(int IoControlCode, void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize)
+{
+	return OSDeviceIoControl(
+		m_Handle,
+		IoControlCode,
+		InBuffer,
+		InBufferSize,
+		OutBuffer,
+		OutBufferSize
 	);
 }

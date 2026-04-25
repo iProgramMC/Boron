@@ -7,6 +7,8 @@
 #include <boron.h>
 #include <stdarg.h>
 #include "frg.h"
+#include "File.hpp"
+#include "Screen.hpp"
 
 void Usage()
 {
@@ -44,6 +46,15 @@ int main(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
 		return 1;
 	}
 	
+	File Framebuffer(FramebufferName, OB_OPEN_OBJECT_NAMESPACE);
+	Status = Framebuffer.GetOpenStatus();
+	if (FAILED(Status))
+	{
+		DbgPrint("Error opening frame buffer '%s': %s", FramebufferName, RtlGetStatusString(Status));
+		return 1;
+	}
+	
+	Screen MainScreen(Framebuffer.GetHandle());
 	
 	
 	return 0;

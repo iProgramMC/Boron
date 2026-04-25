@@ -40,14 +40,21 @@ public:
 		void** BaseAddressInOut,
 		size_t ViewSize,
 		int AllocationType,
-		uint64_t SectionOffset,
 		int Protection,
+		uint64_t SectionOffset = 0,
 		HANDLE ProcessHandle = CURRENT_PROCESS_HANDLE
 	);
 	BSTATUS Seek(
 		int64_t Offset,
 		int Whence,
 		uint64_t* NewOutOffset = nullptr
+	);
+	BSTATUS DeviceIoControl(
+		int IoControlCode,
+		void* InBuffer,
+		size_t InBufferSize,
+		void* OutBuffer,
+		size_t OutBufferSize
 	);
 	
 private:
