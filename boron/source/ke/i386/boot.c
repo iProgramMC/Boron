@@ -15,6 +15,7 @@ Author:
 #include "../ki.h"
 #include "../../mm/mi.h"
 #include "mboot.h"
+#include "vbeinfo.h"
 
 extern uint32_t KiMultibootSignature;
 extern multiboot_info_t* KiMultibootInfo;
@@ -417,6 +418,28 @@ void KiInitLoaderParameterBlock()
 			Fb->BlueMaskSize    = KiMultibootInfo->u2.framebuffer_green_mask_size;
 			Fb->BlueMaskShift   = KiMultibootInfo->u2.framebuffer_green_field_position;
 		}
+	}
+	else if (KiMultibootInfo->flags & MULTIBOOT_INFO_VIDEO_INFO)
+	{
+		DbgPrint("Loading video info from VBE struct.");
+		
+		PVBE_MODE_INFO_BLOCK ModeInfoBlock = P2V(KiMultibootInfo->vbe_mode_info);
+		Lpb->FramebufferCount = 1;
+		Lpb->Framebuffers = &KiLoaderFramebuffer;
+		
+		PLOADER_FRAMEBUFFER Fb = &KiLoaderFramebuffer;
+		Fb->Address = (void*) ModeInfoBlock->FrameBufferAddress;
+		Fb->IsPhysicalAddress = true;
+		Fb->Pitch = ModeInfoBlock->Pitch;
+		Fb->Width = ModeInfoBlock->Width;
+		Fb->Height = ModeInfoBlock->Height;
+		Fb->BitDepth = ModeInfoBlock->Bpp;
+		Fb->RedMaskSize = ModeInfoBlock->RedMask;
+		Fb->RedMaskShift = ModeInfoBlock->RedPosition;
+		Fb->GreenMaskSize = ModeInfoBlock->GreenMask;
+		Fb->GreenMaskShift = ModeInfoBlock->GreenPosition;
+		Fb->BlueMaskSize = ModeInfoBlock->BlueMask;
+		Fb->BlueMaskShift = ModeInfoBlock->BluePosition;
 	}
 	else
 	{
