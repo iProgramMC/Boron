@@ -42,6 +42,7 @@ void HalInitTerminal();
 void HalInitPL192();
 void HalInitClock();
 void HalInitTimer();
+void HalSetEnabledClockGate(int GateId, bool Enabled);
 
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
@@ -80,6 +81,7 @@ static const HAL_VFTABLE HalpVfTable =
 	.VicDeregisterInterrupt = HalVicDeregisterInterrupt,
 	.OnInterruptRequest = HalOnInterruptRequest,
 	.OnFastInterruptRequest = HalOnFastInterruptRequest,
+	.SetEnabledClockGate = HalSetEnabledClockGate,
 	.Flags = HAL_VFTABLE_LOADED,
 };
 

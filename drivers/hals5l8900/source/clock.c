@@ -31,7 +31,7 @@ Author:
 void* HalClock0Base;
 void* HalClock1Base;
 
-void HalClockSetGateEnabled(uint32_t Gate, bool Enabled)
+void HalSetEnabledClockGate(int Gate, bool Enabled)
 {
 	if (Gate < CLOCK1_CL3_SEPARATOR)
 	{

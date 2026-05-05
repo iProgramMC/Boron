@@ -192,7 +192,7 @@ void HalInitTimer()
 	);
 	ASSERT(HalTimerBase);
 
-	HalClockSetGateEnabled(CLOCK_GATE_TIMER, true);
+	HalSetEnabledClockGate(CLOCK_GATE_TIMER, true);
 	
 	for (int i = 0; i < TIMER_COUNT; i++) {
 		HalTimerStop(i);

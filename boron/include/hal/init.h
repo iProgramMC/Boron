@@ -53,6 +53,7 @@ typedef void(*PFHAL_VIC_REGISTER_INTERRUPT)(int Vector, KIPL Ipl);
 typedef void(*PFHAL_VIC_DEREGISTER_INTERRUPT)(int Vector, KIPL Ipl);
 typedef PKREGISTERS(*PFHAL_ON_INTERRUPT_REQUEST)(PKREGISTERS);
 typedef PKREGISTERS(*PFHAL_ON_FAST_INTERRUPT_REQUEST)(PKREGISTERS);
+typedef void(*PFHAL_SET_ENABLED_CLOCK_GATE)(int ClockGateId, bool Enabled);
 #endif
 
 #if defined TARGET_AMD64 || defined TARGET_I386
@@ -107,6 +108,7 @@ typedef struct
 	PFHAL_VIC_DEREGISTER_INTERRUPT VicDeregisterInterrupt;
 	PFHAL_ON_INTERRUPT_REQUEST OnInterruptRequest;
 	PFHAL_ON_FAST_INTERRUPT_REQUEST OnFastInterruptRequest;
+	PFHAL_SET_ENABLED_CLOCK_GATE SetEnabledClockGate;
 #endif
 }
 HAL_VFTABLE, *PHAL_VFTABLE;

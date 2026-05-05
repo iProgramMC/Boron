@@ -232,6 +232,11 @@ PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers)
 	return HalpVftable.OnFastInterruptRequest(Registers);
 }
 
+void HalSetEnabledClockGate(int ClockGateId, bool Enabled)
+{
+	return HalpVftable.SetEnabledClockGate(ClockGateId, Enabled);
+}
+
 #endif
 
 NO_RETURN void HalProcessorCrashed()

@@ -60,4 +60,14 @@ void HalRequestInterruptInTicks(uint64_t ticks);
 // represents the amount of interrupts in a second.
 uint64_t HalGetInterruptDeltaTime();
 
+#ifdef TARGET_ARM
+
+// SCOPE CREEP:  This really shouldn't be added in the HAL-kernel interface.
+// The kernel doesn't use it, but other drivers might.
+//
+// Really, a more proper solution would be to allow drivers to link against the HAL.
+void HalSetEnabledClockGate(int ClockGateId, bool Enabled);
+
+#endif
+
 #endif//BORON_HAL_TIMER_H
