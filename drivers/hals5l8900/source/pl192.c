@@ -180,7 +180,9 @@ KIPL HalEnterHardwareInterrupt(int InterruptNumber)
 {
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	ASSERT(Prcb);
-	
+
+	ASSERT(InterruptNumber >= 0 && InterruptNumber < MAX_INTERRUPTS);
+
 	PKIPL IplPtr = &Prcb->Ipl;
 	KIPL OldIpl = (int) *IplPtr;
 	KIPL NewIpl = HalInterruptIpls[InterruptNumber];
@@ -232,7 +234,7 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 	}
 	else if (VICIRQSTATUS(1) != 0)
 	{
-		InterruptNumber = 32 + (int) VICADDRESS(1);
+		InterruptNumber = (int) VICADDRESS(1);
 	}
 	else
 	{
