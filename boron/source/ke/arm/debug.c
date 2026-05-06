@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 26 December 2025
 ***/
 #include <ke.h>
+#include <hal.h>
 
 // TODO: do not hardcode the UART's location in the kernel.
 

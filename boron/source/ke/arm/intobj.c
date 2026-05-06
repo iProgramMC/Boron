@@ -3,15 +3,12 @@
 	Copyright (C) 2025 iProgramInCpp
 
 Module name:
-	ke/armv6/intobj.c
-	
+	ke/arm/intobj.c
+
 Abstract:
 	This module implements the interrupt object for
 	the armv6 platform.
-	
-	N.B. The interval timer and DPC dispatch functions
-	do not use the interrupt object.
-	
+
 Author:
 	iProgramInCpp - 29 December 2025
 ***/
@@ -25,12 +22,12 @@ typedef struct
 }
 INTERRUPT_LIST, *PINTERRUPT_LIST;
 
-static INTERRUPT_LIST KiInterruptList[256];
+static INTERRUPT_LIST KiInterruptList[1024];
 
 INIT
 void KiInitializeInterruptSystem()
 {
-	for (int i = 0; i < 256; i++)
+	for (int i = 0; i < 1024; i++)
 	{
 		InitializeListHead(&KiInterruptList[i].List);
 		KeInitializeSpinLock(&KiInterruptList[i].Lock);
@@ -46,11 +43,13 @@ void KeInitializeInterrupt(
 	KIPL InterruptIpl,
 	bool SharedVector)
 {
+#ifdef TARGET_ARM
 	if (Vector >= HalGetMaximumInterruptCount())
 	{
 		DbgPrint("WARNING: KeInitializeInterrupt -- interrupt vector %d will not be called", Vector);
 		return;
 	}
+#endif
 	
 	ASSERT(InterruptIpl >  IPL_DPC   && "The caller may not override this IPL");
 	ASSERT(InterruptIpl <= IPL_CLOCK && "The caller may not override this IPL");

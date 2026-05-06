@@ -15,34 +15,19 @@ Author:
 #include <ke.h>
 #include <io.h>
 #include "hali.h"
+#include "pl192.h"
+#include "clock.h"
+#include "timer.h"
+#include "gpio.h"
+#include "crash.h"
 
 void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();
 void HalDisplayString(const char* Message);
-void HalCrashSystem(const char* Message) NO_RETURN;
-bool HalUseOneShotIntTimer();
-void HalProcessorCrashed() NO_RETURN;
-uint64_t HalGetIntTimerFrequency();
-uint64_t HalGetTickCount();
-uint64_t HalGetTickFrequency();
-uint64_t HalGetIntTimerDeltaTicks();
-int HalGetMaximumInterruptCount();
-void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl);
-void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl);
-void HalVicDeregisterInterrupt(int InterruptNumber, KIPL Ipl);
-PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers);
-PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
-bool HalUseOneShotTimer();
-void HalRequestInterruptInTicks(uint64_t ticks);
-uint64_t HalGetInterruptDeltaTime();
 void HalInitCLCD();
 void HalInitTerminal();
-void HalInitPL192();
-void HalInitClock();
-void HalInitTimer();
-void HalSetEnabledClockGate(int GateId, bool Enabled);
 
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
@@ -58,6 +43,7 @@ HAL_API void HalInitSystemMP()
 {
 	HalInitClock();
 	HalInitTimer();
+	HalInitGpio();
 }
 
 static const HAL_VFTABLE HalpVfTable =
@@ -82,6 +68,7 @@ static const HAL_VFTABLE HalpVfTable =
 	.OnInterruptRequest = HalOnInterruptRequest,
 	.OnFastInterruptRequest = HalOnFastInterruptRequest,
 	.SetEnabledClockGate = HalSetEnabledClockGate,
+	.RegisterGpioInterrupt = HalRegisterGpioInterrupt,
 	.Flags = HAL_VFTABLE_LOADED,
 };
 

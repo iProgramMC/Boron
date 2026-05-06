@@ -21,7 +21,6 @@ void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
 void HalInitSystemUP();
 void HalInitSystemMP();
 void HalDisplayString(const char* Message);
-void HalDisplayString2(const char* Message);
 void HalCrashSystem(const char* Message);
 bool HalUseOneShotIntTimer();
 void HalProcessorCrashed() NO_RETURN;
@@ -31,20 +30,17 @@ uint64_t HalGetTickFrequency();
 uint64_t HalGetIntTimerDeltaTicks();
 void HalBeginShutdown();
 void HalPerformPoweroff(bool Reboot) NO_RETURN;
+
 #ifdef TARGET_AMD64
-void HalIoApicSetIrqRedirect(uint8_t Vector, uint8_t Irq, uint32_t LapicId, bool Status);
+#include <hal/amd64hal.h>
 #endif
+
 #ifdef TARGET_I386
-void HalPicRegisterInterrupt(uint8_t Vector, KIPL Ipl);
-void HalPicDeregisterInterrupt(uint8_t Vector, KIPL Ipl);
+#include <hal/i386hals.h>
 #endif
+
 #ifdef TARGET_ARM
-int HalGetMaximumInterruptCount();
-void HalOnUpdateIpl(KIPL NewIpl, KIPL OldIpl);
-void HalVicRegisterInterrupt(int Vector, KIPL Ipl);
-void HalVicDeregisterInterrupt(int Vector, KIPL Ipl);
-PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers);
-PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
+#include <hal/armhals.h>
 #endif
 
 #ifdef IS_HAL

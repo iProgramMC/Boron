@@ -15,29 +15,8 @@ Author:
 #include "hali.h"
 #include <mm.h>
 #include <string.h>
-
-// N.B.  Each PL192 has support for 32 interrupts, so 64 total
-#define MAX_INTERRUPTS 64
-
-#define VIC0_BASE_PHYS (0x38E00000)
-#define VIC1_BASE_PHYS (0x38E01000)
-
-#define VICREG(n, rgof) (* (volatile uint32_t*) ((uintptr_t)HalVic ## n ## Base + rgof))
-
-#define VICIRQSTATUS(n)      VICREG(n, 0x000)
-#define VICFIQSTATUS(n)      VICREG(n, 0x004)
-#define VICRAWINTR(n)        VICREG(n, 0x008)
-#define VICINTSELECT(n)      VICREG(n, 0x00C)
-#define VICINTENABLE(n)      VICREG(n, 0x010)
-#define VICINTENCLEAR(n)     VICREG(n, 0x014)
-#define VICSOFTINT(n)        VICREG(n, 0x018)
-#define VICSOFTINTCLEAR(n)   VICREG(n, 0x01C)
-#define VICPROTECTION(n)     VICREG(n, 0x020)
-#define VICSWPRIORITYMASK(n) VICREG(n, 0x024)
-#define VICPRIORITYDAISY(n)  VICREG(n, 0x028)
-#define VICVECTADDR(n)     (&VICREG(n, 0x100)) // index as VICVECTADDR(VIC#)[INT#].  INT# in [0,31]
-#define VICVECTPRIORITY(n) (&VICREG(n, 0x200)) // index as VICVECTPRIORITY(VIC#)[INT#].  INT# in [0,31]
-#define VICADDRESS(n)        VICREG(n, 0xF00)  // weird place but OK
+#include "pl192.h"
+#include "gpio.h"
 
 static void* HalVic0Base;
 static void* HalVic1Base;
@@ -104,11 +83,19 @@ void HalInitPL192()
 
 int HalGetMaximumInterruptCount()
 {
-	return MAX_INTERRUPTS;
+	return MAX_INTERRUPTS + GPIO_INTERRUPT_GROUP_COUNT * GPIO_INTERRUPTS_PER_GROUP;
 }
 
 void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl)
 {
+	if (InterruptNumber >= MAX_INTERRUPTS)
+	{
+		// This is probably a GPIO interrupt they're trying to register.
+		//
+		// The GPIO interrupts themselves have already been registered, so return.
+		return;
+	}
+	
 	HalInterruptIpls[InterruptNumber] = Ipl;
 	
 	// Also let the hardware know.
@@ -130,6 +117,14 @@ void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl)
 
 void HalVicDeregisterInterrupt(int InterruptNumber, UNUSED KIPL Ipl)
 {
+	if (InterruptNumber >= MAX_INTERRUPTS)
+	{
+		// This is probably a GPIO interrupt they're trying to register.
+		//
+		// The GPIO interrupts themselves have already been registered, so return.
+		return;
+	}
+	
 	HalInterruptIpls[InterruptNumber] = IPL_UNDEFINED;
 	
 	if (InterruptNumber >= 32)
@@ -168,10 +163,12 @@ void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector)
 
 void HalEndOfInterrupt(int InterruptNumber)
 {
-	if (InterruptNumber >= 32) {
+	if (InterruptNumber >= 32 && InterruptNumber <= MAX_INTERRUPTS)
+	{
 		VICADDRESS(1) = 0;
 	}
-	else {
+	else if (InterruptNumber >= 0 && InterruptNumber < 32)
+	{
 		VICADDRESS(0) = 0;
 	}
 }
