@@ -64,14 +64,16 @@ extern uintptr_t HalGpioIcBase, HalGpioBase;
 
 #define CLOCK_GATE_GPIO   0x2C
 
-#define GPIO_CON     REG(HalGpioBase, 0x00)
-#define GPIO_DAT     REG(HalGpioBase, 0x04)
-#define GPIO_PUD1    REG(HalGpioBase, 0x08)
-#define GPIO_PUD2    REG(HalGpioBase, 0x0C)
-#define GPIO_CONSLP1 REG(HalGpioBase, 0x10)
-#define GPIO_CONSLP2 REG(HalGpioBase, 0x14)
-#define GPIO_PUDSLP1 REG(HalGpioBase, 0x18)
-#define GPIO_PUDSLP2 REG(HalGpioBase, 0x1C)
+#define GPIO_CON(Group)     REG(HalGpioBase, ((Group) * 0x20) + 0x00)
+#define GPIO_DAT(Group)     REG(HalGpioBase, ((Group) * 0x20) + 0x04)
+#define GPIO_PUD1(Group)    REG(HalGpioBase, ((Group) * 0x20) + 0x08)
+#define GPIO_PUD2(Group)    REG(HalGpioBase, ((Group) * 0x20) + 0x0C)
+#define GPIO_CONSLP1(Group) REG(HalGpioBase, ((Group) * 0x20) + 0x10)
+#define GPIO_CONSLP2(Group) REG(HalGpioBase, ((Group) * 0x20) + 0x14)
+#define GPIO_PUDSLP1(Group) REG(HalGpioBase, ((Group) * 0x20) + 0x18)
+#define GPIO_PUDSLP2(Group) REG(HalGpioBase, ((Group) * 0x20) + 0x1C)
+
+#define GPIO_FSEL   REG(HalGpioBase, 0x320)
 
 #define GPIO_INTERRUPT_GROUP_COUNT  7
 
@@ -91,3 +93,11 @@ void HalEnableGpioInterrupt(int InterruptNumber);
 void HalDisableGpioInterrupt(int InterruptNumber);
 
 void HalInitGpio();
+
+bool HalGetPinStateGpio(int Port);
+
+void HalFselGpio(int Port, int Bits);
+
+void HalSetInputPinGpio(int Port);
+
+void HalSetOutputPinGpio(int Port, int Bit);

@@ -69,6 +69,10 @@ static const HAL_VFTABLE HalpVfTable =
 	.OnFastInterruptRequest = HalOnFastInterruptRequest,
 	.SetEnabledClockGate = HalSetEnabledClockGate,
 	.RegisterGpioInterrupt = HalRegisterGpioInterrupt,
+	.GetPinStateGpio = HalGetPinStateGpio,
+	.FselGpio = HalFselGpio,
+	.SetInputPinGpio = HalSetInputPinGpio,
+	.SetOutputPinGpio = HalSetOutputPinGpio,
 	.Flags = HAL_VFTABLE_LOADED,
 };
 

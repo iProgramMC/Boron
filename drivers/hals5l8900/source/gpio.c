@@ -118,7 +118,7 @@ void HalEnableGpioInterrupt(int InterruptNumber)
 	
 	bool Restore = KeDisableInterrupts();
 	
-	PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
+	//PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
 	
 	GPIOIC_INT_STAT[Group] = 1 << Index;
 	GPIOIC_INT_ENABLE[Group] |= 1 << Index;
@@ -133,11 +133,59 @@ void HalDisableGpioInterrupt(int InterruptNumber)
 	
 	bool Restore = KeDisableInterrupts();
 	
-	PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
+	//PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
 	
 	GPIOIC_INT_ENABLE[Group] &= ~(1 << Index);
 	
 	KeRestoreInterrupts(Restore);
+}
+
+bool HalGetPinStateGpio(int Port)
+{
+	int Group = (Port >> 8) & 0x1F;
+	int Index = Port & 0xF;
+	
+	return (GPIO_DAT(Group) & (1 << Index)) != 0;
+}
+
+void HalFselGpio(int Port, int Bits)
+{
+	int Group = (Port >> 8) & 0x1F;
+	int Index = Port & 0xF;
+	
+	GPIO_FSEL = (Group << 16) | (Index << 8) | (Bits & 0xF);
+}
+
+void HalSetInputPinGpio(int Port)
+{
+	HalFselGpio(Port, 0);
+}
+
+void HalSetOutputPinGpio(int Port, int Bit)
+{
+	HalFselGpio(Port, 0xE | Bit);
+}
+
+void HalConfigurePullDownGpio(int Port, bool PullDown, bool PullUp)
+{
+	int Group = (Port >> 8) & 0x1F;
+	uint32_t Bit = 1 << (Port & 0xF);
+	
+	if (PullDown)
+	{
+		GPIO_PUD1(Group) &= ~Bit;
+		GPIO_PUD2(Group) |=  Bit;
+	}
+	else if (PullUp)
+	{
+		GPIO_PUD1(Group) |=  Bit;
+		GPIO_PUD2(Group) &= ~Bit;
+	}
+	else
+	{
+		GPIO_PUD1(Group) &= ~Bit;
+		GPIO_PUD2(Group) &= ~Bit;
+	}
 }
 
 void HalInitGpio()

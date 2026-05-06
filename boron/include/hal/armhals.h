@@ -34,11 +34,21 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers);
 
 PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
 
-// SCOPE CREEP:  This really shouldn't be added in the HAL-kernel interface.
-// The kernel doesn't use it, but other drivers might.
+// SCOPE CREEP:  These really shouldn't be added in the HAL-kernel interface.
+// The kernel doesn't use them, but other drivers might.
 //
 // Really, a more proper solution would be to allow drivers to link against the HAL.
+
+// APPLE HAL START
 void HalSetEnabledClockGate(int ClockGateId, bool Enabled);
 
-// Same for this one.
 void HalRegisterGpioInterrupt(int InterruptNumber, bool TriggerEdge, bool Level, bool FlipLevel);
+
+bool HalGetPinStateGpio(int Port);
+
+void HalFselGpio(int Port, int Bits);
+
+void HalSetInputPin(int Port);
+
+void HalSetOutputPin(int Port, int Bit);
+// APPLE HAL END

@@ -59,4 +59,24 @@ void HalRegisterGpioInterrupt(int InterruptNumber, bool TriggerEdge, bool Level,
 	return HalpVftable.RegisterGpioInterrupt(InterruptNumber, TriggerEdge, Level, FlipLevel);
 }
 
+bool HalGetPinStateGpio(int Port)
+{
+	return HalpVftable.GetPinStateGpio(Port);
+}
+
+void HalFselGpio(int Port, int Bits)
+{
+	return HalpVftable.FselGpio(Port, Bits);
+}
+
+void HalSetInputPinGpio(int Port)
+{
+	return HalpVftable.SetInputPinGpio(Port);
+}
+
+void HalSetOutputPinGpio(int Port, int Bit)
+{
+	return HalpVftable.SetOutputPinGpio(Port, Bit);
+}
+
 #endif
