@@ -69,6 +69,16 @@ void HalFselGpio(int Port, int Bits)
 	return HalpVftable.FselGpio(Port, Bits);
 }
 
+void HalEnableGpioInterrupt(int InterruptNumber)
+{
+	return HalpVftable.EnableGpioInterrupt(InterruptNumber);
+}
+
+void HalDisableGpioInterrupt(int InterruptNumber)
+{
+	return HalpVftable.DisableGpioInterrupt(InterruptNumber);
+}
+
 void HalSetInputPinGpio(int Port)
 {
 	return HalpVftable.SetInputPinGpio(Port);

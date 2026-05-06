@@ -57,6 +57,8 @@ typedef void(*PFHAL_SET_ENABLED_CLOCK_GATE)(int ClockGateId, bool Enabled);
 typedef void(*PFHAL_REGISTER_GPIO_INTERRUPT)(int InterruptNumber, bool TriggerEdge, bool Level, bool FlipLevel);
 typedef bool(*PFHAL_GET_PIN_STATE_GPIO)(int Port);
 typedef void(*PFHAL_FSEL_GPIO)(int Port, int Bits);
+typedef void(*PFHAL_ENABLE_GPIO_INTERRUPT)(int InterruptNumber);
+typedef void(*PFHAL_DISABLE_GPIO_INTERRUPT)(int InterruptNumber);
 typedef void(*PFHAL_SET_INPUT_PIN_GPIO)(int Port);
 typedef void(*PFHAL_SET_OUTPUT_PIN_GPIO)(int Port, int Bit);
 #endif
@@ -118,6 +120,8 @@ typedef struct
 	PFHAL_REGISTER_GPIO_INTERRUPT RegisterGpioInterrupt;
 	PFHAL_GET_PIN_STATE_GPIO GetPinStateGpio;
 	PFHAL_FSEL_GPIO FselGpio;
+	PFHAL_ENABLE_GPIO_INTERRUPT EnableGpioInterrupt;
+	PFHAL_DISABLE_GPIO_INTERRUPT DisableGpioInterrupt;
 	PFHAL_SET_INPUT_PIN_GPIO SetInputPinGpio;
 	PFHAL_SET_OUTPUT_PIN_GPIO SetOutputPinGpio;
 	// APPLE HAL END

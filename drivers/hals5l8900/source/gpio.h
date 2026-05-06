@@ -15,26 +15,6 @@ Author:
 
 #include "pl192.h"
 
-// Button Defines
-
-#define BUTTON_HOLD_ID           0x1605
-#define BUTTON_HOLD_IRQ          0x2D
-#define BUTTON_IPT1G_HOME_ID     0x1606
-#define BUTTON_IPT1G_HOME_IRQ    0x2E
-#define BUTTON_IPH_HOME_ID       0x1600
-#define BUTTON_IPH_HOME_IRQ      0x28
-#define BUTTON_VOLUME_UP_ID      0x1601
-#define BUTTON_VOLUME_UP_IRQ     0x29
-#define BUTTON_VOLUME_DOWN_ID    0x1602
-#define BUTTON_VOLUME_DOWN_IRQ   0x2A
-#define BUTTON_RINGER_SWITCH_ID  0x1603
-#define BUTTON_RINGER_SWITCH_IRQ 0x2B
-
-#define BUTTON_IRQ_TYPE         1
-#define BUTTON_IRQ_AUTO_FLIP    1
-#define BUTTON_VOLUME_IRQ_LEVEL 1
-#define BUTTON_OTHER_IRQ_LEVEL  0
-
 #define REG(base, rgof) (* (volatile uint32_t*) ((uintptr_t)base + rgof))
 
 extern uintptr_t HalGpioIcBase, HalGpioBase;

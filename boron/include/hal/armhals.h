@@ -48,6 +48,10 @@ bool HalGetPinStateGpio(int Port);
 
 void HalFselGpio(int Port, int Bits);
 
+void HalEnableGpioInterrupt(int InterruptNumber);
+
+void HalDisableGpioInterrupt(int InterruptNumber);
+
 void HalSetInputPin(int Port);
 
 void HalSetOutputPin(int Port, int Bit);
