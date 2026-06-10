@@ -4,6 +4,8 @@ BCXX ?= clang++-22
 BLD  ?= ld
 BASM ?= nasm
 
+# We are not using a freestanding toolchain (e.g. i?86-elf-gcc) (although we really should),
+# so use these as an alternative.
 FREESTND_C_HDRS = $(REPO_ROOT)/external/freestnd-c-hdrs/i686/include
 FREESTND_CXX_HDRS = $(REPO_ROOT)/external/freestnd-cxx-hdrs/i686/include
 

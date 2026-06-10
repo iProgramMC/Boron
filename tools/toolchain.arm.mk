@@ -8,8 +8,10 @@ BASM ?= unknown
 SUBTARGET ?= v6
 $(eval $(call validate-option,SUBTARGET,v5 v6 v7))
 
-# FREESTND_C_HDRS and FREESTND_CXX_HEADERS not defined.  Need to provide them separately.
-# Until then, C++ compilation can only be done in a limited manner.
+# FREESTND_C_HDRS and FREESTND_CXX_HEADERS not defined.  However, with the toolchain we are
+# using, these are actually NOT needed, since the arm-none-eabi-gcc toolchain already provides
+# us with headers which should be sufficient for C++ compilation to the same degree as on
+# i386 or amd64 with the specific freestanding C++ headers.
 
 ifeq ($(SUBTARGET),v5)
 	ARCH_CFLAGS = \

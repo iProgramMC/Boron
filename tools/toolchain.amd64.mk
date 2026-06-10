@@ -4,6 +4,8 @@ BCXX ?= g++-14
 BLD  ?= ld
 BASM ?= nasm
 
+# We are not using a freestanding toolchain (e.g. x86_64-elf-gcc) (although we really should),
+# so use these as an alternative.
 FREESTND_C_HDRS = $(REPO_ROOT)/external/freestnd-c-hdrs/x86_64/include
 FREESTND_CXX_HDRS = $(REPO_ROOT)/external/freestnd-cxx-hdrs/x86_64/include
 
