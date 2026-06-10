@@ -832,16 +832,24 @@ void OSDLLUnmapOldInterpreterIfNeeded(PPEB Peb)
 	Peb->Loader.OldInterpreterSize = 0;
 }
 
-NO_RETURN HIDDEN
-void DLLEntryPoint(PPEB Peb)
+static bool OSDLLIsLaunchedFromDLL = false;
+
+static void OSDLLInitializeBasics()
 {
-	OSDLLUnmapOldInterpreterIfNeeded(Peb);
-	
 	OSDLLInitializeGlobalHeap();
 	OSInitializeExitCallbackList();
 	InitializeListHead(&OSDllLoadQueue);
 	InitializeListHead(&OSDllsLoaded);
 	OSDLLAddSelfToDllList();
+}
+
+NO_RETURN HIDDEN
+void DLLEntryPoint(PPEB Peb)
+{
+	OSDLLIsLaunchedFromDLL = true;
+	OSDLLUnmapOldInterpreterIfNeeded(Peb);
+	
+	OSDLLInitializeBasics();
 	
 	BSTATUS Status;
 	
@@ -875,4 +883,11 @@ void DLLEntryPoint(PPEB Peb)
 	
 	LdrDbgPrint("OSDLL: %s exited with code %d.", Peb->ImageName, Status);
 	OSExitProcess(Status);
+}
+
+__attribute__((constructor))
+void OSDLLConstructor()
+{
+	if (!OSDLLIsLaunchedFromDLL)
+		OSDLLInitializeBasics();
 }

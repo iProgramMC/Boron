@@ -411,15 +411,10 @@ BSTATUS OSInitializeHeap(POS_HEAP Heap)
 
 // Global Heap
 static OS_HEAP OSDLLGlobalHeap;
-static bool OSDLLInitializedGlobalHeap;
 
-__attribute__((constructor))
+HIDDEN
 void OSDLLInitializeGlobalHeap()
 {
-	if (OSDLLInitializedGlobalHeap)
-		return;
-	
-	OSDLLInitializedGlobalHeap = true;
 	BSTATUS Status = OSInitializeHeap(&OSDLLGlobalHeap);
 	if (FAILED(Status))
 	{
