@@ -8,6 +8,8 @@ DWARF_SYMBOLS ?= yes
 # User parms
 USER_DEFINES ?=
 USE_FRIGG ?= no
+INCLUDE_LIBBORON ?= yes
+IS_LIBRARY ?= no
 
 # Only turn on debug2 temporarily
 
@@ -168,8 +170,11 @@ else
 	LDFLAGS += -lboron
 endif
 
-# Append crt0.o to the object list.
-ADDITIONAL_OBJS = $(INSTALL_DIR)/lib/crt0.o
+# Append crt0.o to the object list if needed.
+ADDITIONAL_OBJS =
+ifeq ($(IS_LIBRARY),no)
+	ADDITIONAL_OBJS = $(INSTALL_DIR)/lib/crt0.o
+endif
 
 # Use find to glob all *.c, *.S, and *.asm files in the directory and extract the object names.
 override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.c')
