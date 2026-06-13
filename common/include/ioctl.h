@@ -18,6 +18,7 @@ enum
 {
 	// Framebuffer
 	IOCTL_FRAMEBUFFER_GET_INFO = 0x10000,
+	IOCTL_FRAMEBUFFER_FLUSH = 0x10001,
 	
 	// Terminal (see ttys.h for structures)
 	IOCTL_TERMINAL_GET_TERMINAL_STATE = 0x20000,
@@ -61,6 +62,15 @@ typedef struct
 	short    ColorFormat;
 }
 IOCTL_FRAMEBUFFER_INFO, *PIOCTL_FRAMEBUFFER_INFO;
+
+typedef struct
+{
+	uint32_t Left;
+	uint32_t Top;
+	uint32_t Width;
+	uint32_t Height;
+}
+IOCTL_FRAMEBUFFER_FLUSH_INFO, *PIOCTL_FRAMEBUFFER_FLUSH_INFO;
 
 enum
 {
