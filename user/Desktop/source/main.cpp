@@ -29,6 +29,10 @@ private:
 
 RAIITest gbl("Global");
 
+#ifdef TARGET_I386
+// TODO: clang isn't special-casing `main' for i386, apparently.
+extern "C"
+#endif
 int main(UNUSED int ArgumentCount, UNUSED char** ArgumentArray)
 {
 	int* x = new int();
