@@ -154,6 +154,7 @@ ifeq ($(IS_LIBRARY),yes)
 	# Flags for libraries
 	LDFLAGS += -shared
 	CFLAGS += -fPIC
+	CXXFLAGS += -fPIC
 else
 	# Flags for user applications
 	LDFLAGS += --dynamic-linker libboron.so
