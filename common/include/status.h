@@ -98,6 +98,9 @@ enum
 	// Process error codes.
 	STATUS_STILL_RUNNING,       // The process is still running
 	
+	// IPC error codes
+	STATUS_PORT_CLOSED,         // The host closed the port before the client could connect to it.
+	
 	STATUS_MAX,
 	
 	// Wait for object(s) error ranges

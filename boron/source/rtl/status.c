@@ -89,6 +89,8 @@ static const char* const RtlpStatusCodes[] =
 	"The current process is created as a result of an OSForkProcess() operation.",
 	
 	"The process is still running.",
+	
+	"The host closed the port before a connection could be created.",
 };
 
 const char* RtlGetStatusString(int code)

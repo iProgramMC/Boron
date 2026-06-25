@@ -17,6 +17,7 @@ Author:
 #include <ps.h>
 #include <ldr.h>
 #include <tty.h>
+#include <ipc.h>
 
 INIT
 bool ExInitSystem()
@@ -67,6 +68,9 @@ NO_RETURN void ExpInitializeExecutive(UNUSED void* Context)
 	
 	if (!TtyInitSystem())
 		KeCrash("Could not initialize pseudoterminal subsystem");
+	
+	if (!IpcInitSystem())
+		KeCrash("Could not initialize IPC subsystem");
 	
 	if (!ObLinkRootDirectory())
 		KeCrash("Could not create a symbolic link to the root directory");
