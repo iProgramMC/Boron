@@ -181,7 +181,7 @@ override CFILES      := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -na
 override CXXFILES    := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.cpp')
 override ASFILES     := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.S')
 override NASMFILES   := $(shell find -L $(SRC_DIR) -not -path '*/.*' -type f -name '*.asm')
-override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o))) $(ADDITIONAL_OBJS)
+override OBJ         := $(patsubst %.o,%.$(TARGETL).o,$(patsubst $(SRC_DIR)/%,$(BUILD_DIR)/%,$(CFILES:.c=.o) $(CXXFILES:.cpp=.o) $(ASFILES:.S=.o) $(NASMFILES:.asm=.o)))
 override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 
 # Default target.
@@ -189,9 +189,9 @@ override HEADER_DEPS := $(patsubst %.o,%.d,$(OBJ))
 all: application
 
 # Link rules for the final driver executable.
-$(TARGET_FILE): $(OBJ)
+$(TARGET_FILE): $(OBJ) $(ADDITIONAL_OBJS)
 	@echo "[LD]\tBuilding $(TARGET_FILE)"
-	@$(BLD) $(OBJ) $(LDFLAGS) -o $@
+	@$(BLD) $(OBJ) $(ADDITIONAL_OBJS) $(LDFLAGS) -o $@
 
 # Include header dependencies.
 -include $(HEADER_DEPS)
