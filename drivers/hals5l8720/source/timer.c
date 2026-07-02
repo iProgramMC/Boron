@@ -126,25 +126,17 @@ void HalInitTimer()
 	);
 	ASSERT(HalTimerBase);
 
-	LogMsg("%s (%s:%d)... %p", __func__, __FILE__, __LINE__, HalTimerBase);
 	HalSetEnabledClockGate(CLOCK_GATE_TIMER, true);
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
-	for (int i = 0; i < TIMER_COUNT; i++) {
-		LogMsg("	%s (%s:%d)... %d", __func__, __FILE__, __LINE__, i);
+	for (int i = 0; i < TIMER_COUNT; i++)
 		HalTimerStop(i);
-	}
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalTimerSetUnkReg0ForInit();
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalTimerInitRtc();
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	bool Restore = KeDisableInterrupts();
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	KeInitializeInterrupt(
 		&HalTimerInterrupt,
 		&HalTimerHandler,
@@ -155,10 +147,8 @@ void HalInitTimer()
 		false
 	);
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	KeConnectInterrupt(&HalTimerInterrupt);
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	// Enable event timer
 	HalTimerConfig(
 		TIMER_EVENT,
@@ -169,9 +159,7 @@ void HalInitTimer()
 		true
 	);
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	KeRestoreInterrupts(Restore);
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 }
 
 uint64_t HalGetTickCount()

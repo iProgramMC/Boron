@@ -80,18 +80,14 @@ void HalSetEnabledClockGate(int Gate, bool Enabled)
 	
 	for (int Reg = 0; Reg < 4; Reg++)
 	{
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 		uint32_t Data = *Regs[Reg];
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 		
 		if (Enabled)
 			Data &= ~HalClockGateTable[Gate][Reg];
 		else
 			Data |= HalClockGateTable[Gate][Reg];
 		
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 		*(Regs[Reg]) = Data;
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	}
 }
 
@@ -99,7 +95,6 @@ void HalInitClock()
 {
 	DbgPrint("%s...", __func__);
 	
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalClock0Base = MmMapIoSpace(
 		CLOCK0_MEM_BASE,
 		PAGE_SIZE,
@@ -107,7 +102,6 @@ void HalInitClock()
 		POOL_TAG("Clk0")
 	);
 	
-	LogMsg("%s (%s:%d)...  %p", __func__, __FILE__, __LINE__, HalClock0Base);
 	// DO NOT DO THIS!  This seems to stop every clock on the system and nothing works anymore
 	//CLOCK1_CL2_GATES = 0xFFFFFFFF;
 	//CLOCK1_CL3_GATES = 0xFFFFFFFF;

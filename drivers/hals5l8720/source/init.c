@@ -41,13 +41,9 @@ HAL_API void HalInitSystemUP()
 // This function is run on ALL processors.
 HAL_API void HalInitSystemMP()
 {
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalInitClock();
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalInitTimer();
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 	HalInitGpio();
-	LogMsg("%s (%s:%d)...", __func__, __FILE__, __LINE__);
 }
 
 static const HAL_VFTABLE HalpVfTable =
