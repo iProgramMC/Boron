@@ -73,6 +73,10 @@ static void ButtonDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, void* SysAr
 	int ButtonState = (int) (uintptr_t) SysArg2;
 	
 	//DbgPrint("Button %d %s.", ButtonIndex, ButtonState ? "Pressed" : "Released");
+	
+	//char buffer[64];
+	//snprintf(buffer, sizeof buffer, "Button %d %s.", ButtonIndex, ButtonState ? "Pressed" : "Released");
+	//HalDisplayString(buffer);
 }
 
 static void ButtonInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)

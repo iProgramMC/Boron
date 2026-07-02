@@ -1,7 +1,7 @@
 #       The Boron Operating System
 # Common makefile for all driver targets
 
-DRIVER_NAME  = halipod1,1
+DRIVER_NAME  = hals5l8900
 # DRIVER_ENTRY = DriverEntry
 # DEBUG  = yes
 # DEBUG2 = no
