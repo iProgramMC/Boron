@@ -56,4 +56,6 @@ void LdrInitAfterHal();
 
 bool LdrPrepareInitialRoot();
 
+const char* LdrGetHalName();
+
 #endif//NS64_LDR_H

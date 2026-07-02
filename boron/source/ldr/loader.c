@@ -12,28 +12,31 @@ Author:
 	iProgramInCpp - 22 October 2023
 ***/
 #include "ldri.h"
+#include <ke.h>
 
 // TODO: Perhaps we could define it from the command line? Something like /HAL=<halfile>
 #ifdef TARGET_AMD64
 
 static uintptr_t LdrpCurrentBase = 0xFFFFF00000000000;
-static const char* LdrpHalPath = "halx86.sys";
+static const char* LdrpHalPathDefault = "halx86.sys";
 
 #elif defined TARGET_I386
 
 static uintptr_t LdrpCurrentBase = 0xD2000000;
-static const char* LdrpHalPath = "hali386.sys"; // sorry bucko, halx86 is already taken
+static const char* LdrpHalPathDefault = "hali386.sys"; // sorry bucko, halx86 is already taken
 
 #elif defined TARGET_ARM
 
 static uintptr_t LdrpCurrentBase = 0xD2000000;
-static const char* LdrpHalPath = "hals5l8720.sys"; // TODO: make this configurable. temporary
+static const char* LdrpHalPathDefault = "hals5l8720.sys";
 
 #else
 	
-#error Define your loader base and HAL path here.
+#error Define your loader base and HAL default path here.
 
 #endif
+
+static const char* LdrpHalPath;
 
 INIT
 uintptr_t LdrAllocateRange(size_t Size)
@@ -83,6 +86,42 @@ static void LdriLoadFile(PLOADER_MODULE File)
 
 static PLOADER_MODULE HalFile = NULL;
 
+const char* LdrGetHalStringFromConfig()
+{
+	// have to scan the string manually, because ExInitBootConfig depends on
+	// the memory manager and whatnot
+	static char Buffer[64];
+	
+	bool Found = false;
+	const char* CmdLine = KeGetBootCommandLine();
+	while (*CmdLine)
+	{
+		if (memcmp(CmdLine, "Hal=", 4) != 0) {
+			CmdLine++;
+			continue;
+		}
+		
+		// found the HAL string.
+		CmdLine += 4;
+		for (size_t i = 0; i < sizeof Buffer && CmdLine[i] != 0 && CmdLine[i] != ' '; i++) {
+			Buffer[i] = CmdLine[i];
+		}
+		
+		Found = true;
+		break;
+	}
+	
+	if (Found)
+		return Buffer;
+	
+	return LdrpHalPathDefault;
+}
+
+const char* LdrGetHalName()
+{
+	return LdrpHalPath;
+}
+
 // Initializes the DLL loader and loads the boot modules.
 INIT
 void LdrInit()
@@ -91,6 +130,11 @@ void LdrInit()
 	DbgPrint("Loaded Modules: %zu", ModuleInfo->Count);
 	
 	// note: we want to load the HAL first
+	// so, get the name of the HAL from the command line.
+	// If unspecified, use the default.
+	LdrpHalPath = LdrGetHalStringFromConfig();
+	DbgPrint("Using HAL '%s'.", LdrpHalPath);
+	
 	for (size_t i = 0; i < ModuleInfo->Count; i++)
 	{
 		PLOADER_MODULE File = &ModuleInfo->List[i];
