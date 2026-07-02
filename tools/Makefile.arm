@@ -4,7 +4,7 @@
 IMAGE_TARGET = $(BUILD_DIR)/../image.$(TARGETL).tar
 
 DRIVERS_LIST = \
-	hals5l8900 \
+	hals5l8720 \
 	framebuf   \
 	tmpfs      \
 	ipodbtns
