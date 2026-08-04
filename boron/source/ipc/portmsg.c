@@ -12,6 +12,7 @@ Author:
 	iProgramInCpp - 17 June 2026
 ***/
 #include "ipci.h"
+#include <string.h>
 
 void IpcDeleteMessage(PIPC_MESSAGE Message)
 {
@@ -20,9 +21,52 @@ void IpcDeleteMessage(PIPC_MESSAGE Message)
 	if (Message->AssociatedObject)
 		ObDereferenceObject(Message->AssociatedObject);
 	
-	if (Message->AssociatedSection)
-		ObDereferenceObject(Message->AssociatedSection);
-	
 	// Then free the message.
 	MmFreePool(Message);
+}
+
+BSTATUS IpcCreateMessage(
+	PIPC_MESSAGE* OutMessage,
+	int MessageCode,
+	void* MessageContent,
+	size_t MessageContentSize,
+	HANDLE AssociatedObject,
+	HANDLE AssociatedSection,
+	uint64_t SectionViewOffset,
+	uint64_t SectionViewSize
+)
+{
+	if (MessageContentSize >= MAX_SMALL_MESSAGE)
+	{
+		return STATUS_MESSAGE_TOO_LONG;
+	}
+	
+	PIPC_MESSAGE Message = MmAllocatePool(POOL_PAGED, sizeof(IPC_MESSAGE) + MessageContentSize);
+	if (!Message)
+	{
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+	
+	BSTATUS Status = STATUS_SUCCESS;
+	memset(Message, 0, sizeof (*Message));
+	
+	if (AssociatedObject)
+	{
+		void* AssociatedObjectPtr;
+		Status = ObReferenceObjectByHandle(AssociatedObject, NULL, &AssociatedObjectPtr);
+		if (FAILED(Status)) {
+			goto Error;
+		}
+		
+		Message->AssociatedObject = AssociatedObjectPtr;
+	}
+	
+	
+	*OutMessage = Message;
+	return Status;
+	
+Error:
+	IpcDeleteMessage(Message);
+	
+	return Status;
 }

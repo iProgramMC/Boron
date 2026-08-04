@@ -91,6 +91,7 @@ static const char* const RtlpStatusCodes[] =
 	"The process is still running.",
 	
 	"The host closed the port before a connection could be created.",
+	"The message could not be created because the specified buffer is too long."
 };
 
 const char* RtlGetStatusString(int code)

@@ -35,16 +35,6 @@ typedef struct
 	// server.
 	void* AssociatedObject;
 	
-	// For large messages, use a section instead.
-	//
-	// A section can be reused for multiple messages at the client and server's
-	// discretion, so the kernel will not ensure that messages don't overlap and
-	// that they don't get overwritten between transfers.
-	PMMSECTION AssociatedSection;
-	
-	uint64_t SectionViewOffset;
-	uint64_t SectionViewSize;
-	
 	// For small messages, a contiguous buffer is stored alongside the message,
 	// in a single allocation.
 	uint16_t BufferSize;

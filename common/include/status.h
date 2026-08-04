@@ -100,6 +100,7 @@ enum
 	
 	// IPC error codes
 	STATUS_PORT_CLOSED,         // The host closed the port before the client could connect to it.
+	STATUS_MESSAGE_TOO_LONG,    // The message cannot be created because the buffer is too long.
 	
 	STATUS_MAX,
 	
