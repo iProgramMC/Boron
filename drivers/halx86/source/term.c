@@ -150,10 +150,10 @@ void HalBeginShutdown()
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	
 	// clear the screen
-	for (int y = 0; y < Framebuffer->Height; y++)
+	for (uint32_t y = 0; y < Framebuffer->Height; y++)
 	{
 		uint32_t* Pixels = (uint32_t*)((uintptr_t) Framebuffer->Address + y * Framebuffer->Pitch);
-		for (int x = 0; x < Framebuffer->Width; x++)
+		for (uint32_t x = 0; x < Framebuffer->Width; x++)
 			Pixels[x] = BACKGROUND_COLOR;
 	}
 	
