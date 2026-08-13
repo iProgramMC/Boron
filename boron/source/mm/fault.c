@@ -160,7 +160,7 @@ Exit:
 	return Status;
 }
 
-BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl)
+BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl, bool* RefaultForWrite)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
 	bool IsPageCommitted = false;
@@ -195,7 +195,10 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 			// Is in a pool area, so allocate a page of memory and map it there.
 			PMMPTE PtePtr = MmGetPteLocationCheck(Va, true);
 			if (MmIsCommittedPte(*PtePtr))
+			{
+				*RefaultForWrite = false;
 				return MmpHandleFaultCommittedPage(PtePtr, MM_PROT_READ | MM_PROT_WRITE);
+			}
 		}
 		
 		DbgPrint("MiNormalFault: Declaring access violation on VA %p. No VAD and not in a pool area", Va);
@@ -271,7 +274,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	
 	// Now the PTE is here and we can commit it.
 	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
-	uintptr_t PageBits = MmGetPteBitsFromProtection(Vad->Flags.Protection) & ~MM_PROT_WRITE;
+	uintptr_t PageBits = MmGetPteBitsFromProtection(Vad->Flags.Protection);
 	if (!IsViewSpace)
 		PageBits |= MM_PROT_USER;
 	
@@ -282,6 +285,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 
 	// This is all we needed to do for the non-object-backed case.
 	MmUnlockSpace(SpaceUnlockIpl, Va);
+	*RefaultForWrite = false;
 	return Status;
 }
 
@@ -474,9 +478,10 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	// The PTE is not present.
 	//
 	// Note: MiNormalFault will unlock the memory space.
-	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl);
+	bool RefaultForWrite = true;
+	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl, &RefaultForWrite);
 	
-	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE))
+	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE) && RefaultForWrite)
 	{
 		// The PTE was made valid, but it might still be readonly.  Refault
 		// to make the page writable.  Note that returning STATUS_REFAULT
