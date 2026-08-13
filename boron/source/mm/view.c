@@ -30,6 +30,8 @@ static BSTATUS MmpMapViewOfObject(
 
 	MmVerifyMappableHeader(MappableObject);
 	
+	bool IncreaseRefcount = true;
+	
 	// If the allocation type is MEM_COW, then we have to create a copy-on-write overlay
 	// object, set it up using this mappable object, and map that one instead.
 	if (AllocationType & MEM_COW)
@@ -39,6 +41,7 @@ static BSTATUS MmpMapViewOfObject(
 		if (FAILED(Status))
 			return Status;
 		
+		IncreaseRefcount = false;
 		MappableObject = Overlay;
 		AllocationType &= ~MEM_COW;
 	}
@@ -53,7 +56,9 @@ static BSTATUS MmpMapViewOfObject(
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
 	
 	// Increment the reference count of the mappable object.
-	ObReferenceObjectByPointer(MappableObject);
+	if (IncreaseRefcount) {
+		ObReferenceObjectByPointer(MappableObject);
+	}
 	
 	// Reserve the region, and then mark it as committed ourselves.
 	Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
