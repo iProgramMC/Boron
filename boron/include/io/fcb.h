@@ -18,9 +18,7 @@ Author:
 ***/
 #pragma once
 
-#include <ex/rwlock.h>
-#include <mm/cache.h>
-#include <io/dispatch.h>
+#include "ccinfo.h"
 
 typedef struct _FCB
 {
@@ -28,10 +26,7 @@ typedef struct _FCB
 	
 	EX_RW_LOCK RwLock;
 	
-	CCB PageCache;
-	
-	RBTREE ViewCache;
-	KMUTEX ViewCacheMutex;
+	IO_CACHE_INFO CacheInfo;
 	
 	// FILE_TYPE
 	uint8_t FileType;

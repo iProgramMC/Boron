@@ -22,23 +22,23 @@ void CcPurgeViewsForFile(PFCB Fcb)
 	// the FCB for the last time, and it's about to be wiped out!
 	//
 	// However we will still protect against race conditions just in case.
-	CcAcquireMutex(&Fcb->ViewCacheMutex);
+	CcAcquireMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	
-	while (!IsEmptyRbTree(&Fcb->ViewCache))
+	while (!IsEmptyRbTree(&Fcb->CacheInfo.ViewCache))
 	{
 		// Get the first entry and remove it.
-		PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Fcb->ViewCache);
-		RemoveItemRbTree(&Fcb->ViewCache, Entry);
-		KeReleaseMutex(&Fcb->ViewCacheMutex);
+		PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Fcb->CacheInfo.ViewCache);
+		RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, Entry);
+		KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 		
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, ViewCacheEntry);
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, false);
 		
-		CcAcquireMutex(&Fcb->ViewCacheMutex);
+		CcAcquireMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	}
 	
-	ASSERT(IsEmptyRbTree(&Fcb->ViewCache));
-	KeReleaseMutex(&Fcb->ViewCacheMutex);
+	ASSERT(IsEmptyRbTree(&Fcb->CacheInfo.ViewCache));
+	KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 }
 
 // NOTE: The view cache mutex needs to be locked.
@@ -51,7 +51,7 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 	void* View = NULL;
 	
 	// First, check if the view already exists.
-	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Fcb->ViewCache, (uintptr_t)(FileOffset / VIEW_CACHE_SIZE));
+	PRBTREE_ENTRY Entry = LookUpItemRbTree(&Fcb->CacheInfo.ViewCache, (uintptr_t)(FileOffset / VIEW_CACHE_SIZE));
 	if (Entry)
 	{
 		// Already exists!  Just return it then.
@@ -97,7 +97,7 @@ BSTATUS CcReadFileMdl(
 	
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	CcAcquireMutex(&Fcb->ViewCacheMutex);
+	CcAcquireMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	
 	while (Size)
 	{
@@ -119,7 +119,7 @@ BSTATUS CcReadFileMdl(
 		
 		if (FAILED(Status))
 		{
-			KeReleaseMutex(&Fcb->ViewCacheMutex);
+			KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 			return Status;
 		}
 		
@@ -131,7 +131,7 @@ BSTATUS CcReadFileMdl(
 		Size -= CopyAmount;
 	}
 	
-	KeReleaseMutex(&Fcb->ViewCacheMutex);
+	KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	return STATUS_SUCCESS;
 }
 
@@ -180,7 +180,7 @@ BSTATUS CcWriteFileMdl(
 	
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	CcAcquireMutex(&Fcb->ViewCacheMutex);
+	CcAcquireMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	
 	while (Size)
 	{
@@ -202,7 +202,7 @@ BSTATUS CcWriteFileMdl(
 		
 		if (FAILED(Status))
 		{
-			KeReleaseMutex(&Fcb->ViewCacheMutex);
+			KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 			return Status;
 		}
 		
@@ -214,7 +214,7 @@ BSTATUS CcWriteFileMdl(
 		Size -= CopyAmount;
 	}
 	
-	KeReleaseMutex(&Fcb->ViewCacheMutex);
+	KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	return STATUS_SUCCESS;
 }
 

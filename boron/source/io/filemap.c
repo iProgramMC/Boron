@@ -67,7 +67,7 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 	}
 	
 	MMPFN Pfn = PFN_INVALID;
-	PCCB PageCache = &Fcb->PageCache;
+	PCCB PageCache = &Fcb->CacheInfo.PageCache;
 	
 	Pfn = MmGetEntryCcb(PageCache, SectionOffset);
 	
@@ -90,7 +90,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 {
 	PFILE_OBJECT FileObject = MappableObject;
 	PFCB Fcb = FileObject->Fcb;
-	PCCB PageCache = &Fcb->PageCache;
+	PCCB PageCache = &Fcb->CacheInfo.PageCache;
 	IO_STATUS_BLOCK Iosb;
 	
 	BSTATUS Status = MmSetEntryCcb(PageCache, SectionOffset, PFN_INVALID, NULL);
@@ -189,7 +189,7 @@ static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 	// back to disk.
 	PFILE_OBJECT FileObject = MappableObject;
 	PFCB Fcb = FileObject->Fcb;
-	PCCB PageCache = &Fcb->PageCache;
+	PCCB PageCache = &Fcb->CacheInfo.PageCache;
 	
 	MMPFN Pfn = PFN_INVALID;
 	IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
