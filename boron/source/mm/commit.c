@@ -184,6 +184,28 @@ BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS MmpSetPageAsModifiedIfNeeded(
+	MMPTE Pte,
+	uintptr_t Va,
+	void* VadMappedObject,
+	uintptr_t VadStartVa,
+	uint64_t VadSectionOffset)
+{
+	// If the PTE is not dirty, then don't do anything.
+	if (!MmIsModifiedPte(Pte))
+		return STATUS_SUCCESS;
+	
+	// If the VAD does not refer to a mapped object, then we don't need
+	// to do anything.  Anonymously allocated pages don't require tracking
+	// their modified state.
+	if (!VadMappedObject)
+		return STATUS_SUCCESS;
+	
+	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
+	uint64_t SectionOffset = ((Va & PageMask) - VadStartVa + VadSectionOffset) / PAGE_SIZE;
+	return MmSetPageModifiedMappable(VadMappedObject, SectionOffset);
+}
+
 // This part of MmDecommitVirtualMemory has been split into a separate function because
 // this is also referenced by MmTearDownVadList().
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizePages, bool SetDecommittedPTE)
@@ -198,6 +220,13 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 	}
 	
 	bool IsVadCommitted = Vad->Flags.Committed;
+	
+	void* VadMappedObject = Vad->MappedObject;
+	uintptr_t VadStartVa = Vad->Node.StartVa;
+	uint64_t VadSectionOffset = Vad->SectionOffset;
+	if (VadMappedObject) {
+		ObReferenceObjectByPointer(VadMappedObject);
+	}
 	
 #ifdef DEBUG
 	Vad = NULL;
@@ -238,22 +267,24 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 			}
 		}
 		
-		if (MmIsPresentPte(*Pte))
+		MMPTE PteCopy = *Pte;
+		if (MmIsPresentPte(PteCopy))
 		{
 			// The PTE is present. If it doesn't come from the PMM, then
 			// it's MMIO and it's not tracked.
-			if (MmIsFromPmmPte(*Pte))
+			if (MmIsFromPmmPte(PteCopy))
 			{
 				// Free the physical page.
-				MMPFN Pfn = MmGetPfnPte(*Pte);
+				MMPFN Pfn = MmGetPfnPte(PteCopy);
+				MmpSetPageAsModifiedIfNeeded(PteCopy, CurrentVa, VadMappedObject, VadStartVa, VadSectionOffset);
 				MmFreePhysicalPage(Pfn);
 			}
 		}
-		else if (!MmIsEqualPte(*Pte, ZeroPte))
+		else if (!MmIsEqualPte(PteCopy, ZeroPte))
 		{
 			// If the pte is not zero, then it must have been committed. 
 			// Otherwise it's an unknown type which we don't know how to handle.
-			ASSERT(MmIsCommittedPte(*Pte) || MmIsDecommittedPte(*Pte));
+			ASSERT(MmIsCommittedPte(PteCopy) || MmIsDecommittedPte(PteCopy));
 		}
 		
 		if (SetDecommittedPTE)
@@ -264,6 +295,10 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 		Pte++;
 		CurrentVa += PAGE_SIZE;
 		i++;
+	}
+	
+	if (VadMappedObject) {
+		ObDereferenceObject(VadMappedObject);
 	}
 	
 	// Finally, issue a TLB shootdown.

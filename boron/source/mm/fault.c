@@ -57,13 +57,14 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, uintptr_t PageBits)
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection)
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection, bool AllowWriteRightAway)
 {
 	uintptr_t PageBits = MM_PROT_READ | MM_MISC_IS_FROM_PMM;
 	
 	// This function is used for MiNormalFault, not MiWriteFault, so don't allow
 	// write permissions to be given out here
-	Protection &= ~MM_PROT_WRITE;
+	if (!AllowWriteRightAway)
+		Protection &= ~MM_PROT_WRITE;
 	
 	if (Va < MM_KERNEL_SPACE_BASE)
 		PageBits |= MM_PROT_USER;
@@ -135,7 +136,7 @@ static BSTATUS MmpHandleFaultCommittedMappedPage(
 	ASSERT(Pfn != PFN_INVALID);
 	
 	PFDbgPrint("%s: For VA %p, calling MmpAssignPfnToAddress(%d)", __func__, Va, Pfn);
-	Status = MmpAssignPfnToAddress(Va, Pfn, Protection);
+	Status = MmpAssignPfnToAddress(Va, Pfn, Protection, !MmNeedsPreparationToWriteMappable(MappedObject));
 	if (FAILED(Status))
 	{
 		MmFreePhysicalPage(Pfn);
@@ -257,6 +258,8 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		uintptr_t VaBase = Vad->Node.StartVa;
 		uint64_t VadMappedOffset = Vad->SectionOffset;
 		int Protection = Vad->Flags.Protection;
+		
+		*RefaultForWrite = MmNeedsPreparationToWriteMappable(Vad->MappedObject);
 		
 		// (Access to the VAD is no longer required now)
 		MmUnlockVadList(VadList);

@@ -193,11 +193,22 @@ static BSTATUS MmpPrepareWriteOverlay(void* MappableObject, uint64_t SectionOffs
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS MmpSetPageModifiedOverlay(void* MappableObject, uint64_t SectionOffset)
+{
+	(void) MappableObject;
+	(void) SectionOffset;
+	
+	// No need.  The page was already cloned if it was faulted on.
+	return STATUS_SUCCESS;
+}
+
 static MAPPABLE_DISPATCH_TABLE MmpOverlayObjectMappableDispatch =
 {
 	.GetPage = MmpGetPageOverlay,
 	.ReadPage = MmpReadPageOverlay,
-	.PrepareWrite = MmpPrepareWriteOverlay
+	.PrepareWrite = MmpPrepareWriteOverlay,
+	.SetPageModified = MmpSetPageModifiedOverlay,
+	.NeedsPreparationToWrite = true
 };
 
 void MmDeleteOverlayObject(UNUSED void* ObjectV)

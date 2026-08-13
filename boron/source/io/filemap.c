@@ -182,7 +182,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
+static BSTATUS IopSetPageModifiedFile(void* MappableObject, uint64_t SectionOffset)
 {
 	// Files are shared, so the only special programming required is to
 	// mark modified pages as modified so that they're properly written
@@ -218,10 +218,23 @@ static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 		Pfn = MmGetEntryCcb(PageCache, SectionOffset);
 	}
 	
-	ASSERT(Pfn != PFN_INVALID && "IopPrepareWriteFile: The PFN should be present at this offset.");
+	ASSERT(Pfn != PFN_INVALID && "IopSetPageModifiedFile: The PFN should be present at this offset.");
 	
 	MmSetModifiedPage(Pfn);
 	MmFreePhysicalPage(Pfn);
+	
+	return STATUS_SUCCESS;
+}
+
+static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
+{
+	(void) MappableObject;
+	(void) SectionOffset;
+	
+	// The modified state of shared pages in a file does not need to be set
+	// instantly when a page is written.  The only requirement is that the page
+	// is set as modified at SOME point in order to flush it to disk -- this
+	// may simply be done when unmapping the file from memory.
 	
 	return STATUS_SUCCESS;
 }
@@ -231,4 +244,6 @@ MAPPABLE_DISPATCH_TABLE IopFileObjectMappableDispatch =
 	.GetPage = IopGetPageFromFile,
 	.ReadPage = IopReadPageFromFile,
 	.PrepareWrite = IopPrepareWriteFile,
+	.SetPageModified = IopSetPageModifiedFile,
+	.NeedsPreparationToWrite = false
 };

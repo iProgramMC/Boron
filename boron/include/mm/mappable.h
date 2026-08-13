@@ -42,6 +42,15 @@ typedef BSTATUS(*MM_MAPPABLE_PREPARE_WRITE_FUNC)(
 	uint64_t SectionOffset
 );
 
+// Sets a page as modified, if possible.
+//
+// This is only implemented for mappable files. Calling this
+// on sections or CoW overlays does nothing.
+typedef BSTATUS(*MM_MAPPABLE_SET_PAGE_MODIFIED_FUNC)(
+	void* MappableObject,
+	uint64_t SectionOffset
+);
+
 typedef struct
 {
 	MM_MAPPABLE_GET_PAGE_FUNC GetPage;
@@ -49,6 +58,12 @@ typedef struct
 	MM_MAPPABLE_READ_PAGE_FUNC ReadPage;
 	
 	MM_MAPPABLE_PREPARE_WRITE_FUNC PrepareWrite;
+	
+	MM_MAPPABLE_SET_PAGE_MODIFIED_FUNC SetPageModified;
+	
+	// Controls whether or not a page can be mapped as read/write right
+	// away, or needs to go through a page fault and PrepareWrite first.
+	bool NeedsPreparationToWrite;
 }
 MAPPABLE_DISPATCH_TABLE, *PMAPPABLE_DISPATCH_TABLE;
 
@@ -119,6 +134,24 @@ BSTATUS MmPrepareWriteMappable(void* MappableObject, uint64_t SectionOffset)
 	MmVerifyMappableHeader(Header);
 	
 	return Header->Dispatch->PrepareWrite(MappableObject, SectionOffset);
+}
+
+FORCE_INLINE
+BSTATUS MmSetPageModifiedMappable(void* MappableObject, uint64_t SectionOffset)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	MmVerifyMappableHeader(Header);
+	
+	return Header->Dispatch->SetPageModified(MappableObject, SectionOffset);
+}
+
+FORCE_INLINE
+BSTATUS MmNeedsPreparationToWriteMappable(void* MappableObject)
+{
+	PMAPPABLE_HEADER Header = MappableObject;
+	MmVerifyMappableHeader(Header);
+	
+	return Header->Dispatch->NeedsPreparationToWrite;
 }
 
 #endif

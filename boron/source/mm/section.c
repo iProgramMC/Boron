@@ -114,11 +114,22 @@ static BSTATUS MmpPrepareWriteSection(void* MappableObject, uint64_t SectionOffs
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS MmpSetPageModifiedSection(void* MappableObject, uint64_t SectionOffset)
+{
+	(void) MappableObject;
+	(void) SectionOffset;
+	
+	// Sections are shared, and not backed by a file, so no special programming needed.
+	return STATUS_SUCCESS;
+}
+
 static MAPPABLE_DISPATCH_TABLE MmpSectionObjectMappableDispatch =
 {
 	.GetPage = MmpGetPageSection,
 	.ReadPage = MmpReadPageSection,
-	.PrepareWrite = MmpPrepareWriteSection
+	.PrepareWrite = MmpPrepareWriteSection,
+	.SetPageModified = MmpSetPageModifiedSection,
+	.NeedsPreparationToWrite = false
 };
 
 void MmDeleteSectionObject(UNUSED void* ObjectV)
