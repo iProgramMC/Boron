@@ -150,6 +150,13 @@ MM_PTE_API bool MmIsCommittedPte(MMPTE Pte);
 // Checks if the PTE is decommitted.
 MM_PTE_API bool MmIsDecommittedPte(MMPTE Pte);
 
+// Checks if the PTE has been modified.
+//
+// On architectures that support hardware dirty bits, this returns the
+// state of the dirty flag.  Otherwise, returns the state of the write
+// flag.
+MM_PTE_API bool MmIsModifiedPte(MMPTE Pte);
+
 // Checks if two PTEs are equal.
 MM_PTE_API bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2);
 

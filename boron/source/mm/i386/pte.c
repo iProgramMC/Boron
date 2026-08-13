@@ -46,6 +46,11 @@ bool MmIsDecommittedPte(MMPTE Pte)
 		&& (MmHardwarePte(Pte) & MM_I386_DPTE_COMMITTED);
 }
 
+bool MmIsModifiedPte(MMPTE Pte)
+{
+	return MmIsPresentPte(Pte) && (MmHardwarePte(Pte) & MM_I386_PTE_DIRTY);
+}
+
 MMPTE MmBuildZeroPte()
 {
 	MMPTE Pte;

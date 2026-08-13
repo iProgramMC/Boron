@@ -46,6 +46,11 @@ bool MmIsDecommittedPte(MMPTE Pte)
 		&& (MmHardwarePte(Pte) & MM_AMD64_DPTE_COMMITTED);
 }
 
+bool MmIsModifiedPte(MMPTE Pte)
+{
+	return MmIsPresentPte(Pte) && (MmHardwarePte(Pte) & MM_AMD64_PTE_DIRTY);
+}
+
 MMPTE MmBuildZeroPte()
 {
 	MMPTE Pte;

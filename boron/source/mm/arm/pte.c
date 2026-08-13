@@ -40,6 +40,11 @@ bool MmIsDecommittedPte(MMPTE Pte)
 	return !MmIsPresentPte(Pte) && (MmHardwarePte(Pte) & MM_ARM_DPTE_DECOMMITTED);
 }
 
+bool MmIsModifiedPte(MMPTE Pte)
+{
+	return MmIsPresentPte(Pte) && (MmGetPageBitsPte(Pte) & MM_PROT_WRITE);
+}
+
 MMPTE MmBuildZeroPte()
 {
 	MMPTE Pte;
