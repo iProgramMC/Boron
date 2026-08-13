@@ -14,7 +14,8 @@ APPS := \
 	ls \
 	VideoTerminal \
 	TestHarness \
-	MinimalShell
+	MinimalShell \
+	Hello
 
 # Since I need to find freestanding C or C++ headers for this platform I can't compile these yet:
 ifneq ($(TARGET),ARM)
