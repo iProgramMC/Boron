@@ -16,7 +16,13 @@ Author:
 #include <hal.h>
 #include "archi.h"
 
-#define MAX_TLBS_LENGTH 4096
+#ifndef DEBUG2
+#define TestDbgPrint(...)
+#else
+#define TestDbgPrint DbgPrint
+#endif
+
+#define MAX_TLBS_LENGTH 32
 
 extern PKPRCB* KeProcessorList;
 extern int     KeProcessorCount;
@@ -25,10 +31,10 @@ extern int     KeProcessorCount;
 // the locks inside the CPUs themselves are used for synchronization of the operation itself
 KSPIN_LOCK KeTLBSLock;
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
+void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Process)
 {
-	if (Length == 0)
-		Length = 1;
+	if (LengthPages == 0)
+		LengthPages = 1;
 	
 	// TODO: Is it a good idea to allow dynamic memory allocation before SMP init?
 	// I'll allow it for now...
@@ -40,22 +46,46 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
 	{
 		// Invalidate the pages on the local CPU
 		
-		if (Length >= MAX_TLBS_LENGTH)
+		if (LengthPages >= MAX_TLBS_LENGTH)
 		{
 			KeSetCurrentPageTable(KeGetCurrentPageTable());
 		}
 		else
 		{
-			for (size_t i = 0; i < Length; i++)
+			for (size_t i = 0; i < LengthPages; i++)
 				KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
 		}
 		
 		return;
 	}
 	
+	TestDbgPrint("TLBS: Start (%p, %zu, %p) (Caller: %p, %p)", Address, LengthPages, Process, __builtin_return_address(0), __builtin_return_address(1));
+	
 	KIPL OldIpl, UnusedIpl;
 	KIPL CurrentIpl = KeGetIPL();
 	KeAcquireSpinLock(&KeTLBSLock, &OldIpl);
+	
+	// The bitmap of processors to request a shootdown for.
+	// If a process is specified, use the bitmap of active
+	// threads instead.
+	const uint64_t ShootdownBitmapAll = 0xFFFFFFFFFFFFFFFF;
+	uint64_t ShootdownBitmap = ShootdownBitmapAll;
+	
+	if (Process)
+	{
+		// TODO: release this code - need to test that ActiveAPBitmap works first
+		ShootdownBitmap = Process->ActiveAPBitmap;
+		
+	#ifdef DEBUG
+		uint64_t Bit = 1ULL << KeGetCurrentPRCB()->Id;
+		if (~ShootdownBitmap & Bit) {
+			KeCrash("KeIssueTLBShootDown: Current process' ActiveAPBitmap doesn't have our own bit set.  Impossible!");
+		}
+	#endif
+	}
+	
+	TestDbgPrint("	TLBS: Bitmap: %016llx", ShootdownBitmap);
+	TestDbgPrint("	TLBS: We're processor #%d", KeGetCurrentPRCB()->Id);
 	
 #ifdef DEBUG
 	// If we have the "track spinlock counts" feature active, we should back up the spinlock
@@ -70,7 +100,7 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
 #endif
 	
 	// Invalidate the pages on the local CPU
-	for (size_t i = 0; i < Length; i++)
+	for (size_t i = 0; i < LengthPages; i++)
 	{
 		KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
 	}
@@ -86,24 +116,52 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
 	
 	for (int i = 0; i < KeProcessorCount; i++)
 	{
+		if (!((ShootdownBitmap >> i) & 1))
+			continue;
+		
 		// lock the TLB shootdown lock for the first time
+		TestDbgPrint("	TLBS: Acquiring TLBS lock for CPU %d", i);
 		KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock, &UnusedIpl);
 		
 		// write the address and length
 		KeProcessorList[i]->TlbsAddress = Address;
-		KeProcessorList[i]->TlbsLength  = Length;
+		KeProcessorList[i]->TlbsLength  = LengthPages;
 	}
 	
 	// OK! Now that all CPUs are ready for the TLB shootdown, it shall commence:
-	HalRequestIpi(0, HAL_IPI_BROADCAST, KiVectorTlbShootdown);
+	if (ShootdownBitmap == ShootdownBitmapAll)
+	{
+		TestDbgPrint("	TLBS: Requesting IPI for ALL processors");
+		HalRequestIpi(0, HAL_IPI_BROADCAST, KiVectorTlbShootdown);
+	}
+	else
+	{
+		for (int i = 0; i < KeProcessorCount; i++)
+		{
+			if (!((ShootdownBitmap >> i) & 1))
+				continue;
+			if (i == OwnId)
+				continue;
+			
+			PKPRCB Prcb = KeProcessorList[i];
+			TestDbgPrint("	TLBS: Requesting IPI for CPU %d (lapic id %u)", i, Prcb->LapicId);
+			HalRequestIpi(Prcb->LapicId, 0, KiVectorTlbShootdown);
+		}
+	}
 	
 	// Done, now make sure all cores did it with a short lock-unlock cycle
 	for (int i = 0; i < KeProcessorCount; i++)
 	{
-		// lock the TLB shootdown lock for the first time
-		if (i != OwnId)
-			KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock, &UnusedIpl);
+		if (!((ShootdownBitmap >> i) & 1))
+			continue;
 		
+		// lock the TLB shootdown lock for the first time
+		if (i != OwnId) {
+			TestDbgPrint("	TLBS: Acquiring TLBS lock for CPU %d for finish", i);
+			KeAcquireSpinLock(&KeProcessorList[i]->TlbsLock, &UnusedIpl);
+		}
+		
+		TestDbgPrint("	TLBS: Releasing TLBS lock for CPU %d", i);
 		KeReleaseSpinLock(&KeProcessorList[i]->TlbsLock, CurrentIpl);
 	}
 	
@@ -118,9 +176,7 @@ PKREGISTERS KiHandleTlbShootdownIpi(PKREGISTERS Regs)
 {
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	
-#ifdef DEBUG2
-	DbgPrint("Handling TLB shootdown on CPU %u", Prcb->LapicId);
-#endif
+	TestDbgPrint("	TLBS: Handling TLB shootdown on CPU %u", Prcb->LapicId);
 	
 	if (Prcb->TlbsLength >= MAX_TLBS_LENGTH)
 	{

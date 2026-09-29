@@ -43,7 +43,14 @@ void KeInitArchUP()
 	KiVectorCrash        = KeAllocateInterruptVector(IPL_NOINTS);
 	KiVectorTlbShootdown = KeAllocateInterruptVector(IPL_NOINTS);
 	
+	// NOTE: KiHandleTlbShootdownIpi is functionally equivalent but slower
+	// than KiHandleTlbShootdownIpiA.
+#ifdef DEBUG2
+	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpi);
+#else
 	KeRegisterInterrupt(KiVectorTlbShootdown, KiHandleTlbShootdownIpiA);
+#endif
+
 	KeRegisterInterrupt(KiVectorCrash,        KiHandleCrashIpi);
 	
 	KiInitializeInterruptSystem();

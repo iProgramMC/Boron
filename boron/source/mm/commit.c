@@ -302,7 +302,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, size_t StartVa, size_t SizeP
 	}
 	
 	// Finally, issue a TLB shootdown.
-	MmIssueTLBShootDown(StartVa, SizePages, NULL);
+	MmIssueTLBShootDown(StartVa, SizePages, MmGetTargetProcessForShootdown(StartVa));
 	
 	MmUnlockSpace(Ipl, StartVa);
 }

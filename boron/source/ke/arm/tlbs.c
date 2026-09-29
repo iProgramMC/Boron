@@ -18,20 +18,20 @@ Author:
 #error 32-bit ARM SMP is not supported!
 #endif
 
-#define MAX_TLBS_LENGTH 4096
+#define MAX_TLBS_LENGTH 32
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length, UNUSED PKPROCESS Process)
+void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, UNUSED PKPROCESS Process)
 {
-	if (Length == 0)
-		Length = 1;
+	if (LengthPages == 0)
+		LengthPages = 1;
 	
-	if (Length >= MAX_TLBS_LENGTH)
+	if (LengthPages >= MAX_TLBS_LENGTH)
 	{
 		KeFlushTLB();
 	}
 	else
 	{
-		for (size_t i = 0; i < Length; i++)
+		for (size_t i = 0; i < LengthPages; i++)
 			KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
 	}
 }

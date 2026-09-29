@@ -18,20 +18,20 @@ Author:
 #error If you want SMP 32-bit x86, you must copy the tlbs.c from AMD64!
 #endif
 
-#define MAX_TLBS_LENGTH 4096
+#define MAX_TLBS_LENGTH 32
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length, UNUSED PKPROCESS Process)
+void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, UNUSED PKPROCESS Process)
 {
-	if (Length == 0)
-		Length = 1;
+	if (LengthPages == 0)
+		LengthPages = 1;
 	
-	if (Length >= MAX_TLBS_LENGTH)
+	if (LengthPages >= MAX_TLBS_LENGTH)
 	{
 		KeSetCurrentPageTable(KeGetCurrentPageTable());
 	}
 	else
 	{
-		for (size_t i = 0; i < Length; i++)
+		for (size_t i = 0; i < LengthPages; i++)
 			KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
 	}
 }

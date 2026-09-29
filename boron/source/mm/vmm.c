@@ -165,3 +165,13 @@ void MmUnlockSpace(KIPL Ipl, uintptr_t DecidingAddress)
 	
 	KeLowerIPL(Ipl);
 }
+
+PKPROCESS MmGetTargetProcessForShootdown(uintptr_t DecidingAddress)
+{
+	// NOTE: There is a PsSystemProcess. However, TLB shootdowns on
+	// kernel space don't involve it at all.
+	if (MM_KERNEL_SPACE_BASE <= DecidingAddress)
+		return NULL;
+	
+	return &PsGetAttachedProcess()->Pcb;
+}

@@ -67,14 +67,33 @@ BSTATUS KeInitializeProcess(PKPROCESS Process, int BasePriority, KAFFINITY BaseA
 	return STATUS_SUCCESS;
 }
 
-PKPROCESS KeSetAttachedProcess(PKPROCESS Process)
+PKPROCESS KeSetAttachedProcess(PKPROCESS NewProcess)
 {
 	PKTHREAD Thread = KeGetCurrentThread();
 	PKPROCESS OldProcess = Thread->AttachedProcess;
 	
-	Thread->AttachedProcess = Process;
+	if (!OldProcess) {
+		OldProcess = Thread->Process;
+	}
+	if (!NewProcess) {
+		NewProcess = Thread->Process;
+	}
 	
-	KiSwitchToAddressSpaceProcess(Process ? Process : Thread->Process);
+	if (OldProcess == NewProcess) {
+		return OldProcess;
+	}
+	
+	KIPL Ipl = KeRaiseIPL(IPL_DPC);
+	
+	uint64_t Bit = 1ULL << KeGetCurrentPRCB()->Id;
+	AtOrFetch(NewProcess->ActiveAPBitmap, Bit);
+	AtAndFetch(OldProcess->ActiveAPBitmap, ~Bit);
+	
+	Thread->AttachedProcess = NewProcess;
+	
+	KeLowerIPL(Ipl);
+	
+	KiSwitchToAddressSpaceProcess(NewProcess);
 	return OldProcess;
 }
 

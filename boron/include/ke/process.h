@@ -39,8 +39,10 @@ struct KPROCESS_tag
 	// Default thread affinity
 	KAFFINITY DefaultAffinity;
 	
-	// Bitmap of processors where this process' threads are active
-	uint64_t ActiveThreadBitmap;
+	// Bitmap of processors where this process' threads are active.
+	// NOTE: May be manipulated even while the dispatcher lock is not
+	// held.  So only use atomic instructions to manipulate it!
+	uint64_t ActiveAPBitmap;
 	
 	// User-space pointer to the PEB (process environment block).
 	void* PebPointer;

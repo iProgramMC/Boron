@@ -30,10 +30,6 @@ bool PsInitSystem();
 
 bool PsInitSystemPart2();
 
-void PsAttachToProcess(PEPROCESS Process);
-
-void PsDetachFromProcess();
-
 BSTATUS OSCreateProcess(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,

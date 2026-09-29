@@ -382,6 +382,16 @@ void KiAssignDefaultQuantum(PKTHREAD Thread)
 
 PKTHREAD KiGetNextThread(bool MayDowngrade);
 
+// Get the process to switch the current address space to.
+// It can either be the attached process, or the thread's process,
+// if nothing is attached.
+static PKPROCESS KepGetAttachedProcess(PKTHREAD Thread)
+{
+	return Thread->AttachedProcess ?
+	       Thread->AttachedProcess :
+	       Thread->Process;
+}
+
 void KiEndThreadQuantum()
 {
 	KiAssertOwnDispatcherLock();
@@ -663,16 +673,6 @@ bool KiNeedToSwitchThread()
 	return Scheduler->NextThread != NULL;
 }
 
-// Get the process to switch the current address space to.
-// It can either be the attached process, or the thread's process,
-// if nothing is attached.
-static PKPROCESS KepGetProcessToSwitchAddressSpaceTo(PKTHREAD Thread)
-{
-	return Thread->AttachedProcess ?
-	       Thread->AttachedProcess :
-	       Thread->Process;
-}
-
 void KiSwitchToNextThread()
 {
 	KiAssertOwnDispatcherLock();
@@ -716,7 +716,7 @@ void KiSwitchToNextThread()
 	KiSwitchArchSpecificContext(Thread, OldThread);
 	
 	// Switch to thread's process' address space.
-	PKPROCESS DestProcess = KepGetProcessToSwitchAddressSpaceTo(Thread);
+	PKPROCESS DestProcess = KepGetAttachedProcess(Thread);
 	
 	if (MiGetCurrentPageMap() != DestProcess->PageMap)
 		KiSwitchToAddressSpaceProcess(DestProcess);
@@ -724,7 +724,30 @@ void KiSwitchToNextThread()
 	if (!IsListEmpty(&Thread->KernelApcQueue))
 		KeIssueSoftwareInterrupt(IPL_APC);
 	
-	// Switch to thread's stack.
+	// Set this processor's bit in the active AP bitmap, and clear it in the old
+	// process' active AP bitmap.
+	//
+	// The reason we handle the old process' unsetting HERE and not when de-scheduling
+	// the old process is that there could be a race condition where, when a context
+	// switch occurs between two threads belonging to the same process, there is a window
+	// of time where the process DOESN'T see this AP as active, thus not sending an IPI
+	// to the current AP, leading to a missed TLB shootdown on the AP.  When the next
+	// thread starts executing, it could see the stale TLB entries that the shootdown
+	// failed to clear, and use them, potentially overwriting memory from other processes
+	// if the page was reused fast enough.
+	AtOrFetch(DestProcess->ActiveAPBitmap, 1ULL << KeGetCurrentPRCB()->Id);
+	
+	if (OldThread)
+	{
+		PKPROCESS OldProcess = KepGetAttachedProcess(OldThread);
+		if (OldProcess && OldProcess != DestProcess)
+		{
+			uint64_t Bit = 1ULL << KeGetCurrentPRCB()->Id;
+			AtAndFetch(OldProcess->ActiveAPBitmap, ~Bit);
+		}
+	}
+	
+	// Switch to the new thread's stack.
 	uintptr_t StackBottom = (uintptr_t) Thread->Stack.Top + Thread->Stack.Size;
 	KeGetCurrentPRCB()->SysCallStack = StackBottom;
 	

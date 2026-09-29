@@ -41,7 +41,7 @@ void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
 // NOTE: Process can be NULL if the TLB shootdown is to be sent to every AP
 // on the system (e.g. if you manipulate pool memory)
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process);
+void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Process);
 
 // Architecture specific data
 KARCH_DATA* KeGetData();
