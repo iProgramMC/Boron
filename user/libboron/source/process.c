@@ -111,6 +111,8 @@ static BSTATUS OSDLLPreparePebForProcess(
 		// process will try to mess with invalid handles, or even worse.
 		for (int i = 0; i < 3; i++)
 			Peb->StandardIO[i] = CurrentPeb->StandardIO[i];
+		
+		Peb->CurrentDirectory = CurrentPeb->CurrentDirectory;
 	}
 	else
 	{
@@ -123,6 +125,11 @@ static BSTATUS OSDLLPreparePebForProcess(
 			if (FAILED(Status))
 				return Status;
 		}
+		
+		// Forward the current directory as well.
+		Status = OSDuplicateHandle(CurrentPeb->CurrentDirectory, ProcessHandle, &Peb->CurrentDirectory, 0);
+		if (FAILED(Status))
+			return Status;
 	}
 	
 	Status = OSSetPebProcess(ProcessHandle, PebPtr);

@@ -17,7 +17,7 @@ PPEB OSDLLGetCurrentPeb()
 	return (PPEB) OSGetCurrentPeb();
 }
 
-PTEB OSDLLCreateTebObject(PPEB Peb, HANDLE CurrentDirectory)
+PTEB OSDLLCreateTebObject(PPEB Peb)
 {
 	if (!Peb)
 		Peb = OSDLLGetCurrentPeb();
@@ -31,14 +31,12 @@ PTEB OSDLLCreateTebObject(PPEB Peb, HANDLE CurrentDirectory)
 	// Initialize the TEB structure.
 	Teb->Peb = Peb;
 	
-	Teb->CurrentDirectory = CurrentDirectory;
-	
 	return Teb;
 }
 
-BSTATUS OSDLLCreateTeb(PPEB Peb, HANDLE CurrentDirectory)
+BSTATUS OSDLLCreateTeb(PPEB Peb)
 {
-	PTEB Teb = OSDLLCreateTebObject(Peb, CurrentDirectory);
+	PTEB Teb = OSDLLCreateTebObject(Peb);
 	if (!Teb)
 		return STATUS_INSUFFICIENT_MEMORY;
 	

@@ -89,10 +89,8 @@ typedef struct
 		};
 	};
 	
-	// Starting directory.
-	// This handle should be set to HANDLE_NONE by the interpreter
-	// once transferred to the main thread's TEB.
-	HANDLE StartingDirectory;
+	// The process' current directory.
+	HANDLE CurrentDirectory;
 	
 	// If OSReplaceProcess is used, this can point to a region in memory
 	// with additional information. The starting context and its size is
@@ -105,6 +103,8 @@ typedef struct
 	size_t StartingContextSize;
 	
 	LIBRARY_OVERRIDE Override;
+	
+	// TODO: Add a lock to protect the PEB.
 }
 PEB, *PPEB;
 

@@ -525,7 +525,7 @@ BSTATUS OSDLLRunImage(PPEB Peb, OSDLL_ENTRY_POINT* OutEntryPoint)
 {
 	BSTATUS Status;
 	
-	Status = OSDLLCreateTeb(Peb, Peb->StartingDirectory);
+	Status = OSDLLCreateTeb(Peb);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to create TEB! %s (%d)", RtlGetStatusString(Status), Status);

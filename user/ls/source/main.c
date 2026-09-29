@@ -68,7 +68,11 @@ int main(int ArgumentCount, char** ArgumentArray)
 		OBJECT_ATTRIBUTES Attributes;
 		OSInitializeObjectAttributes(&Attributes);
 		OSSetNameObjectAttributes(&Attributes, ArgumentArray[i]);
-		Attributes.RootDirectory = CurrentDirectory;
+		
+		if (ArgumentArray[i][0] == '/')
+			Attributes.RootDirectory = HANDLE_NONE;
+		else
+			Attributes.RootDirectory = CurrentDirectory;
 		
 		BSTATUS Status = OSOpenFile(&Directory, &Attributes);
 		if (FAILED(Status))

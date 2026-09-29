@@ -7,8 +7,7 @@ HANDLE OSGetCurrentDirectory()
 		return OSDLLGetCurrentPeb()->Override.GetCurrentDirectory();
 	}
 	
-	DbgPrint("OSDLL: Calling OSGetCurrentDirectory()");
-	return OSDLLGetCurrentTeb()->CurrentDirectory;
+	return OSDLLGetCurrentPeb()->CurrentDirectory;
 }
 
 void OSSetCurrentDirectory(HANDLE NewDirectory)
@@ -17,9 +16,9 @@ void OSSetCurrentDirectory(HANDLE NewDirectory)
 		return OSDLLGetCurrentPeb()->Override.SetCurrentDirectory(NewDirectory);
 	}
 	
-	PTEB Teb = OSDLLGetCurrentTeb();
-	HANDLE OldDirectory = Teb->CurrentDirectory;
-	Teb->CurrentDirectory = NewDirectory;
+	PPEB Peb = OSDLLGetCurrentPeb();
+	HANDLE OldDirectory = Peb->CurrentDirectory;
+	Peb->CurrentDirectory = NewDirectory;
 	
 	if (OldDirectory)
 		OSClose(OldDirectory);

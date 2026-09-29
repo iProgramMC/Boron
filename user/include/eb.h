@@ -10,7 +10,7 @@ typedef struct _TEB
 {
 	PPEB Peb;
 	
-	HANDLE CurrentDirectory;
+	HANDLE SpareHandle;
 	
 	// More to define here such as TLS
 }

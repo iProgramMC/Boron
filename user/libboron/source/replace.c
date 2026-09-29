@@ -160,7 +160,7 @@ BSTATUS OSReplaceProcess(
 	}
 	
 	// Inherit the current directory.
-	NewPeb->StartingDirectory = OSGetCurrentDirectory();
+	NewPeb->CurrentDirectory = OSGetCurrentDirectory();
 	
 	// Then allocate an entirely new memory range so that we can exclude it from our nuclear
 	// unmap operations later.
@@ -275,8 +275,9 @@ BSTATUS OSReplaceProcess(
 	// so don't pass any pointers from the heap to the new process!
 	OSDLLReinitializeHeap();
 	
-	// Sadly we'll have to allocate a new TEB in order for the current directory to be preserved.
-	Status = OSDLLCreateTeb(Peb, Peb->StartingDirectory);
+	// Allocate a new TEB (though could we just use the old one?  The comment that was here
+	// no longer holds up because we moved the current directory to the PEB)
+	Status = OSDLLCreateTeb(Peb);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSReplaceProcess: Failed to allocate temporary TEB. %s (%d)", Peb->ImageName, RtlGetStatusString(Status), Status);
