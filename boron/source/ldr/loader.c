@@ -28,7 +28,7 @@ static const char* LdrpHalPathDefault = "hali386.sys"; // sorry bucko, halx86 is
 #elif defined TARGET_ARM
 
 static uintptr_t LdrpCurrentBase = 0xD2000000;
-static const char* LdrpHalPathDefault = "hals5l8720.sys";
+static const char* LdrpHalPathDefault = "hals5l8900.sys";
 
 #else
 	
