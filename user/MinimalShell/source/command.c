@@ -141,12 +141,35 @@ static bool CmdParseWord(char** InputPtr, char** OutputPtr)
 	return true;
 }
 
+bool CmdMatchEnd(const char* CommandName, const char* Match)
+{
+	size_t Length = strlen(CommandName);
+	size_t LengthMatch = strlen(Match);
+	if (Length < LengthMatch) return false;
+	
+	return strcmp(CommandName + Length - LengthMatch, Match) == 0;
+}
+
 void CmdStartProcess(const char* CommandName, const char* ArgumentBuffer, bool Wait)
 {
 	// Create a new process and wait for it to finish.
 	BSTATUS Status;
 	HANDLE ProcessHandle;
 	HANDLE MainThreadHandle;
+	
+	char* TempBuffer = NULL;
+	if (!CmdMatchEnd(CommandName, ".exe"))
+	{
+		size_t Length = strlen(CommandName) + 5;
+		TempBuffer = OSAllocate(Length);
+		if (TempBuffer)
+		{
+			strcpy(TempBuffer, CommandName);
+			strcat(TempBuffer, ".exe");
+			CommandName = TempBuffer;
+		}
+	}
+	
 	Status = OSCreateProcess(
 		&ProcessHandle,
 		&MainThreadHandle,
@@ -156,6 +179,11 @@ void CmdStartProcess(const char* CommandName, const char* ArgumentBuffer, bool W
 		ArgumentBuffer,
 		NULL
 	);
+	
+	if (TempBuffer)
+	{
+		OSFree(TempBuffer);
+	}
 	
 	if (FAILED(Status))
 	{
