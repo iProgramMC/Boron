@@ -16,6 +16,17 @@ Author:
 
 #include "handle.h"
 
+// NOTE about MEM_SHARED and MEM_PRIVATE:
+//
+// * MEM_SHARED is specified for OSAllocateVirtualMemory.  It allows forked processes to use the
+//   same memory as their parent.
+//
+// * MEM_COW is specified for OSMapViewOfObject.  It ensures that writes to the respective pages
+//   do not reflect into the backing file.
+//
+// MEM_SHARED and MEM_COW are mutually exclusive in terms of purpose -- to that end, MEM_SHARED
+// cannot be passed into OSMapViewOfObject and MEM_COW cannot be passed into OSAllocateVirtualMemory.
+
 // Allocation Types
 enum
 {
