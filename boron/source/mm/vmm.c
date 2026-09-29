@@ -99,9 +99,9 @@ void MmSwitchKernelSpaceLock()
 
 // forces all cores to issue a TLB shootdown (invalidate the address from the
 // TLB - with invlpg on amd64 for instance)
-void MmIssueTLBShootDown(uintptr_t Address, size_t Length)
+void MmIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
 {
-	KeIssueTLBShootDown(Address, Length);
+	KeIssueTLBShootDown(Address, Length, Process);
 }
 
 HPAGEMAP MiGetCurrentPageMap()

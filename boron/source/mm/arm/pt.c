@@ -293,7 +293,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 	}
 	
 	MmFlushTlbUpdates();
-	MmIssueTLBShootDown(Address, LengthPages);
+	MmIssueTLBShootDown(Address, LengthPages, NULL);
 }
 
 uintptr_t MiGetTopOfPoolManagedArea()

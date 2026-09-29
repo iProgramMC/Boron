@@ -20,7 +20,7 @@ Author:
 
 #define MAX_TLBS_LENGTH 4096
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
+void KeIssueTLBShootDown(uintptr_t Address, size_t Length, UNUSED PKPROCESS Process)
 {
 	if (Length == 0)
 		Length = 1;

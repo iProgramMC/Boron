@@ -39,6 +39,9 @@ struct KPROCESS_tag
 	// Default thread affinity
 	KAFFINITY DefaultAffinity;
 	
+	// Bitmap of processors where this process' threads are active
+	uint64_t ActiveThreadBitmap;
+	
 	// User-space pointer to the PEB (process environment block).
 	void* PebPointer;
 };

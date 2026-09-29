@@ -16,6 +16,7 @@
 
 // ==== Forward declarations. Depending on the platform, we'll include platform specific definitions. ====
 typedef struct KREGISTERS_tag KREGISTERS, *PKREGISTERS; // List of registers.
+typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
 
 // Functions that do different things based on architecture,
 // but exist everywhere
@@ -38,7 +39,9 @@ void KeInitCPU(); // initializes the current CPU
 // ==== Interrupt priority level ====
 void KeOnUpdateIPL(KIPL newIPL, KIPL oldIPL);
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length);
+// NOTE: Process can be NULL if the TLB shootdown is to be sent to every AP
+// on the system (e.g. if you manipulate pool memory)
+void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process);
 
 // Architecture specific data
 KARCH_DATA* KeGetData();

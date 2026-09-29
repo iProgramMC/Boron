@@ -25,7 +25,7 @@ extern int     KeProcessorCount;
 // the locks inside the CPUs themselves are used for synchronization of the operation itself
 KSPIN_LOCK KeTLBSLock;
 
-void KeIssueTLBShootDown(uintptr_t Address, size_t Length)
+void KeIssueTLBShootDown(uintptr_t Address, size_t Length, PKPROCESS Process)
 {
 	if (Length == 0)
 		Length = 1;

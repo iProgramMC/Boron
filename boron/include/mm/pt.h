@@ -19,7 +19,10 @@ Author:
 #include <ke/locks.h>
 #include "pte.h"
 
-// handle to a page mapping.
+// forward declaration of KPROCESS
+typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
+
+// A handle to a page mapping.
 typedef uintptr_t HPAGEMAP;
 
 // WARNING! The HPAGEMAP object is not thread safe! So please take care of thread safety yourself.
@@ -99,7 +102,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages);
 BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMode);
 
 // Issue a TLB shootdown request. This is the official API for this purpose.
-void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages);
+void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Process);
 
 // Turn access flags (PAGE_X) into PTE protection bits.
 uintptr_t MmGetPteBitsFromProtection(int Protection);

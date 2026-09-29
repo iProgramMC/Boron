@@ -478,7 +478,7 @@ void MiCleanUpVad(PMMVAD Vad)
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
 	
 	// Issue a TLB shootdown request covering the whole area. 
-	MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size);
+	MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size, NULL);
 	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	

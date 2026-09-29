@@ -223,7 +223,7 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 	
 	// Step 2. Issue a single TLB shootdown command to all CPUs to flush the TLB.
 	// TODO: This could be optimized, but eh, it's fine for now..
-	MmIssueTLBShootDown(Address, LengthPages);
+	MmIssueTLBShootDown(Address, LengthPages, NULL);
 	
 	// Step 3. If needed, free the PMM pages related to this page mapping.
 	for (size_t i = 0; i < LengthPages; i++)
