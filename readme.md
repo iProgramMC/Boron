@@ -218,8 +218,8 @@ all present related to it.
 	* [x] Link modules with each other by resolving undefined dependencies
 
 * [ ] User space
-	* [ ] Command line shell
-	* [ ] Test programs
+	* [x] Command line shell
+	* [x] Test programs
 	* [ ] ...
 	* [ ] Window manager
 	* [ ] ...
@@ -232,3 +232,13 @@ all present related to it.
 * [ ] ...
 
 A lot of this is still work in progress and I have yet to figure out a bunch of stuff, so wish me luck :)
+
+### On the topic of AI
+
+Boron does not use any AI-generated code.  All code in this repository is human-written, and most of
+it is written by yours truly (iProgramInCpp).
+
+Contribution requests made using AI coding tools, or otherwise low-effort, will be rejected immediately.
+
+LLMs tend to be helpful in research, debugging, and reverse engineering. However, in the development
+of this project, I have only used LLMs sparingly.
