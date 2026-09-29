@@ -17,7 +17,8 @@ BSTATUS LaunchProcess(const char* FileName, const char* Arguments)
 		0,    // Flags
 		FileName,
 		Arguments,
-		NULL  // Environment
+		NULL, // Environment
+		NULL  // CurrentDirectory
 	);
 	
 	if (SUCCEEDED(Status))

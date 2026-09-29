@@ -177,7 +177,8 @@ void CmdStartProcess(const char* CommandName, const char* ArgumentBuffer, bool W
 		OS_PROCESS_CMDLINE_PARSED,
 		CommandName,
 		ArgumentBuffer,
-		NULL
+		NULL, // Environment
+		NULL  // CurrentDirectory
 	);
 	
 	if (TempBuffer)

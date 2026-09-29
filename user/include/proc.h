@@ -32,7 +32,8 @@ BSTATUS OSCreateProcess(
 	int ProcessFlags,
 	const char* ImageName,
 	const char* CommandLine,
-	const char* Environment
+	const char* Environment,
+	const char* CurrentDirectory
 );
 
 // Clones the current process exactly into a new process.
@@ -55,7 +56,8 @@ BSTATUS OSReplaceProcess(
 	const char* ImageName,
 	const char* CommandLine,
 	const char* Environment,
-	void* Context,
+	const char* CurrentDirectory,
+	const void* Context,
 	size_t ContextSize
 );
 

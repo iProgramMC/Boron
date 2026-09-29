@@ -24,20 +24,34 @@ BSTATUS OSDLLOpenSelf(PHANDLE FileHandle)
 	return Status;
 }
 
-static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine, const char* Environment)
+static size_t OSDLLCalculatePebSize(const char* ImageName, const char* CommandLine, const char* Environment, const char* CurrentDirectory)
 {
 	size_t PebSize = sizeof(PEB);
 	PebSize += strlen(ImageName) + 8 + sizeof(uintptr_t);
 	PebSize += RtlEnvironmentLength(CommandLine) + 8 + sizeof(uintptr_t);
 	PebSize += RtlEnvironmentLength(Environment) + 8 + sizeof(uintptr_t);
+	PebSize += strlen(CurrentDirectory) + 8 + sizeof(uintptr_t);
 	PebSize = (PebSize + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);	
 	return PebSize;
 }
 
 HIDDEN
-BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* ImageName, const char* CommandLine, const char* Environment)
+BSTATUS OSDLLCreatePebForProcess(
+	PPEB* OutPeb,
+	size_t* OutPebSize,
+	const char* ImageName,
+	const char* CommandLine,
+	const char* Environment,
+	const char* CurrentDirectory
+)
 {
-	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine, Environment);
+	if (!CurrentDirectory)
+	{
+		// provide a default.
+		CurrentDirectory = "/";
+	}
+	
+	size_t PebSize = OSDLLCalculatePebSize(ImageName, CommandLine, Environment, CurrentDirectory);
 	
 	// Create the PEB
 	PPEB Peb = OSAllocate(PebSize);
@@ -60,10 +74,17 @@ BSTATUS OSDLLCreatePebForProcess(PPEB* OutPeb, size_t* OutPebSize, const char* I
 	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
 	Peb->Environment = AfterPeb;
 	Peb->EnvironmentSize = RtlEnvironmentLength(Environment);
+	AfterPeb += Peb->EnvironmentSize + 2;
+	
+	AfterPeb = (char*)(((uintptr_t)AfterPeb + sizeof(uintptr_t) - 1) & ~(sizeof(uintptr_t) - 1));
+	Peb->CurrentDirectory.Handle = HANDLE_NONE;
+	Peb->CurrentDirectory.Path = AfterPeb;
+	Peb->CurrentDirectory.PathAllocated = false;
 	
 	strcpy(Peb->ImageName, ImageName);
 	memcpy(Peb->CommandLine, CommandLine, Peb->CommandLineSize);
 	memcpy(Peb->Environment, Environment, Peb->EnvironmentSize);
+	strcpy(Peb->CurrentDirectory.Path, CurrentDirectory);
 	
 	*OutPeb = Peb;
 	*OutPebSize = PebSize;
@@ -97,10 +118,11 @@ static BSTATUS OSDLLPreparePebForProcess(
 	}
 	
 	// Update all the pointers to point to the correct place.
+	Peb->PebFreeSize = RegionSize;
 	Peb->ImageName   = (char*)((uintptr_t)Peb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	Peb->CommandLine = (char*)((uintptr_t)Peb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	Peb->Environment = (char*)((uintptr_t)Peb->Environment + (uintptr_t)PebPtr - (uintptr_t)Peb);
-	Peb->PebFreeSize = RegionSize;
+	Peb->CurrentDirectory.Path = (char*)((uintptr_t)Peb->CurrentDirectory.Path + (uintptr_t)PebPtr - (uintptr_t)Peb);
 	
 	// Duplicate the standard input/output handles, unless InheritHandles is true, in which case just
 	// expect them to already be given to the process.
@@ -111,8 +133,6 @@ static BSTATUS OSDLLPreparePebForProcess(
 		// process will try to mess with invalid handles, or even worse.
 		for (int i = 0; i < 3; i++)
 			Peb->StandardIO[i] = CurrentPeb->StandardIO[i];
-		
-		Peb->CurrentDirectory = CurrentPeb->CurrentDirectory;
 	}
 	else
 	{
@@ -125,11 +145,6 @@ static BSTATUS OSDLLPreparePebForProcess(
 			if (FAILED(Status))
 				return Status;
 		}
-		
-		// Forward the current directory as well.
-		Status = OSDuplicateHandle(CurrentPeb->CurrentDirectory, ProcessHandle, &Peb->CurrentDirectory, 0);
-		if (FAILED(Status))
-			return Status;
 	}
 	
 	Status = OSSetPebProcess(ProcessHandle, PebPtr);
@@ -176,7 +191,8 @@ BSTATUS OSCreateProcess(
 	int ProcessFlags,
 	const char* ImageName,
 	const char* CommandLine,
-	const char* Environment
+	const char* Environment,
+	const char* CurrentDirectory
 )
 {
 	// Pointers/resources freed on failure
@@ -223,9 +239,14 @@ BSTATUS OSCreateProcess(
 	if (!Environment)
 		Environment = OSDLLGetCurrentPeb()->Environment;
 	
+	// Likewise for the current directory.
+	if (!CurrentDirectory) {
+		CurrentDirectory = OSDLLGetCurrentPeb()->CurrentDirectory.Path;
+	}
+	
 	// Create the PEB for this process.
 	size_t PebSize = 0;
-	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine, Environment);
+	Status = OSDLLCreatePebForProcess(&Peb, &PebSize, ImageName, CommandLine, Environment, CurrentDirectory);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to create PEB for process. %s (%d)", RtlGetStatusString(Status), Status);

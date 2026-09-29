@@ -832,6 +832,28 @@ void OSDLLUnmapOldInterpreterIfNeeded(PPEB Peb)
 	Peb->Loader.OldInterpreterSize = 0;
 }
 
+HIDDEN
+BSTATUS OSDLLSetupCurrentDirectory()
+{
+	// Set up the current directory from the PEB.
+	PPEB Peb = OSDLLGetCurrentPeb();
+	
+	const char* NewPath = Peb->CurrentDirectory.Path;
+	if (!NewPath)
+		NewPath = "/";
+	
+	BSTATUS Status = OSSetCurrentDirectory(NewPath);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSSetCurrentDirectory('%s') failed: %s", NewPath, RtlGetStatusString(Status));
+		DbgPrint("Will change it to '/' instead.");
+		
+		Status = OSSetCurrentDirectory("/");
+	}
+	
+	return Status;
+}
+
 static bool OSDLLIsLaunchedFromDLL = false;
 
 static void OSDLLInitializeBasics()
@@ -873,6 +895,13 @@ void DLLEntryPoint(PPEB Peb)
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to set up arguments and environment: %s (%d)", RtlGetStatusString(Status), Status);
+		OSExitProcess(Status);
+	}
+	
+	Status = OSDLLSetupCurrentDirectory();
+	if (FAILED(Status))
+	{
+		DbgPrint("OSDLL: Failed to initialize current directory: %s", RtlGetStatusString(Status));
 		OSExitProcess(Status);
 	}
 	

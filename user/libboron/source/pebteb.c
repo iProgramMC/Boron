@@ -4,11 +4,6 @@
 
 PTEB OSDLLGetCurrentTeb()
 {
-	if (OSDLLGetCurrentPeb()->Override.BlockTebAccess) {
-		DbgPrint("OSDLL: Cannot get current TEB safely, most likely because libc is using it");
-		return NULL;
-	}
-	
 	return (PTEB) OSGetCurrentTeb();
 }
 

@@ -85,7 +85,8 @@ BSTATUS OSReplaceProcess(
 	const char* ImageName,
 	const char* CommandLine,
 	const char* Environment,
-	void* Context,
+	const char* CurrentDirectory,
+	const void* Context,
 	size_t ContextSize
 )
 {
@@ -98,7 +99,11 @@ BSTATUS OSReplaceProcess(
 		Environment = Peb->Environment;
 	}
 	
-	// Use OSQueryVirtualMemoryInformation to get the range covered by the stack.
+	if (!CurrentDirectory) {
+		CurrentDirectory = Peb->CurrentDirectory.Path;
+	}
+	
+	// Use OSQueryVirtualMemoryInformation to get the range covered by the current stack.
 	VIRTUAL_MEMORY_INFORMATION StackInformation;
 	Status = OSQueryVirtualMemoryInformation(
 		CURRENT_PROCESS_HANDLE,
@@ -151,16 +156,13 @@ BSTATUS OSReplaceProcess(
 	// Allocate a PEB for this new process.
 	PPEB NewPeb = NULL;
 	size_t NewPebSize = 0;
-	Status = OSDLLCreatePebForProcess(&NewPeb, &NewPebSize, ImageName, CommandLine, Environment);
+	Status = OSDLLCreatePebForProcess(&NewPeb, &NewPebSize, ImageName, CommandLine, Environment, CurrentDirectory);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSDLL: Failed to create PEB for process. %s (%d)", RtlGetStatusString(Status), Status);
 		OSClose(FileHandle);
 		return Status;
 	}
-	
-	// Inherit the current directory.
-	NewPeb->CurrentDirectory = OSGetCurrentDirectory();
 	
 	// Then allocate an entirely new memory range so that we can exclude it from our nuclear
 	// unmap operations later.

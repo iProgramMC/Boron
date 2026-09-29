@@ -54,6 +54,7 @@ static const char* const RtlpStatusCodes[] =
 	"The object is not linked to a directory.",
 	"The object is already linked to a directory.",
 	"The handle is invalid.",
+	"The provided buffer is too small to fit the requested data.",
 	
 	"The handle table is not empty.",
 	"The handle delete operation was cancelled.",

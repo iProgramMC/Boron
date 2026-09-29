@@ -45,18 +45,13 @@ typedef struct
 }
 LOADER_INFORMATION;
 
-// Special structure that contains override info for certain functions such as
-// OSGetCurrentDirectory, mostly pertaining to the TEB, which can take a different
-// format if libboron isn't the primary library.
 typedef struct
 {
-	bool BlockTebAccess;
-	
-	HANDLE (*GetCurrentDirectory)();
-	
-	void (*SetCurrentDirectory)(HANDLE);
+	HANDLE Handle;
+	char* Path;
+	bool PathAllocated;
 }
-LIBRARY_OVERRIDE, *PLIBRARY_OVERRIDE;
+OS_CURDIR, *POS_CURDIR;
 
 typedef struct
 {
@@ -90,7 +85,7 @@ typedef struct
 	};
 	
 	// The process' current directory.
-	HANDLE CurrentDirectory;
+	OS_CURDIR CurrentDirectory;
 	
 	// If OSReplaceProcess is used, this can point to a region in memory
 	// with additional information. The starting context and its size is
@@ -101,8 +96,6 @@ typedef struct
 	// using an OSFreeVirtualMemory call.
 	void* StartingContext;
 	size_t StartingContextSize;
-	
-	LIBRARY_OVERRIDE Override;
 	
 	// TODO: Add a lock to protect the PEB.
 }

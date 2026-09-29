@@ -57,6 +57,7 @@ enum
 	STATUS_NOT_LINKED,          // The object is not linked to a directory.
 	STATUS_ALREADY_LINKED,      // The object is already linked to a directory.
 	STATUS_INVALID_HANDLE,      // The handle is invalid.
+	STATUS_BUFFER_OVERFLOW,     // The provided buffer is too small to fit the requested data.
 	
 	// Handle table errors
 	STATUS_TABLE_NOT_EMPTY,     // The handle table is not empty.

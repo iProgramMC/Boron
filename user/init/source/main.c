@@ -20,19 +20,7 @@ int main(int ArgumentCount, char** Arguments)
 	// Open the current directory if needed.
 	if (OSGetCurrentDirectory() == HANDLE_NONE)
 	{
-		HANDLE Directory;
-		OBJECT_ATTRIBUTES Attributes;
-		OSInitializeObjectAttributes(&Attributes);
-		OSSetNameObjectAttributes(&Attributes, "/");
-		
-		Status = OSOpenFile(&Directory, &Attributes);
-		if (FAILED(Status))
-		{
-			DbgPrint("Could not open root directory '/': %s", RtlGetStatusString(Status));
-			return Status;
-		}
-		
-		OSSetCurrentDirectory(Directory);
+		OSSetCurrentDirectory("/");
 	}
 	
 	char* ConfigFile = NULL;
@@ -64,7 +52,8 @@ int main(int ArgumentCount, char** Arguments)
 		0,     // ProcessFlags
 		TerminalName,
 		TerminalArguments,
-		NULL   // Environment
+		NULL,  // Environment
+		NULL   // CurrentDirectory
 	);
 	
 	if (FAILED(Status))
