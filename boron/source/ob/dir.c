@@ -326,16 +326,16 @@ BSTATUS ObpLookUpObjectPath(
 				// No match! Inform caller about our failure.
 				//
 				// N.B. We added a reference to the object we were using!
-				ObDereferenceObject(CurrentObject);
 				ObpLeaveDirectoryMutex(Directory);
+				ObDereferenceObject(CurrentObject);
 				return STATUS_NAME_NOT_FOUND;
 			}
 			
 			// Match! Time to continue parsing through this object.
 			CurrentPath += MatchLength;
 			
-			ObDereferenceObject(CurrentObject);
 			ObpLeaveDirectoryMutex(Directory);
+			ObDereferenceObject(CurrentObject);
 			CurrentObject = LookedUpObject;
 			
 			CurrDepth--;
@@ -504,7 +504,7 @@ OBJECT_TYPE_INFO ObpDirectoryTypeInfo =
 	// Close
 	NULL,
 	// Delete
-	NULL,
+	NULL, // TODO: Implement this.  It only consists of releasing all referenced objects.  Or make it crash?
 	// Parse
 	NULL,
 	// Secure
