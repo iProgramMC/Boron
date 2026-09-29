@@ -25,7 +25,8 @@ ARCH_CXXFLAGS =             \
 ARCH_LDFLAGS = \
 	-z max-page-size=0x1000  \
 	-L$(DDK_DIR)/../../tools \
-	-lgcc-i686
+	-lgcc-i686               \
+	--hash-style=sysv
 
 ARCH_ASFLAGS = \
 	-f elf32
