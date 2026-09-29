@@ -370,6 +370,7 @@ static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		Offset = FileObject->CurrentFileOffset;
 	}
 	
+	Iosb->BytesWritten = 0;
 	Status = IopWriteFile2(Iosb, FileObject, Mdl, Flags, Offset, Cached, OutFileSize);
 	
 	if (Flags & IO_RW_SHARED_FILE_OFFSET)
