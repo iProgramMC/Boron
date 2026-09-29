@@ -132,6 +132,8 @@ KiTrapCommon:
 	add   rsp, 16                          ; Pop the interrupt number and the error code
 	iretq
 
+MAX_TLBS_THRESHOLD equ 32 ; in pages
+
 extern MmHHDMBase
 global KiHandleTlbShootdownIpiA
 KiHandleTlbShootdownIpiA:
@@ -145,19 +147,27 @@ KiHandleTlbShootdownIpiA:
 	
 	; note: count may never be zero - ensured by KeIssueTLBShootDown
 	mov  rcx, [gs:0x08]
+	
+	; if it's bigger than MAX_TLBS_THRESHOLD (128KB or 32 pages right now),
+	; then simply reload CR3, which'll clear all mappings.
+	; (TODO: this won't actually happen for global bit PTEs, but we don't modify those right now)
+	cmp  rcx, MAX_TLBS_THRESHOLD
+	jb   .loop
+	mov  rax, cr3
+	mov  cr3, rax
+	jmp  .done
 .loop:
 	invlpg [rax]
 	add  rax, 4096
 	dec  rcx
 	jnz  .loop
-	
+.done:
 	; done invalidating, clear the spinlock to 0
 	mov  byte [gs:0x10], 0
 	
 	; also mark the end of the interrupt
 	mov  rax, [MmHHDMBase]
-	xor  ecx, ecx
-	mov  rcx, 0x00000000FEE00000
+	mov  ecx, 0xFEE00000
 	add  rax, rcx
 	mov  dword [rax + 0xB0], 0
 	
