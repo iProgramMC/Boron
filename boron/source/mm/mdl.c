@@ -21,7 +21,7 @@ void MmUnmapPagesMdl(PMDL Mdl)
 	if (~Mdl->Flags & MDL_FLAG_MAPPED)
 		return;
 	
-	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages);
+	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages, true);
 	MmFreePoolBig((void*) Mdl->MappedStartVA);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
@@ -88,7 +88,7 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 		if (!MiMapPhysicalPage(Mdl->Pages[Index] * PAGE_SIZE, Address, Permissions))
 		{
 			// Unmap everything mapped so far.
-			MiUnmapPages(MapAddress, Index);
+			MiUnmapPages(MapAddress, Index, true);
 			
 			MmUnlockKernelSpace();
 			

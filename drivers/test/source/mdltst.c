@@ -92,7 +92,7 @@ void PerformMdlTest()
 	
 	LogMsg("Memory Pages Available Now: %zu", MmGetTotalFreePages());
 	
-	MiUnmapPages(FixedAddr, FixedSize);
+	MiUnmapPages(FixedAddr, FixedSize, true);
 	
 	// note: the variation of 3 pages is actually normal at this point
 	// the pages are allocated during the initial mapping

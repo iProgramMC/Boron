@@ -95,7 +95,7 @@ bool MiMapAnonPages(uintptr_t Address, size_t SizePages, uintptr_t Permissions, 
 bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Permissions);
 
 // Unmaps some memory. Automatically frees it if it is handled by the PMM.
-void MiUnmapPages(uintptr_t Address, size_t LengthPages); 
+void MiUnmapPages(uintptr_t Address, size_t LengthPages, bool InvokeTlbShootdown);
 
 // Handles a page fault. Returns whether or not the page fault was handled.
 // TODO make it MiPageFault and export it only to ke/except

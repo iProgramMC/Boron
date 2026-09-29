@@ -180,5 +180,5 @@ bool MmIsFromPmmPte(MMPTE Pte)
 
 void MmFlushTlbUpdates()
 {
-	// On i386, the TLB is coherent against the data cache, so no need for anything
+	// On i386, the TLB reads from dcache first, and then from main memory, so no need to do anything.
 }

@@ -48,7 +48,7 @@ void ProcessTestRoutine(UNUSED void* Ptr)
 	KeWaitForSingleObject(&Evnt, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	
 	// Unmap the memory.
-	MiUnmapPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE);
+	MiUnmapPages((uintptr_t) TheMemory, SizeOfTheMemory / PAGE_SIZE, true);
 	Status = MmProbeAddress(TheMemory, SizeOfTheMemory, true, MODE_KERNEL);
 	LogMsg("Status In Process: %d (after unmapping memory)", Status);
 	

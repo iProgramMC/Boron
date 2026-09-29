@@ -163,5 +163,7 @@ MM_PTE_API bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2);
 // Checks if the PTE has unsupported parameters.
 MM_PTE_API bool MmIsUnsupportedHigherLevelPte(MMPTE Pte);
 
-// Flushes PTE modifications.
+// Flushes PTE modifications to main memory.
+// On certain architectures (ARM), when the TLB is to be refilled, it bypasses
+// the cache and goes straight to main memory.
 MM_PTE_API void MmFlushTlbUpdates();

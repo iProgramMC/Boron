@@ -78,7 +78,7 @@ void PerformDemandPageTest()
 	LogMsg("Va read: %08x", *((uint32_t*)Va));
 	
 	MmLockKernelSpaceExclusive();
-	MiUnmapPages(Va, 1);
+	MiUnmapPages(Va, 1, true);
 	MmUnlockKernelSpace();
 	
 	MmFreePoolBig(PoolAddr);
@@ -124,7 +124,7 @@ void PerformCopyOnWriteTest()
 	
 	// Unmap everything.
 	MmLockKernelSpaceExclusive();
-	MiUnmapPages(Va1, 2);
+	MiUnmapPages(Va1, 2, true);
 	MmUnlockKernelSpace();
 	
 	// Free the pool space.

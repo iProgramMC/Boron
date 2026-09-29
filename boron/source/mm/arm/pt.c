@@ -274,7 +274,7 @@ bool MiMapPhysicalPage(uintptr_t PhysicalPage, uintptr_t Address, uintptr_t Perm
 	return true;
 }
 
-void MiUnmapPages(uintptr_t Address, size_t LengthPages)
+void MiUnmapPages(uintptr_t Address, size_t LengthPages, bool InvokeTlbShootdown)
 {
 	MMPTE ZeroPte = MmBuildZeroPte();
 	
@@ -293,7 +293,10 @@ void MiUnmapPages(uintptr_t Address, size_t LengthPages)
 	}
 	
 	MmFlushTlbUpdates();
-	MmIssueTLBShootDown(Address, LengthPages, NULL);
+	
+	if (InvokeTlbShootdown) {
+		MmIssueTLBShootDown(Address, LengthPages, NULL);
+	}
 }
 
 uintptr_t MiGetTopOfPoolManagedArea()
@@ -342,7 +345,7 @@ bool MiMapAnonPages(uintptr_t Address, size_t SizePages, uintptr_t Permissions, 
 	
 ROLLBACK:
 	// Unmap all the pages that we have mapped.
-	MiUnmapPages(Address, DonePages);
+	MiUnmapPages(Address, DonePages, true);
 	MmFlushTlbUpdates();
 	return false;
 }

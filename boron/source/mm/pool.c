@@ -74,7 +74,8 @@ void MmFreePoolBig(void* Address)
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MiUnmapPages(
 			(uintptr_t)Address,
-			MiGetSizeFromPoolSpaceHandle(Handle)
+			MiGetSizeFromPoolSpaceHandle(Handle),
+			true // InvokeTlbShootdown
 		);
 		
 		MmUnlockKernelSpace();
@@ -137,7 +138,7 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t Permissions
 	return Space;
 
 Rollback:
-	MiUnmapPages((uintptr_t) Space, SizePages);
+	MiUnmapPages((uintptr_t) Space, SizePages, true);
 	MmUnlockKernelSpace();
 	MmFreePoolBig(Space);
 	return NULL;
@@ -147,4 +148,3 @@ void* MmAllocateKernelStack()
 {
 	return MmAllocatePoolBig(POOL_FLAG_NON_PAGED, KERNEL_STACK_SIZE / PAGE_SIZE, POOL_TAG("ThSt"));
 }
-
