@@ -28,6 +28,11 @@ typedef int POOL_TYPE;
 // even if POOL_FLAG_CALLER_CONTROLLED is set.
 #define POOL_FLAG_UNMAP_ANYWAY (1 << 2)
 
+// If this flag is set, the pool memory will continue to be reserved
+// for an arbitrary amount of time, and then reclaimed when pool space
+// runs out.
+#define POOL_FLAG_LAZY_RELEASE (1 << 3)
+
 // Redundant, could just pass 0
 #define POOL_PAGED (0)
 

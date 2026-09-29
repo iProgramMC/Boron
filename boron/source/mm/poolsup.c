@@ -14,131 +14,10 @@ Author:
 ***/
 #include "mi.h"
 
-#if 0
-#ifdef IS_32_BIT
-
-// the structure of the pool header PTE if this is set is as follows:
-//
-// [Bits 31..12] 1 [Bits 11..10] 0 [Bits 9..3] 0
-//
-// - Bit 8 is cleared because MM_DPTE_COMMITTED shouldn't conflict
-//   with this scheme.
-//
-// - Bit 0 is cleared because MM_PTE_PRESENT conflicts
-//
-// - Bit 11 is set because that's MM_DPTE_ISPOOLHDR
-
-typedef union
-{
-	MMPTE Pte;
-	
-	struct
-	{
-		uintptr_t Present   : 1; // MUST be zero
-		uintptr_t B3to9     : 7;
-		uintptr_t Committed : 1; // MUST be zero
-		uintptr_t B10to11   : 2;
-		uintptr_t IsPoolHdr : 1; // MUST be ONE
-		uintptr_t B12to31   : 20;
-	}
-	PACKED;
-}
-MMPTE_POOLHEADER;
-
-static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
-static_assert(MM_DPTE_COMMITTED == (1 << 8));
-static_assert(MM_DPTE_ISPOOLHDR == (1 << 11));
-
-MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
-{
-	ASSERT(!(Handle & 0x7));
-	MMPTE_POOLHEADER PteHeader;
-	PteHeader.Pte = 0;
-	
-	PteHeader.B3to9 = (Handle >> 3) & 0x7F;
-	PteHeader.B10to11 = (Handle >> 10) & 0x3;
-	PteHeader.B12to31 = (Handle >> 12);
-	PteHeader.IsPoolHdr = true;
-
-	return PteHeader.Pte;
-}
-
-FORCE_INLINE
-uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
-{
-	MMPTE_POOLHEADER PteHeader;
-	PteHeader.Pte = Pte;
-	
-	ASSERT(!PteHeader.Present);
-	ASSERT(!PteHeader.Committed);
-	ASSERT(PteHeader.IsPoolHdr);
-	
-	return
-		PteHeader.B3to9 << 3 |
-		PteHeader.B10to11 << 10 |
-		PteHeader.B12to31 << 12;
-}
-
-#elif defined TARGET_ARM
-
-// the structure of the pool header PTE if this is set is as follows:
-//
-// Address[30:3] 0 1 0 0
-//
-// - bits 0 and 1 are cleared because ARM uses the first 2 bits as the PTE's "type"
-// - bit 2 is set because that's MM_DPTE_ISPOOLHDR
-// - bit 3 is cleared because that's MM_DPTE_COMMITTED and it shouldn't conflict
-typedef union
-{
-	MMPTE Pte;
-	
-	struct
-	{
-		uintptr_t Present   : 2; // MUST be zero
-		uintptr_t IsPoolHdr : 1; // MUST be ONE
-		uintptr_t Committed : 1; // MUST be zero
-		uintptr_t B3to30    : 28;
-	}
-	PACKED;
-}
-MMPTE_POOLHEADER;
-
-static_assert(sizeof(MMPTE_POOLHEADER) == sizeof(uint32_t));
-static_assert(MM_DPTE_ISPOOLHDR == (1 << 2));
-static_assert(MM_DPTE_COMMITTED == (1 << 3));
-
-MMPTE MiCalculatePoolHeaderPte(uintptr_t Handle)
-{
-	ASSERT(!(Handle & 0x7));
-	MMPTE_POOLHEADER PteHeader;
-	PteHeader.Pte = 0;
-	
-	PteHeader.B3to30 = Handle >> 3;
-	PteHeader.IsPoolHdr = true;
-
-	return PteHeader.Pte;
-}
-
-FORCE_INLINE
-uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
-{
-	MMPTE_POOLHEADER PteHeader;
-	PteHeader.Pte = Pte;
-	
-	ASSERT(!PteHeader.Present);
-	ASSERT(!PteHeader.Committed);
-	ASSERT(PteHeader.IsPoolHdr);
-	
-	return (PteHeader.B3to30 << 3) | 0x80000000;
-}
-
+#ifndef DEBUG2
+#define TestDbgPrint(...)
 #else
-
-#define MiCalculatePoolHeaderPte(Handle) (((uintptr_t)(Handle) - MM_KERNEL_SPACE_BASE) | MM_DPTE_ISPOOLHDR)
-
-#define MiReconstructPoolHandleFromPte(Pte) ((MIPOOL_SPACE_HANDLE)(((Pte) & ~MM_DPTE_ISPOOLHDR) + MM_KERNEL_SPACE_BASE))
-
-#endif
+#define TestDbgPrint DbgPrint
 #endif
 
 //
@@ -151,6 +30,9 @@ uintptr_t MiReconstructPoolHandleFromPte(MMPTE Pte)
 
 static KSPIN_LOCK MmpPoolLock;
 static LIST_ENTRY MmpPoolList;
+
+static PMIPOOL_ENTRY MmpPoolLazyReleaseList = NULL;
+static int MmpPoolLazyReleaseCounter;
 
 #define MIP_CURRENT(CE) CONTAINING_RECORD((CE), MIPOOL_ENTRY, ListEntry)
 #define MIP_FLINK(E) CONTAINING_RECORD((E)->Flink, MIPOOL_ENTRY, ListEntry)
@@ -225,6 +107,7 @@ void MiInitPool()
 #endif
 	
 	InitializeListHead(&MmpPoolList);
+	MmpPoolLazyReleaseList = NULL;
 	
 	PMIPOOL_ENTRY Entry = MiCreatePoolEntry();
 	Entry->Flags = 0;
@@ -246,13 +129,46 @@ void MiInitPool()
 #endif
 }
 
-MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
+void MiFreePoolSpaceSubLocked(MIPOOL_SPACE_HANDLE Handle);
+
+// Returns true if regions have been reclaimed, false if there were none to reclaim.
+static bool MmpReclaimLazyReleaseList()
+{
+	ASSERT(MmpPoolLock.Locked);
+	
+	bool Reclaimed = false;
+	
+	TestDbgPrint("MmpReclaimLazyReleaseList: Checking for reclaimable regions.");
+	while (MmpPoolLazyReleaseList)
+	{
+		PMIPOOL_ENTRY Entry = MmpPoolLazyReleaseList;
+		MmpPoolLazyReleaseList = Entry->NextLazyEntry;
+		
+		Entry->Flags &= ~(MI_POOL_ENTRY_LAZY_RELEASE | MI_POOL_ENTRY_PENDING_FREE);
+		
+		TestDbgPrint("	MmpReclaimLazyReleaseList: Freeing region %p (address %p).", Entry, Entry->Address);
+		MiFreePoolSpaceSubLocked((MIPOOL_SPACE_HANDLE) Entry);
+		Reclaimed = true;
+	}
+	
+	if (Reclaimed)
+	{
+		// Issue a complete TLB shootdown.
+		TestDbgPrint("	MmpReclaimLazyReleaseList: Clearing TLB.");
+		MmIssueTLBShootDown(MiGetTopOfPoolManagedArea(), MAX_TLBS_LENGTH, NULL);
+	}
+	
+	MmpPoolLazyReleaseCounter = 0;
+	return Reclaimed;
+}
+
+MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData, int EntryFlags)
 {
 	// Basic case: If PoolEntry's size matches SizeInPages
 	if (PoolEntry->Size == SizeInPages)
 	{
 		// Convert the entire entry into an allocated one, and return it.
-		PoolEntry->Flags   |= MI_POOL_ENTRY_ALLOCATED;
+		PoolEntry->Flags    = MI_POOL_ENTRY_ALLOCATED | EntryFlags;
 		PoolEntry->Tag      = Tag;
 		PoolEntry->UserData = UserData;
 		
@@ -285,7 +201,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	// Update the properties of the pool entry
 	PoolEntry->Size     = SizeInPages;
 	PoolEntry->Tag      = Tag;
-	PoolEntry->Flags   |= MI_POOL_ENTRY_ALLOCATED;
+	PoolEntry->Flags    = MI_POOL_ENTRY_ALLOCATED | EntryFlags;
 	PoolEntry->UserData = UserData;
 	
 	// Update the output address
@@ -295,7 +211,7 @@ MIPOOL_SPACE_HANDLE MmpSplitEntry(PMIPOOL_ENTRY PoolEntry, size_t SizeInPages, v
 	return (MIPOOL_SPACE_HANDLE) PoolEntry;
 }
 
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData, int EntryFlags)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
@@ -304,41 +220,65 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTaggedSub(size_t SizeInPages, void** Outpu
 	if (OutputAddress)
 		*OutputAddress = NULL;
 	
-	// This is a first-fit allocator.
-	
-	while (CurrentEntry != &MmpPoolList)
+	// The while loop is so that in case there are no pool regions left, 
+	while (true)
 	{
-#ifdef DEBUG
-		if (CurrentEntry == NULL)
-			KeCrash("HUH?!?  CurrentEntry is NULL");
-#endif
-		
-		// Skip allocated entries.
-		PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
-		
-		if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
+		// This is a first-fit allocator.
+		while (CurrentEntry != &MmpPoolList)
 		{
+#ifdef DEBUG
+			if (CurrentEntry == NULL)
+				KeCrash("HUH?!?  CurrentEntry is NULL");
+#endif
+			
+			// Skip allocated entries.
+			PMIPOOL_ENTRY Current = MIP_CURRENT(CurrentEntry);
+			
+			if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
+			{
+				CurrentEntry = CurrentEntry->Flink;
+				continue;
+			}
+			
+			if (Current->Size >= SizeInPages)
+			{
+				MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag, UserData, EntryFlags);
+				
+				if (Handle == 0) {
+					// Running out of physical memory, too.
+					// Jump directly to reclaiming from the lazy release list.
+					DbgPrint("MiReservePoolSpaceTaggedSub: MmpSplitEntry returned zero, reclaiming right away.");
+					break;
+				}
+				
+				KeReleaseSpinLock(&MmpPoolLock, OldIpl);
+				return Handle;
+			}
+			
+#ifdef DEBUG
+			if (CurrentEntry->Flink == NULL)
+				KeCrash("HUH?!?  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
+#endif
+			
 			CurrentEntry = CurrentEntry->Flink;
-			continue;
 		}
 		
-		if (Current->Size >= SizeInPages)
+		// No more space or memory.  See if we can reclaim the lazy release list.
+		if (!MmpReclaimLazyReleaseList())
 		{
-			MIPOOL_SPACE_HANDLE Handle = MmpSplitEntry(Current, SizeInPages, OutputAddress, Tag, UserData);
-			KeReleaseSpinLock(&MmpPoolLock, OldIpl);
-			return Handle;
+			// Couldn't reclaim, bail out now!
+			break;
 		}
-		
-#ifdef DEBUG
-		if (CurrentEntry->Flink == NULL)
-			KeCrash("HUH?!?  CurrentEntry->Flink is NULL!  CurrentEntry: %p");
-#endif
-		
-		CurrentEntry = CurrentEntry->Flink;
 	}
 	
 #ifdef DEBUG
-	DbgPrint("ERROR: MiReservePoolSpaceTaggedSub ran out of pool space?! (Dude, we have 512 GiB of VM space, what are you doing?!)");
+	DbgPrint("ERROR: MiReservePoolSpaceTaggedSub ran out of pool space?! (Dude, we have "
+	#ifdef IS_32_BIT
+		"1.25 GiB"
+	#else
+		"512 GiB"
+	#endif
+		" of VM space, what are you doing?!)");
 #endif
 	
 	if (OutputAddress)
@@ -372,11 +312,8 @@ static void MmpTryConnectEntryWithItsFlink(PMIPOOL_ENTRY Entry)
 	}
 }
 
-void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
+void MiFreePoolSpaceSubLocked(MIPOOL_SPACE_HANDLE Handle)
 {
-	KIPL OldIpl;
-	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
-	
 	// Get the handle to the pool entry.
 	PMIPOOL_ENTRY Entry = (PMIPOOL_ENTRY) Handle;
 	ASSERT(!(Handle & 0x7));
@@ -388,13 +325,36 @@ void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
 		KeCrash("MiFreePoolSpace: Returned a free entry");
 	}
 	
-	Entry->Flags &= ~MI_POOL_ENTRY_ALLOCATED;
-	Entry->Tag    = MI_EMPTY_TAG;
-	
-	MmpTryConnectEntryWithItsFlink(Entry);
-	if (Entry->ListEntry.Blink != &MmpPoolList)
-		MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
-	
+	if (Entry->Flags & MI_POOL_ENTRY_LAZY_RELEASE)
+	{
+		// Lazy release: add it to the list of regions to lazily release
+		Entry->Flags |= MI_POOL_ENTRY_PENDING_FREE;
+		Entry->NextLazyEntry = MmpPoolLazyReleaseList;
+		MmpPoolLazyReleaseList = Entry;
+		
+		MmpPoolLazyReleaseCounter++;
+		if (MmpPoolLazyReleaseCounter >= MI_MAX_LAZY_RELEASE_COUNT)
+		{
+			UNUSED bool Result = MmpReclaimLazyReleaseList();
+			ASSERT(Result && "Umm... But we were supposed to reclaim, weren't we?");
+		}
+	}
+	else
+	{
+		Entry->Flags &= ~MI_POOL_ENTRY_ALLOCATED;
+		Entry->Tag = MI_EMPTY_TAG;
+		
+		MmpTryConnectEntryWithItsFlink(Entry);
+		if (Entry->ListEntry.Blink != &MmpPoolList)
+			MmpTryConnectEntryWithItsFlink(MIP_BLINK(&Entry->ListEntry));
+	}
+}
+
+void MiFreePoolSpaceSub(MIPOOL_SPACE_HANDLE Handle)
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmpPoolLock, &OldIpl);
+	MiFreePoolSpaceSubLocked(Handle);
 	KeReleaseSpinLock(&MmpPoolLock, OldIpl);
 }
 
@@ -417,7 +377,7 @@ void MiFreePoolSpace(MIPOOL_SPACE_HANDLE Handle)
 	MiFreePoolSpaceSub(Handle);
 }
 
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData)
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData, int EntryFlags)
 {
 	// The actual size of the desired memory region is passed into SizeInPages.  Add 1 to it.
 	// The memory region will actually be formed of:
@@ -428,8 +388,11 @@ MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAd
 	// be set, and the present bit will be clear.
 	SizeInPages += 1;
 	
+	// Only these flags are valid to specify for this function.
+	EntryFlags &= (MI_POOL_ENTRY_LAZY_RELEASE);
+	
 	void* OutputAddressSub;
-	MIPOOL_SPACE_HANDLE Handle = MiReservePoolSpaceTaggedSub(SizeInPages, &OutputAddressSub, Tag, UserData);
+	MIPOOL_SPACE_HANDLE Handle = MiReservePoolSpaceTaggedSub(SizeInPages, &OutputAddressSub, Tag, UserData, EntryFlags);
 	
 	if (!Handle)
 		return Handle;
@@ -482,7 +445,9 @@ void MiDumpPoolInfo()
 		*((int*)Tag) = Current->Tag;
 		
 		const char* UsedText = "Free";
-		if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
+		if (Current->Flags & MI_POOL_ENTRY_PENDING_FREE)
+			UsedText = "Lazy";
+		else if (Current->Flags & MI_POOL_ENTRY_ALLOCATED)
 			UsedText = "Used";
 		
 		DbgPrint("* %p  %s    %s    %p %p   %18zu",

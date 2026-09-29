@@ -19,6 +19,9 @@ Author:
 #include <ke/locks.h>
 #include "pte.h"
 
+// Maximum amount of pages to shoot down before the entire TLB is cleared
+#define MAX_TLBS_LENGTH 128
+
 // forward declaration of KPROCESS
 typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
 

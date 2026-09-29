@@ -197,12 +197,19 @@ HUGE_MEMORY_BLOCK, *PHUGE_MEMORY_BLOCK;
 
 #endif
 
+// Number of pending lazy release entries before they're all
+// released and the TLBs are cleared.
+#define MI_MAX_LAZY_RELEASE_COUNT 32
+
 typedef struct MIPOOL_ENTRY_tag
 {
 	LIST_ENTRY ListEntry;
 	int        Flags;
 	int        Tag;
-	uintptr_t  UserData;
+	union {
+		uintptr_t UserData;
+		struct MIPOOL_ENTRY_tag* NextLazyEntry;
+	};
 	uintptr_t  Address;
 	size_t     Size;
 #ifdef IS_32_BIT
@@ -221,6 +228,8 @@ static_assert(sizeof(MIPOOL_ENTRY) == 32);
 typedef enum MIPOOL_ENTRY_FLAGS_tag
 {
 	MI_POOL_ENTRY_ALLOCATED = (1 << 0),
+	MI_POOL_ENTRY_LAZY_RELEASE = (1 << 1),
+	MI_POOL_ENTRY_PENDING_FREE = (1 << 2),
 }
 MIPOOL_ENTRY_FLAGS;
 
@@ -237,7 +246,7 @@ typedef uintptr_t MIPOOL_SPACE_HANDLE;
 // [!!!] The output address is NOT mapped in, and in fact, it is guaranteed that no PTE
 //       is valid at that address. The allocator will have to map their own memory there
 //       and free it when they are done.
-MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData);
+MIPOOL_SPACE_HANDLE MiReservePoolSpaceTagged(size_t SizeInPages, void** OutputAddress, int Tag, uintptr_t UserData, int ReserveFlags);
 
 // Free an address space in the kernel pool.
 

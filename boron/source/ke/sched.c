@@ -724,6 +724,7 @@ void KiSwitchToNextThread()
 	if (!IsListEmpty(&Thread->KernelApcQueue))
 		KeIssueSoftwareInterrupt(IPL_APC);
 	
+#ifdef ENABLE_ACTIVE_AP_BITMAP
 	// Set this processor's bit in the active AP bitmap, and clear it in the old
 	// process' active AP bitmap.
 	//
@@ -746,6 +747,7 @@ void KiSwitchToNextThread()
 			AtAndFetch(OldProcess->ActiveAPBitmap, ~Bit);
 		}
 	}
+#endif
 	
 	// Switch to the new thread's stack.
 	uintptr_t StackBottom = (uintptr_t) Thread->Stack.Top + Thread->Stack.Size;

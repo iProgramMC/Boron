@@ -18,8 +18,6 @@ Author:
 #error If you want SMP 32-bit x86, you must copy the tlbs.c from AMD64!
 #endif
 
-#define MAX_TLBS_LENGTH 32
-
 void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, UNUSED PKPROCESS Process)
 {
 	if (LengthPages == 0)

@@ -56,7 +56,7 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 	}
 	
 	void* AddressV = MmAllocatePoolBig(
-		POOL_FLAG_CALLER_CONTROLLED,
+		POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_LAZY_RELEASE,
 		Mdl->NumberPages,
 		POOL_TAG("MdlM")
 	);
@@ -102,7 +102,7 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 	}
 	
 	// Map succeeded, make it so that MmFreePool unmaps the region too.
-	MmSetPoolFlagsFromAddress(AddressV, POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_UNMAP_ANYWAY);
+	MmSetPoolFlagsFromAddress(AddressV, POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_UNMAP_ANYWAY | POOL_FLAG_LAZY_RELEASE);
 	
 	MmUnlockKernelSpace();
 	

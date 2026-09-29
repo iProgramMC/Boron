@@ -85,10 +85,12 @@ PKPROCESS KeSetAttachedProcess(PKPROCESS NewProcess)
 	
 	KIPL Ipl = KeRaiseIPL(IPL_DPC);
 	
+#ifdef ENABLE_ACTIVE_AP_BITMAP
 	uint64_t Bit = 1ULL << KeGetCurrentPRCB()->Id;
 	AtOrFetch(NewProcess->ActiveAPBitmap, Bit);
 	AtAndFetch(OldProcess->ActiveAPBitmap, ~Bit);
-	
+#endif
+
 	Thread->AttachedProcess = NewProcess;
 	
 	KeLowerIPL(Ipl);

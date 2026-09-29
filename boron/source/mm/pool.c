@@ -38,11 +38,16 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 {
 	void* OutputAddress = NULL;
 	
+	int ReserveFlags = 0;
+	if (PoolFlags & POOL_FLAG_LAZY_RELEASE)
+		ReserveFlags |= MI_POOL_ENTRY_LAZY_RELEASE;
+	
 	MIPOOL_SPACE_HANDLE OutHandle = (MIPOOL_SPACE_HANDLE) MiReservePoolSpaceTagged (
 		PageCount,
 		&OutputAddress,
 		Tag,
-		PoolFlags);
+		PoolFlags,
+		ReserveFlags);
 	
 	if (!OutHandle)
 		return NULL;
@@ -83,11 +88,18 @@ void MmFreePoolBig(void* Address)
 	{
 		MmLockKernelSpaceExclusive();
 		
+		bool InvokeTlbShootdown = true;
+		
+		// If lazy release is set, don't invoke a TLB shootdown.
+		// The TLB shootdown will be invoked later.
+		if (PoolFlags & POOL_FLAG_LAZY_RELEASE)
+			InvokeTlbShootdown = false;
+		
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MiUnmapPages(
 			(uintptr_t)Address,
 			MiGetSizeFromPoolSpaceHandle(Handle),
-			true // InvokeTlbShootdown
+			InvokeTlbShootdown
 		);
 		
 		MmUnlockKernelSpace();

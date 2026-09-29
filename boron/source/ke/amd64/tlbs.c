@@ -22,14 +22,25 @@ Author:
 #define TestDbgPrint DbgPrint
 #endif
 
-#define MAX_TLBS_LENGTH 32
-
 extern PKPRCB* KeProcessorList;
 extern int     KeProcessorCount;
 
 // only one thread can perform a TLB shootdown at once.. don't exactly know why
 // the locks inside the CPUs themselves are used for synchronization of the operation itself
 KSPIN_LOCK KeTLBSLock;
+
+void KiLocalTLBShootdown(uintptr_t Address, size_t LengthPages)
+{
+	if (LengthPages >= MAX_TLBS_LENGTH)
+	{
+		KeSetCurrentPageTable(KeGetCurrentPageTable());
+	}
+	else
+	{
+		for (size_t i = 0; i < LengthPages; i++)
+			KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
+	}
+}
 
 void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Process)
 {
@@ -45,17 +56,7 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Proces
 	if (!KeGetCurrentPRCB())
 	{
 		// Invalidate the pages on the local CPU
-		
-		if (LengthPages >= MAX_TLBS_LENGTH)
-		{
-			KeSetCurrentPageTable(KeGetCurrentPageTable());
-		}
-		else
-		{
-			for (size_t i = 0; i < LengthPages; i++)
-				KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
-		}
-		
+		KiLocalTLBShootdown(Address, LengthPages);
 		return;
 	}
 	
@@ -71,6 +72,9 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Proces
 	const uint64_t ShootdownBitmapAll = 0xFFFFFFFFFFFFFFFF;
 	uint64_t ShootdownBitmap = ShootdownBitmapAll;
 	
+#ifndef ENABLE_ACTIVE_AP_BITMAP
+	(void) Process;
+#else
 	if (Process)
 	{
 		// TODO: release this code - need to test that ActiveAPBitmap works first
@@ -83,6 +87,7 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Proces
 		}
 	#endif
 	}
+#endif
 	
 	TestDbgPrint("	TLBS: Bitmap: %016llx", ShootdownBitmap);
 	TestDbgPrint("	TLBS: We're processor #%d", KeGetCurrentPRCB()->Id);
@@ -100,10 +105,7 @@ void KeIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Proces
 #endif
 	
 	// Invalidate the pages on the local CPU
-	for (size_t i = 0; i < LengthPages; i++)
-	{
-		KeInvalidatePage((void*)(Address + i * PAGE_SIZE));
-	}
+	KiLocalTLBShootdown(Address, LengthPages);
 	
 	// If we are the only processor, return
 	if (KeProcessorCount == 1)

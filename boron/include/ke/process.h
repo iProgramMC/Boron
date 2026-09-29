@@ -17,6 +17,11 @@ Author:
 #include <ke/dispatch.h>
 #include <mm.h>
 
+// TODO: Enable it on 32-bit too.  Not sure how I can do that though.
+#ifndef IS_32_BIT
+#define ENABLE_ACTIVE_AP_BITMAP
+#endif
+
 typedef struct KPROCESS_tag KPROCESS, *PKPROCESS;
 
 struct KPROCESS_tag
@@ -39,10 +44,12 @@ struct KPROCESS_tag
 	// Default thread affinity
 	KAFFINITY DefaultAffinity;
 	
+#ifdef ENABLE_ACTIVE_AP_BITMAP
 	// Bitmap of processors where this process' threads are active.
 	// NOTE: May be manipulated even while the dispatcher lock is not
 	// held.  So only use atomic instructions to manipulate it!
 	uint64_t ActiveAPBitmap;
+#endif
 	
 	// User-space pointer to the PEB (process environment block).
 	void* PebPointer;
