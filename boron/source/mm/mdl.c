@@ -21,7 +21,6 @@ void MmUnmapPagesMdl(PMDL Mdl)
 	if (~Mdl->Flags & MDL_FLAG_MAPPED)
 		return;
 	
-	MiUnmapPages(Mdl->MappedStartVA, Mdl->NumberPages, true);
 	MmFreePoolBig((void*) Mdl->MappedStartVA);
 	Mdl->Flags &= ~MDL_FLAG_MAPPED;
 }
@@ -101,6 +100,9 @@ BSTATUS MmMapPinnedPagesMdl(PMDL Mdl, void** OutAddress)
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
 	}
+	
+	// Map succeeded, make it so that MmFreePool unmaps the region too.
+	MmSetPoolFlagsFromAddress(AddressV, POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_UNMAP_ANYWAY);
 	
 	MmUnlockKernelSpace();
 	

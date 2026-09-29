@@ -22,6 +22,18 @@ size_t MmGetSizeFromPoolAddress(void* Address)
 	return MiGetSizeFromPoolSpaceHandle(Handle);
 }
 
+uintptr_t MmGetPoolFlagsFromAddress(void* Address)
+{
+	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
+	return MiGetUserDataFromPoolSpaceHandle(Handle);
+}
+
+void MmSetPoolFlagsFromAddress(void* Address, uintptr_t Flags)
+{
+	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
+	MiSetUserDataFromPoolSpaceHandle(Handle, Flags);
+}
+
 void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 {
 	void* OutputAddress = NULL;

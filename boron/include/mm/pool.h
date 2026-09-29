@@ -44,6 +44,13 @@ void MmFreePoolBig(void* Address);
 
 size_t MmGetSizeFromPoolAddress(void* Address);
 
+// Gets the pool flags for this pool address, as specified in MmAllocatePoolBig or
+// MmSetPoolFlagsFromAddress.
+uintptr_t MmGetPoolFlagsFromAddress(void* Address);
+
+// Sets the pool flags for this pool address.
+void MmSetPoolFlagsFromAddress(void* Address, uintptr_t Flags);
+
 // Maps physical memory with certain caching attributes into pool space.  To free this I/O space,
 // simply call MmFreePoolBig.  This function is thread-safe.
 //

@@ -511,6 +511,11 @@ size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 	return (size_t) (((PMIPOOL_ENTRY)Handle)->Size - 1);
 }
 
+void MiSetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle, uintptr_t Data)
+{
+	((PMIPOOL_ENTRY)Handle)->UserData = Data;
+}
+
 uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle)
 {
 	return ((PMIPOOL_ENTRY)Handle)->UserData;

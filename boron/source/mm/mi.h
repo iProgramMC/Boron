@@ -255,8 +255,12 @@ void* MiGetAddressFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 // Get the size of the address range owned by a handle.
 size_t MiGetSizeFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
 
-// Get the user data from the address range owned by a handle as passed to MiReservePoolSpaceTagged.
+// Get the user data from the address range owned by a handle as passed to MiReservePoolSpaceTagged
+// or MiSetUserDataFromPoolSpaceHandle.
 uintptr_t MiGetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE);
+
+// Set the user data for an address range owned by a handle.
+void MiSetUserDataFromPoolSpaceHandle(MIPOOL_SPACE_HANDLE Handle, uintptr_t Data);
 
 // Get the pool space handle from an address returned by MiReservePoolSpaceTagged.
 MIPOOL_SPACE_HANDLE MiGetPoolSpaceHandleFromAddress(void* Address);
