@@ -18,7 +18,10 @@ static char CommandBuffer[MAX_COMMAND];
 
 void CmdPrintPrompt()
 {
-	OSFPrintf(FILE_STANDARD_ERROR, "BMS> ");
+	char PathNameBuffer[512];
+	OSGetCurrentDirectoryPath(PathNameBuffer, sizeof PathNameBuffer);
+	
+	OSFPrintf(FILE_STANDARD_ERROR, "BMS: %s> ", PathNameBuffer);
 }
 
 void CmdPrintInitMessage()

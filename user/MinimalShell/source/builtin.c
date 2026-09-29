@@ -91,6 +91,118 @@ void CmdExecuteAndTime(const char* FullArguments)
 	);
 }
 
+BSTATUS CmdChangeDirectory(const char* PathName)
+{
+	BSTATUS Status;
+	char TempBuffer[512];
+	
+	if (PathName[0] == '/') {
+		// Path name is absolute, just forward it
+		return OSSetCurrentDirectory(PathName);
+	}
+	
+	// Path name is relative, therefore we need to adjust it
+	Status = OSGetCurrentDirectoryPath(TempBuffer, sizeof(TempBuffer));
+	
+	if (FAILED(Status))
+		return Status;
+	
+	const char* PathNamePtr = PathName;
+	while (*PathNamePtr)
+	{
+		DbgPrint("TempBuf is now '%s', PathNamePtr is now %s", TempBuffer, PathNamePtr);
+		
+		if (*PathNamePtr == '/') {
+			PathNamePtr++;
+			continue;
+		}
+		
+		bool IsDotEnd = PathNamePtr[0] == '.' && PathNamePtr[1] == 0;
+		bool IsDotSlash = PathNamePtr[0] == '.' && PathNamePtr[1] == '/';
+		
+		if (IsDotEnd || IsDotSlash)
+		{
+			// ".", so ignore the path component
+			PathNamePtr++;
+			
+			if (IsDotSlash)
+				PathNamePtr++;
+			
+			continue;
+		}
+		
+		bool IsDotDotEnd = PathNamePtr[0] == '.' && PathNamePtr[1] == '.' && PathNamePtr[2] == 0;
+		bool IsDotDotSlash = PathNamePtr[0] == '.' && PathNamePtr[1] == '.' && PathNamePtr[2] == '/';
+		
+		if (IsDotDotEnd || IsDotDotSlash)
+		{
+			// Pop a path component from the end of the temporary buffer.
+			int Length = (int) strlen(TempBuffer);
+			for (int i = Length - 1; i >= 0; i--)
+			{
+				if (TempBuffer[i] == '/')
+				{
+					TempBuffer[i] = 0;
+					if (i == 0) {
+						strcpy(TempBuffer, "/");
+					}
+					break;
+				}
+			}
+			
+			PathNamePtr += 2;
+			if (IsDotDotSlash)
+				PathNamePtr++;
+			
+			continue;
+		}
+		
+		// Regular path component: append it to the current directory.
+		size_t CompLength = 0;
+		for (; PathNamePtr[CompLength] != 0 && PathNamePtr[CompLength] != '/'; CompLength++);
+		
+		bool IsAtRoot = strcmp(TempBuffer, "/") == 0;
+		size_t TempBufLength = strlen(TempBuffer);
+		if (TempBufLength + (IsAtRoot ? 1 : 0) + CompLength + 1 > sizeof(TempBuffer))
+		{
+			DbgPrint("CmdChangeDirectory: Buffer overflow while trying to parse path '%s'", PathName);
+			return STATUS_NAME_TOO_LONG;
+		}
+		
+		if (!IsAtRoot) {
+			strcpy(TempBuffer + TempBufLength, "/");
+			TempBufLength++;
+		}
+		
+		memcpy(TempBuffer + TempBufLength, PathNamePtr, CompLength);
+		TempBuffer[TempBufLength + CompLength] = 0;
+		
+		PathNamePtr += CompLength;
+		if (*PathNamePtr == '/')
+			PathNamePtr++;
+	}
+	
+	DbgPrint("END: TempBuf is now '%s'", TempBuffer);
+	return OSSetCurrentDirectory(TempBuffer);
+}
+
+void CmdChangeDir(const char* FullArguments)
+{
+	// TODO: take to $HOME instead
+	const char* DestinationDirectory = "/";
+	
+	if (*FullArguments != 0)
+	{
+		DestinationDirectory = FullArguments;
+	}
+	
+	BSTATUS Status = CmdChangeDirectory(DestinationDirectory);
+	if (FAILED(Status))
+	{
+		OSPrintf("cd: %s: %s\n", DestinationDirectory, RtlGetStatusString(Status));
+	}
+}
+
 void CmdExecuteAsync(const char* FullArguments)
 {
 	if (*FullArguments == 0)
@@ -204,6 +316,8 @@ void CmdShutDown()
 COMMAND_ENTRY CommandTable[] = {
 	ENTRY("help",     CmdHelp, "Print this stuff"),
 	ENTRY("?",        CmdHelp, "Same as help"),
+	ENTRY("cd",       CmdChangeDir, "Change working directory"),
+	ENTRY("chdir",    CmdChangeDir, "Same as cd"),
 	ENTRY("async",    CmdExecuteAsync, "Start async process"),
 	ENTRY("&",        CmdExecuteAsync, "Same as async"),
 	ENTRY("args",     CmdPrintArguments, "Print arguments from PEB"),
