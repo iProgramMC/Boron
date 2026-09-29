@@ -45,6 +45,10 @@ static BSTATUS MmpMapViewOfObject(
 		MappableObject = Overlay;
 		AllocationType &= ~MEM_COW;
 	}
+	else
+	{
+		AllocationType |= MEM_SHARED;
+	}
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
@@ -77,22 +81,6 @@ static BSTATUS MmpMapViewOfObject(
 	MmUnlockVadList(VadList);
 	
 	return STATUS_SUCCESS;
-}
-
-BSTATUS MmpMapViewOfFile(
-	PFILE_OBJECT FileObject,
-	void** BaseAddressInOut,
-	size_t ViewSize,
-	int AllocationType,
-	uint64_t SectionOffset,
-	int Protection
-)
-{
-	// You cannot map files that are not seekable.
-	if (!IoIsSeekable(FileObject->Fcb))
-		return STATUS_UNSUPPORTED_FUNCTION;
-	
-	return MmpMapViewOfObject(FileObject, BaseAddressInOut, ViewSize, AllocationType, SectionOffset, Protection);
 }
 
 //
