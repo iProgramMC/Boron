@@ -16,6 +16,49 @@ Author:
 #include <ex.h>
 
 //
+// Checks if the whole range is committed in the PTEs.
+//
+// NOTE: If Vad->Flags.Committed == 1, DO NOT call this function,
+// as it will likely say that the range was not committed.
+//
+// NOTE: The address space lock MUST have been acquired.
+//
+bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages)
+{
+	PMMPTE Pte = MmGetPteLocation(StartVa);
+	uintptr_t CurrentVa = StartVa;
+	for (size_t i = 0; i < SizePages; )
+	{
+		// If the Pte address crossed into a new page, or if the range is equal to zero,
+		// we need to check if that new page is valid.
+		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
+		{
+			if (!MmCheckPteLocation(CurrentVa, false))
+			{
+				// There is no PTE page.  That means this PTE was not committed.
+				//
+				// To clarify, the VAD backing this range MUST have Vad->Flags.Committed == 0.
+				return false;
+			}
+		}
+		
+		// The PTE is accessible.
+		if ((!MmIsPresentPte(*Pte) && !MmIsCommittedPte(*Pte)) || MmIsDecommittedPte(*Pte))
+		{
+			// Not committed.
+			return false;
+		}
+		
+		// No overlap, move right along.
+		i++;
+		Pte++;
+		CurrentVa += PAGE_SIZE;
+	}
+	
+	return true;
+}
+
+//
 // Commits a range of virtual memory, with anonymous pages.
 //
 // The entire memory region must be uncommitted.
@@ -23,7 +66,7 @@ Author:
 BSTATUS MmCommitVirtualMemory(uintptr_t StartVa, size_t SizePages, int Protection)
 {
 	// Check if the provided address range is valid.
-	if (!MmIsAddressRangeValid(StartVa, SizePages * PAGE_SIZE, MODE_USER))
+	if (!MmIsAddressRangeValidPages(StartVa, SizePages, MODE_USER))
 		return STATUS_INVALID_PARAMETER;
 	
 	// Check if the range passed in overlaps two or more VADs, or none
@@ -162,7 +205,7 @@ void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t Si
 BSTATUS MmDecommitVirtualMemory(uintptr_t StartVa, size_t SizePages)
 {
 	// Check if the provided address range is valid.
-	if (!MmIsAddressRangeValid(StartVa, SizePages * PAGE_SIZE, MODE_USER) || SizePages == 0)
+	if (!MmIsAddressRangeValidPages(StartVa, SizePages, MODE_USER) || SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
 	
 	// Check if the range passed in overlaps two or more VADs, or none

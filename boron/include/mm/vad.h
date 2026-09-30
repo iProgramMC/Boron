@@ -59,6 +59,7 @@ typedef struct _MMVAD_ENTRY
 	
 	union
 	{
+		// NOTE: Only used for system-space VADs, NOT used for user-space VADs.
 		RBTREE_ENTRY ViewCacheEntry;
 		
 		struct
@@ -72,6 +73,7 @@ typedef struct _MMVAD_ENTRY
 	
 	union
 	{
+		// NOTE: Only used for system-space VADs, NOT used for user-space VADs.
 		LIST_ENTRY ViewCacheLruEntry;
 		
 		struct

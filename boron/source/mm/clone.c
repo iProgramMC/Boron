@@ -17,12 +17,154 @@ Author:
 
 #include "mi.h"
 
-static BSTATUS MmpChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
+BSTATUS MiChangeAnonymousRegionIntoSectionByVad(PMMVAD Vad)
+{
+	// If it already has a mapped object, no need to do anything.
+	if (Vad->MappedObject) {
+		return STATUS_SUCCESS;
+	}
+	
+	// This is an anonymous mapping. Try and create a section object for it.
+	// This section object will represent the new mapping, and will contain
+	// all the pages formerly associated with the anonymous memory section.
+	PMMSECTION Section = NULL;
+	BSTATUS Status = MmCreateAnonymousSectionObject(&Section, Vad->Node.Size * PAGE_SIZE);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	// Now go through each page and put all of the allocated PFNs inside.
+	for (size_t i = 0; i < Vad->Node.Size; i++)
+	{
+		uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
+		PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
+		
+		if (!PtePtr)
+		{
+			// PTE doesn't exist, move along.
+			// TODO: skip ALL PTEs within this page.
+			continue;
+		}
+		
+		MMPTE Pte = *PtePtr;
+		if (MmIsPresentPte(Pte))
+		{
+			// The PTE has to come from the PMM, I can't explain it otherwise.
+			ASSERT(MmIsFromPmmPte(Pte));
+			
+			MMPFN Pfn = MmGetPfnPte(Pte);
+			
+			uint64_t SectionOffset = (Vad->SectionOffset + i * PAGE_SIZE) / PAGE_SIZE;
+			Status = MiAssignEntrySection(Section, SectionOffset, Pfn);
+			if (FAILED(Status))
+			{
+				ObDereferenceObject(Section);
+				return Status;
+			}
+		}
+		
+		// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
+		// not committed/decommitted?
+	}
+	
+	// The section conversion was successful, so put the section reference in
+	// the VAD.  Now, we actually DON'T need to clear the PTEs in this step,
+	// since the PFNs remain unchanged.
+	Vad->MappedObject = Section;
+	return Status;
+}
+
+BSTATUS MiAddOverlayToVadIfNeeded(PMMVAD Vad)
+{
+	if (!Vad->MappedObject) {
+		DbgPrint("MiAddOverlayToVadIfNeeded: Cannot add overlay to anonymous section.  Use MiChangeAnonymousRegionIntoSectionByVad first.");
+		return STATUS_UNIMPLEMENTED;
+	}
+	
+	if (!Vad->Flags.Private) {
+		// No need to add overlays here, because the region is private.
+		return STATUS_SUCCESS;
+	}
+	
+	PMMOVERLAY Overlay = NULL;
+	BSTATUS Status = MmCreateOverlayObject(
+		&Overlay,
+		Vad->MappedObject,
+		0
+	);
+	
+	if (FAILED(Status))
+	{
+		// Failed to create an overlay object.
+		return Status;
+	}
+	
+	ObDereferenceObject(Vad->MappedObject);
+	Vad->MappedObject = Overlay;
+	
+	return STATUS_SUCCESS;
+}
+
+void MiResetRegionToUnfaultedState(PMMVAD Vad, bool ShootdownRange)
+{
+	if (!Vad->MappedObject) {
+		DbgPrint("MiResetRegionToUnfaultedState: Cannot reset anonymous region to unfaulted state.");
+		return;
+	}
+	
+	MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
+	if (!Vad->Flags.Committed)
+		CommittedButNotFaultedInPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
+	
+	// Now go through each page and put all of the allocated PFNs inside.
+	for (size_t i = 0; i < Vad->Node.Size; i++)
+	{
+		uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
+		PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
+		
+		if (!PtePtr)
+		{
+			// This can happen in two cases:
+			// - in VADs where Vad->Flags.Committed = 1, when nobody accessed the
+			//   actual VAD in this X MB region, and
+			// - in VADs where Vad->Flags.Committed = 0, when nobody committed the
+			//   region covered by this X MB of address space.
+			//
+			// In either case, there is NO information here, so we can just move
+			// over this part entirely.
+			
+			// TODO: skip ALL PTEs within this page.
+			continue;
+		}
+		
+		MMPTE Pte = *PtePtr;
+		if (MmIsPresentPte(Pte))
+		{
+			// The PTE has to come from the PMM, I can't explain it otherwise.
+			ASSERT(MmIsFromPmmPte(Pte));
+			
+			MMPFN Pfn = MmGetPfnPte(Pte);
+			MmFreePhysicalPage(Pfn);
+			
+			*PtePtr = CommittedButNotFaultedInPte;
+		}
+		
+		// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
+		// not committed/decommitted?
+	}
+	
+	if (ShootdownRange)
+	{
+		MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size, MmGetTargetProcessForShootdown(Vad->Node.StartVa));
+	}
+}
+
+BSTATUS MiChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
 {
 	// Note:
-	// If one of the sections fails, then we DON'T really need to roll this
-	// part back, which is great because I really don't want to write all of
-	// that code.
+	// If one of the VADs fails to become a section, then we DON'T really
+	// need to roll this part back, which is great because I really don't
+	// want to write all of that code.
 	BSTATUS Status = STATUS_SUCCESS;
 	
 	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
@@ -32,60 +174,13 @@ static BSTATUS MmpChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
 		// Does it have a mapped object?
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		
-		if (Vad->MappedObject)
-		{
-			// Yes, so we don't need to turn it into anything.
-			continue;
-		}
-		
-		// Anonymous mapping.  Try and create a section object.  This section
-		// object will represent the new mapping.  Eventually it'll also have
-		// a CoW overlay attached to it, although it's not being done in this
-		// step.
-		PMMSECTION Section = NULL;
-		Status = MmCreateAnonymousSectionObject(&Section, Vad->Node.Size * PAGE_SIZE);
+		Status = MiChangeAnonymousRegionIntoSectionByVad(Vad);
 		
 		if (FAILED(Status))
-			break;
-		
-		// Now go through each page and put all of the allocated PFNs inside.
-		for (size_t i = 0; i < Vad->Node.Size; i++)
 		{
-			uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
-			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
-			
-			if (!PtePtr)
-			{
-				// PTE doesn't exist, move along.
-				// TODO: skip ALL PTEs within this page.
-				continue;
-			}
-			
-			MMPTE Pte = *PtePtr;
-			if (MmIsPresentPte(Pte))
-			{
-				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(MmIsFromPmmPte(Pte));
-				
-				MMPFN Pfn = MmGetPfnPte(Pte);
-				
-				uint64_t SectionOffset = (Vad->SectionOffset + i * PAGE_SIZE) / PAGE_SIZE;
-				Status = MiAssignEntrySection(Section, SectionOffset, Pfn);
-				if (FAILED(Status))
-				{
-					ObDereferenceObject(Section);
-					break;
-				}
-			}
-			
-			// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
-			// not committed/decommitted?
+			// One of the modification failed, so we'll need to return.
+			break;
 		}
-		
-		// The section conversion was successful, so put the section reference in
-		// the VAD.  Now, we actually DON'T need to clear the PTEs in this step,
-		// since the PFNs remain unchanged.
-		Vad->MappedObject = Section;
 	}
 	
 	return Status;
@@ -125,8 +220,10 @@ static void MmpReferenceMappedObjects(PMMVAD_LIST VadList)
 	}
 }
 
-static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
+static BSTATUS MmpAddOverlaysIfNeeded(PEPROCESS Process, bool WritePTEs)
 {
+	PMMVAD_LIST VadList = &Process->VadList;
+	
 	BSTATUS Status = STATUS_SUCCESS;
 	PRBTREE_ENTRY FailedEntry = NULL;
 	
@@ -141,32 +238,19 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 			"existing anonymous VAD into an anon section"
 		);
 		
-		// Shared mappings aren't subject to this conversion.
-		if (!Vad->Flags.Private)
-			continue;
-		
-		PMMOVERLAY Overlay = NULL;
-		Status = MmCreateOverlayObject(
-			&Overlay,
-			Vad->MappedObject,
-			0
-		);
-		
+		Status = MiAddOverlayToVadIfNeeded(Vad);
 		if (FAILED(Status))
 		{
 			FailedEntry = Entry;
 			goto Rollback;
 		}
-		
-		ObDereferenceObject(Vad->MappedObject);
-		Vad->MappedObject = Overlay;
 	}
 	
 	// Okay. Currently *EVERY* privately mapped object has been turned into a CoW
 	// overlay.  Now remove every privately mapped area of memory from the address
 	// space.  It'll be faulted back in through the overlay.
 	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != NULL;
+		Entry != NULL && WritePTEs;
 		Entry = GetNextEntryRbTree(Entry))
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
@@ -176,50 +260,11 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 		if (!Vad->Flags.Private)
 			continue;
 		
-		MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
-		if (!Vad->Flags.Committed)
-			CommittedButNotFaultedInPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
-		
-		// Now go through each page and put all of the allocated PFNs inside.
-		for (size_t i = 0; WritePTEs && i < Vad->Node.Size; i++)
-		{
-			uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
-			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
-			
-			if (!PtePtr)
-			{
-				// This can happen in two cases:
-				// - in VADs where Vad->Flags.Committed = 1, when nobody accessed the
-				//   actual VAD in this X MB region, and
-				// - in VADs where Vad->Flags.Committed = 0, when nobody committed the
-				//   region covered by this X MB of address space.
-				//
-				// In either case, there is NO information here, so we can just move
-				// over this part entirely.
-				
-				// TODO: skip ALL PTEs within this page.
-				continue;
-			}
-			
-			MMPTE Pte = *PtePtr;
-			if (MmIsPresentPte(Pte))
-			{
-				// The PTE has to come from the PMM, I can't explain it otherwise.
-				ASSERT(MmIsFromPmmPte(Pte));
-				
-				MMPFN Pfn = MmGetPfnPte(Pte);
-				MmFreePhysicalPage(Pfn);
-				
-				*PtePtr = CommittedButNotFaultedInPte;
-			}
-			
-			// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
-			// not committed/decommitted?
-		}
+		MiResetRegionToUnfaultedState(Vad, false);
 	}
 	
 	if (WritePTEs) {
-		KeFlushTLB();
+		MmIssueFullTLBShootDown(&Process->Pcb);
 	}
 	
 	return Status;
@@ -227,7 +272,7 @@ static BSTATUS MmpAddOverlaysIfNeeded(PMMVAD_LIST VadList, bool WritePTEs)
 Rollback:
 	MmpUndoAddedOverlays(VadList, FailedEntry);
 	if (WritePTEs) {
-		KeFlushTLB();
+		MmIssueFullTLBShootDown(&Process->Pcb);
 	}
 	
 	return Status;
@@ -375,7 +420,7 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 	
 	// We need to prepare the source process for symmetric copy-on-write.  To do this, we must ensure
 	// that every anonymous memory VAD is turned into a mappable object referencing VAD.
-	Status = MmpChangeAnonymousMemoryIntoSections(SrcVadList);
+	Status = MiChangeAnonymousMemoryIntoSections(SrcVadList);
 	if (FAILED(Status))
 		goto Exit2;
 	
@@ -394,11 +439,11 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 	MmpReferenceMappedObjects(DestVadList);
 	
 	// Add overlays inside both the source and destination.
-	Status = MmpAddOverlaysIfNeeded(SrcVadList, true);
+	Status = MmpAddOverlaysIfNeeded(SourceProcess, true);
 	if (FAILED(Status))
 		goto Exit3;
 	
-	Status = MmpAddOverlaysIfNeeded(DestVadList, false);
+	Status = MmpAddOverlaysIfNeeded(DestinationProcess, false);
 	if (FAILED(Status))
 		goto Exit3;
 	

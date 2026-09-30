@@ -392,7 +392,7 @@ BSTATUS MmReserveVirtualMemoryVad(size_t SizePages, int AllocationType, int Prot
 	Status = MiInitializeAndInsertVad(&Process->VadList, &Vad, NULL, 0, AllocationType, Protection, false);
 	
 	if (FAILED(Status))
-		KeCrash("TODO: Fix this");
+		KeCrash("TODO: Fix this -- MiInitializeAndInsertVad failed: %s", RtlGetStatusString(Status));
 	
 	*OutVad = Vad;
 	*OutVadList = &Process->VadList;
@@ -403,6 +403,9 @@ BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages)
 {
 	PEPROCESS Process = PsGetAttachedProcess();
 	PMMADDRESS_NODE AddrNode;
+	
+	if (!MmIsAddressRangeValidPages(StartAddress, SizePages, MODE_USER))
+		return STATUS_INVALID_PARAMETER;
 	
 	BSTATUS Status = MmOverrideAddressRange(Process, StartAddress, SizePages, &AddrNode);
 	if (FAILED(Status))
@@ -415,6 +418,187 @@ BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages)
 	Status = MmFreeAddressSpace(&Process->Heap, AddrNode);
 	ASSERT(SUCCEEDED(Status));
 	
+	return Status;
+}
+
+// TODO: Implement coalescing: If referring to the same underlying object,
+// and neighboring VADs are contiguous and have the same permissions and
+// their offsets are also contiguous, then re-connect them.
+BSTATUS MiProtectVirtualMemory(uintptr_t StartAddress, size_t SizePages, int AccessFlags, int ProtectType, int* OldAccessFlags)
+{
+	if (!MmIsAddressRangeValidPages(StartAddress, SizePages, MODE_USER)) {
+		DbgPrint("MiProtectVirtualMemory: Invalid range");
+		return STATUS_INVALID_PARAMETER;
+	}
+	
+	// Check if there are any flags other than the valid ACCESS_FLAGs.
+	if (AccessFlags & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE)) {
+		DbgPrint("MiProtectVirtualMemory: Invalid access flags");
+		return STATUS_INVALID_PARAMETER;
+	}
+	
+	BSTATUS Status = STATUS_SUCCESS;
+	PMMADDRESS_NODE AddrNode;
+	KIPL Ipl;
+	PMMVAD_LIST VadList;
+	PMMVAD Vad, EndVad;
+	PEPROCESS Process = PsGetAttachedProcess();
+	int OldProtection = 0;
+	
+	// NOTE:  Just acquire the two locks right away. They're both recursive.
+	Ipl = MmLockSpaceExclusive(0);
+	VadList = MmLockVadListProcess(Process);
+	
+	// First, look up the starting VAD.
+	Vad = MmLookUpVadByAddress(VadList, StartAddress);
+	if (!Vad)
+	{
+		DbgPrint("MiProtectVirtualMemory: No VAD at address");
+		Status = STATUS_CONFLICTING_ADDRESSES;
+		goto Error;
+	}
+	
+	EndVad = MmLookUpVadByAddress(VadList, StartAddress + SizePages * PAGE_SIZE);
+	if (!EndVad || EndVad != Vad)
+	{
+		// But they're not all the same VAD...
+		DbgPrint("MiProtectVirtualMemory: Range spans multiple regions");
+		Status = STATUS_CONFLICTING_ADDRESSES;
+		goto Error;
+	}
+	
+	// If MEM_PARTIAL isn't specified, then the start address and size should
+	// exactly match the VAD.
+	if (~ProtectType & MEM_PARTIAL)
+	{
+		if (Vad->Node.StartVa != StartAddress || Vad->Node.Size != SizePages)
+		{
+			DbgPrint("MiProtectVirtualMemory: Range does not fully cover VAD.");
+			Status = STATUS_CONFLICTING_ADDRESSES;
+			goto Error;
+		}
+		
+		if (!Vad->Flags.Committed && !MiIsEntireRangeCommittedNoVad(StartAddress, SizePages))
+		{
+			DbgPrint("MiProtectVirtualMemory: Range was not entirely committed.");
+			Status = STATUS_CONFLICTING_ADDRESSES;
+			goto Error;
+		}
+		
+		// We can just apply the changes in-place.
+		OldProtection = Vad->Flags.Protection;
+		Vad->Flags.Protection = AccessFlags;
+		
+		// Check if the protections were DECREASED.
+		//
+		// If not, we don't need to make any changes to the PTEs.  The page fault handler
+		// will notice our protection flags and upgrade them automatically.
+		int ProtectionsRemoved = OldProtection & (~AccessFlags);
+		if (ProtectionsRemoved != 0)
+		{
+			// Ensure that the VAD is backed by a section.  (We could just modify the PTEs, but I
+			// don't feel like it.  We probably won't be using this codepath too often, anyway.)
+			if (!Vad->MappedObject)
+			{
+				Status = MiChangeAnonymousRegionIntoSectionByVad(Vad);
+				if (FAILED(Status))
+				{
+					DbgPrint("MiProtectVirtualMemory: Range could not be converted into an anonymous section.");
+					Vad->Flags.Protection = OldProtection;
+					goto Error;
+				}
+				
+				Status = MiAddOverlayToVadIfNeeded(Vad);
+				if (FAILED(Status))
+				{
+					// NOTE: We *don't* need to rollback, which is great, because I don't feel
+					// like writing all that code.
+					DbgPrint("MiProtectVirtualMemory: Range could not be given an overlay.");
+					Vad->Flags.Protection = OldProtection;
+					goto Error;
+				}
+			}
+			
+			ASSERT(Vad->MappedObject);
+			
+			// Now we can reset the whole region, because we won't lose any information by doing so.
+			MiResetRegionToUnfaultedState(Vad, true);
+		}
+	}
+	else
+	{
+		// If the VAD doesn't have a mapped object, we'll make sure it does.
+		// Otherwise, we could lose information from MmOverrideAddressRange.
+		Status = MiChangeAnonymousRegionIntoSectionByVad(Vad);
+		if (FAILED(Status))
+		{
+			DbgPrint("MiProtectVirtualMemory [partial]: Range could not be converted into an anonymous section.");
+			goto Error;
+		}
+		
+		Status = MiAddOverlayToVadIfNeeded(Vad);
+		if (FAILED(Status))
+		{
+			// NOTE: We *don't* need to rollback, which is great, because I don't feel
+			// like writing all that code.
+			DbgPrint("MiProtectVirtualMemory [partial]: Range could not be given an overlay.");
+			goto Error;
+		}
+		
+		// Reference the VAD's mapped object and store the old VAD's information separately.
+		// We'll need it later, and MmOverrideAddressRange will almost certainly change the
+		// VAD or free it entirely.
+		ASSERT(Vad->MappedObject);
+		
+		void* MappedObject = Vad->MappedObject;
+		ObReferenceObjectByPointer(MappedObject);
+		
+		uintptr_t VadStartVa = Vad->Node.StartVa;
+		uint64_t VadSectionOffset = Vad->SectionOffset;
+		uint32_t VadLongFlags = Vad->Flags.LongFlags;
+		
+		Status = MmOverrideAddressRange(Process, StartAddress, SizePages, &AddrNode);
+		if (FAILED(Status))
+		{
+			// Failed - likely because of out of memory.
+			ObDereferenceObject(MappedObject);
+			goto Error;
+		}
+		
+		// MmOverrideAddressRange decommits and unmaps the range automatically and gives us
+		// a VAD-sized node in AddrNode.  Map it back in.
+		//
+		// NOTE: MiInitializeAndInsertVad locks and unlocks the VAD list in itself.  This is fine
+		// because the VAD list mutex is recursive, and as such, we need to have the final call.
+		PMMVAD NewVad = (PMMVAD) AddrNode;
+		Status = MiInitializeAndInsertVad(
+			VadList, 
+			&NewVad,
+			NULL, // StartAddress
+			0,    // SizePages
+			0,    // AllocationType
+			0,    // Protection
+			true  // UnlockAfter
+		);
+		
+		ASSERT(SUCCEEDED(Status) && "There are no possible ways this could fail, are there?");
+		
+		// Copy the desired information back in.
+		Vad->MappedObject = MappedObject;
+		Vad->SectionOffset = VadSectionOffset + (Vad->Node.StartVa - VadStartVa);
+		Vad->Flags.LongFlags = VadLongFlags;
+		
+		// Then apply the changes we want.
+		OldProtection = Vad->Flags.Protection;
+		Vad->Flags.Protection = AccessFlags;
+	}
+	
+	if (SUCCEEDED(Status))
+		*OldAccessFlags = OldProtection;
+	
+Error:
+	MmUnlockVadList(VadList);
+	MmUnlockSpace(Ipl, 0);
 	return Status;
 }
 

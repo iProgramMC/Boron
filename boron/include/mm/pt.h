@@ -107,6 +107,9 @@ BSTATUS MmPageFault(uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t FaultMo
 // Issue a TLB shootdown request. This is the official API for this purpose.
 void MmIssueTLBShootDown(uintptr_t Address, size_t LengthPages, PKPROCESS Process);
 
+// Issue a FULL TLB shootdown on the specified process, or globally if Process is NULL.
+void MmIssueFullTLBShootDown(PKPROCESS Process);
+
 // Gets the affected process for a TLB shootdown based on the deciding address.
 PKPROCESS MmGetTargetProcessForShootdown(uintptr_t DecidingAddress);
 

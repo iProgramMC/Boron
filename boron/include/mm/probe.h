@@ -51,4 +51,5 @@ BSTATUS MmSafeCopy(void* Address, const void* Source, size_t Length, KPROCESSOR_
 // Check if the specified address range can be used at all. For example, on AMD64,
 // the area between 0x0000800000000000 and 0xFFFF7FFFFFFFFFFF is considered
 // noncanonical, and any attempt to access it will actually throw a #GP, not a #PF.
+bool MmIsAddressRangeValidPages(uintptr_t Address, size_t SizePages, KPROCESSOR_MODE AccessMode);
 bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode);

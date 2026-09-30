@@ -397,8 +397,36 @@ void MiReleaseVad(PMMVAD Vad);
 // uncommitted and certain code paths are skipped.
 void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages, bool SetDecommittedPTE);
 
+// Checks if the specified range is committed, if the backing VAD isn't itself committed.
+bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
+
 // Unmaps a range of virtual memory regardless of the existing ranges underneath.
 BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
+
+// Changes one anonymous region of memory (no mapped object) into a region
+// backed by a section object.
+BSTATUS MiChangeAnonymousRegionIntoSectionByVad(PMMVAD Vad);
+
+// Adds an overlay to a VAD if the VAD is private and has a backing object.
+//
+// NOTE: Returns success if the VAD is shared (!Vad->Flags.Private)
+BSTATUS MiAddOverlayToVadIfNeeded(PMMVAD Vad);
+
+// Tries to reset a region to its default, unfaulted state.
+// This can only happen if the VAD is backed by an object.
+void MiResetRegionToUnfaultedState(PMMVAD Vad, bool ShootdownRange);
+
+// Changes the protection on a range of virtual memory.
+//
+// Valid flags: MEM_PARTIAL to permit partially changing the protection of a range
+// rather than being forced to change the protection of the *entire* range.
+BSTATUS MiProtectVirtualMemory(
+	uintptr_t StartAddress,
+	size_t SizePages,
+	int AccessFlags,
+	int ProtectType,
+	int* OldAccessFlags
+);
 
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT

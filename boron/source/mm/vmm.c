@@ -175,3 +175,8 @@ PKPROCESS MmGetTargetProcessForShootdown(uintptr_t DecidingAddress)
 	
 	return &PsGetAttachedProcess()->Pcb;
 }
+
+void MmIssueFullTLBShootDown(PKPROCESS Process)
+{
+	MmIssueTLBShootDown(0, MAX_TLBS_LENGTH, Process);
+}

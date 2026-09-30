@@ -20,6 +20,17 @@ Author:
 #include <mm.h>
 #include <ke.h>
 
+bool MmIsAddressRangeValidPages(uintptr_t Address, size_t SizePages, KPROCESSOR_MODE AccessMode)
+{
+	// Prevent the size from overflowing when turning it into a size in bytes.
+	uintptr_t Max = 0xFFFFFFFF;
+	
+	if (SizePages >= Max / PAGE_SIZE)
+		return false;
+	
+	return MmIsAddressRangeValid(Address, SizePages * PAGE_SIZE, AccessMode);
+}
+
 bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE AccessMode)
 {
 	// Size=0 is invalid.
