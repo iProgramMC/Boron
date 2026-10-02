@@ -353,7 +353,10 @@ void MmCopyIntoMdl(PMDL Mdl, uintptr_t Offset, const void* SourceBuffer, size_t 
 	
 #ifdef IS_32_BIT
 	// TODO: Get rid of this entirely by re-engineering the HHDM system
-	char* Temporary = MmAllocatePool(POOL_NONPAGED, 4096);
+	char* Temporary = MmAllocatePool(POOL_NONPAGED, PAGE_SIZE);
+	if (!Temporary) {
+		KeCrash("TODO: this is a big problem");
+	}
 #endif
 	
 	while (Size)

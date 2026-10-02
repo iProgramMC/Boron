@@ -135,7 +135,8 @@ enum
 
 #define PFN_INVALID ((MMPFN)-1)
 
-// Returned by the page cache.  Watch out!
+// Returned by the page cache, but NOT by other PFN returning routines
+// such as MmAllocatePhysicalPage.  Watch out!
 #define MM_PFN_OUTOFMEMORY ((MMPFN) -2)
 
 #define IS_BAD_PFN(Pfn) ((Pfn) == PFN_INVALID || (Pfn) == MM_PFN_OUTOFMEMORY)

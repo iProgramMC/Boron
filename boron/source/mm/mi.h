@@ -433,17 +433,29 @@ BSTATUS MiProtectVirtualMemory(
 void MiInitializeBaseIdentityMapping();
 #endif
 
-// ===== Section & Cel Objects =====
+// ===== Section & View Objects =====
 extern POBJECT_TYPE MmSectionObjectType;
 extern POBJECT_TYPE MmOverlayObjectType;
+extern POBJECT_TYPE MmViewObjectType;
 
 void MmDeleteSectionObject(void* ObjectV);
 
 void MmDeleteOverlayObject(void* ObjectV);
 
+void MmDeleteViewObject(void* ObjectV);
+
 BSTATUS MiResolveBackingStoreForOverlay(void* Object, void** OutFileOrSectionObject);
 
 BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN Pfn);
+
+
+BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN OutPfn);
+
+BSTATUS MiPerformAdditionalProcessingForViewFault(PMMVIEW View, size_t ViewOffset);
+
+BSTATUS MiSetPageModifiedView(PMMVIEW View, size_t ViewOffset);
+
+
 
 // ===== Hardware Specific =====
 

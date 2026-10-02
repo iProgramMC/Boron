@@ -37,6 +37,8 @@ typedef BSTATUS(*MM_MAPPABLE_READ_PAGE_FUNC)(
 
 // Prepares a page for writing.  In the case of CoW overlays, it duplicates the page
 // from this object's parent.
+//
+// TODO: Remove this.  Only overlays use this, and we're doing it in a better way now.
 typedef BSTATUS(*MM_MAPPABLE_PREPARE_WRITE_FUNC)(
 	void* MappableObject,
 	uint64_t SectionOffset
