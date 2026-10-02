@@ -436,13 +436,10 @@ void MiInitializeBaseIdentityMapping();
 // ===== Section & View Objects =====
 extern POBJECT_TYPE MmSectionObjectType;
 extern POBJECT_TYPE MmOverlayObjectType;
-extern POBJECT_TYPE MmViewObjectType;
 
 void MmDeleteSectionObject(void* ObjectV);
 
 void MmDeleteOverlayObject(void* ObjectV);
-
-void MmDeleteViewObject(void* ObjectV);
 
 BSTATUS MiResolveBackingStoreForOverlay(void* Object, void** OutFileOrSectionObject);
 

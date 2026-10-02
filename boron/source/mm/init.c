@@ -18,11 +18,7 @@ Author:
 #include "mi.h"
 
 POBJECT_TYPE MmSectionObjectType;
-
-// NOTE: Will be removed soon.
 POBJECT_TYPE MmOverlayObjectType;
-
-POBJECT_TYPE MmViewObjectType;
 
 static OBJECT_TYPE_INFO MmSectionObjectTypeInfo =
 {
@@ -36,13 +32,6 @@ static OBJECT_TYPE_INFO MmOverlayObjectTypeInfo =
 	.NonPagedPool = true,
 	.MaintainHandleCount = false,
 	.Delete = MmDeleteOverlayObject
-};
-
-static OBJECT_TYPE_INFO MmViewObjectTypeInfo =
-{
-	.NonPagedPool = true,
-	.MaintainHandleCount = false,
-	.Delete = MmDeleteViewObject
 };
 
 bool MmInitSystem()
@@ -68,18 +57,6 @@ bool MmInitSystem()
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to create Overlay object type: %s (%d)", RtlGetStatusString(Status), Status);
-		return false;
-	}
-	
-	Status = ObCreateObjectType(
-		"View",
-		&MmViewObjectTypeInfo,
-		&MmViewObjectType
-	);
-	
-	if (FAILED(Status))
-	{
-		DbgPrint("Failed to create View object type: %s (%d)", RtlGetStatusString(Status), Status);
 		return false;
 	}
 	

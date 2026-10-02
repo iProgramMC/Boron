@@ -264,20 +264,8 @@ BSTATUS MiSetPageModifiedView(PMMVIEW View, size_t ViewOffset)
 	);
 }
 
-typedef struct
+void MmDeleteView(PMMVIEW View)
 {
-	void* BackingObject;
-	uint64_t SectionOffset;
-	size_t SizePages;
-	bool Private;
-	bool Commit;
-}
-MMVIEW_CREATE_CONTEXT, *PMMVIEW_CREATE_CONTEXT;
-
-void MmDeleteViewObject(void* ViewPtr)
-{
-	PMMVIEW View = ViewPtr;
-	
 	for (size_t i = 0; i < View->SizePages; i++)
 	{
 		MmpResetViewEntry(View, i);
@@ -294,33 +282,45 @@ void MmDeleteViewObject(void* ViewPtr)
 #endif
 }
 
-BSTATUS MmpInitializeViewObject(void* ViewPtr, void* Context)
+BSTATUS MmpInitializeViewObject(
+	PMMVIEW View,
+	void* BackingObject,
+	uint64_t SectionOffset,
+	size_t SizePages,
+	bool Private,
+	bool Commit
+)
 {
-	PMMVIEW View = ViewPtr;
-	PMMVIEW_CREATE_CONTEXT CreateContext = Context;
-	
-	View->Entries = MmAllocatePool(POOL_NONPAGED, sizeof(MMVIEW_ENTRY) * CreateContext->SizePages);
+	View->Entries = MmAllocatePool(POOL_NONPAGED, sizeof(MMVIEW_ENTRY) * SizePages);
 	if (!View->Entries)
 	{
 		DbgPrint("MmInitializeViewObject: Could not allocate entry buffer -- out of memory.");
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
-	View->SizePages = CreateContext->SizePages;
-	View->Flags.Private = CreateContext->Private;
-	View->Flags.Committed = CreateContext->Commit;
+#ifdef IS_32_BIT
+	View->TemporaryPageSizeBuffer = MmAllocatePool(POOL_NONPAGED, PAGE_SIZE);
+	if (!View->TemporaryPageSizeBuffer)
+	{
+		DbgPrint("MmInitializeViewObject: Could not allocate temporary page-sized buffer -- out of memory.");
+		MmFreePool(View->Entries);
+		View->Entries = NULL;
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
+#endif
 	
-	View->BackingObject = ObReferenceObjectByPointer(CreateContext->BackingObject);
+	View->SizePages = SizePages;
+	View->Flags.Private = Private;
+	View->Flags.Committed = Commit;
+	
+	View->BackingObject = ObReferenceObjectByPointer(BackingObject);
+	View->SectionOffset = SectionOffset;
 	
 	// Initialize all the entries within the list.
 	for (size_t i = 0; i < View->SizePages; i++)
 	{
 		MmpResetViewEntry(View, i);
 	}
-	
-#ifdef IS_32_BIT
-	View->TemporaryPageSizeBuffer = MmAllocatePool(POOL_NONPAGED, PAGE_SIZE);
-#endif
 	
 	return STATUS_SUCCESS;
 }
@@ -334,33 +334,21 @@ BSTATUS MmCreateView(
 	PMMVIEW* OutView
 )
 {
-	void* OutObject;
 	BSTATUS Status;
 	
-	// TODO: Do we even need reference counting here?  It's possible we don't.
-	Status = ObCreateObject(
-		&OutObject,
-		NULL, // ParentDirectory
-		MmViewObjectType,
-		NULL, // ObjectName
-		OB_FLAG_NO_DIRECTORY,
-		NULL, // ParseContext
-		sizeof(MMVIEW)
-	);
+	PMMVIEW View = MmAllocatePool(POOL_NONPAGED, sizeof(MMVIEW));
+	if (!View) {
+		DbgPrint("MmCreateView: Could not allocate view - out of memory.");
+		return STATUS_INSUFFICIENT_MEMORY;
+	}
 	
+	Status = MmpInitializeViewObject(View, BackingObject, SectionOffset, SizePages, Private, Commit);
 	if (FAILED(Status))
+	{
+		MmFreePool(View);
 		return Status;
+	}
 	
-	MMVIEW_CREATE_CONTEXT CreateContext;
-	CreateContext.BackingObject = BackingObject;
-	CreateContext.SectionOffset = SectionOffset;
-	CreateContext.SizePages = SizePages;
-	CreateContext.Private = Private;
-	CreateContext.Commit = Commit;
-	
-	Status = MmpInitializeViewObject(OutObject, &CreateContext);
-	ASSERT(SUCCEEDED(Status));
-	
-	*OutView = OutObject;
+	*OutView = View;
 	return STATUS_SUCCESS;
 }
