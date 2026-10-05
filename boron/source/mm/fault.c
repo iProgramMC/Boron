@@ -137,6 +137,8 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	
 	size_t ViewOffset = Va - Vad->Node.StartVa + Vad->ViewOffset;
 	
+	PFDbgPrint("MiNormalFault: Attempting to resolve fault at VA %p using MiResolveViewFault.", Va);
+	
 	// Try to resolve the page fault now.
 	int PfnPermissions = 0;
 	MMPFN Pfn = PFN_INVALID;
@@ -155,6 +157,8 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		// Don't need the locks any more.  We'll refault anyway.
 		MmUnlockVadList(VadList);
 		MmUnlockSpace(SpaceUnlockIpl, Va);
+		
+		PFDbgPrint("MiNormalFault: For VA %p, more processing is required.  Perform it.", Va);
 		
 		Status = MiPerformAdditionalProcessingForViewFault(View, ViewOffset);
 		

@@ -59,7 +59,7 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 			// NOTE: Here is where driver writers *MUST* ensure they registered the backing memory
 			// with the page frame database! (e.g. via MmRegisterMMIOAsMemory).
 			//
-			// NOTE: The BackingMemory call MUST increasethe reference count of the physical page
+			// NOTE: The BackingMemory call MUST increase the reference count of the physical page
 			// by one before returning to the caller.
 			*OutPfn = MmPhysPageToPFN(Iosb.BackingMemory.PhysicalAddress);
 			return STATUS_SUCCESS;
@@ -149,7 +149,8 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	
 	// The I/O operation has succeeded.
 	// It's time to put this in the CCB and then map.
-	Status = MmSetEntryCcb(PageCache, SectionOffset, Pfn, NULL);
+	MM_PROTOTYPE_PTE_PTR PrototypePtePtr;
+	Status = MmSetEntryCcb(PageCache, SectionOffset, Pfn, &PrototypePtePtr);
 	if (FAILED(Status))
 	{
 		MmFreePhysicalPage(Pfn);
@@ -176,6 +177,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	
 	// Success! This is the right PFN. Now that we've assigned it, it's time to return it.
 	MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, SectionOffset * PAGE_SIZE);
+	MmSetPrototypePtePfn(Pfn, PrototypePtePtr);
 	*OutPfn = Pfn;
 	
 	FPFDbgPrint("%s: hooray! request fulfilled by I/O read", __func__);

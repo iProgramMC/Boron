@@ -843,6 +843,8 @@ void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset)
 	Pfdbe->IsFileCache = 1;
 	Pfdbe->Modified = 0;
 	
+	PmmDbgPrint("MmSetCacheDetailsPfn: PFN %d, PFCB %p", Pfn, Fcb);
+	
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
@@ -920,7 +922,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 				PageFrame->Type = PF_TYPE_TRANSITION;
 				MmTotalFreePages++;
 #ifdef PMMDEBUG
-				DbgPrint("MmFreePhysicalPageStandby<= %d (RA:%p)", pfn, __builtin_return_address(0));
+				DbgPrint("MmFreePhysicalPage  stby <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 			}
 		}
@@ -931,7 +933,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 			PageFrame->Type = PF_TYPE_FREE;
 			MmTotalFreePages++;
 #ifdef PMMDEBUG
-			DbgPrint("MmFreePhysicalPageFree() <= %d (RA:%p)", pfn, __builtin_return_address(0));
+			DbgPrint("MmFreePhysicalPage  free <= %d (RA:%p)", pfn, __builtin_return_address(0));
 #endif
 		}
 	}
