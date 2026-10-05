@@ -355,6 +355,7 @@ BSTATUS MmReserveVirtualMemoryVad(
 // NOTE: If ViewOverride is specified, a new View is not allocated and all
 // parameters except for VadList, InOutVad, StartAddress, and SizePages are
 // ignored.  The ViewOverride object gains an additional reference, too.
+// Also, ViewOverride gains an additional reference from the VAD.
 //
 // TODO: refactor to not have a billion arguments.
 BSTATUS MiInitializeAndInsertVad(

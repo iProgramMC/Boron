@@ -446,6 +446,8 @@ BSTATUS MmReserveVirtualMemoryVad(
 		0      // ViewOffset (no offset into the view)
 	);
 	
+	ObDereferenceObject(View);
+	
 	// MiInitializeAndInsertVad has no reason to fail at this point.
 	if (FAILED(Status)) {
 		KeCrash("TODO: Fix this -- MiInitializeAndInsertVad failed: %s", RtlGetStatusString(Status));
