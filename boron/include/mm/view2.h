@@ -55,6 +55,9 @@ typedef union
 		
 		// Pages are committed by default.
 		unsigned Committed : 1;
+		
+		// Default permissions
+		unsigned Permissions : 3;
 	};
 
 	uintptr_t LongFlags;
@@ -83,6 +86,9 @@ typedef struct
 }
 MMVIEW, *PMMVIEW;
 
+// **NOTE**: These functions are not thread safe.  The VAD list lock must be held,
+// or you must be the only thread that owns a reference to the view object.
+
 // Creates a view, optionally backed by a mappable object, which can be mapped into
 // a user process' address space.
 BSTATUS MmCreateView(
@@ -91,14 +97,43 @@ BSTATUS MmCreateView(
 	size_t SizePages,
 	bool Private,
 	bool Commit,
+	int CommitPermissions,
 	PMMVIEW* OutView
 );
 
 // Commits one or more pages inside of a view.
-BSTATUS MmCommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages);
+BSTATUS MmCommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages, int Permissions);
 
 // Decommits one or more pages inside of a view.
-BSTATUS MmDecommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages);
+void MmDecommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages);
 
 // Creates a new view from the old view.
 BSTATUS MmCloneView(PMMVIEW InView, PMMVIEW* OutView);
+
+// Marks a view as copy-on-write if needed.
+// This function cannot fail.
+void MmCopyOnWriteView(PMMVIEW View);
+
+// Acquires information about a memory region inside of a view.
+// A memory region is defined here as a range of memory where all parameters (Permissions +
+// Committed state) are identical.
+//
+// NOTE: EntryFlags does NOT contain a valid PFN reference and the Pfn field should be
+// ignored.
+//
+// NOTE: Entry.CopyOnWrite means the entire mapping is private, NOT that each individual
+// page is privately mapped.  This is because some pages may still be in their copy-on-write
+// state and reference the backing object rather than a private copy. 
+BSTATUS MmQueryView(
+	PMMVIEW View,
+	uintptr_t Offset,
+	PMMVIEW_ENTRY OutEntryFlags,
+	uintptr_t* OutBaseOffset,
+	size_t* OutRegionSizePages
+);
+
+// Get a reference to the backing object, if it exists, or NULL for anonymous memory.
+void* MmGetBackingObjectView(PMMVIEW View);
+
+// Get the section offset for a view.
+uint64_t MmGetSectionOffsetView(PMMVIEW View);

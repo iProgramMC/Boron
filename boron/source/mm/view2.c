@@ -22,20 +22,69 @@ Author:
 #include <ex.h>
 #include <io.h>
 
+#define VIEW_PFN_INVALID (0)
+
+static int MmpCalculatePagePermissions(PMMVIEW_ENTRY Entry)
+{
+	int Permissions = Entry->Permissions;
+	
+	if (Entry->CopyOnWrite)
+		Permissions &= ~PAGE_WRITE;
+	
+	return Permissions;
+}
+
+#ifndef DEBUG
+
+#define MmpEnsureBoundsView(View, Index, SizePages)
+
+#else
+
+static void MmpEnsureBoundsView(PMMVIEW View, uintptr_t Index, size_t SizePages)
+{
+	if (Index >= View->SizePages ||
+		Index + SizePages > View->SizePages ||
+		Index + SizePages < Index)
+	{
+		KeCrash(
+			"MmpEnsureBoundsView: Bad indices passed.  Index: %zu, SizePages: %zu, "
+			"View->SizePages: %zu",
+			Index,
+			SizePages,
+			View->SizePages
+		);
+	}
+}
+
+#endif // DEBUG
+
 // Resets a view entry to its default, uninitialized state.
 void MmpResetViewEntry(PMMVIEW View, size_t Index)
 {
 	PMMVIEW_ENTRY Entry = &View->Entries[Index];
 	
-	if (Entry->Pfn != 0)
+	if (Entry->Pfn != VIEW_PFN_INVALID)
 	{
 		MmFreePhysicalPage(Entry->Pfn);
-		Entry->Pfn = 0;
+		Entry->Pfn = VIEW_PFN_INVALID;
 	}
 	
 	Entry->LongEntry = 0;
 	Entry->Committed = View->Flags.Committed;
 	Entry->CopyOnWrite = View->Flags.Private;
+	Entry->Permissions = View->Flags.Permissions;
+}
+
+void* MmGetBackingObjectView(PMMVIEW View)
+{
+	return View->BackingObject
+		? ObReferenceObjectByPointer(View->BackingObject)
+		: NULL;
+}
+
+uint64_t MmGetSectionOffsetView(PMMVIEW View)
+{
+	return View->SectionOffset;
 }
 
 //
@@ -54,25 +103,43 @@ void MmpResetViewEntry(PMMVIEW View, size_t Index)
 //    OutPfn - The PFN will be returned here if the resolution succeeded.
 //             The view will also be updated, if necessary.
 //
-BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN OutPfn)
+//    OutPermissions - The permissions allowed on this PFN.  If CopyOnWrite
+//                     is set, the PAGE_WRITE bit will be cleared.
+//
+BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN OutPfn, int* OutPermissions)
 {
 	MMPFN Pfn;
 	BSTATUS Status = STATUS_SUCCESS;
+	int Permissions = 0;
 	
 	ViewOffset &= ~(PAGE_SIZE - 1);
 	size_t ViewIndex = ViewOffset / PAGE_SIZE;
 	uint64_t SectionOffset = (View->SectionOffset + ViewOffset) / PAGE_SIZE;
 	
-	// Check if the view has a PFN filled in already.
 	PMMVIEW_ENTRY Entry = &View->Entries[ViewIndex];
-	if (Entry->Pfn == 0)
+	
+	// If the intended operation is not allowed:
+	if (!Entry->Committed)
 	{
-		if (!Entry->Committed)
-		{
-			DbgPrint("MiResolveViewFault(%p, %x): Page not committed.", View, ViewOffset);
-			return STATUS_ACCESS_VIOLATION;
-		}
-		
+		DbgPrint("MiResolveViewFault(%p, %x): Page not committed.", View, ViewOffset);
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
+	if (~Entry->Permissions & Intent)
+	{
+		DbgPrint(
+			"MiResolveViewFault(%p, %x): Intent %d doesn't match permission bitmask %d.",
+			View,
+			ViewOffset,
+			Intent,
+			Entry->Permissions
+		);
+		return STATUS_ACCESS_VIOLATION;
+	}
+	
+	// Check if the view has a PFN filled in already.
+	if (Entry->Pfn == VIEW_PFN_INVALID)
+	{
 		// Committed.  Try and bring it in.
 		if (!View->BackingObject)
 		{
@@ -92,15 +159,24 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 				return STATUS_INSUFFICIENT_MEMORY;
 			}
 			
-			ASSERT(Pfn != 0 && "The returned PFN shouldn't be zero.");
+			ASSERT(Pfn != VIEW_PFN_INVALID && "The returned PFN shouldn't be equal to VIEW_PFN_INVALID.");
 			
 			// Just set CopyOnWrite to 0, because there's nothing to copy really.
 			Entry->CopyOnWrite = false;
 			Entry->Pfn = Pfn;
 			
+			*OutPermissions = MmpCalculatePagePermissions(Entry);
 			*OutPfn = Pfn;
 			
-			DbgPrint("MiResolveViewFault(%p, %x): Filled in PFN %u from anonymous memory.", View, ViewOffset, Pfn);
+			// We're keeping a reference to this PFN for ourselves.
+			MmPageAddReference(Pfn);
+			
+			DbgPrint(
+				"MiResolveViewFault(%p, %x): Filled in PFN %u from anonymous memory.",
+				View,
+				ViewOffset,
+				Pfn
+			);
 			return STATUS_SUCCESS;
 		}
 		
@@ -132,7 +208,9 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		}
 		
 		// Page obtained.  Put it in the view now.
-		ASSERT(Pfn != 0 && "The returned PFN shouldn't be zero.");
+		// MmGetPageMappable gave us a reference, so put it in, and duplicate it later
+		// for the caller.
+		ASSERT(Pfn != VIEW_PFN_INVALID && "The returned PFN shouldn't be equal to VIEW_PFN_INVALID.");
 		Entry->Pfn = Pfn;
 		
 		DbgPrint(
@@ -144,12 +222,16 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		);
 	}
 	
-	ASSERT(Entry->Pfn != 0);
+	ASSERT(Entry->Pfn != VIEW_PFN_INVALID);
 	
-	// There is a PFN, check if the intent is write.
-	if (Intent != PAGE_WRITE)
+	// There is a PFN, check if the intent is write and this page is not for copy-on-write.
+	if (Intent != PAGE_WRITE || !Entry->CopyOnWrite)
 	{
+		// The caller receives a reference to this page.
+		MmPageAddReference(Entry->Pfn);
 		*OutPfn = Entry->Pfn;
+		*OutPermissions = MmpCalculatePagePermissions(Entry);
+		
 		DbgPrint(
 			"MiResolveViewFault(%p, %x): Return PFN %u from read/execute.",
 			View,
@@ -172,6 +254,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
+	Permissions = MmpCalculatePagePermissions(Entry);
 	Pfn = Entry->Pfn;
 	
 	MmBeginUsingHHDM();
@@ -190,11 +273,13 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 	MmEndUsingHHDM();
 	
 	Entry->Pfn = NewPfn;
+	MmPageAddReference(NewPfn);
 	MmFreePhysicalPage(Pfn);
 	
 	Entry->CopyOnWrite = false;
 	
 	*OutPfn = NewPfn;
+	*OutPermissions = Permissions;
 	return STATUS_SUCCESS;
 }
 
@@ -213,6 +298,12 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 //
 BSTATUS MiPerformAdditionalProcessingForViewFault(PMMVIEW View, size_t ViewOffset)
 {
+	// NOTE: This function can be called anytime, even if the VAD mutex isn't
+	// locked, as long as the view object is valid (so make sure to acquire a
+	// reference to it before trying to do this)
+	//
+	// Page fault handler: When returning from this function, return STATUS_REFAULT
+	// to retry the fault with the page loaded in.
 	BSTATUS Status = STATUS_SUCCESS;
 	
 	if (!View->BackingObject) {
@@ -264,11 +355,145 @@ BSTATUS MiSetPageModifiedView(PMMVIEW View, size_t ViewOffset)
 	);
 }
 
+BSTATUS MmCommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages, int Permissions)
+{
+	// Commit: all we need to do is mark pages as committed, for now.
+	//
+	// TODO: attempt to charge commit, and if that doesn't work, return an overcommitment error.
+	// We don't do commit tracking for now.  (For the record, this is why this function doesn't
+	// just return void.)
+	
+	uintptr_t Index = Offset / PAGE_SIZE;
+	MmpEnsureBoundsView(View, Index, SizePages);
+	
+	for (size_t i = 0; i < SizePages; i++)
+	{
+		PMMVIEW_ENTRY Entry = &View->Entries[Index + i];
+		
+		if (Entry->Committed)
+			continue;
+		
+		Entry->Pfn = VIEW_PFN_INVALID;
+		Entry->Committed = true;
+		Entry->Permissions = Permissions;
+		Entry->CopyOnWrite = View->Flags.Private;
+	}
+	
+	return STATUS_SUCCESS;
+}
+
+void MmDecommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages)
+{
+	// Decommit: all we need to do is mark pages as decommitted, for now.
+	//
+	// TODO: Uncharge commit (which also can't fail).
+	
+	uintptr_t Index = Offset / PAGE_SIZE;
+	MmpEnsureBoundsView(View, Index, SizePages);
+	
+	for (size_t i = 0; i < SizePages; i++)
+	{
+		PMMVIEW_ENTRY Entry = &View->Entries[Index + i];
+		
+		if (!Entry->Committed)
+			continue;
+		
+		// free physical page reference, if needed.
+		if (Entry->Pfn != VIEW_PFN_INVALID)
+		{
+			MmFreePhysicalPage(Entry->Pfn);
+			Entry->Pfn = VIEW_PFN_INVALID;
+		}
+		
+		Entry->Committed = false;
+		Entry->Permissions = 0;
+		Entry->CopyOnWrite = 0;
+	}
+}
+
+void MmCopyOnWriteView(PMMVIEW View)
+{
+	// TODO: should we charge commit again? How much exactly?
+	// Should this function be able to fail? (Rolling everything back
+	// would be kind of tedious, though)
+	
+	for (size_t i = 0; i < View->SizePages; i++)
+	{
+		PMMVIEW_ENTRY Entry = &View->Entries[i];
+		
+		if (!Entry->Committed)
+			continue;
+		
+		Entry->CopyOnWrite = true;
+	}
+}
+
+BSTATUS MmQueryView(
+	PMMVIEW View,
+	uintptr_t Offset,
+	PMMVIEW_ENTRY OutEntryFlags,
+	uintptr_t* OutBaseOffset,
+	size_t* OutRegionSizePages
+)
+{
+	uintptr_t Index = Offset / PAGE_SIZE;
+	MmpEnsureBoundsView(View, Index, 1);
+	ASSERT(View->SizePages != 0);
+	
+	uintptr_t StartIndex = Index, EndIndex = Index;
+	
+	MMVIEW_ENTRY TargetEntry = View->Entries[Index];
+	
+	// Look for each edge.  Basically, we need to compare committed status and permissions.
+	// As long as they are the same, we can expand.
+	while (true)
+	{
+		if (View->Entries[StartIndex].Committed != TargetEntry.Committed ||
+			View->Entries[StartIndex].Permissions != TargetEntry.Permissions) {
+			StartIndex++;
+			break;
+		}
+		
+		if (StartIndex == 0)
+			break;
+		
+		StartIndex--;
+	}
+	
+	while (true)
+	{
+		if (View->Entries[EndIndex].Committed != TargetEntry.Committed ||
+			View->Entries[EndIndex].Permissions != TargetEntry.Permissions) {
+			EndIndex--;
+			break;
+		}
+		
+		if (EndIndex == View->SizePages - 1)
+			break;
+		
+		EndIndex++;
+	}
+	
+	// Edges found.  Now, return the actual data.
+	*OutBaseOffset = StartIndex * PAGE_SIZE;
+	*OutRegionSizePages = EndIndex - StartIndex + 1;
+	
+#ifdef DEBUG
+	TargetEntry.Pfn = 0;
+#endif
+
+	TargetEntry.CopyOnWrite = View->Flags.Private;
+	
+	*OutEntryFlags = TargetEntry;
+	return STATUS_SUCCESS;
+}
+
 typedef struct
 {
 	void* BackingObject;
 	uint64_t SectionOffset;
 	size_t SizePages;
+	int CommitPermissions;
 	bool Private;
 	bool Commit;
 }
@@ -309,6 +534,7 @@ BSTATUS MmpInitializeViewObject(void* ViewPtr, void* Context)
 	View->SizePages = CreateContext->SizePages;
 	View->Flags.Private = CreateContext->Private;
 	View->Flags.Committed = CreateContext->Commit;
+	View->Flags.Permissions = CreateContext->CommitPermissions;
 	
 	View->BackingObject = ObReferenceObjectByPointer(CreateContext->BackingObject);
 	
@@ -331,6 +557,7 @@ BSTATUS MmCreateView(
 	size_t SizePages,
 	bool Private,
 	bool Commit,
+	int CommitPermissions,
 	PMMVIEW* OutView
 )
 {
@@ -357,10 +584,53 @@ BSTATUS MmCreateView(
 	CreateContext.SizePages = SizePages;
 	CreateContext.Private = Private;
 	CreateContext.Commit = Commit;
+	CreateContext.CommitPermissions = CommitPermissions;
 	
 	Status = MmpInitializeViewObject(OutObject, &CreateContext);
 	ASSERT(SUCCEEDED(Status));
 	
 	*OutView = OutObject;
+	return STATUS_SUCCESS;
+}
+
+BSTATUS MmCloneView(PMMVIEW InView, PMMVIEW* OutView)
+{
+	ASSERT(InView);
+	
+	BSTATUS Status;
+	PMMVIEW View;
+	
+	Status = MmCreateView(
+		InView->BackingObject,
+		InView->SectionOffset,
+		InView->SizePages,
+		InView->Flags.Private,
+		InView->Flags.Committed,
+		InView->Flags.Permissions,
+		&View
+	);
+	
+	if (FAILED(Status))
+		return Status;
+	
+	// Now copy every entry as copy-on-write.
+	for (size_t i = 0; i < InView->SizePages; i++)
+	{
+		PMMVIEW_ENTRY InEntry = &InView->Entries[i];
+		PMMVIEW_ENTRY OutEntry = &View->Entries[i];
+		
+		// copy bit for bit at first...
+		OutEntry->LongEntry = InEntry->LongEntry;
+		OutEntry->CopyOnWrite = true;
+		
+		// but add an extra reference to the PFN so that we have a copy of it too
+		// (TODO: charge commit here?)
+		if (OutEntry->Pfn != VIEW_PFN_INVALID && OutEntry->Committed)
+		{
+			MmPageAddReference(OutEntry->Pfn);
+		}
+	}
+	
+	*OutView = View;
 	return STATUS_SUCCESS;
 }

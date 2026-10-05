@@ -182,3 +182,9 @@ void MmFlushTlbUpdates()
 {
 	// On i386, the TLB reads from dcache first, and then from main memory, so no need to do anything.
 }
+
+MMPTE MmReadOnlyPte(MMPTE Pte)
+{
+	MmHardwarePte(Pte) &= ~MM_I386_PTE_READWRITE;
+	return Pte;
+}

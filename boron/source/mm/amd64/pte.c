@@ -176,7 +176,7 @@ uintptr_t MmGetPageBitsPte(MMPTE Pte)
 
 bool MmIsEqualPte(MMPTE Pte1, MMPTE Pte2)
 {
-	return Pte1.PteHardware == Pte2.PteHardware;
+	return MmHardwarePte(Pte1) == MmHardwarePte(Pte2);
 }
 
 bool MmIsUnsupportedHigherLevelPte(MMPTE Pte)
@@ -200,4 +200,10 @@ bool MmIsFromPmmPte(MMPTE Pte)
 void MmFlushTlbUpdates()
 {
 	// On amd64, the TLB reads from dcache first, and then from main memory, so no need to do anything.
+}
+
+MMPTE MmReadOnlyPte(MMPTE Pte)
+{
+	MmHardwarePte(Pte) &= ~MM_AMD64_PTE_READWRITE;
+	return Pte;
 }

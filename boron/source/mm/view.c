@@ -65,17 +65,22 @@ static BSTATUS MmpMapViewOfObject(
 	}
 	
 	// Reserve the region, and then mark it as committed ourselves.
-	Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
+	Status = MmReserveVirtualMemoryVad(
+		ViewSizePages,
+		AllocationType | MEM_RESERVE | MEM_COMMIT,
+		Protection,
+		BaseAddress,
+		MappableObject,
+		SectionOffset & ~(PAGE_SIZE - 1),
+		&Vad,
+		&VadList
+	);
+	
 	if (FAILED(Status))
 	{
 		ObDereferenceObject(MappableObject);
 		return Status;
 	}
-	
-	// Vad Protection and Private are filled in by MmReserveVirtualMemoryVad.
-	Vad->Flags.Committed = 1;
-	Vad->MappedObject = MappableObject;
-	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
 	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
@@ -187,10 +192,18 @@ BSTATUS OSGetMappedFileHandle(
 		goto ReturnEarly;
 	}
 	
-	void* FileObject;
-	Status = MiResolveBackingStoreForOverlay(Vad->MappedObject, &FileObject);
-	if (FAILED(Status))
-		goto ReturnEarlyUnlockDetach;
+	void* FileObject = MmGetBackingObjectView(Vad->View);
+	MmVerifyMappableHeader(FileObject);
+	
+	// TODO: If you still need overlays, uncomment this
+	/*
+	while (ObGetObjectType(BackingObject) == MmOverlayObjectType)
+	{
+		PMMOVERLAY Overlay = BackingObject;
+		BackingObject = ObReferenceObjectByPointer(Overlay->Parent);
+		ObDereferenceObject(Overlay);
+	}
+	*/
 	
 	if (ObGetObjectType(FileObject) != IoFileType)
 	{

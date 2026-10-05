@@ -51,7 +51,11 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 		ViewSizePages,
 		AllocationType,
 		Protection,
-		false
+		false,
+		FileObject,
+		SectionOffset,
+		NULL,  // ViewOverride
+		0      // ViewOffset
 	);
 	
 	if (FAILED(Status))
@@ -61,11 +65,13 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 		return Status;
 	}
 	
+	// TODO rewrite this after finishing rewrite of vad.c
+	
 	// Vad Protection and Private are filled in by MiInitializeAndInsertVad.
-	Vad->Flags.Committed = 1;
-	Vad->MappedObject = ObReferenceObjectByPointer(FileObject);
-	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
-	Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
+	//Vad->Flags.Committed = 1;
+	//Vad->MappedObject = ObReferenceObjectByPointer(FileObject);
+	//Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
+	//Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
 	
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
 	
@@ -105,13 +111,14 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 	// Remove the VAD from the FCB's view cache.
 	if (RemoveFromFcbViewCache)
 	{
-		PFILE_OBJECT FileObject = Vad->MappedObject;
-		ASSERT(ObGetObjectType(FileObject) == IoFileType);
-		
-		PFCB Fcb = FileObject->Fcb;
-		KeWaitForSingleObject(&Fcb->CacheInfo.ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
-		RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
-		KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		// TODO: rewrite this for the new view system
+		//PFILE_OBJECT FileObject = Vad->MappedObject;
+		//ASSERT(ObGetObjectType(FileObject) == IoFileType);
+		//
+		//PFCB Fcb = FileObject->Fcb;
+		//KeWaitForSingleObject(&Fcb->CacheInfo.ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+		//RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
+		//KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	}
 	
 	// Then, clean up.

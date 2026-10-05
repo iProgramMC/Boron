@@ -339,6 +339,8 @@ BSTATUS MmReserveVirtualMemoryVad(
 	int AllocationType,
 	int Protection,
 	void* StartAddress,
+	void* BackingObject,
+	uint64_t SectionOffset,
 	PMMVAD* OutVad,
 	PMMVAD_LIST* OutVadList
 );
@@ -349,6 +351,12 @@ BSTATUS MmReserveVirtualMemoryVad(
 // The StartAddress and SizePages are only used if the VAD doesn't exist.
 //
 // NOTE: This locks the VAD list and unlocks it if UnlockAfter is true.
+//
+// NOTE: If ViewOverride is specified, a new View is not allocated and all
+// parameters except for VadList, InOutVad, StartAddress, and SizePages are
+// ignored.  The ViewOverride object gains an additional reference, too.
+//
+// TODO: refactor to not have a billion arguments.
 BSTATUS MiInitializeAndInsertVad(
 	PMMVAD_LIST VadList,
 	PMMVAD* InOutVad,
@@ -356,7 +364,11 @@ BSTATUS MiInitializeAndInsertVad(
 	size_t SizePages,
 	int AllocationType,
 	int Protection,
-	bool UnlockAfter
+	bool UnlockAfter,
+	void* BackingObject,
+	size_t SectionOffset,
+	PMMVIEW ViewOverride,
+	uintptr_t ViewOffset
 );
 
 // Cleans up all of the references to this VAD, including now-stale
@@ -395,7 +407,7 @@ void MiReleaseVad(PMMVAD Vad);
 // Decommits a range of virtual memory by unmapping the region.
 // If the region covers the provided VAD, then the VAD is marked
 // uncommitted and certain code paths are skipped.
-void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages, bool SetDecommittedPTE);
+void MiDecommitVad(PMMVAD_LIST VadList, PMMVAD Vad, uintptr_t StartVa, size_t SizePages);
 
 // Checks if the specified range is committed, if the backing VAD isn't itself committed.
 bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
@@ -403,30 +415,8 @@ bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
 // Unmaps a range of virtual memory regardless of the existing ranges underneath.
 BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 
-// Changes one anonymous region of memory (no mapped object) into a region
-// backed by a section object.
-BSTATUS MiChangeAnonymousRegionIntoSectionByVad(PMMVAD Vad);
-
-// Adds an overlay to a VAD if the VAD is private and has a backing object.
-//
-// NOTE: Returns success if the VAD is shared (!Vad->Flags.Private)
-BSTATUS MiAddOverlayToVadIfNeeded(PMMVAD Vad);
-
-// Tries to reset a region to its default, unfaulted state.
-// This can only happen if the VAD is backed by an object.
-void MiResetRegionToUnfaultedState(PMMVAD Vad, bool ShootdownRange);
-
-// Changes the protection on a range of virtual memory.
-//
-// Valid flags: MEM_PARTIAL to permit partially changing the protection of a range
-// rather than being forced to change the protection of the *entire* range.
-BSTATUS MiProtectVirtualMemory(
-	uintptr_t StartAddress,
-	size_t SizePages,
-	int AccessFlags,
-	int ProtectType,
-	int* OldAccessFlags
-);
+// Resets the current process' PTEs within a region to an unfaulted or read-only state.
+void MiResetRegionPtes(uintptr_t StartVa, size_t SizePages, bool ShootdownRange, bool OnlyMarkAsReadOnly);
 
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT
@@ -449,7 +439,7 @@ BSTATUS MiResolveBackingStoreForOverlay(void* Object, void** OutFileOrSectionObj
 BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN Pfn);
 
 
-BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN OutPfn);
+BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN OutPfn, int* OutPermissions);
 
 BSTATUS MiPerformAdditionalProcessingForViewFault(PMMVIEW View, size_t ViewOffset);
 
