@@ -248,6 +248,8 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
+	PFDbgPrint("MiWriteFault: Attempting to resolve fault at VA %p using MiResolveViewFault.", Va);
+	
 	MMPTE OldPte = *PtePtr;
 	MMPFN OldPfn, NewPfn;
 	uintptr_t PteFlags;

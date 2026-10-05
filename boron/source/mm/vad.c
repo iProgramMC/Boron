@@ -515,35 +515,18 @@ BSTATUS MmReserveVirtualMemory(size_t SizePages, void** InOutAddress, int Alloca
 // PTEs and the object reference that this VAD holds.
 void MiCleanUpVad(PMMVAD Vad)
 {
+	// Decommit the view on the required region, if needed.
+	ASSERT(Vad->View);
+	MmDecommitView(Vad->View, Vad->ViewOffset, Vad->Node.Size);
+	
 	// Zero out all of the PTEs.
 	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
-	MMPTE ZeroPte = MmBuildZeroPte();
-	
-	uintptr_t CurrentVa = Vad->Node.StartVa;
-	PMMPTE Pte = MmGetPteLocation(CurrentVa);
-	for (size_t i = 0; i < Vad->Node.Size; i++)
-	{
-		if (i == 0 || ((uintptr_t)Pte & (PAGE_SIZE - 1)) == 0)
-		{
-			if (!MmCheckPteLocation(CurrentVa, false))
-			{
-				// Nothing to zero out here.
-				size_t OldVa = CurrentVa;
-				CurrentVa = (CurrentVa + PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE)) & ~(PAGE_SIZE * PAGE_SIZE / sizeof(MMPTE) - 1);
-				Pte = MmGetPteLocation(CurrentVa);
-				i += (CurrentVa - OldVa) / PAGE_SIZE;
-				continue;
-			}
-		}
-		
-		// Assume that the page is NOT present.
-		ASSERT(!MmIsPresentPte(*Pte));
-		
-		*Pte = ZeroPte;
-		MmFlushTlbUpdates();
-		Pte++;
-		CurrentVa += PAGE_SIZE;
-	}
+	MiResetRegionPtes(
+		Vad->Node.StartVa,
+		Vad->Node.Size,
+		false, // ShootdownRange
+		false  // OnlyMarkAsReadOnly
+	);
 	
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
 	
@@ -552,12 +535,9 @@ void MiCleanUpVad(PMMVAD Vad)
 	
 	MmUnlockSpace(Ipl, Vad->Node.StartVa);
 	
-	// Remove the reference to the view if needed.
-	if (Vad->View)
-	{
-		ObDereferenceObject(Vad->View);
-		Vad->View = NULL;
-	}
+	// Remove the reference to the view.
+	ObDereferenceObject(Vad->View);
+	Vad->View = NULL;
 }
 
 // Releases a range of virtual memory represented by a VAD.

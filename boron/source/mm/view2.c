@@ -254,7 +254,6 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 	
-	Permissions = MmpCalculatePagePermissions(Entry);
 	Pfn = Entry->Pfn;
 	
 	MmBeginUsingHHDM();
@@ -277,6 +276,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 	MmFreePhysicalPage(Pfn);
 	
 	Entry->CopyOnWrite = false;
+	Permissions = MmpCalculatePagePermissions(Entry);
 	
 	*OutPfn = NewPfn;
 	*OutPermissions = Permissions;
@@ -536,7 +536,12 @@ BSTATUS MmpInitializeViewObject(void* ViewPtr, void* Context)
 	View->Flags.Committed = CreateContext->Commit;
 	View->Flags.Permissions = CreateContext->CommitPermissions;
 	
-	View->BackingObject = ObReferenceObjectByPointer(CreateContext->BackingObject);
+	if (CreateContext->BackingObject) {
+		View->BackingObject = ObReferenceObjectByPointer(CreateContext->BackingObject);
+	}
+	else {
+		View->BackingObject = NULL;
+	}
 	
 	// Initialize all the entries within the list.
 	for (size_t i = 0; i < View->SizePages; i++)
