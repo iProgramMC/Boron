@@ -32,23 +32,11 @@ static BSTATUS MmpMapViewOfObject(
 	
 	bool IncreaseRefcount = true;
 	
-	// If the allocation type is MEM_COW, then we have to create a copy-on-write overlay
-	// object, set it up using this mappable object, and map that one instead.
+	// Provide the state of MEM_SHARED in regards to the state of MEM_COW.
 	if (AllocationType & MEM_COW)
-	{
-		PMMOVERLAY Overlay = NULL;
-		Status = MmCreateOverlayObject(&Overlay, MappableObject, 0);
-		if (FAILED(Status))
-			return Status;
-		
-		IncreaseRefcount = false;
-		MappableObject = Overlay;
-		AllocationType &= ~MEM_COW;
-	}
+		AllocationType &= ~MEM_SHARED;
 	else
-	{
 		AllocationType |= MEM_SHARED;
-	}
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
@@ -101,7 +89,8 @@ static BSTATUS MmpMapViewOfObject(
 //     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
 //                     size of the view after its creation.
 //
-//     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
+//     AllocationType - The type of allocation.  MEM_COMMIT, MEM_TOP_DOWN, MEM_COW, MEM_FIXED and
+//                      MEM_OVERRIDE are the allowed flags.
 //
 //     SectionOffset - The offset within the file or section.  If this isn't aligned to a page boundary,
 //                     then neither will the output base address.

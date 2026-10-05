@@ -138,7 +138,7 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 	size_t ViewOffset = Va - Vad->Node.StartVa + Vad->ViewOffset;
 	
 	PFDbgPrint("MiNormalFault: Attempting to resolve fault at VA %p using MiResolveViewFault.", Va);
-	
+
 	// Try to resolve the page fault now.
 	int PfnPermissions = 0;
 	MMPFN Pfn = PFN_INVALID;

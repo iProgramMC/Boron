@@ -22,6 +22,14 @@ Author:
 #include <ex.h>
 #include <io.h>
 
+//#define VIEW_OBJECT_DEBUG
+
+#ifdef VIEW_OBJECT_DEBUG
+#define ViewDbgPrint(...) DbgPrint(__VA_ARGS__)
+#else
+#define ViewDbgPrint(...)
+#endif
+
 #define VIEW_PFN_INVALID (0)
 
 static int MmpCalculatePagePermissions(PMMVIEW_ENTRY Entry)
@@ -171,7 +179,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 			// We're keeping a reference to this PFN for ourselves.
 			MmPageAddReference(Pfn);
 			
-			DbgPrint(
+			ViewDbgPrint(
 				"MiResolveViewFault(%p, %x): Filled in PFN %u from anonymous memory.",
 				View,
 				ViewOffset,
@@ -192,7 +200,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		
 		if (Status == STATUS_MORE_PROCESSING_REQUIRED)
 		{
-			DbgPrint("MiResolveViewFault(%p, %x): More processing required.", View, ViewOffset);
+			ViewDbgPrint("MiResolveViewFault(%p, %x): More processing required.", View, ViewOffset);
 			return Status;
 		}
 		
@@ -213,7 +221,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		ASSERT(Pfn != VIEW_PFN_INVALID && "The returned PFN shouldn't be equal to VIEW_PFN_INVALID.");
 		Entry->Pfn = Pfn;
 		
-		DbgPrint(
+		ViewDbgPrint(
 			"MiResolveViewFault(%p, %x): Filled in PFN %u from backing object %p.",
 			View,
 			ViewOffset,
@@ -232,7 +240,7 @@ BSTATUS MiResolveViewFault(PMMVIEW View, size_t ViewOffset, int Intent, PMMPFN O
 		*OutPfn = Entry->Pfn;
 		*OutPermissions = MmpCalculatePagePermissions(Entry);
 		
-		DbgPrint(
+		ViewDbgPrint(
 			"MiResolveViewFault(%p, %x): Return PFN %u from read/execute.",
 			View,
 			ViewOffset,
@@ -538,9 +546,11 @@ BSTATUS MmpInitializeViewObject(void* ViewPtr, void* Context)
 	
 	if (CreateContext->BackingObject) {
 		View->BackingObject = ObReferenceObjectByPointer(CreateContext->BackingObject);
+		View->SectionOffset = CreateContext->SectionOffset;
 	}
 	else {
 		View->BackingObject = NULL;
+		View->SectionOffset = 0;
 	}
 	
 	// Initialize all the entries within the list.
