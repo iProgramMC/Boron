@@ -157,6 +157,19 @@ BSTATUS CcReadFileCopy(
 	return Status;
 }
 
+void CcMarkFileModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t SizeBytes)
+{
+	uint64_t SectionOffsetStart = FileOffset / PAGE_SIZE;
+	uint64_t SectionOffsetEnd = (FileOffset + SizeBytes + PAGE_SIZE - 1) / PAGE_SIZE;
+	
+	uint64_t SizePages = SectionOffsetEnd - SectionOffsetStart;
+	
+	for (uint64_t i = 0; i < SizePages; i++)
+	{
+		(void) MmSetPageModifiedMappable(FileObject, SectionOffsetStart + i);
+	}
+}
+
 // Writes the contents of a buffer to a file through an MDL.
 //
 // NOTE: This will always block, because we cannot control when a page
@@ -208,6 +221,7 @@ BSTATUS CcWriteFileMdl(
 		
 		// The view exists, so let's copy.
 		MmCopyFromMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
+		CcMarkFileModified(FileObject, FileOffset, CopyAmount);
 		
 		MdlOffset += CopyAmount;
 		FileOffset += CopyAmount;
@@ -218,7 +232,7 @@ BSTATUS CcWriteFileMdl(
 	return STATUS_SUCCESS;
 }
 
-// Reads the contents of a file and copies them to a buffer.
+// Writes an arbitrary non-MDL buffer to file.
 BSTATUS CcWriteFileCopy(
 	PFILE_OBJECT FileObject,
 	uint64_t FileOffset,
