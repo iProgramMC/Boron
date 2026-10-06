@@ -416,7 +416,19 @@ bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
 BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 
 // Resets the current process' PTEs within a region to an unfaulted or read-only state.
-void MiResetRegionPtes(uintptr_t StartVa, size_t SizePages, bool ShootdownRange, bool OnlyMarkAsReadOnly);
+//
+// NOTE: If provided, the "View" parameter will receive the dirty status of the pages
+// whose PTEs are being reset.  If the View parameter is provided, the VAD list must
+// be locked, too.
+//
+// ViewBaseVa is to be derived from (Vad->Node.StartVa - Vad->ViewOffset).
+void MiResetRegionPtes(
+	uintptr_t StartVa,
+	size_t SizePages,
+	bool ShootdownRange,
+	bool OnlyMarkAsReadOnly,
+	PMMVIEW View,
+	uintptr_t ViewBaseVa);
 
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT
@@ -445,6 +457,7 @@ BSTATUS MiPerformAdditionalProcessingForViewFault(PMMVIEW View, size_t ViewOffse
 
 BSTATUS MiSetPageModifiedView(PMMVIEW View, size_t ViewOffset);
 
+BSTATUS MiSetPageRangeModifiedView(PMMVIEW View, size_t ViewOffsetStart, size_t SizePages);
 
 
 // ===== Hardware Specific =====

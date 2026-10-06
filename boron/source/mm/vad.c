@@ -527,7 +527,9 @@ void MiCleanUpVad(PMMVAD Vad)
 		Vad->Node.StartVa,
 		Vad->Node.Size,
 		false, // ShootdownRange
-		false  // OnlyMarkAsReadOnly
+		false, // OnlyMarkAsReadOnly
+		Vad->View,
+		Vad->Node.StartVa - Vad->ViewOffset
 	);
 	
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);

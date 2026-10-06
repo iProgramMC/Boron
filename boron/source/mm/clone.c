@@ -18,7 +18,14 @@ Author:
 #include "mi.h"
 
 // NOTE: The address space lock MUST be held during this.
-void MiResetRegionPtes(uintptr_t StartVa, size_t SizePages, bool ShootdownRange, bool OnlyMarkAsReadOnly)
+void MiResetRegionPtes(
+	uintptr_t StartVa,
+	size_t SizePages,
+	bool ShootdownRange,
+	bool OnlyMarkAsReadOnly,
+	PMMVIEW View,
+	uintptr_t ViewBaseVa
+)
 {
 	MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
 	
@@ -53,6 +60,11 @@ void MiResetRegionPtes(uintptr_t StartVa, size_t SizePages, bool ShootdownRange,
 			// such a PTE would have to go through the PF handler anyway and our only
 			// goal is to reset this PTE to its unfaulted/read-only state.
 			continue;
+		}
+		
+		if (MmIsModifiedPte(Pte) && View)
+		{
+			MiSetPageModifiedView(View, Address - ViewBaseVa);
 		}
 		
 		if (OnlyMarkAsReadOnly)
@@ -134,7 +146,14 @@ static void MmpCopyOnWriteAllViews(PEPROCESS SourceProcess)
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		MmCopyOnWriteView(Vad->View);
-		MiResetRegionPtes(Vad->Node.StartVa, Vad->Node.Size, true, true);
+		MiResetRegionPtes(
+			Vad->Node.StartVa,
+			Vad->Node.Size,
+			true,
+			true,
+			Vad->View,
+			Vad->Node.StartVa - Vad->ViewOffset
+		);
 	}
 }
 
