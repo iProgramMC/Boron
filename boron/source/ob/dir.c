@@ -371,16 +371,15 @@ BSTATUS ObpLookUpObjectPath(
 				return Status;
 			}
 			
+			ObDereferenceObject(CurrentObject);
+			CurrentObject = NewObject;
+			
 			// If the current path is null, then return this object.
 			if (!CurrentPath)
 			{
-				CurrentObject = NewObject;
 				ObjectType = ObpGetObjectType(CurrentObject);
 				goto TerminateParsing;
 			}
-			
-			ObDereferenceObject(CurrentObject);
-			CurrentObject = NewObject;
 			
 			CurrDepth--;
 			continue;
