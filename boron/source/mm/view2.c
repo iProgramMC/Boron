@@ -421,6 +421,10 @@ void MmDecommitView(PMMVIEW View, uintptr_t Offset, size_t SizePages)
 
 void MmCopyOnWriteView(PMMVIEW View)
 {
+	// Non-private views need not be copied-on-write.
+	if (!View->Flags.Private)
+		return;
+	
 	// TODO: should we charge commit again? How much exactly?
 	// Should this function be able to fail? (Rolling everything back
 	// would be kind of tedious, though)
@@ -628,6 +632,8 @@ BSTATUS MmCloneView(PMMVIEW InView, PMMVIEW* OutView)
 	if (FAILED(Status))
 		return Status;
 	
+	bool IsViewPrivate = InView->Flags.Private;
+	
 	// Now copy every entry as copy-on-write.
 	for (size_t i = 0; i < InView->SizePages; i++)
 	{
@@ -636,7 +642,7 @@ BSTATUS MmCloneView(PMMVIEW InView, PMMVIEW* OutView)
 		
 		// copy bit for bit at first...
 		OutEntry->LongEntry = InEntry->LongEntry;
-		OutEntry->CopyOnWrite = true;
+		OutEntry->CopyOnWrite = IsViewPrivate;
 		
 		// but add an extra reference to the PFN so that we have a copy of it too
 		// (TODO: charge commit here?)
