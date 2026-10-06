@@ -207,6 +207,8 @@ BSTATUS ExCreateObjectUserCall(
 		// Yay! The creation went smoothly. Remove the initial reference (we still have
 		// one reference from the handle table!) and return a success status.
 		ObDereferenceObject(OutObject);
+		if (CopyAttrs)
+			ExDisposeCopiedObjectAttributes(&Attributes);
 		return Status;
 	}
 	
@@ -293,6 +295,8 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	if (SUCCEEDED(Status))
 	{
 		// Yay! The creation went smoothly. Return success status.
+		if (CopyAttrs)
+			ExDisposeCopiedObjectAttributes(&Attributes);
 		return Status;
 	}
 	
