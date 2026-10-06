@@ -2,4 +2,5 @@
 //TEST(Test2ReadExistingFile)
 //TEST(Test3CreateFile)
 //TEST(Test4ListDirectory)
-TEST(Test5ForkCurrentProcess)
+//TEST(Test5ForkCurrentProcess)
+TEST(Test6ForkAndReplaceChildProcess)
