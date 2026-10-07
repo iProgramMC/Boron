@@ -88,6 +88,7 @@ void NvmeInitializeNamespace(PCONTROLLER_EXTENSION ContExtension, uint32_t Names
 	
 	// Initialize the FCB.
 	DeviceObject->Fcb->FileLength = Ident->NamespaceSize << BlockSizeLog;
+	DeviceObject->Fcb->BlockSizeLog = BlockSizeLog;
 	
 	// Initialize the FCB extension.
 	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) DeviceObject->Fcb->Extension;

@@ -154,6 +154,7 @@ void IopInitializePartitionDriverObject()
 	PDRIVER_OBJECT Object = &IopPartitionDriverObject.Object;
 	
 	// Set up the header so that this object is permanent.
+	// (TODO: Don't.  Allow unmounting of partitions.)
 	Header->NonPagedObjectHeader = NPHeader;
 	Header->Flags = OB_FLAG_KERNEL | OB_FLAG_PERMANENT | OB_FLAG_NO_DIRECTORY | OB_FLAG_NONPAGED;
 	Header->BodySize = sizeof(DRIVER_OBJECT);
@@ -212,6 +213,7 @@ BSTATUS IoCreatePartition(PDEVICE_OBJECT* OutDevice, PDEVICE_OBJECT InDevice, ui
 		*OutDevice = DeviceObject;
 		
 		DeviceObject->Fcb->FileLength = Size;
+		DeviceObject->Fcb->BlockSizeLog = InDevice->Fcb->BlockSizeLog;
 		
 		PFCB_PART_EXT Ext = (void*) DeviceObject->Fcb->Extension;
 		Ext->Offset = Offset;

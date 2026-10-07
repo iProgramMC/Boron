@@ -24,6 +24,8 @@ PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPa
 	Fcb->DispatchTable = Dispatch;
 	Fcb->ExtensionSize = ExtensionSize;
 	
+	Fcb->BlockSizeLog = 0;
+	
 	ExInitializeRwLock(&Fcb->RwLock);
 	IoInitializeCacheInfo(&Fcb->CacheInfo);
 	

@@ -30,11 +30,16 @@ typedef struct _FCB
 	
 	// FILE_TYPE
 	uint8_t FileType;
+	uint8_t BlockSizeLog; // Log of the block size (block size is 1 << BlockSizeLog)
+	uint16_t Spare0;
 	uint32_t Flags;
 	
 	// Valid only for files and block devices.  Otherwise it's zero.
+	//
+	// The file length is always *modified* with the rwlock acquired as
+	// exclusive, but it can be read outside of it.
 	__attribute__((aligned(8)))
-	uint64_t FileLength;
+	volatile uint64_t FileLength;
 	
 	// FSD specific extension.  When the FCB is initialized, the
 	// size of this extension may be specified.
