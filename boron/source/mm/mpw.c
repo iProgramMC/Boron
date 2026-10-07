@@ -128,6 +128,8 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 					RtlGetStatusString(Status)
 				);
 				
+				Pfdbe->Modified = true;
+				
 				MiReinsertIntoModifiedList(Pfn);
 			}
 			else
