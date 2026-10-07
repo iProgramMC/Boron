@@ -32,23 +32,11 @@ static BSTATUS MmpMapViewOfObject(
 	
 	bool IncreaseRefcount = true;
 	
-	// If the allocation type is MEM_COW, then we have to create a copy-on-write overlay
-	// object, set it up using this mappable object, and map that one instead.
+	// Provide the state of MEM_SHARED in regards to the state of MEM_COW.
 	if (AllocationType & MEM_COW)
-	{
-		PMMOVERLAY Overlay = NULL;
-		Status = MmCreateOverlayObject(&Overlay, MappableObject, 0);
-		if (FAILED(Status))
-			return Status;
-		
-		IncreaseRefcount = false;
-		MappableObject = Overlay;
-		AllocationType &= ~MEM_COW;
-	}
+		AllocationType &= ~MEM_SHARED;
 	else
-	{
 		AllocationType |= MEM_SHARED;
-	}
 	
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
@@ -65,17 +53,22 @@ static BSTATUS MmpMapViewOfObject(
 	}
 	
 	// Reserve the region, and then mark it as committed ourselves.
-	Status = MmReserveVirtualMemoryVad(ViewSizePages, AllocationType | MEM_RESERVE, Protection, BaseAddress, &Vad, &VadList);
+	Status = MmReserveVirtualMemoryVad(
+		ViewSizePages,
+		AllocationType | MEM_RESERVE | MEM_COMMIT,
+		Protection,
+		BaseAddress,
+		MappableObject,
+		SectionOffset & ~(PAGE_SIZE - 1),
+		&Vad,
+		&VadList
+	);
+	
 	if (FAILED(Status))
 	{
 		ObDereferenceObject(MappableObject);
 		return Status;
 	}
-	
-	// Vad Protection and Private are filled in by MmReserveVirtualMemoryVad.
-	Vad->Flags.Committed = 1;
-	Vad->MappedObject = MappableObject;
-	Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	
 	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
@@ -96,7 +89,8 @@ static BSTATUS MmpMapViewOfObject(
 //     ViewSize - The size of the view in bytes.  This pointer will be accessed to store the
 //                     size of the view after its creation.
 //
-//     AllocationType - The type of allocation.  MEM_TOP_DOWN and MEM_SHARED are the allowed flags.
+//     AllocationType - The type of allocation.  MEM_COMMIT, MEM_TOP_DOWN, MEM_COW, MEM_FIXED and
+//                      MEM_OVERRIDE are the allowed flags.
 //
 //     SectionOffset - The offset within the file or section.  If this isn't aligned to a page boundary,
 //                     then neither will the output base address.
@@ -187,10 +181,18 @@ BSTATUS OSGetMappedFileHandle(
 		goto ReturnEarly;
 	}
 	
-	void* FileObject;
-	Status = MiResolveBackingStoreForOverlay(Vad->MappedObject, &FileObject);
-	if (FAILED(Status))
-		goto ReturnEarlyUnlockDetach;
+	void* FileObject = MmGetBackingObjectView(Vad->View);
+	MmVerifyMappableHeader(FileObject);
+	
+	// TODO: If you still need overlays, uncomment this
+	/*
+	while (ObGetObjectType(BackingObject) == MmOverlayObjectType)
+	{
+		PMMOVERLAY Overlay = BackingObject;
+		BackingObject = ObReferenceObjectByPointer(Overlay->Parent);
+		ObDereferenceObject(Overlay);
+	}
+	*/
 	
 	if (ObGetObjectType(FileObject) != IoFileType)
 	{

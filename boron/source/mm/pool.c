@@ -112,17 +112,23 @@ void MmFreePoolBig(void* Address)
 void* MmAllocatePool(int PoolFlags, size_t Size)
 {
 	void* Result = MiSlabAllocate(PoolFlags & POOL_FLAG_NON_PAGED, Size);
+	
+	// The commented-out format is for a tool I wrote which finds memory allocation leaks.
 #ifdef POOLDEBUG
 	DbgPrint("MmAllocatePool(%d, %5zu) => %p (RA: %p)", PoolFlags, Size, Result, CallerAddress());
+	//DbgPrint("MmAllocatePool,%d,%zu,%p,%p", PoolFlags, Size, Result, CallerAddress());
 #endif
+
 	return Result;
 }
 
 void MmFreePool(void* Pointer)
 {
 	MiSlabFree(Pointer);
+	
 #ifdef POOLDEBUG
 	DbgPrint("MmFreePool()             <= %p (RA: %p)", Pointer, CallerAddress());
+	//DbgPrint("MmFreePool,%p,%p", Pointer, CallerAddress());
 #endif
 }
 

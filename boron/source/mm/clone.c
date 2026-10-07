@@ -17,109 +17,22 @@ Author:
 
 #include "mi.h"
 
-BSTATUS MiChangeAnonymousRegionIntoSectionByVad(PMMVAD Vad)
+// NOTE: The address space lock MUST be held during this.
+void MiResetRegionPtes(
+	uintptr_t StartVa,
+	size_t SizePages,
+	bool ShootdownRange,
+	bool OnlyMarkAsReadOnly,
+	PMMVIEW View,
+	uintptr_t ViewBaseVa
+)
 {
-	// If it already has a mapped object, no need to do anything.
-	if (Vad->MappedObject) {
-		return STATUS_SUCCESS;
-	}
-	
-	// This is an anonymous mapping. Try and create a section object for it.
-	// This section object will represent the new mapping, and will contain
-	// all the pages formerly associated with the anonymous memory section.
-	PMMSECTION Section = NULL;
-	BSTATUS Status = MmCreateAnonymousSectionObject(&Section, Vad->Node.Size * PAGE_SIZE);
-	
-	if (FAILED(Status))
-		return Status;
-	
-	// Now go through each page and put all of the allocated PFNs inside.
-	for (size_t i = 0; i < Vad->Node.Size; i++)
-	{
-		uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
-		PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
-		
-		if (!PtePtr)
-		{
-			// PTE doesn't exist, move along.
-			// TODO: skip ALL PTEs within this page.
-			continue;
-		}
-		
-		MMPTE Pte = *PtePtr;
-		if (MmIsPresentPte(Pte))
-		{
-			// The PTE has to come from the PMM, I can't explain it otherwise.
-			ASSERT(MmIsFromPmmPte(Pte));
-			
-			MMPFN Pfn = MmGetPfnPte(Pte);
-			
-			uint64_t SectionOffset = (Vad->SectionOffset + i * PAGE_SIZE) / PAGE_SIZE;
-			Status = MiAssignEntrySection(Section, SectionOffset, Pfn);
-			if (FAILED(Status))
-			{
-				ObDereferenceObject(Section);
-				return Status;
-			}
-		}
-		
-		// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
-		// not committed/decommitted?
-	}
-	
-	// The section conversion was successful, so put the section reference in
-	// the VAD.  Now, we actually DON'T need to clear the PTEs in this step,
-	// since the PFNs remain unchanged.
-	Vad->MappedObject = Section;
-	return Status;
-}
-
-BSTATUS MiAddOverlayToVadIfNeeded(PMMVAD Vad)
-{
-	if (!Vad->MappedObject) {
-		DbgPrint("MiAddOverlayToVadIfNeeded: Cannot add overlay to anonymous section.  Use MiChangeAnonymousRegionIntoSectionByVad first.");
-		return STATUS_UNIMPLEMENTED;
-	}
-	
-	if (!Vad->Flags.Private) {
-		// No need to add overlays here, because the region is private.
-		return STATUS_SUCCESS;
-	}
-	
-	PMMOVERLAY Overlay = NULL;
-	BSTATUS Status = MmCreateOverlayObject(
-		&Overlay,
-		Vad->MappedObject,
-		0
-	);
-	
-	if (FAILED(Status))
-	{
-		// Failed to create an overlay object.
-		return Status;
-	}
-	
-	ObDereferenceObject(Vad->MappedObject);
-	Vad->MappedObject = Overlay;
-	
-	return STATUS_SUCCESS;
-}
-
-void MiResetRegionToUnfaultedState(PMMVAD Vad, bool ShootdownRange)
-{
-	if (!Vad->MappedObject) {
-		DbgPrint("MiResetRegionToUnfaultedState: Cannot reset anonymous region to unfaulted state.");
-		return;
-	}
-	
 	MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
-	if (!Vad->Flags.Committed)
-		CommittedButNotFaultedInPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
 	
 	// Now go through each page and put all of the allocated PFNs inside.
-	for (size_t i = 0; i < Vad->Node.Size; i++)
+	for (size_t i = 0; i < SizePages; i++)
 	{
-		uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
+		uintptr_t Address = StartVa + i * PAGE_SIZE;
 		PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
 		
 		if (!PtePtr)
@@ -138,144 +51,41 @@ void MiResetRegionToUnfaultedState(PMMVAD Vad, bool ShootdownRange)
 		}
 		
 		MMPTE Pte = *PtePtr;
-		if (MmIsPresentPte(Pte))
+		if (!MmIsPresentPte(Pte))
+		{
+			// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
+			// not committed/decommitted?
+			//
+			// 5/10/26: Actually we probably don't need to do anything here because
+			// such a PTE would have to go through the PF handler anyway and our only
+			// goal is to reset this PTE to its unfaulted/read-only state.
+			continue;
+		}
+		
+		if (MmIsModifiedPte(Pte) && View)
+		{
+			MiSetPageModifiedView(View, Address - ViewBaseVa);
+		}
+		
+		if (OnlyMarkAsReadOnly)
+		{
+			*PtePtr = MmReadOnlyPte(Pte);
+		}
+		else
 		{
 			// The PTE has to come from the PMM, I can't explain it otherwise.
 			ASSERT(MmIsFromPmmPte(Pte));
 			
 			MMPFN Pfn = MmGetPfnPte(Pte);
 			MmFreePhysicalPage(Pfn);
-			
 			*PtePtr = CommittedButNotFaultedInPte;
 		}
-		
-		// TODO: What if this is a paged-out PTE? Or some other kind of PTE that is
-		// not committed/decommitted?
 	}
 	
 	if (ShootdownRange)
 	{
-		MmIssueTLBShootDown(Vad->Node.StartVa, Vad->Node.Size, MmGetTargetProcessForShootdown(Vad->Node.StartVa));
+		MmIssueTLBShootDown(StartVa, SizePages, MmGetTargetProcessForShootdown(StartVa));
 	}
-}
-
-BSTATUS MiChangeAnonymousMemoryIntoSections(PMMVAD_LIST VadList)
-{
-	// Note:
-	// If one of the VADs fails to become a section, then we DON'T really
-	// need to roll this part back, which is great because I really don't
-	// want to write all of that code.
-	BSTATUS Status = STATUS_SUCCESS;
-	
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != NULL;
-		Entry = GetNextEntryRbTree(Entry))
-	{
-		// Does it have a mapped object?
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		Status = MiChangeAnonymousRegionIntoSectionByVad(Vad);
-		
-		if (FAILED(Status))
-		{
-			// One of the modification failed, so we'll need to return.
-			break;
-		}
-	}
-	
-	return Status;
-}
-
-// Note: pass NULL to go through every entry.
-static void MmpUndoAddedOverlays(PMMVAD_LIST VadList, PRBTREE_ENTRY StopEntry)
-{
-	// Every private VAD entry up until and except for FailedEntry has been touched.
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != StopEntry;
-		Entry = GetNextEntryRbTree(Entry))
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		if (!Vad->Flags.Private)
-			continue;
-		
-		ASSERT(ObGetObjectType(Vad->MappedObject) == MmOverlayObjectType);
-		
-		PMMOVERLAY Overlay = Vad->MappedObject;
-		Vad->MappedObject = ObReferenceObjectByPointer(Overlay->Parent);
-		ObDereferenceObject(Overlay);
-	}
-}
-
-static void MmpReferenceMappedObjects(PMMVAD_LIST VadList)
-{
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != NULL;
-		Entry = GetNextEntryRbTree(Entry))
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		ASSERT(Vad->MappedObject && "Seriously ridiculous.");
-		
-		ObReferenceObjectByPointer(Vad->MappedObject);
-	}
-}
-
-static BSTATUS MmpAddOverlaysIfNeeded(PEPROCESS Process, bool WritePTEs)
-{
-	PMMVAD_LIST VadList = &Process->VadList;
-	
-	BSTATUS Status = STATUS_SUCCESS;
-	PRBTREE_ENTRY FailedEntry = NULL;
-	
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != NULL;
-		Entry = GetNextEntryRbTree(Entry))
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		ASSERT(
-			Vad->MappedObject && "You should've done an operation that turned every "
-			"existing anonymous VAD into an anon section"
-		);
-		
-		Status = MiAddOverlayToVadIfNeeded(Vad);
-		if (FAILED(Status))
-		{
-			FailedEntry = Entry;
-			goto Rollback;
-		}
-	}
-	
-	// Okay. Currently *EVERY* privately mapped object has been turned into a CoW
-	// overlay.  Now remove every privately mapped area of memory from the address
-	// space.  It'll be faulted back in through the overlay.
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
-		Entry != NULL && WritePTEs;
-		Entry = GetNextEntryRbTree(Entry))
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		ASSERT(Vad->MappedObject && "This is ridiculous.");
-		
-		if (!Vad->Flags.Private)
-			continue;
-		
-		MiResetRegionToUnfaultedState(Vad, false);
-	}
-	
-	if (WritePTEs) {
-		MmIssueFullTLBShootDown(&Process->Pcb);
-	}
-	
-	return Status;
-	
-Rollback:
-	MmpUndoAddedOverlays(VadList, FailedEntry);
-	if (WritePTEs) {
-		MmIssueFullTLBShootDown(&Process->Pcb);
-	}
-	
-	return Status;
 }
 
 static BSTATUS MmpCloneAddressNodes(PRBTREE DestTree, PRBTREE SrcTree, size_t ItemSize)
@@ -296,71 +106,55 @@ static BSTATUS MmpCloneAddressNodes(PRBTREE DestTree, PRBTREE SrcTree, size_t It
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpReplicateCommitPtesIfNeeded(PEPROCESS DestinationProcess, PMMVAD_LIST VadList)
+static BSTATUS MmpCloneAllViews(PEPROCESS DestinationProcess, PEPROCESS SourceProcess, size_t HeapItemSize)
 {
-	MMPTE PteCommitted, PteDecommitted, PteZero;
-	PteCommitted = MmBuildAbsentPte(MM_PAGE_COMMITTED);
-	PteDecommitted = MmBuildAbsentPte(MM_PAGE_DECOMMITTED);
-	PteZero = MmBuildZeroPte();
+	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&SourceProcess->VadList.Tree);
+		Entry != NULL;
+		Entry = GetNextEntryRbTree(Entry))
+	{
+		PMMVAD SourceVad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
+		PMMVAD DestinationVad = MmAllocatePool(POOL_NONPAGED, HeapItemSize);
+		if (!DestinationVad)
+			return STATUS_INSUFFICIENT_MEMORY;
+		
+		// memcpy all the details from the source VAD, but use a different view pointer.
+		memcpy(DestinationVad, SourceVad, HeapItemSize);
+		
+		PMMVIEW NewView;
+		BSTATUS Status;
+		
+		Status = MmCloneView(SourceVad->View, &NewView);
+		if (FAILED(Status))
+		{
+			MmFreePool(DestinationVad);
+			return Status;
+		}
+		
+		DestinationVad->View = NewView;
+		
+		InsertItemRbTree(&DestinationProcess->VadList.Tree, &DestinationVad->Node.Entry);
+	}
 	
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&VadList->Tree);
+	return STATUS_SUCCESS;
+}
+
+static void MmpCopyOnWriteAllViews(PEPROCESS SourceProcess)
+{
+	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&SourceProcess->VadList.Tree);
 		Entry != NULL;
 		Entry = GetNextEntryRbTree(Entry))
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		const bool MustFillInCommittedPtes = !Vad->Flags.Committed;
-		const bool MustFillInDecommittedPtes = Vad->Flags.Committed;
-		
-		for (size_t i = 0; i < Vad->Node.Size; i++)
-		{
-			uintptr_t Address = Vad->Node.StartVa + i * PAGE_SIZE;
-			PMMPTE PtePtr = MmGetPteLocationCheck(Address, false);
-			
-			if (!PtePtr)
-			{
-				// This is already being imitated, funnily enough.
-				continue;
-			}
-			
-			MMPTE DestPte = MmBuildZeroPte();
-			MMPTE Pte = *PtePtr;
-			if (MmIsPresentPte(Pte))
-			{
-				DestPte = MmBuildAbsentPte(MM_PAGE_COMMITTED);
-			}
-			else
-			{
-				if (MmIsCommittedPte(Pte))
-					DestPte = PteCommitted;
-				else if (MmIsDecommittedPte(Pte))
-					DestPte = PteDecommitted;
-			}
-			
-			if (!MmIsEqualPte(Pte, PteZero) &&
-			    ((MustFillInCommittedPtes && MmIsEqualPte(DestPte, PteCommitted)) ||
-				 (MustFillInDecommittedPtes && MmIsEqualPte(DestPte, PteDecommitted))))
-			{
-				// This is really, *really*, inefficient.  We could do this in a different way,
-				// or disable this entirely and just force every VAD to be committed.
-				DbgPrint("%s: setting PTE for VA %p", __func__, Address);
-				PEPROCESS OldProcess = PsSetAttachedProcess(DestinationProcess);
-				
-				PMMPTE DestPtePtr = MmGetPteLocationCheck(Address, true);
-				if (!DestPtePtr)
-				{
-					PsSetAttachedProcess(OldProcess);
-					return STATUS_INSUFFICIENT_MEMORY;
-				}
-				
-				*DestPtePtr = DestPte;
-				
-				PsSetAttachedProcess(OldProcess);
-			}
-		}
+		MmCopyOnWriteView(Vad->View);
+		MiResetRegionPtes(
+			Vad->Node.StartVa,
+			Vad->Node.Size,
+			true,
+			true,
+			Vad->View,
+			Vad->Node.StartVa - Vad->ViewOffset
+		);
 	}
-	
-	return STATUS_SUCCESS;
 }
 
 // This function clones the current process' address space to another process' address space.
@@ -418,39 +212,19 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 		RemoveItemRbTree(&DestHeap->Tree, &DestHeapOnlyNode->Entry);
 	}
 	
-	// We need to prepare the source process for symmetric copy-on-write.  To do this, we must ensure
-	// that every anonymous memory VAD is turned into a mappable object referencing VAD.
-	Status = MiChangeAnonymousMemoryIntoSections(SrcVadList);
-	if (FAILED(Status))
-		goto Exit2;
-	
 	// Clone the heap into the destination process.
 	DestHeap->ItemSize = SrcHeap->ItemSize;
 	Status = MmpCloneAddressNodes(&DestHeap->Tree, &SrcHeap->Tree, SrcHeap->ItemSize);
 	if (FAILED(Status))
 		goto Exit2;
 	
-	// Clone the VADs too.  However, they won't function correctly yet.
-	Status = MmpCloneAddressNodes(&DestVadList->Tree, &SrcVadList->Tree, SrcHeap->ItemSize);
+	// Clone all the VADs from the source process.
+	Status = MmpCloneAllViews(DestinationProcess, SourceProcess, SrcHeap->ItemSize);
 	if (FAILED(Status))
 		goto Exit2;
 	
-	// Reference every object referenced in the VADs of the destination process.
-	MmpReferenceMappedObjects(DestVadList);
-	
-	// Add overlays inside both the source and destination.
-	Status = MmpAddOverlaysIfNeeded(SourceProcess, true);
-	if (FAILED(Status))
-		goto Exit3;
-	
-	Status = MmpAddOverlaysIfNeeded(DestinationProcess, false);
-	if (FAILED(Status))
-		goto Exit3;
-	
-	// Overlays have been added. Now, we still need to replicate the PTEs for each VAD.
-	Status = MmpReplicateCommitPtesIfNeeded(DestinationProcess, SrcVadList);
-	if (FAILED(Status))
-		goto Exit3;
+	// Mark all mapped views as copy on write on the source's side too.
+	MmpCopyOnWriteAllViews(SourceProcess);
 	
 	// Success
 	if (DestHeapOnlyNode) {
@@ -459,19 +233,6 @@ BSTATUS MmCloneAddressSpace(PEPROCESS DestinationProcess)
 	
 	goto Exit;
 	
-Exit3:
-	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&DestVadList->Tree);
-		Entry != NULL;
-		Entry = GetFirstEntryRbTree(&DestVadList->Tree))
-	{
-		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-		
-		if (Vad->MappedObject)
-			ObDereferenceObject(Vad->MappedObject);
-	}
-	
-	MmpUndoAddedOverlays(SrcVadList, NULL);
-
 Exit2:
 	// Free every VAD and heap item.
 	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&DestVadList->Tree);
@@ -480,6 +241,8 @@ Exit2:
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		RemoveItemRbTree(&DestVadList->Tree, &Vad->Node.Entry);
+		if (Vad->View)
+			ObDereferenceObject(Vad->View);
 		MmFreePool(Vad);
 	}
 	

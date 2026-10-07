@@ -23,11 +23,19 @@ void Test2ReadExistingFile()
 	TestAssert(Iosb.BytesRead == sizeof(Data));
 	TestAssert(Data == 0x464C457F); // '[127]ELF'
 	
-	// As of 25/02/2026, 19:12, reading 8 bytes from 0x2A8 reads 'libboron'. But don't assume.
+	// As of 6/10/2026, reading 8 bytes from this offset reads 'libboron'. But don't assume.
 	// Just check whether you can read.
+#ifdef TARGET_AMD64
+	uint64_t Offset = 0x2A8;
+#elif defined TARGET_I386
+	uint64_t Offset = 0x154;
+#else //if defined TARGET_ARM
+	uint64_t Offset = 0x1000;
+#endif
+	
 	char Buffer[9];
 	Buffer[8] = 0;
-	Status = OSReadFile(&Iosb, Handle, 0x2A8, Buffer, sizeof(Buffer) - 1, 0);
+	Status = OSReadFile(&Iosb, Handle, Offset, Buffer, sizeof(Buffer) - 1, 0);
 	TestAssert(SUCCEEDED(Status));
 	TestAssert(SUCCEEDED(Iosb.Status));
 	TestAssert(Iosb.BytesRead == sizeof(Buffer) - 1);

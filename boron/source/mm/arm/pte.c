@@ -328,3 +328,11 @@ void MmFlushTlbUpdates()
 {
 	KeFlushTLB();
 }
+
+MMPTE MmReadOnlyPte(MMPTE Pte)
+{
+	// TODO: optimize this
+	uintptr_t Bits = MmGetPageBitsPte(Pte);
+	Bits &= ~MM_PROT_WRITE;
+	return MmBuildPte(MmGetPfnPte(Pte), Bits);
+}

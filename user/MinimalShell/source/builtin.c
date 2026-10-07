@@ -310,6 +310,22 @@ void CmdShutDown()
 	OSPrintf("Should be shutting down soon...\n");
 }
 
+void CmdDebugTest();
+
+void CmdDebugTest2()
+{
+	for (int i = 0; i < 8; i++) {
+		CmdDebugTest();
+	}
+}
+
+void CmdDebugTest3()
+{
+	for (int i = 0; i < 1000; i++) {
+		CmdDebugTest();
+	}
+}
+
 // -- built-in commands end --
 
 #define ENTRY(name, func, desc) { name, func, desc }
@@ -331,6 +347,9 @@ COMMAND_ENTRY CommandTable[] = {
 	ENTRY("ps",       CmdSystemInfoProcess, "Get system process info"),
 	ENTRY("test1",    CmdTest1, "Run the 'free memory' command in a loop"),
 	ENTRY("shutdown", CmdShutDown, "Shuts down the system"),
+	ENTRY("d",        CmdDebugTest, "Runs Hello.exe then reports memory usage (Hello && mi)"),
+	ENTRY("d2",       CmdDebugTest2, "Runs Hello.exe then reports memory usage 8 times (Hello && mi)"),
+	ENTRY("d3",       CmdDebugTest3, "Runs Hello.exe then reports memory usage 1000 times (Hello && mi)"),
 };
 
 void CmdHelp()

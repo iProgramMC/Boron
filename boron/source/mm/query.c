@@ -59,12 +59,27 @@ BSTATUS OSQueryVirtualMemoryInformation(
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, VirtualAddress);
 	if (Vad)
 	{
-		Information.Start = Vad->Node.StartVa;
-		Information.Size = Vad->Node.Size * PAGE_SIZE;
+		uintptr_t BaseOffset = 0;
+		size_t RegionSize = 0;
+		MMVIEW_ENTRY Entry;
 		
-		Information.Flags.Free = 0;
-		Information.Flags.Private = Vad->Flags.Private;
-		Information.Flags.Protection = Vad->Flags.Protection;
+		Status = MmQueryView(
+			Vad->View,
+			VirtualAddress - Vad->Node.StartVa + Vad->ViewOffset,
+			&Entry,
+			&BaseOffset,
+			&RegionSize
+		);
+		
+		if (SUCCEEDED(Status))
+		{
+			Information.Start = Vad->Node.StartVa - Vad->ViewOffset + BaseOffset;
+			Information.Size = RegionSize * PAGE_SIZE;
+			Information.Flags.Protection = Entry.Permissions;
+			Information.Flags.Private = Entry.CopyOnWrite;
+			Information.Flags.Committed = Entry.Committed;
+			Information.Flags.Free = 0;
+		}
 	}
 	
 	MmUnlockVadList(VadList);
@@ -84,6 +99,7 @@ BSTATUS OSQueryVirtualMemoryInformation(
 				"OSQueryVirtualMemoryInformation: Cannot find address %p in either VAD list or heap!",
 				VirtualAddress
 			);
+			Status = STATUS_CONFLICTING_ADDRESSES;
 			goto Fail;
 		}
 		

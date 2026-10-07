@@ -49,13 +49,21 @@ typedef struct _MMVAD_ENTRY
 {
 	MMADDRESS_NODE Node;
 	
-	MMVAD_FLAGS Flags;
+	PMMVIEW View;
 	
-	// Note: Ref count is increased by 1 because of this reference.
-	void* MappedObject;
+	// An offset into the view, for calculating page fault addresses.
+	// This allows multiple VADs to refer to the same view, although the
+	// situations in which this can happen are restricted and behavior
+	// should be predictable.
+	uintptr_t ViewOffset;
 	
-	// If this is a file or section, then the offset within it.
-	uint64_t SectionOffset;
+	//MMVAD_FLAGS Flags;
+	//
+	//// Note: Ref count is increased by 1 because of this reference.
+	//void* MappedObject;
+	//
+	//// If this is a file or section, then the offset within it.
+	//uint64_t SectionOffset;
 	
 	union
 	{

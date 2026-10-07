@@ -57,14 +57,9 @@ static BSTATUS MmpHandleFaultCommittedPage(PMMPTE PtePtr, uintptr_t PageBits)
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection, bool AllowWriteRightAway)
+static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection)
 {
 	uintptr_t PageBits = MM_PROT_READ | MM_MISC_IS_FROM_PMM;
-	
-	// This function is used for MiNormalFault, not MiWriteFault, so don't allow
-	// write permissions to be given out here
-	if (!AllowWriteRightAway)
-		Protection &= ~MM_PROT_WRITE;
 	
 	if (Va < MM_KERNEL_SPACE_BASE)
 		PageBits |= MM_PROT_USER;
@@ -78,99 +73,17 @@ static BSTATUS MmpAssignPfnToAddress(uintptr_t Va, MMPFN Pfn, int Protection, bo
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS MmpHandleFaultCommittedMappedPage(
-	uintptr_t Va,
-	uintptr_t VaBase,
-	uint64_t MappedOffset,
-	void* MappedObject,
-	KIPL SpaceUnlockIpl,
-	int Protection
-)
-{
-	// NOTE: IPL is raised to APC level and the relevant address
-	// space's lock is held.  The VAD lock is not held.
-	//
-	// The address space's lock **must be released** at the end of
-	// this function.
-	//
-	// TODO: Perhaps we should implement a per-VAD mutex?  I'm not
-	// sure that's required, personally.  The case this would prevent
-	// is that the VAD is unmapped by the time the I/O operation
-	// that we will be doing finishes.  Then, the page is mapped into
-	// memory.
-	//
-	// This would end up with a page from the wrong VAD that was
-	// released, and potentially another VAD could be reserved
-	// in this very spot.
-	//
-	// Now, this is obviously just user error, but can this be exploited?
-	// Probably not.  When the page fault finishes, 
-	BSTATUS Status;
-	
-	const uintptr_t PageMask = ~(PAGE_SIZE - 1);
-	uint64_t SectionOffset = ((Va & PageMask) - VaBase + MappedOffset) / PAGE_SIZE;
-	
-	MMPFN Pfn = PFN_INVALID;
-	
-	// First, check if the page even exists.
-	PFDbgPrint("%s: For VA %p, calling MmGetPageMappable", __func__, Va);
-	Status = MmGetPageMappable(MappedObject, SectionOffset, &Pfn);
-	
-	if (Status == STATUS_MORE_PROCESSING_REQUIRED)
-	{
-		// It doesn't exist, so we need to fetch it manually.
-		MmUnlockSpace(SpaceUnlockIpl, Va);
-		SpaceUnlockIpl = -1;
-		
-		PFDbgPrint("%s: For VA %p, calling MmReadPageMappable", __func__, Va);
-		Status = MmReadPageMappable(MappedObject, SectionOffset, &Pfn);
-		if (FAILED(Status))
-		{
-			DbgPrint("%s: MmReadPageMappable failed to fulfill request with code %d", __func__, Status);
-			goto Exit;
-		}
-		
-		SpaceUnlockIpl = MmLockSpaceExclusive(Va);
-	}
-	
-	ASSERT(Pfn != PFN_INVALID);
-	
-	PFDbgPrint("%s: For VA %p, calling MmpAssignPfnToAddress(%d)", __func__, Va, Pfn);
-	Status = MmpAssignPfnToAddress(Va, Pfn, Protection, !MmNeedsPreparationToWriteMappable(MappedObject));
-	if (FAILED(Status))
-	{
-		MmFreePhysicalPage(Pfn);
-		
-		DbgPrint("%s: out of memory because PTE couldn't be allocated (1)", __func__);
-		ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
-		Status = STATUS_REFAULT_SLEEP;
-		goto Exit;
-	}
-	
-	PFDbgPrint("%s: hooray! page fault fulfilled by cached fetch %p", __func__, Va);
-	
-Exit:
-	ObDereferenceObject(MappedObject);
-	
-	if (SpaceUnlockIpl >= 0)
-		MmUnlockSpace(SpaceUnlockIpl, Va);
-	
-	if (FAILED(Status))
-		DbgPrint("%s: failed to fulfill page fault with code %d", __func__, Status);
-	
-	return Status;
-}
-
-BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl, bool* RefaultForWrite)
+// NOTE: Even if at the start of this function, the address space lock is held,
+// by the end of this function, the VAD list and address space lock need to be
+// released.
+BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL SpaceUnlockIpl, bool IsInstructionFetchFault, bool* RefaultForWrite)
 {
 	// NOTE: IPL is raised to APC level and the relevant address space's lock is held.
-	bool IsPageCommitted = false;
 	BSTATUS Status;
 	
 	// Check if there is a VAD with the Committed flag set to 1.
 	PMMVAD_LIST VadList = MmpLockVadListByAddress(Process, Va);
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
-	MMPTE ZeroPte = MmBuildZeroPte();
 	
 	if (!Vad)
 	{
@@ -206,87 +119,77 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
-	// If there is no PTE or it's zero.
-	if (!PtePtr || MmIsEqualPte(*PtePtr, ZeroPte))
+	// Check if the actual PTE is even there.
+	if (!PtePtr)
 	{
-		if (!Vad->Flags.Committed)
-		{
-			// The PTE is NULL yet the VAD isn't fully committed (they didn't request
-			// memory with MEM_RESERVE | MEM_COMMIT). Therefore, access violation it is.
-			MmUnlockVadList(VadList);
-			MmUnlockSpace(SpaceUnlockIpl, Va);
-			DbgPrint("MiNormalFault: Declaring access violation on VA %p because there is an uncommitted VAD and the region was not committed separately.", Va);
-			return STATUS_ACCESS_VIOLATION;
-		}
-		
-		// VAD is committed, so this page fault can be resolved.  But first, try to allocate
-		// the PTE itself.
+		PtePtr = MmGetPteLocationCheck(Va, true);
 		if (!PtePtr)
 		{
-			PtePtr = MmGetPteLocationCheck(Va, true);
-			
-			// If the PTE couldn't be allocated, return with STATUS_REFAULT_SLEEP, waiting for more
-			// memory.
-			if (!PtePtr)
-			{
-				MmUnlockVadList(VadList);
-				MmUnlockSpace(SpaceUnlockIpl, Va);
-				return STATUS_REFAULT_SLEEP;
-			}
+			// PTE couldn't be allocated.
+			// Wait for more memory.
+			MmUnlockVadList(VadList);
+			MmUnlockSpace(SpaceUnlockIpl, Va);
+			return STATUS_REFAULT_SLEEP;
+		}
+	}
+	
+	ASSERT(Vad->View);
+	
+	size_t ViewOffset = Va - Vad->Node.StartVa + Vad->ViewOffset;
+	
+	PFDbgPrint("MiNormalFault: Attempting to resolve fault at VA %p using MiResolveViewFault.", Va);
+
+	// Try to resolve the page fault now.
+	int PfnPermissions = 0;
+	MMPFN Pfn = PFN_INVALID;
+	Status = MiResolveViewFault(
+		Vad->View,
+		ViewOffset,
+		IsInstructionFetchFault ? PAGE_EXECUTE : PAGE_READ,
+		&Pfn,
+		&PfnPermissions
+	);
+	
+	if (Status == STATUS_MORE_PROCESSING_REQUIRED)
+	{
+		PMMVIEW View = ObReferenceObjectByPointer(Vad->View);
+		
+		// Don't need the locks any more.  We'll refault anyway.
+		MmUnlockVadList(VadList);
+		MmUnlockSpace(SpaceUnlockIpl, Va);
+		
+		PFDbgPrint("MiNormalFault: For VA %p, more processing is required.  Perform it.", Va);
+		
+		Status = MiPerformAdditionalProcessingForViewFault(View, ViewOffset);
+		
+		if (FAILED(Status))
+		{
+			DbgPrint(
+				"MiNormalFault: MiPerformAdditionalProcessingForViewFault on VA %p failed: %s",
+				Va,
+				RtlGetStatusString(Status)
+			);
+			return Status;
 		}
 		
-		IsPageCommitted = true;
+		return STATUS_REFAULT;
 	}
 	
-	// There is a PTE pointer, check if it's committed.
-	if (!IsPageCommitted && PtePtr && MmIsCommittedPte(*PtePtr))
+	// Now assign the PTE.
+	Status = MmpAssignPfnToAddress(Va, Pfn, PfnPermissions);
+	if (FAILED(Status))
 	{
-		IsPageCommitted = true;
-	}
-	
-	if (!IsPageCommitted)
-	{
-		DbgPrint("MiNormalFault: invalid page fault at address %p!", Va);
-		MmUnlockSpace(SpaceUnlockIpl, Va);
-		return STATUS_ACCESS_VIOLATION;
-	}
-	
-	// Check if there is an object to read from.
-	if (Vad->MappedObject)
-	{
-		void* Object = ObReferenceObjectByPointer(Vad->MappedObject);
-		uintptr_t VaBase = Vad->Node.StartVa;
-		uint64_t VadMappedOffset = Vad->SectionOffset;
-		int Protection = Vad->Flags.Protection;
-		
-		*RefaultForWrite = MmNeedsPreparationToWriteMappable(Vad->MappedObject);
-		
-		// (Access to the VAD is no longer required now)
-		MmUnlockVadList(VadList);
-		
-		// There is.  Handle this page fault separately.
-		return MmpHandleFaultCommittedMappedPage(
+		// Out of memory.
+		DbgPrint(
+			"MiNormalFault: Cannot map PFN into memory at VA %p: %s",
 			Va,
-			VaBase,
-			VadMappedOffset,
-			Object,
-			SpaceUnlockIpl,
-			Protection
+			RtlGetStatusString(Status)
 		);
+		Status = STATUS_REFAULT_SLEEP;
+		MmFreePhysicalPage(Pfn);
 	}
 	
-	// Now the PTE is here and we can commit it.
-	bool IsViewSpace = Va >= MM_KERNEL_SPACE_BASE;
-	uintptr_t PageBits = MmGetPteBitsFromProtection(Vad->Flags.Protection);
-	if (!IsViewSpace)
-		PageBits |= MM_PROT_USER;
-	
-	// (Access to the VAD is no longer required now)
 	MmUnlockVadList(VadList);
-	
-	Status = MmpHandleFaultCommittedPage(PtePtr, PageBits);
-
-	// This is all we needed to do for the non-object-backed case.
 	MmUnlockSpace(SpaceUnlockIpl, Va);
 	*RefaultForWrite = false;
 	return Status;
@@ -311,6 +214,7 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 	// We'll need the VAD to check the range's properties.
 	// Now, MiNormalFault would have brought this PTE into existence, so we only really
 	// need to check if the VAD allows CoW, or if the VAD allows direct writing.
+	BSTATUS Status;
 	PMMVAD_LIST VadList = MmpLockVadListByAddress(Process, Va);
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Va);
 	if (!Vad)
@@ -344,65 +248,40 @@ BSTATUS MiWriteFault(UNUSED PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr)
 		return STATUS_ACCESS_VIOLATION;
 	}
 	
-	if (~Vad->Flags.Protection & PAGE_WRITE)
+	PFDbgPrint("MiWriteFault: Attempting to resolve fault at VA %p using MiResolveViewFault.", Va);
+	
+	MMPTE OldPte = *PtePtr;
+	MMPFN OldPfn, NewPfn;
+	uintptr_t PteFlags;
+	int PfnPermissions;
+	
+	PteFlags = MmGetPageBitsPte(OldPte);
+	OldPfn = MmGetPfnPte(OldPte);
+	Status = MiResolveViewFault(
+		Vad->View,
+		Va - Vad->Node.StartVa + Vad->ViewOffset, // Address
+		PAGE_WRITE, // Intent
+		&NewPfn,
+		&PfnPermissions
+	);
+	
+	if (FAILED(Status))
 	{
-		DbgPrint("%s: Declaring access violation on VA %p because this page isn't mapped writable. PTE: %p", __func__, Va, *PtePtr);
+		DbgPrint("MiWriteFault: Cannot resolve write fault for VA %p: %s", Va, RtlGetStatusString(Status));
 		MmUnlockVadList(VadList);
-		return STATUS_ACCESS_VIOLATION;
+		return Status;
 	}
 	
-	if (Vad->MappedObject != NULL)
-	{
-		// Write allowed, so tell the mapped object that it should prepare for writes.
-		const uintptr_t PageMask = ~(PAGE_SIZE - 1);
-		uint64_t SectionOffset = ((Va & PageMask) - Vad->Node.StartVa + Vad->SectionOffset) / PAGE_SIZE;
-		
-		PFDbgPrint("%s: For VA %p, calling MmPrepareWriteMappable.", __func__, Va);
-		BSTATUS Status = MmPrepareWriteMappable(Vad->MappedObject, SectionOffset);
-		if (FAILED(Status))
-		{
-			DbgPrint(
-				"%s: Cannot make VA %p writable because MmPrepareWriteMappable returned status %d. %s",
-				__func__,
-				Va,
-				Status,
-				RtlGetStatusString(Status)
-			);
-			MmUnlockVadList(VadList);
-			return Status;
-		}
-		
-		PFDbgPrint("%s: For VA %p, calling MmGetPageMappable.", __func__, Va);
-		MMPFN NewPfn = PFN_INVALID;
-		Status = MmGetPageMappable(Vad->MappedObject, SectionOffset, &NewPfn);
-		
-		if (FAILED(Status))
-		{
-			// NOTE: A normal fault should've been handled first, to bring the page's data
-			// in from the backing store.
-			DbgPrint(
-				"%s: Cannot make VA %p writable because MmGetPageMappable returned status %d. %s",
-				__func__,
-				Va,
-				Status,
-				RtlGetStatusString(Status)
-			);
-			MmUnlockVadList(VadList);
-			return Status;
-		}
-		
-		PFDbgPrint("%s: For VA %p, using PFN %d.", __func__, Va, NewPfn);
-		
-		*PtePtr = MmBuildPte(NewPfn, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
-	}
-	else
-	{
-		// Anonymous memory, so just upgrade permissions
-		PFDbgPrint("%s: Upgrading permissions because this is anonymous memory.", __func__);
-		*PtePtr = MmSetPageBitsPte(*PtePtr, MmGetPageBitsPte(*PtePtr) | MM_PROT_READ | MM_PROT_WRITE | MM_MISC_IS_FROM_PMM);
-	}
+	ASSERT(MmIsFromPmmPte(OldPte));
+	ASSERT(PfnPermissions & PAGE_WRITE);
 	
+	// Fault resolved and we have a PFN to map now.
+	*PtePtr = MmBuildPte(NewPfn, PteFlags | MM_PROT_WRITE);
 	MmFlushTlbUpdates();
+
+	// Free the old PFN.
+	MmFreePhysicalPage(OldPfn);
+	
 	PFDbgPrint("MiWriteFault: VA %p upgraded to write successfully!", Va);
 	MmUnlockVadList(VadList);
 	return STATUS_SUCCESS;
@@ -482,7 +361,7 @@ BSTATUS MmPageFault(UNUSED uintptr_t FaultPC, uintptr_t FaultAddress, uintptr_t 
 	//
 	// Note: MiNormalFault will unlock the memory space.
 	bool RefaultForWrite = true;
-	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl, &RefaultForWrite);
+	Status = MiNormalFault(Process, FaultAddress, PtePtr, OldIpl, (FaultMode & MM_FAULT_INSNFETCH), &RefaultForWrite);
 	
 	if (SUCCEEDED(Status) && (FaultMode & MM_FAULT_WRITE) && RefaultForWrite)
 	{

@@ -150,6 +150,9 @@ MM_PTE_API bool MmIsCommittedPte(MMPTE Pte);
 // Checks if the PTE is decommitted.
 MM_PTE_API bool MmIsDecommittedPte(MMPTE Pte);
 
+// Gets a read-only version of the specified PTE.
+MM_PTE_API MMPTE MmReadOnlyPte(MMPTE Pte);
+
 // Checks if the PTE has been modified.
 //
 // On architectures that support hardware dirty bits, this returns the

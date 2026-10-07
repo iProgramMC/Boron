@@ -187,6 +187,7 @@ BSTATUS OSReplaceProcess(
 	NewPeb->ImageName   = (char*)((uintptr_t)NewPeb->ImageName   + (uintptr_t)PebPtr - (uintptr_t)NewPeb);
 	NewPeb->CommandLine = (char*)((uintptr_t)NewPeb->CommandLine + (uintptr_t)PebPtr - (uintptr_t)NewPeb);
 	NewPeb->Environment = (char*)((uintptr_t)NewPeb->Environment + (uintptr_t)PebPtr - (uintptr_t)NewPeb);
+	NewPeb->CurrentDirectory.Path = (char*)((uintptr_t)NewPeb->CurrentDirectory.Path + (uintptr_t)PebPtr - (uintptr_t)NewPeb);
 	NewPeb->PebFreeSize = RegionSize;
 	
 	// Copy the current PEB's standard I/O handles.
@@ -237,10 +238,11 @@ BSTATUS OSReplaceProcess(
 	
 	for (int i = 0; i < RangeCount + 1; i++)
 	{
-		uintptr_t ThisStart = i == RangeCount ? USER_SPACE_END : MemoryRanges[i].Start;
-		size_t Size = ThisStart - LastStart;
+		uintptr_t ThisStart = i == RangeCount ? USER_SPACE_END - PAGE_SIZE : MemoryRanges[i].Start;
+		intptr_t Size = ThisStart - LastStart;
 		
-		if (Size != 0)
+		Status = STATUS_SUCCESS;
+		if (Size > 0)
 		{
 			Status = OSFreeVirtualMemory(
 				CURRENT_PROCESS_HANDLE,

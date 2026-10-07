@@ -1,6 +1,6 @@
 /***
 	The Boron Operating System
-	Copyright (C) 2025 iProgramInCpp
+	Copyright (C) 2025-2026 iProgramInCpp
 
 Module name:
 	mm/view.h

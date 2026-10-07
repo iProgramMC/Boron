@@ -99,6 +99,9 @@ typedef struct
 		// If this mapping is private (i.e. does not affect the backing store of
 		// the mapped object)
 		unsigned Private : 1;
+		
+		// If this mapping was committed.
+		unsigned Committed : 1;
 	}
 	PACKED
 	Flags;

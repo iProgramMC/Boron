@@ -257,3 +257,12 @@ void CmdParseCommand()
 	CmdStartProcess(CommandName, Arguments, true);
 }
 
+
+void CmdDebugTest()
+{
+	// is this safe!? hell no! but I don't care
+	strcpy(CommandBuffer, "Hello");
+	CmdParseCommand();
+	strcpy(CommandBuffer, "mi");
+	CmdParseCommand();
+}

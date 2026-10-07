@@ -21,7 +21,6 @@ static const int MiSlabSizes[] =
 {
 	sizeof(KTHREAD),
 	sizeof(KPROCESS),
-	8,
 	16,
 	32,
 	64,
@@ -148,9 +147,9 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 		
 		for (int Index = 0; Index < Count; Index++)
 		{
-			if (~BitMap & (1 << Index))
+			if (~BitMap & (1ULL << Index))
 			{
-				Item->Bitmap[BitmapIndex] |= 1 << Index;
+				Item->Bitmap[BitmapIndex] |= 1ULL << Index;
 				
 				int Index2 = (64 * BitmapIndex + Index) * EntrySize;
 				
@@ -260,7 +259,7 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 	Diff /= Container->ItemSize;
 	
 	// Unset the relevant bit
-	Item->Bitmap[Diff / 64] &= ~(1 << (Diff % 64));
+	Item->Bitmap[Diff / 64] &= ~(1ULL << (Diff % 64));
 	
 	void* MemoryToFreeBig = NULL;
 	bool RequiresRbTreeEntry = MmpRequiresRbTreeEntry(Container->ItemSize);
