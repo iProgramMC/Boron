@@ -42,7 +42,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 		goto Failure;
 	}
 	
-	// Check if we are using the good old revision.
+	// Check if we are using the "good old" (0) revision.
 	if (Sb->Version >= 1)
 	{
 		// No, which means more features are available
@@ -82,7 +82,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	}
 	else
 	{
-		// These details are hardecoded in EXT2_GOOD_OLD_REV
+		// These details are hardcoded in EXT2_GOOD_OLD_REV
 		FileSystem->FirstInode = EXT2_DEF_FIRST_INODE;
 		FileSystem->InodeSize = EXT2_DEF_INODE_SIZE;
 	}
@@ -131,7 +131,7 @@ Failure:
 void Ext2DeleteFileSystem(void* FileSystemV)
 {
 	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
-	DbgPrint("Ext2: File System %p Deleted", FileSystem);
+	DbgPrint("Ext2: File System %p Deleted (TODO: clean up)", FileSystem);
 	// TODO
 }
 
