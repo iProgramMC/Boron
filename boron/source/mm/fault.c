@@ -149,6 +149,12 @@ BSTATUS MiNormalFault(PEPROCESS Process, uintptr_t Va, PMMPTE PtePtr, KIPL Space
 		&Pfn,
 		&PfnPermissions
 	);
+
+#ifndef MM_SUPPORTS_HARDWARE_DIRTY_BIT
+	// The hardware does not support a dirty bit in the PTEs.
+	// As such, we'll need to take an extra page fault to mark a page as writable.
+	PfnPermissions &= ~PAGE_WRITE;
+#endif
 	
 	if (Status == STATUS_MORE_PROCESSING_REQUIRED)
 	{

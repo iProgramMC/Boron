@@ -6,6 +6,9 @@
 
 #include <arch/ipl.h>
 
+// ARM32 does not support a hardware-implemented dirty bit.
+//#define MM_SUPPORTS_HARDWARE_DIRTY_BIT
+
 #ifdef KERNEL
 
 // start PML2 index will be 512.  The PFN database's is 776

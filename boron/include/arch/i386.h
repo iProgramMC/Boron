@@ -20,6 +20,9 @@ Author:
 
 #include <arch/ipl.h>
 
+// i386 supports hardware-implemented dirty bit.
+#define MM_SUPPORTS_HARDWARE_DIRTY_BIT
+
 // Model specific registers
 uint64_t KeGetMSR(uint32_t msr);
 void KeSetMSR(uint32_t msr, uint64_t value);
