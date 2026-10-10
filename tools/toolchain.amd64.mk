@@ -1,8 +1,17 @@
 # AMD64 Compiler Toolchain
-BCC  ?= gcc-14
-BCXX ?= g++-14
-BLD  ?= ld
-BASM ?= nasm
+
+HOST_ARCH = $(shell uname -m)
+ifeq ($(HOST_ARCH),x86_64)
+	BCC  ?= gcc-14
+	BCXX ?= g++-14
+	BLD  ?= ld
+	BASM ?= nasm
+else
+	BCC  ?= x86_64-elf-gcc
+	BCXX ?= x86_64-elf-g++
+	BLD  ?= x86_64-elf-ld
+	BASM ?= nasm
+endif
 
 # We are not using a freestanding toolchain (e.g. x86_64-elf-gcc) (although we really should),
 # so use these as an alternative.
