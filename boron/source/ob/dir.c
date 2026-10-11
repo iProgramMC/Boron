@@ -14,6 +14,9 @@ Author:
 ***/
 #include "obp.h"
 
+#define OBJECT_NAMESPACE_ROOT_MARKER "/::/"
+#define OBJECT_NAMESPACE_ROOT_MARKER_LEN 4
+
 extern POBJECT_TYPE ObDirectoryType;
 extern POBJECT_TYPE ObSymbolicLinkType;
 extern POBJECT_TYPE IoFileType;
@@ -252,6 +255,15 @@ BSTATUS ObpLookUpObjectPath(
 	{
 		bool IsUserMode = OpenFlags & OB_OPEN_USER_MODE;
 		bool IsObjectNamespace = OpenFlags & OB_OPEN_OBJECT_NAMESPACE;
+		
+		// If the user specified an absolute path, additionally check for the absolute prefix "/::/",
+		// which forces the path lookup to start from the root of the object namespace, rather than
+		// at the file system root specified at boot.
+		if (memcmp(ObjectName, OBJECT_NAMESPACE_ROOT_MARKER, OBJECT_NAMESPACE_ROOT_MARKER_LEN) == 0)
+		{
+			ObjectName += OBJECT_NAMESPACE_ROOT_MARKER_LEN - 1;
+			IsObjectNamespace = true;
+		}
 		
 		// If the user is trying to open a file, then by default we open the file
 		// starting from the root directory, unless they specified otherwise.
