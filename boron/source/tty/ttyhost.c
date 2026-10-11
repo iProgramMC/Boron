@@ -29,7 +29,8 @@ BSTATUS TtyFlushTempBuffer(PTERMINAL Terminal)
 		Terminal->LineState.TempBufferLength,
 		Terminal->LineState.S2HIoFlags,
 		0,     // FileOffset
-		false  // Cached
+		false, // Cached
+		true   // TrustBuffer
 	);
 	
 	Terminal->LineState.TempBufferLength = 0;
@@ -105,7 +106,7 @@ BSTATUS TtyReadHostFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL M
 		MdlBuffer,
 		Flags,
 		Offset,
-		false
+		false  // Cached
 	);
 }
 
@@ -193,7 +194,8 @@ static BSTATUS TtyFlushLineBuffer(PTERMINAL Terminal)
 		Terminal->LineState.LineBufferLength,
 		Terminal->LineState.H2SIoFlags,
 		0,     // FileOffset
-		false  // Cached
+		false, // Cached
+		true   // TrustBuffer
 	);
 	if (FAILED(Status))
 		return Status;
@@ -246,7 +248,8 @@ static BSTATUS TtyWriteCharacter(PTERMINAL Terminal, char Character)
 		1,     // Length
 		Terminal->LineState.H2SIoFlags,
 		0,     // FileOffset
-		false  // Cached
+		false, // Cached
+		true   // TrustBuffer
 	);
 }
 

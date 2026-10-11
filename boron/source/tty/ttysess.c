@@ -46,7 +46,7 @@ BSTATUS TtyReadSessionFile(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMD
 		MdlBuffer,
 		Flags,
 		Offset,
-		false
+		false  // Cached
 	);
 }
 

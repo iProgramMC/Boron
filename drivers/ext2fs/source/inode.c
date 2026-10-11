@@ -428,7 +428,7 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 		if (OnDiskBlock)
 		{
 			uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem);
-			Status = IoReadFile(Iosb, FileSystem->File, BlockBuffer, FileSystem->BlockSize, 0, Address, false);
+			Status = IoReadFile(Iosb, FileSystem->File, BlockBuffer, FileSystem->BlockSize, 0, Address, false, true);
 			if (FAILED(Status))
 				break;
 			
@@ -490,7 +490,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 	
 	// Since we can only do reads at the moment, just read.
-	Status = IoReadFile(Iosb, FileObject, &Dirent, sizeof(EXT2_DIRENT), 0, Offset, true);
+	Status = IoReadFile(Iosb, FileObject, &Dirent, sizeof(EXT2_DIRENT), 0, Offset, true, true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	
@@ -505,7 +505,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 	if (NameLength > IO_MAX_NAME - 1)
 		NameLength = IO_MAX_NAME - 1;
 	
-	Status = IoReadFile(Iosb, FileObject, &DirectoryEntry->Name, NameLength, 0, Offset + sizeof(EXT2_DIRENT), true);
+	Status = IoReadFile(Iosb, FileObject, &DirectoryEntry->Name, NameLength, 0, Offset + sizeof(EXT2_DIRENT), true, true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 	

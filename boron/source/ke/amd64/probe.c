@@ -68,7 +68,7 @@ bool MmIsAddressRangeValid(uintptr_t Address, size_t Size, KPROCESSOR_MODE Acces
 	
 	if (AccessMode == MODE_USER && AddressEnd > MM_USER_SPACE_END)
 	{
-		DbgPrint(
+		KeCrash(
 			"MmProbeAddress: AccessMode == MODE_USER, AddressEnd %p, Address %p, Size: %zu, RA:%p",
 			AddressEnd,
 			Address,

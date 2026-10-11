@@ -501,11 +501,12 @@ BSTATUS IoReadFile(
 	size_t Size,
 	uint32_t Flags,
 	uint64_t FileOffset,
-	bool Cached
+	bool Cached,
+	bool TrustBuffer
 )
 {
 	PMDL Mdl;
-	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), true);
+	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, TrustBuffer ? MODE_KERNEL : KeGetPreviousMode(), true);
 	
 	if (!FAILED(Status))
 	{
@@ -523,11 +524,12 @@ BSTATUS IoWriteFile(
 	size_t Size,
 	uint32_t Flags,
 	uint64_t FileOffset,
-	bool Cached
+	bool Cached,
+	bool TrustBuffer
 )
 {
 	PMDL Mdl;
-	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), false);
+	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, TrustBuffer ? MODE_KERNEL : KeGetPreviousMode(), false);
 	
 	if (!FAILED(Status))
 	{
