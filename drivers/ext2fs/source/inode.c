@@ -151,7 +151,9 @@ BSTATUS Ext2ReadBlockGroupDescriptor(PEXT2_FILE_SYSTEM FileSystem, uint32_t Bloc
 {
 	// If the block's size is 1024, then the block group descriptor table
 	// is at block 2, otherwise it's bigger, so at block 1.
-	uint64_t Address = FileSystem->BlockSize == 1024 ? 2048 : 1024;
+	uint64_t Address = FileSystem->BlockSize;
+	if (Address == 1024)
+		Address = 2048;
 	
 	Address += BlockGroup * sizeof(EXT2_BLOCK_GROUP_DESCRIPTOR);
 	
