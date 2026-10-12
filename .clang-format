@@ -8,7 +8,9 @@ TabWidth: 4
 
 ColumnLimit: 100
 
-AttributeMacros: ['UNUSED', 'FORCE_INLINE', 'ALWAYS_INLINE']
+AttributeMacros: ['UNUSED', 'FORCE_INLINE', 'ALWAYS_INLINE', 'INIT', 'NO_RETURN']
+BreakAfterAttributes: Always
+BreakBeforeReturnType: All
 
 # example:
 # Status = MmAllocatePool(
@@ -16,6 +18,12 @@ AttributeMacros: ['UNUSED', 'FORCE_INLINE', 'ALWAYS_INLINE']
 #     SizeOfAllocatedPayload
 # );
 AlignAfterOpenBracket: false
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: true
+PackArguments:
+  BinPack: OnePerLine
+PackParameters:
+  BinPack: OnePerLine
 
 AlignConsecutiveBitFields:
   Enabled: true
@@ -50,17 +58,8 @@ BraceWrapping:
 
 IndentCaseLabels: true
 
-BreakAfterOpenBracketFunction: true
-BreakBeforeCloseBracketFunction: true
-
 AllowAllArgumentsOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
-
-PackArguments:
-  BinPack: OnePerLine
-
-PackParameters:
-  BinPack: OnePerLine
 
 ReflowComments: Never
 
@@ -76,3 +75,15 @@ PointerAlignment: Left
 SpaceAfterCStyleCast: true
 
 BreakStringLiterals: false
+
+AllowShortFunctionsOnASingleLine: false
+
+BreakBinaryOperations:
+  Default: OnePerLine
+  PerOperator:
+  - Operators: ['==', '<', '>', '<=', '>=', '!=']
+    Style: Never
+
+BreakBeforeBinaryOperators: false
+
+PenaltyBreakAssignment: 1000
