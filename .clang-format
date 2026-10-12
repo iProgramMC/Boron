@@ -1,0 +1,78 @@
+# Copyright (C) 2026 iProgramInCpp
+#
+# Clang-format formatting description file for Boron.
+
+UseTab: AlignWithSpaces
+IndentWidth: 4
+TabWidth: 4
+
+ColumnLimit: 100
+
+AttributeMacros: ['UNUSED', 'FORCE_INLINE', 'ALWAYS_INLINE']
+
+# example:
+# Status = MmAllocatePool(
+#     POOL_NONPAGED,
+#     SizeOfAllocatedPayload
+# );
+AlignAfterOpenBracket: false
+
+AlignConsecutiveBitFields:
+  Enabled: true
+
+AlignConsecutiveMacros:
+  Enabled: true
+
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+
+AlignEscapedNewlines: LeftWithLastLine
+
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: true
+  AfterStruct: true
+  AfterClass: true
+  AfterCaseLabel: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterUnion: true
+  AfterExternBlock: true
+  AfterControlStatement: Always
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeWhile: true
+  BeforeLambdaBody: true
+
+IndentCaseLabels: true
+
+BreakAfterOpenBracketFunction: true
+BreakBeforeCloseBracketFunction: true
+
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+PackArguments:
+  BinPack: OnePerLine
+
+PackParameters:
+  BinPack: OnePerLine
+
+ReflowComments: Never
+
+# There is a reason I put includes in a certain order.
+SortIncludes:
+  Enabled: false
+
+# Used for plain-old-data types.  Always on left.
+# Supposed to be "move to right if there are multiple",
+# but clang-format doesn't seem to support that.
+PointerAlignment: Left
+
+SpaceAfterCStyleCast: true
+
+BreakStringLiterals: false
