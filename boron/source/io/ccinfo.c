@@ -40,27 +40,26 @@ bool IoSetBlockSizeCacheInfo(PIO_CACHE_INFO CacheInfo, size_t BlockSize)
 		return true;
 	}
 
+	PMMSLA NewSla = NULL;
+	if (BlockSize != 0)
+	{
+		NewSla = MmAllocatePool(POOL_NONPAGED, sizeof(MMSLA));
+		if (!NewSla)
+		{
+			DbgPrint("IoSetBlockSizeCacheInfo: Cannot allocate mod bitmap. Out of memory");
+			return false;
+		}
+
+		MmInitializeSlaEx(NewSla, 0, 0);
+	}
+
 	if (CacheInfo->ModBitmap)
 	{
 		MmDeinitializeSla(CacheInfo->ModBitmap, NULL);
 		MmFreePool(CacheInfo->ModBitmap);
-		CacheInfo->ModBitmap = NULL;
-		CacheInfo->BlockSize = 0;
 	}
 
-	if (BlockSize == 0)
-	{
-		return true;
-	}
-
-	CacheInfo->ModBitmap = MmAllocatePool(POOL_NONPAGED, sizeof(MMSLA));
-	if (!CacheInfo->ModBitmap)
-	{
-		DbgPrint("IoSetBlockSizeCacheInfo: Cannot allocate mod bitmap. Out of memory");
-		return false;
-	}
-
-	MmInitializeSlaEx(CacheInfo->ModBitmap, 0, 0);
+	CacheInfo->ModBitmap = NewSla;
 	CacheInfo->BlockSize = BlockSize;
 	return true;
 }
