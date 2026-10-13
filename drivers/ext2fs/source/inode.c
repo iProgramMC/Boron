@@ -149,7 +149,7 @@ void Ext2DereferenceInode(PFCB Fcb)
 
 BSTATUS Ext2ReadBlockGroupDescriptor(PEXT2_FILE_SYSTEM FileSystem, uint32_t BlockGroup, PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor)
 {
-	uint64_t Address = BlockGroup * sizeof(EXT2_BLOCK_GROUP_DESCRIPTOR);
+	uint64_t Address = (uint64_t) BlockGroup * sizeof(EXT2_BLOCK_GROUP_DESCRIPTOR);
 
 	return CcReadFileCopy(
 		FileSystem->BlockGroupDescriptorFile,
@@ -178,15 +178,12 @@ BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 	if (FAILED(Status))
 		return Status;
 
-	// Get the block group's inode table address and the
-	// inode's index within that block group table.
-	uint32_t InodeTableAddr  = Descriptor.InodeTableBlockId;
-	uint32_t InodeTableIndex = InodeNo % InodesPerGroup;
-
 	// And finally, read.
-	uint64_t Address = BLOCK_ADDRESS(InodeTableAddr, FileSystem) + InodeTableIndex * FileSystem->InodeSize;
+	uint64_t Address = (uint64_t) BlockGroup * FileSystem->InodeTableSizePerGroup
+		+ InodeTableIndex * FileSystem->InodeSize;
+
 	Status = CcReadFileCopy(
-		FileSystem->File,
+		FileSystem->InodeTableFile,
 		Address,
 		&Ext->Inode,
 		sizeof(EXT2_INODE)
@@ -280,6 +277,8 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 
 	BlockIndex -= 12;
 
+	// TODO: Do not use CcReadFileCopy for this.  Use something else.
+
 	// Is this the singly indirect block pointer.
 	if (BlockIndex < AddrsPerBlock)
 	{
@@ -287,7 +286,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 			goto ZeroBlock;
 
 		uint64_t Address = BLOCK_ADDRESS(Ext->Inode.SinglyIndirectBlockPointer, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * BlockIndex, OnDiskBlockOut, sizeof(uint32_t));
+		return CcReadFileCopy(
+			FileSystem->IndividualBlocksFile,
+			Address + 4 * BlockIndex,
+			OnDiskBlockOut,
+			sizeof(uint32_t)
+		);
 	}
 
 	BlockIndex -= AddrsPerBlock;
@@ -304,7 +308,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 		uint64_t Address;
 
 		Address = BLOCK_ADDRESS(Ext->Inode.DoublyIndirectBlockPointer, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
+		Status = CcReadFileCopy(
+			FileSystem->File,
+			Address + 4 * Part1,
+			&Part1,
+			sizeof(uint32_t)
+		);
 		if (FAILED(Status))
 			return Status;
 
@@ -312,7 +321,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 			goto ZeroBlock;
 
 		Address = BLOCK_ADDRESS(Part1, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * Part2, OnDiskBlockOut, sizeof(uint32_t));
+		return CcReadFileCopy(
+			FileSystem->File,
+			Address + 4 * Part2,
+			OnDiskBlockOut,
+			sizeof(uint32_t)
+		);
 	}
 
 	BlockIndex -= AddrsPerBlock;
@@ -329,7 +343,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 		uint64_t Address;
 
 		Address = BLOCK_ADDRESS(Ext->Inode.TriplyIndirectBlockPointer, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
+		Status = CcReadFileCopy(
+			FileSystem->File,
+			Address + 4 * Part1,
+			&Part1,
+			sizeof(uint32_t)
+		);
 		if (FAILED(Status))
 			return Status;
 
@@ -337,7 +356,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 			goto ZeroBlock;
 
 		Address = BLOCK_ADDRESS(Part1, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part2, &Part2, sizeof(uint32_t));
+		Status = CcReadFileCopy(
+			FileSystem->File,
+			Address + 4 * Part2,
+			&Part2,
+			sizeof(uint32_t)
+		);
 		if (FAILED(Status))
 			return Status;
 
@@ -345,7 +369,12 @@ BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlock
 			goto ZeroBlock;
 
 		Address = BLOCK_ADDRESS(Part2, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * Part3, OnDiskBlockOut, sizeof(uint32_t));
+		return CcReadFileCopy(
+			FileSystem->File,
+			Address + 4 * Part3,
+			OnDiskBlockOut,
+			sizeof(uint32_t)
+		);
 	}
 
 	// Can't write more data

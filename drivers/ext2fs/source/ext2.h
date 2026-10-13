@@ -135,6 +135,10 @@ struct _EXT2_FILE_SYSTEM
 	PFILE_OBJECT BlockBitmapFile;
 	PFILE_OBJECT InodeBitmapFile;
 	PFILE_OBJECT InodeTableFile;
+
+	size_t BlockBitmapSizePerGroup;
+	size_t InodeBitmapSizePerGroup;
+	size_t InodeTableSizePerGroup;
 };
 
 // ** Ext2 File System object type functions **

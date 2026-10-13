@@ -23,7 +23,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	if (!Name)
 		Name = "[Unknown]";
 
-	DbgPrint("Ext2Mount: Mounting %s...", Name);
+
 
 	// Create the Ext2 file system object.
 	Status = Ext2CreateFileSystemObject(&FileSystem);

@@ -353,6 +353,13 @@ PFILE_OBJECT Ext2CreateMetadataFile(PEXT2_FILE_SYSTEM FileSystem, int MetadataTy
 		&Ext->SizePerBlockGroup
 	);
 
+	if (MetadataType == MD_BLOCK_BITMAPS)
+		FileSystem->BlockBitmapSizePerGroup = Ext->SizePerBlockGroup;
+	if (MetadataType == MD_INODE_BITMAPS)
+		FileSystem->InodeBitmapSizePerGroup = Ext->SizePerBlockGroup;
+	if (MetadataType == MD_INODE_TABLES)
+		FileSystem->InodeTableSizePerGroup = Ext->SizePerBlockGroup;
+
 	PFILE_OBJECT FileObject;
 	BSTATUS Status = IoCreateFileObject(Fcb, &FileObject, 0, 0);
 	if (FAILED(Status)) {
