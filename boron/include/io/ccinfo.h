@@ -62,7 +62,29 @@ bool IoSetBlockSizeFile(PFILE_OBJECT FileObject, size_t BlockSize);
 
 //
 // Sets a range of blocks as modified in the cache info.
+// **Not a replacement for setting the pages as modified**.  In fact,
+// setting the pages as modified is a requirement for this to work correctly.
 //
 // Note: StartOffset and Size in # blocks.
 //
 bool IoSetRangeModifiedCacheInfo(PIO_CACHE_INFO CacheInfo, uint64_t StartOffset, size_t Size);
+
+//
+// Sets a range of blocks as unmodified in the cache info.
+// **Not a replacement for setting the pages as unmodified**.
+//
+// Note: StartOffset and Size in # blocks.
+//
+void IoClearRangeModifiedCacheInfo(PIO_CACHE_INFO CacheInfo, uint64_t StartOffset, size_t Size);
+
+//
+// Get the modified mask for a single page on a cache info structure.
+//
+// Namely, it compiles all the blocks covered by the page number and puts them
+// inside of a bitmask.
+//
+uint64_t IoGetModifiedMaskPerPageCacheInfo(
+	PIO_CACHE_INFO CacheInfo,
+	uint64_t PageNumberOffset,
+	uint64_t* OutBitsetAll
+);

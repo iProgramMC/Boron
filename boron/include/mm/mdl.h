@@ -4,11 +4,11 @@
 
 Module name:
 	mm/mdl.h
-	
+
 Abstract:
 	This header file defines the MDL (memory descriptor list)
 	structure.
-	
+
 Author:
 	iProgramInCpp - 21 January 2024
 ***/
@@ -64,7 +64,33 @@ MDL_ONEPAGE, *PMDL_ONEPAGE;
 // Returns the pointer to the MDL instance that was initialized.
 //
 // Do not use MDL_FLAG_FROMPOOL or MDL_FLAG_MAPPED.
-PMDL_ONEPAGE MmInitializeSinglePageMdl(PMDL_ONEPAGE Mdl, MMPFN Pfn, int Flags);
+PMDL_ONEPAGE MmInitializeSinglePageMdl(
+	PMDL_ONEPAGE Mdl,
+	MMPFN Pfn,
+	int Flags);
+
+// Initializes an MDL structure with one physical page.
+//
+// The range covered by Offset and Offset+Size-1 MUST NOT straddle a page boundary.
+//
+// Restrictions for Flags are the same as MmInitializeSinglePageMdl.
+PMDL_ONEPAGE MmInitializeSinglePageMdlEx(
+	PMDL_ONEPAGE Mdl,
+	MMPFN Pfn,
+	uintptr_t Offset,
+	size_t Size,
+	int Flags
+);
+
+// Initializes an MDL structure with one physical page, as a window into another MDL.
+// Restrictions for Flags are the same as MmInitializeSinglePageMdl.
+PMDL_ONEPAGE MmInitializeSinglePageMdlSubset(
+	PMDL_ONEPAGE Mdl,
+	PMDL OriginalMdl,
+	uintptr_t Offset,
+	size_t Size,
+	int Flags
+);
 
 // Allocates an MDL structure.
 PMDL MmAllocateMdl(uintptr_t VirtualAddress, size_t Length);

@@ -4,11 +4,11 @@
 
 Module name:
 	io/rdwr.c
-	
+
 Abstract:
 	This module implements the read and write functions
 	for the I/O manager.
-	
+
 Author:
 	iProgramInCpp - 1 July 2024
 ***/
@@ -26,22 +26,22 @@ enum
 static BSTATUS IopTouchFile(PFCB Fcb, int IoType)
 {
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
+
 	if (!Dispatch->Touch)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return Dispatch->Touch(Fcb, IO_IS_WRITE(IoType));
 }
 
 static size_t IopGetAlignmentInfo(PFCB Fcb)
 {
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
+
 	// As noted in include/io/dispatch.h, if the method isn't implemented, a default
 	// alignment of 1 is assumed.
 	if (!Dispatch->GetAlignmentInfo)
 		return 1;
-	
+
 	return Dispatch->GetAlignmentInfo(Fcb);
 }
 
@@ -50,13 +50,13 @@ static BSTATUS IopReadFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint
 	// The file control block is locked.
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
-	
+
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
+
 	IO_READ_METHOD ReadMethod = Dispatch->Read;
 	if (!ReadMethod)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-	
+
 	return ReadMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
@@ -65,13 +65,13 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 	// The file control block is locked.
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
-	
+
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
+
 	IO_WRITE_METHOD WriteMethod = Dispatch->Write;
 	if (!WriteMethod)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-	
+
 	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
 }
 
@@ -80,7 +80,7 @@ static BSTATUS IopSetFileSize(PFCB Fcb, uint64_t NewFileSize)
 {
 	if (!Fcb->DispatchTable->Resize)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return Fcb->DispatchTable->Resize(Fcb, NewFileSize);
 }
 
@@ -88,20 +88,20 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 {
 	BSTATUS Status;
 	ASSERT(FileObject);
-	
+
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
-	
+
 	Iosb->BytesRead = 0;
-	
+
 	bool IsSeekable = IoIsSeekable(Fcb);
 	size_t ByteCount = Mdl->ByteCount;
-	
+
 	// Check for an overflow.
 	if (ByteCount + Offset < ByteCount || ByteCount + Offset < Offset)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// Check if we may perform cached reads.
 	if (!IsSeekable)
 	{
@@ -117,7 +117,7 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		// that really matters here.
 		uint64_t FileSize = Fcb->FileLength;
 		*OutFileSize = FileSize;
-		
+
 		// Ensure a cap over the size of the file.
 		if (Offset >= FileSize)
 		{
@@ -125,26 +125,26 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 			Iosb->BytesRead = 0;
 			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 		}
-		
+
 		if (ByteCount + Offset >= FileSize)
 			ByteCount = FileSize - Offset;
 	}
-	
+
 	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
-	
+
 	// If we may use caching, use the cache.
 	if (Cached)
 	{
 		Status = CcReadFileMdl(FileObject, Offset, Mdl, 0, Mdl->ByteCount);
 		if (SUCCEEDED(Status))
 			Iosb->BytesRead = ByteCount;
-		
+
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
-	
+
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
 	if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
 	{
@@ -155,19 +155,19 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	{
 		Status = IoLockFcbShared(Fcb);
 	}
-	
+
 	if (FAILED(Status))
 	{
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	Status = IopReadFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
-	
+
 	*OutFileSize = Fcb->FileLength;
-	
+
 	IoUnlockFcb(Fcb);
-	
+
 	if (Status == STATUS_SUCCESS)
 	{
 		// NOTE: Dropping status here.  It is not important whether or not the file
@@ -178,7 +178,7 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 		// OSTouchFile which calls this underneath.
 		(void) IopTouchFile(Fcb, IO_OP_READ);
 	}
-	
+
 	KeSetAddressMode(OldMode);
 	return Status;
 }
@@ -187,55 +187,55 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 {
 	BSTATUS Status;
 	ASSERT(FileObject);
-	
+
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ASSERT(Fcb->DispatchTable);
-	
+
 	PIO_DISPATCH_TABLE Dispatch = Fcb->DispatchTable;
-	
+
 	// Check if we even support writing in the first place.
 	if (!Dispatch->Write)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
-	
+
 	Flags &= ~IO_RW_LOCKEDEXCLUSIVE;
-	
+
 	Iosb->BytesWritten = 0;
-	
+
 	bool IsSeekable = IoIsSeekable(Fcb);
 	size_t ByteCount = Mdl->ByteCount;
-	
+
 	// Check for an overflow.
 	if (ByteCount + Offset < ByteCount || ByteCount + Offset < Offset)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// Check if we may perform cached reads.
 	if (!IsSeekable)
 		Cached = false;
-	
+
 	uint64_t EndOffset = Offset + Mdl->ByteCount;
-	
+
 	// If we need to append, then lock exclusively unconditionally.
 	// Then make the offset the file's length.
 	if (Flags & IO_RW_APPEND)
 	{
 		Status = IoLockFcbExclusive(Fcb);
-		
+
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
-		
+
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
-		
+
 		Offset = Fcb->FileLength;
 	}
 	// If the capability flags demand an exclusive lock.
 	else if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
 	{
 		Status = IoLockFcbExclusive(Fcb);
-		
+
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
-		
+
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
 	// Check if the file needs to be expanded at all.
@@ -251,31 +251,31 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	{
 		// Expansion required.  Acquire the lock, and expand.
 		Status = IoLockFcbExclusive(Fcb);
-		
+
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
-		
+
 		Status = IopSetFileSize(Fcb, EndOffset);
-		
+
 		// TODO: Allow reporting of the status here.  It's possible this failed because
 		// the disk ran out of space, for example.
-		
+
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
 	else
 	{
 		Status = IoLockFcbShared(Fcb);
-		
+
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	// Ensure that the offset and write size are within the (new) file length.
 	if (IsSeekable)
 	{
 		uint64_t FileSize = Fcb->FileLength;
 		*OutFileSize = FileSize;
-		
+
 		// Ensure a cap over the size of the file.
 		if (Offset >= FileSize)
 		{
@@ -284,7 +284,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 			IoUnlockFcb(Fcb);
 			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 		}
-		
+
 		if (ByteCount + Offset >= FileSize)
 			ByteCount = FileSize - Offset;
 	}
@@ -292,32 +292,32 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	{
 		*OutFileSize = 0;
 	}
-	
+
 	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
-	
+
 	// If we may use caching, use the cache.
 	if (Cached)
-	{	
+	{
 		Status = CcWriteFileMdl(FileObject, Offset, Mdl, 0, ByteCount);
 		if (SUCCEEDED(Status))
 			Iosb->BytesWritten = ByteCount;
-		
+
 		IoUnlockFcb(Fcb);
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	if (FAILED(Status))
 	{
 		IoUnlockFcb(Fcb);
 		KeSetAddressMode(OldMode);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	Status = IopWriteFileLocked(Iosb, Fcb, Mdl, Flags, Offset);
-	
+
 	IoUnlockFcb(Fcb);
-	
+
 	if (Status == STATUS_SUCCESS)
 	{
 		// NOTE: Dropping status here.  It is not important whether or not the file
@@ -328,7 +328,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 		// OSTouchFile which calls this underneath.
 		(void) IopTouchFile(Fcb, IO_OP_WRITE);
 	}
-	
+
 	KeSetAddressMode(OldMode);
 	return Status;
 }
@@ -336,49 +336,49 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 static BSTATUS IopReadFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
 {
 	BSTATUS Status;
-	
+
 	if (Flags & IO_RW_SHARED_FILE_OFFSET)
 	{
 		Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 		if (FAILED(Status))
 			return Status;
-		
+
 		Offset = FileObject->CurrentFileOffset;
 	}
-	
+
 	Status = IopReadFile2(Iosb, FileObject, Mdl, Flags, Offset, Cached, OutFileSize);
-	
+
 	if (Flags & IO_RW_SHARED_FILE_OFFSET)
 	{
 		FileObject->CurrentFileOffset += Iosb->BytesRead;
 		KeReleaseMutex(&FileObject->FileOffsetMutex);
 	}
-	
+
 	return Status;
 }
 
 static BSTATUS IopWriteFile(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
 {
 	BSTATUS Status;
-	
+
 	if (Flags & IO_RW_SHARED_FILE_OFFSET)
 	{
 		Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 		if (FAILED(Status))
 			return Status;
-		
+
 		Offset = FileObject->CurrentFileOffset;
 	}
-	
+
 	Iosb->BytesWritten = 0;
 	Status = IopWriteFile2(Iosb, FileObject, Mdl, Flags, Offset, Cached, OutFileSize);
-	
+
 	if (Flags & IO_RW_SHARED_FILE_OFFSET)
 	{
 		FileObject->CurrentFileOffset += Iosb->BytesRead;
 		KeReleaseMutex(&FileObject->FileOffsetMutex);
 	}
-	
+
 	return Status;
 }
 
@@ -400,18 +400,74 @@ BSTATUS IoPerformModifiedPageWrite(
 	FILE_OBJECT File;
 	MDL_ONEPAGE Mdl;
 	IO_STATUS_BLOCK Iosb;
-	
+
+	uint64_t Unused;
+
 	memset(&File, 0, sizeof File);
 	File.Fcb = Fcb;
-	
+
+	if (Fcb->CacheInfo.ModBitmap)
+	{
+		ASSERT(FileOffset % PAGE_SIZE == 0);
+
+		uint64_t BitsetAll = 0;
+		uint64_t Bitset = IoGetModifiedMaskPerPageCacheInfo(
+			&Fcb->CacheInfo,
+			FileOffset / PAGE_SIZE,
+			&BitsetAll
+		);
+
+		if (BitsetAll == Bitset)
+			goto WriteAll;
+
+		if (Bitset == 0)
+		{
+			DbgPrint(
+				"Warning: IoPerformModifiedPageWrite was called on a block device, yet its "
+				"modified state is zero!?"
+			);
+
+			return STATUS_SUCCESS;
+		}
+
+		uint64_t Current = 1;
+		size_t SubOffset = 0, BlockSize = Fcb->CacheInfo.BlockSize;
+		for (; SubOffset < PAGE_SIZE; Current <<= 1, SubOffset += BlockSize)
+		{
+			if (!(Bitset & Current))
+				continue;
+
+			MmInitializeSinglePageMdlEx(&Mdl, Pfn, SubOffset, BlockSize, 0);
+
+			Status = IopWriteFile(
+				&Iosb,
+				&File,
+				&Mdl.Base,
+				IO_RW_PAGING,
+				FileOffset + SubOffset,
+				false,
+				&Unused
+			);
+
+			MmFreeMdl(&Mdl.Base);
+
+			if (IOFAILED(Status))
+			{
+				DbgPrint(
+					"Warning: IoPerformModifiedPageWrite failed while partially flushing a block "
+					"device: %s",
+					RtlGetStatusString(Status)
+				);
+				return Status;
+			}
+		}
+	}
+
+WriteAll:
 	MmInitializeSinglePageMdl(&Mdl, Pfn, 0);
-	
-	// NOTE: Cache is disabled here.
-	uint64_t Unused;
 	Status = IopWriteFile(&Iosb, &File, &Mdl.Base, IO_RW_PAGING, FileOffset, false, &Unused);
-	
 	MmFreeMdl(&Mdl.Base);
-	
+
 	return Status;
 }
 
@@ -423,13 +479,13 @@ BSTATUS IoPerformPagingRead(
 )
 {
 	ASSERT(FileObject->Fcb);
-	
+
 	uint64_t Unused;
 	return IopReadFile(Iosb, FileObject, Mdl, IO_RW_PAGING, FileOffset, false, &Unused);
 }
 
 BSTATUS IoPerformOperationFileHandle(
-	PIO_STATUS_BLOCK Iosb, 
+	PIO_STATUS_BLOCK Iosb,
 	HANDLE Handle,
 	int IoType,
 	PMDL Mdl,
@@ -444,26 +500,26 @@ BSTATUS IoPerformOperationFileHandle(
 	// IoReadFile and IoWriteFile) will perform the necessary checks to ensure that
 	// the operation is valid, and that the buffer and its length are mapped the entire
 	// time by capturing the relevant pages using an MDL.
-	
+
 	BSTATUS Status;
-	
+
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	if (IoType == IO_OP_READ)
 		Status = IopReadFile(Iosb, FileObject, Mdl, Flags, FileOffset, true, OutFileSize);
 	else
 		Status = IopWriteFile(Iosb, FileObject, Mdl, Flags, FileOffset, true, OutFileSize);
-	
+
 	ObDereferenceObject(FileObject);
-	
+
 	// See the notes in include/io/dispatch.h.
 	ASSERT(Iosb->Status == Status);
-	
+
 	return Status;
 }
 
@@ -507,13 +563,13 @@ BSTATUS IoReadFile(
 {
 	PMDL Mdl;
 	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, TrustBuffer ? MODE_KERNEL : KeGetPreviousMode(), true);
-	
+
 	if (!FAILED(Status))
 	{
 		Status = IoReadFileMdl(Iosb, FileObject, Mdl, Flags, FileOffset, Cached);
 		MmFreeMdl(Mdl);
 	}
-	
+
 	return Status;
 }
 
@@ -530,13 +586,13 @@ BSTATUS IoWriteFile(
 {
 	PMDL Mdl;
 	BSTATUS Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, TrustBuffer ? MODE_KERNEL : KeGetPreviousMode(), false);
-	
+
 	if (!FAILED(Status))
 	{
 		Status = IoWriteFileMdl(Iosb, FileObject, Mdl, Flags, FileOffset, Cached);
 		MmFreeMdl(Mdl);
-	}	
-	
+	}
+
 	return Status;
 }
 
@@ -551,10 +607,10 @@ BSTATUS IoDeviceIoControl(
 {
 	PFCB Fcb = FileObject->Fcb;
 	IO_IO_CONTROL_METHOD IoControl = Fcb->DispatchTable->IoControl;
-	
+
 	if (!IoControl)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
 }
 
@@ -562,10 +618,10 @@ BSTATUS IoMakeFile(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, co
 {
 	PFCB Fcb = DirectoryObject->Fcb;
 	IO_MAKE_FILE_METHOD MakeFile = Fcb->DispatchTable->MakeFile;
-	
+
 	if (!MakeFile)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return MakeFile(OutFileObject, Fcb, Name);
 }
 
@@ -573,10 +629,10 @@ BSTATUS IoMakeDirectory(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObjec
 {
 	PFCB Fcb = DirectoryObject->Fcb;
 	IO_MAKE_DIR_METHOD MakeDirectory = Fcb->DispatchTable->MakeDirectory;
-	
+
 	if (!MakeDirectory)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return MakeDirectory(OutFileObject, Fcb, Name);
 }
 
@@ -590,10 +646,10 @@ BSTATUS IoMakeSymbolicLink(
 {
 	PFCB Fcb = DirectoryObject->Fcb;
 	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink = Fcb->DispatchTable->MakeSymbolicLink;
-	
+
 	if (!MakeSymbolicLink)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return MakeSymbolicLink(
 		OutFileObject,
 		Fcb,
@@ -611,10 +667,10 @@ BSTATUS IoMakeHardLink(
 {
 	PFCB Fcb = DirectoryObject->Fcb;
 	IO_MAKE_LINK_METHOD MakeHardLink = Fcb->DispatchTable->MakeHardLink;
-	
+
 	if (!MakeHardLink)
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	return MakeHardLink(Fcb, Name, ReferencedFileObject->Fcb);
 }
 
@@ -623,30 +679,30 @@ BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t
 	BSTATUS Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, false, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	// You may not seek to anywhere but offset 0 (start of the directory).
 	if (FileObject->Fcb->FileType == FILE_TYPE_DIRECTORY && Offset != 0 && Whence != IO_SEEK_SET)
 	{
 		KeReleaseMutex(&FileObject->FileOffsetMutex);
 		return STATUS_INVALID_PARAMETER;
 	}
-	
+
 	int64_t ResultOffset = 0;
 	switch (Whence)
 	{
 		case IO_SEEK_CUR:
 			ResultOffset = (int64_t)FileObject->CurrentFileOffset + Offset;
 			break;
-		
+
 		case IO_SEEK_END:
 			ResultOffset = (int64_t)FileObject->Fcb->FileLength + Offset;
 			break;
-		
+
 		case IO_SEEK_SET:
 			ResultOffset = Offset;
 			break;
 	}
-	
+
 	if (ResultOffset < 0) {
 		Status = STATUS_INVALID_PARAMETER;
 	}
@@ -654,7 +710,7 @@ BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t
 		*NewOffset = FileObject->CurrentFileOffset = ResultOffset;
 		FileObject->CurrentDirectoryVersion = 0;
 	}
-	
+
 	KeReleaseMutex(&FileObject->FileOffsetMutex);
 	return Status;
 }
@@ -670,20 +726,20 @@ BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t
 BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, uintptr_t Buffer, size_t Length, uint32_t Flags, uint64_t* OutFileSize, int Operation)
 {
 	BSTATUS Status;
-	
+
 	Status = MmProbeAddress(Iosb, sizeof(*Iosb), true, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = MmProbeAddress((void*) Buffer, Length, Operation != IO_OP_WRITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	// Allocate the MDL.
 	PMDL Mdl = MmAllocateMdl(Buffer, Length);
 	if (!Mdl)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	// Then probe and pin the pages.
 	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), Operation != IO_OP_WRITE);
 	if (FAILED(Status))
@@ -691,29 +747,29 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 		MmFreeMdl(Mdl);
 		return Status;
 	}
-	
+
 	// Finally, call the Io function.
 	uint64_t OutFileSize2;
 	IO_STATUS_BLOCK Iosb2;
 	Status = IoPerformOperationFileHandle(&Iosb2, Handle, Operation, Mdl, ByteOffset, Flags, &OutFileSize2);
-	
+
 	// This unmaps and unpins the pages, and frees the MDL.
 	MmFreeMdl(Mdl);
-	
+
 	// Copy the I/O status block to the caller.
 	BSTATUS Status2 = MmSafeCopy(Iosb, &Iosb2, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), true);
 	if (FAILED(Status))
 		return Status;
-	
+
 	if (OutFileSize)
 	{
 		if (FAILED(Status2))
 			return Status2;
-		
+
 		// Copy the new file size.
 		Status2 = MmSafeCopy(OutFileSize, &OutFileSize2, sizeof(uint64_t), KeGetPreviousMode(), true);
 	}
-	
+
 	return Status2;
 }
 
@@ -722,16 +778,16 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
 {
 	BSTATUS Status;
-	
+
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
-	
+
 	ObDereferenceObject(FileObject);
 	return Status;
 }
@@ -739,17 +795,17 @@ BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
 BSTATUS OSGetAlignmentFile(HANDLE Handle, size_t* AlignmentOut)
 {
 	BSTATUS Status;
-	
+
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
 	size_t Alignment = IopGetAlignmentInfo(FileObject->Fcb);
-	
+
 	Status = MmSafeCopy(AlignmentOut, &Alignment, sizeof(size_t), KeGetPreviousMode(), true);
-	
+
 	ObDereferenceObject(FileObject);
 	return Status;
 }
@@ -758,7 +814,7 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, vo
 {
 	if (KeGetPreviousMode() == MODE_USER)
 		Flags &= ~IO_RW_USER_MODE_FORBIDDEN_FLAGS;
-	
+
 	return OSPerformOperationFileHandle(Iosb, Handle, ByteOffset, (uintptr_t) Buffer, Length, Flags, NULL, IO_OP_READ);
 }
 
@@ -766,7 +822,7 @@ BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, c
 {
 	if (KeGetPreviousMode() == MODE_USER)
 		Flags &= ~IO_RW_USER_MODE_FORBIDDEN_FLAGS;
-	
+
 	return OSPerformOperationFileHandle(Iosb, Handle, ByteOffset, (uintptr_t) Buffer, Length, Flags, OutFileSize, IO_OP_WRITE);
 }
 
@@ -779,22 +835,22 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
 {
 	BSTATUS Status;
 	void* FileObjectV;
-	
+
 	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	if (!IoIsSeekable(FileObject->Fcb))
 	{
 		ObDereferenceObject(FileObject);
 		return STATUS_UNSUPPORTED_FUNCTION;
 	}
-	
+
 	uint64_t Length = AtLoad(FileObject->Fcb->FileLength);
 	ObDereferenceObject(FileObject);
-	
+
 	return MmSafeCopy(OutLength, &Length, sizeof(uint64_t), KeGetPreviousMode(), true);
 }
 
@@ -809,18 +865,18 @@ BSTATUS OSDeviceIoControl(
 {
 	BSTATUS Status;
 	void* FileObjectV;
-	
+
 	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	uint8_t *InBufferCopy = NULL, *OutBufferCopy = NULL;
-	
+
 	if ((InBufferSize && !InBuffer) || (OutBufferSize && !OutBuffer))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (InBufferSize)
 	{
 		InBufferCopy = MmAllocatePool(POOL_PAGED, InBufferSize);
@@ -829,12 +885,12 @@ BSTATUS OSDeviceIoControl(
 			Status = STATUS_INSUFFICIENT_MEMORY;
 			goto EarlyExit;
 		}
-		
+
 		Status = MmSafeCopy(InBufferCopy, InBuffer, InBufferSize, KeGetPreviousMode(), false);
 		if (FAILED(Status))
 			goto EarlyExit;
 	}
-	
+
 	if (OutBufferSize)
 	{
 		OutBufferCopy = MmAllocatePool(POOL_PAGED, InBufferSize);
@@ -844,7 +900,7 @@ BSTATUS OSDeviceIoControl(
 			goto EarlyExit;
 		}
 	}
-	
+
 	// Do the actual I/O call now.
 	Status = IoDeviceIoControl(
 		FileObject,
@@ -856,10 +912,10 @@ BSTATUS OSDeviceIoControl(
 	);
 	if (FAILED(Status))
 		goto EarlyExit;
-	
+
 	if (OutBufferSize)
 		Status = MmSafeCopy(OutBuffer, OutBufferCopy, OutBufferSize, KeGetPreviousMode(), true);
-	
+
 EarlyExit:
 	if (InBufferCopy)
 		MmFreePool(InBufferCopy);
@@ -873,22 +929,22 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 {
 	if (Whence != IO_SEEK_CUR && Whence != IO_SEEK_SET && Whence != IO_SEEK_END)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	BSTATUS Status;
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	uint64_t OutNewOffset2 = 0;
 	Status = IoSeekFile(FileObject, Offset, Whence, &OutNewOffset2);
 	ObDereferenceObject(FileObject);
-	
+
 	if (!FAILED(Status) && OutNewOffset)
 		Status = MmSafeCopy(OutNewOffset, &OutNewOffset2, sizeof(uint64_t), KeGetPreviousMode(), true);
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -908,14 +964,14 @@ BSTATUS IoCreateObjectInDirectory(
 	BSTATUS Status;
 	if (!OutFileHandle || !FileName || !FileNameLength)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (FileNameLength >= IO_MAX_NAME)
 		return STATUS_NAME_TOO_LONG;
-	
+
 	char* FileNameCopy = MmAllocatePool(POOL_PAGED, FileNameLength + 1);
 	if (!FileNameCopy)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	FileNameCopy[FileNameLength] = 0;
 	Status = MmSafeCopy(FileNameCopy, FileName, FileNameLength, KeGetPreviousMode(), false);
 	if (FAILED(Status))
@@ -929,37 +985,37 @@ BSTATUS IoCreateObjectInDirectory(
 	{
 		if (TargetNameLength > PAGE_SIZE)
 			return STATUS_NAME_TOO_LONG;
-		
+
 		TargetNameCopy = MmAllocatePool(POOL_PAGED, TargetNameLength + 1);
 		if (!TargetNameCopy)
 		{
 			MmFreePool(FileNameCopy);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
-		
+
 		TargetNameCopy[TargetNameLength] = 0;
-		
+
 		Status = MmSafeCopy(TargetNameCopy, TargetName, TargetNameLength, KeGetPreviousMode(), false);
 		if (FAILED(Status))
 		{
 		Fail:
 			MmFreePool(FileNameCopy);
-			
+
 			if (TargetNameCopy)
 				MmFreePool(TargetNameCopy);
-			
+
 			return Status;
 		}
 	}
-	
+
 	void* DirectoryObjectV;
 	Status = ObReferenceObjectByHandle(DirectoryHandle, IoFileType, &DirectoryObjectV);
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	PFILE_OBJECT DirectoryObject = DirectoryObjectV;
 	PFILE_OBJECT NewFileObject = NULL;
-	
+
 	switch (FileType)
 	{
 		case FILE_TYPE_FILE:
@@ -976,23 +1032,23 @@ BSTATUS IoCreateObjectInDirectory(
 			Status = STATUS_UNIMPLEMENTED;
 			break;
 	}
-	
+
 	ObDereferenceObject(DirectoryObject);
-	
+
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	// OK, we have a reference to the new file object, but we still need to add it to our handle
 	// table.  So do so now.
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObInsertObject(NewFileObject, &Handle, 0);
-	
+
 	if (FAILED(Status))
 	{
 		ObDereferenceObject(NewFileObject);
 		goto Fail;
 	}
-	
+
 	// Then, copy it in.
 	Status = MmSafeCopy(OutFileHandle, &Handle, sizeof Handle, KeGetPreviousMode(), true);
 	if (FAILED(Status))
@@ -1000,13 +1056,13 @@ BSTATUS IoCreateObjectInDirectory(
 		// Failed, so close the handle.
 		OSClose(Handle);
 	}
-	
+
 	ObDereferenceObject(NewFileObject);
 	MmFreePool(FileNameCopy);
-	
+
 	if (TargetNameCopy)
 		MmFreePool(TargetNameCopy);
-	
+
 	return Status;
 }
 
