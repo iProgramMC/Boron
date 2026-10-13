@@ -4,11 +4,11 @@
 
 Module name:
 	mount.c
-	
+
 Abstract:
 	This module takes care of the process of mounting
 	an Ext2 partition.
-	
+
 Author:
 	iProgramInCpp - 15 May 2025
 ***/
@@ -22,26 +22,26 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	const char* Name = OBJECT_GET_HEADER(BackingDevice)->ObjectName;
 	if (!Name)
 		Name = "[Unknown]";
-	
+
 	// Create the Ext2 file system object.
 	Status = Ext2CreateFileSystemObject(&FileSystem);
 	if (FAILED(Status))
 		return Status;
-	
+
 	// Read the super block into it.
 	Status = CcReadFileCopy(BackingFile, 1024, &FileSystem->SuperBlock, sizeof(EXT2_SUPERBLOCK));
 	if (FAILED(Status))
 		goto Failure;
-	
+
 	Sb = &FileSystem->SuperBlock;
-	
+
 	// Check if the signature is correct.
 	if (Sb->Ext2Signature != EXT2_SIGNATURE)
 	{
 		Status = STATUS_NOT_THIS_FILE_SYSTEM;
 		goto Failure;
 	}
-	
+
 	// Check if we are using the "good old" (0) revision.
 	if (Sb->Version >= 1)
 	{
@@ -56,7 +56,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 			Status = STATUS_UNIMPLEMENTED;
 			goto Failure;
 		}
-		
+
 		if (Sb->ReadOnlyFeatures & EXT2_ROF_UNSUPPORTED_FLAGS)
 		{
 			LogMsg(
@@ -66,7 +66,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 			);
 			FileSystem->ForceReadOnly = true;
 		}
-		
+
 		if (Sb->CompatibleFeatures & EXT2_OPT_UNSUPPORTED_FLAGS)
 		{
 			LogMsg(
@@ -75,7 +75,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 				Sb->ReadOnlyFeatures & EXT2_OPT_UNSUPPORTED_FLAGS
 			);
 		}
-		
+
 		// Fill in some details which are not hardcoded in EXT2_DYNAMIC_REV.
 		FileSystem->FirstInode = Sb->FirstNonReservedInode;
 		FileSystem->InodeSize = Sb->InodeStructureSize;
@@ -86,20 +86,22 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 		FileSystem->FirstInode = EXT2_DEF_FIRST_INODE;
 		FileSystem->InodeSize = EXT2_DEF_INODE_SIZE;
 	}
-	
+
 	FileSystem->BlockSizeLog2 = 10 + Sb->BlockSizeLog2;
 	FileSystem->BlockSize    = 1024 << Sb->BlockSizeLog2;
 	FileSystem->FragmentSize = 1024 << Sb->FragmentSizeLog2;
 	FileSystem->InodesPerGroup = Sb->InodesPerGroup;
 	FileSystem->BlocksPerGroup = Sb->BlocksPerGroup;
-	
+
 	// Initialize the rest of the file system data structure.
 	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
 	InitializeRbTree(&FileSystem->InodeTree);
-	
+
 	FileSystem->BackingDevice = BackingDevice;
 	FileSystem->File = BackingFile;
-	
+
+	IoSetBlockSizeFile(BackingFile, FileSystem->BlockSize);
+
 	// Read the "/" inode.  It is inode 2.
 	PFCB RootFcb;
 	Status = Ext2OpenInode(FileSystem, 2, &RootFcb);
@@ -108,9 +110,9 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 		DbgPrint("Ext2: Failed to read root inode. %d (%s)", Status, RtlGetStatusString(Status));
 		goto Failure;
 	}
-	
+
 	FileSystem->RootInode = RootFcb;
-	
+
 	// Now, we can link the object into the mount directory, hopefully.
 	Status = ObLinkObject(MountDir, FileSystem, Name);
 	if (FAILED(Status))
@@ -118,11 +120,11 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 		DbgPrint("Ext2: Failed to link to mount dir. %d (%s)", Status, RtlGetStatusString(Status));
 		goto Failure;
 	}
-	
+
 	// Now we can return success, finally.
 	LogMsg("Ext2: Found file system on %s.", Name);
-	
-	
+
+
 Failure:
 	ObDereferenceObject(FileSystem);
 	return Status;
@@ -145,6 +147,6 @@ BSTATUS Ext2ParseFileSystem(
 {
 	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
 	DbgPrint("Ext2ParseFileSystem");
-	
+
 	return IoCreateFileObject(FileSystem->RootInode, (PFILE_OBJECT*) OutObject, 0, 0);
 }

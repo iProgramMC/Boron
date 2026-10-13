@@ -21,6 +21,8 @@ Author:
 #include <mm/cache.h>
 #include <io/dispatch.h>
 
+typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
+
 typedef struct
 {
 	KMUTEX ViewCacheMutex;
@@ -52,6 +54,11 @@ void IoTeardownCacheInfo(PIO_CACHE_INFO CacheInfo);
 // a different value to re-initialize it.
 //
 bool IoSetBlockSizeCacheInfo(PIO_CACHE_INFO CacheInfo, size_t BlockSize);
+
+//
+// Calls IoSetBlockSizeCacheInfo on the specified file object's cache info.
+//
+bool IoSetBlockSizeFile(PFILE_OBJECT FileObject, size_t BlockSize);
 
 //
 // Sets a range of blocks as modified in the cache info.

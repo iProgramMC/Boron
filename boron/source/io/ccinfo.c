@@ -64,6 +64,12 @@ bool IoSetBlockSizeCacheInfo(PIO_CACHE_INFO CacheInfo, size_t BlockSize)
 	return true;
 }
 
+// Note: This is NOT thread-safe!  (And probably doesn't need to be, either.)
+bool IoSetBlockSizeFile(PFILE_OBJECT FileObject, size_t BlockSize)
+{
+	return IoSetBlockSizeCacheInfo(&FileObject->Fcb->CacheInfo, BlockSize);
+}
+
 bool IoSetRangeModifiedCacheInfo(PIO_CACHE_INFO CacheInfo, uint64_t StartOffset, size_t Size)
 {
 	if (Size == 0)
