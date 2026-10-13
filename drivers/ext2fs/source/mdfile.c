@@ -83,7 +83,7 @@ BSTATUS Ext2PerformOperationMetadataFile(
 	}
 
 	// Handle the case where they try to read more than 1 alignment block.
-	if (MdlBuffer->ByteCount >= Alignment)
+	if (MdlBuffer->ByteCount > Alignment)
 	{
 		MDL_ONEPAGE SubMdl;
 
