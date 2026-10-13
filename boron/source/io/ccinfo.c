@@ -16,12 +16,14 @@ Author:
 #include <ke.h>
 #include <mm.h>
 
+#define VIEW_CACHE_MUTEX_LEVEL 0 // TODO: specify a level.
+#define MOD_BITMAP_MUTEX_LEVEL 6
+
 void IoInitializeCacheInfo(PIO_CACHE_INFO CacheInfo)
 {
 	MmInitializeCcb(&CacheInfo->PageCache);
-	KeInitializeMutex(&CacheInfo->ViewCacheMutex, 0);
-
-	KeInitializeMutex(&CacheInfo->ModBitmapMutex, 0);
+	KeInitializeMutex(&CacheInfo->ViewCacheMutex, VIEW_CACHE_MUTEX_LEVEL);
+	KeInitializeMutex(&CacheInfo->ModBitmapMutex, MOD_BITMAP_MUTEX_LEVEL);
 	CacheInfo->ModBitmap = NULL;
 	CacheInfo->BlockSize = 0;
 }
