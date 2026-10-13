@@ -4,11 +4,11 @@
 
 Module name:
 	mm/sla.h
-	
+
 Abstract:
 	This header defines the memory manager's sparse
 	linear array data structure.
-	
+
 Author:
 	iProgramInCpp - 7 December 2025
 ***/
@@ -63,6 +63,8 @@ typedef uintptr_t MMSLA_ENTRY;
 
 typedef struct _MMSLA
 {
+	uintptr_t DefaultEntry;
+	uintptr_t OutOfMemoryEntry;
 	MMSLA_ENTRY Direct[MM_SLA_DIRECT_ENTRY_COUNT];
 	MMPFN Indirect[MM_SLA_INDIRECT_LEVELS];
 }
@@ -73,14 +75,17 @@ typedef void(*MM_SLA_REFERENCE_ENTRY_FUNC)(PMMSLA_ENTRY Entry);
 typedef void(*MM_SLA_FREE_ENTRY_FUNC)(MMSLA_ENTRY Entry);
 
 // Initializes the sparse linear array data structure.
+//
+// Note that MmInitializeSla sets DefaultEntry to MM_SLA_NO_DATA.
 void MmInitializeSla(PMMSLA Sla);
+void MmInitializeSlaEx(PMMSLA Sla, MMSLA_ENTRY DefaultEntry, MMSLA_ENTRY OutOfMemoryEntry);
 
 // De-initializes the SLA data structure by freeing every entry
 // and removing all indirections from memory.
 void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc);
 
-// Looks up an entry from the SLA.  Returns MM_SLA_NO_DATA if the
-// entry doesn't exist.
+// Looks up an entry from the SLA.  Returns MM_SLA_NO_DATA (or DefaultEntry if
+// configured that way) if the entry doesn't exist.
 //
 // If the entry exists, then EntryReferenceFunc will be called to ensure
 // that this entry cannot be modified once this function exits. This behavior
@@ -111,9 +116,8 @@ MMSLA_ENTRY MmAssignEntrySlaEx(
 	PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer
 );
 
-
-// Looks up an entry from the SLA.  Returns MM_SLA_NO_DATA if the
-// entry doesn't exist.
+// Looks up an entry from the SLA.  Returns MM_SLA_NO_DATA (or DefaultEntry, if
+// configured that way) if the entry doesn't exist.
 FORCE_INLINE
 MMSLA_ENTRY MmLookUpEntrySla(PMMSLA Sla, uint64_t EntryIndex)
 {

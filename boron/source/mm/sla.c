@@ -4,14 +4,14 @@
 
 Module name:
 	mm/sla.c
-	
+
 Abstract:
 	This module implements the sparse linear array data structure.
-	
+
 	This data structure is used in the page cache, in anonymous
 	(non-file-backed) memory sections, as well as in copy-on-write
 	cels.
-	
+
 Author:
 	iProgramInCpp - 7 December 2025
 ***/
@@ -20,46 +20,59 @@ Author:
 #define SLA_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(MMSLA_ENTRY))
 #define PFN_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(MMPFN))
 
-void MmInitializeSla(PMMSLA Sla)
+void MmInitializeSlaEx(PMMSLA Sla, MMSLA_ENTRY DefaultEntry, MMSLA_ENTRY OutOfMemoryEntry)
 {
+	Sla->DefaultEntry = DefaultEntry;
+	Sla->OutOfMemoryEntry = OutOfMemoryEntry;
+
 	for (int i = 0; i < MM_SLA_DIRECT_ENTRY_COUNT; i++)
-		Sla->Direct[i] = MM_SLA_NO_DATA;
-	
+		Sla->Direct[i] = Sla->DefaultEntry;
+
 	for (int i = 0; i < MM_SLA_INDIRECT_LEVELS; i++)
 		Sla->Indirect[i] = PFN_INVALID;
 }
 
+void MmInitializeSla(PMMSLA Sla)
+{
+	MmInitializeSlaEx(Sla, MM_SLA_NO_DATA, MM_SLA_OUT_OF_MEMORY);
+}
+
 FORCE_INLINE
-void MmpFreeSlaFinalLevel(MMPFN Pfn, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
+void MmpFreeSlaFinalLevel(MMPFN Pfn, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc, MMSLA_ENTRY DefaultEntry)
 {
 	uintptr_t PhysAddr = MmPFNToPhysPage(Pfn);
-	
+
 	for (size_t i = 0; i < SLA_ENTRIES_PER_PAGE; i++)
 	{
 		// TODO: avoid the HHDM or something
 		MmBeginUsingHHDM();
 		PMMSLA_ENTRY Page = MmGetHHDMOffsetAddr(PhysAddr);
 		MMSLA_ENTRY Entry = Page[i];
-		Page[i] = MM_SLA_NO_DATA;
+		Page[i] = DefaultEntry;
 		MmEndUsingHHDM();
-		
+
 		FreeEntryFunc(Entry);
 	}
 }
 
-static void MmpFreeSlaIntermediateLevel(MMPFN Pfn, int LevelNumber, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
+static void MmpFreeSlaIntermediateLevel(
+	MMPFN Pfn,
+	int LevelNumber,
+	MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc,
+	MMSLA_ENTRY DefaultEntry
+)
 {
 	uintptr_t PhysAddr = MmPFNToPhysPage(Pfn);
-	
+
 	if (Pfn == PFN_INVALID)
 		return;
-	
+
 	if (LevelNumber == 0)
 	{
-		MmpFreeSlaFinalLevel(Pfn, FreeEntryFunc);
+		MmpFreeSlaFinalLevel(Pfn, FreeEntryFunc, DefaultEntry);
 		return;
 	}
-	
+
 	for (size_t i = 0; i < PFN_ENTRIES_PER_PAGE; i++)
 	{
 		// TODO: avoid the HHDM or something
@@ -68,26 +81,29 @@ static void MmpFreeSlaIntermediateLevel(MMPFN Pfn, int LevelNumber, MM_SLA_FREE_
 		MMPFN Entry = Page[i];
 		Page[i] = PFN_INVALID;
 		MmEndUsingHHDM();
-		
+
 		if (Entry != PFN_INVALID)
 		{
-			MmpFreeSlaIntermediateLevel(Entry, LevelNumber - 1, FreeEntryFunc);
+			MmpFreeSlaIntermediateLevel(Entry, LevelNumber - 1, FreeEntryFunc, DefaultEntry);
 		}
-		
+
 		MmFreePhysicalPage(Entry);
 	}
 }
 
 void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
 {
-	for (int i = 0; i < MM_SLA_DIRECT_ENTRY_COUNT; i++)
+	if (FreeEntryFunc)
 	{
-		FreeEntryFunc(Sla->Direct[i]);
+		for (int i = 0; i < MM_SLA_DIRECT_ENTRY_COUNT; i++)
+		{
+			FreeEntryFunc(Sla->Direct[i]);
+		}
 	}
-	
+
 	for (int i = 0; i < MM_SLA_INDIRECT_LEVELS; i++)
 	{
-		MmpFreeSlaIntermediateLevel(Sla->Indirect[i], i, FreeEntryFunc);
+		MmpFreeSlaIntermediateLevel(Sla->Indirect[i], i, FreeEntryFunc, Sla->DefaultEntry);
 	}
 }
 
@@ -96,7 +112,7 @@ static MMPFN MmpAllocatePhysicalPageSlaInitialized()
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	if (Pfn == PFN_INVALID)
 		return Pfn;
-	
+
 	MmBeginUsingHHDM();
 	void* Page = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
 	memset(Page, 0xFF, PAGE_SIZE);
@@ -130,7 +146,7 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 		if (Modify)
 		{
 			Sla->Direct[EntryIndex] = NewValue;
-			
+
 			if (OutPrototypePtePointer)
 			{
 			#ifdef IS_32_BIT
@@ -144,10 +160,10 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 		{
 			EntryReferenceFunc(&Sla->Direct[EntryIndex]);
 		}
-		
+
 		return Sla->Direct[EntryIndex];
 	}
-	
+
 	uint64_t CurrentIndex = EntryIndex - MM_SLA_DIRECT_ENTRY_COUNT;
 	uint64_t MaxOffset = SLA_ENTRIES_PER_PAGE;
 	for (int Level = 0; Level < MM_SLA_INDIRECT_LEVELS; Level++)
@@ -159,7 +175,7 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 			MaxOffset *= PFN_ENTRIES_PER_PAGE;
 			continue;
 		}
-		
+
 		// Navigate the chain up until the last level.
 		//
 		// Levels up until the last level have PFN_ENTRIES_PER_PAGE entries, because
@@ -171,50 +187,50 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 		if (CurrentPfn == PFN_INVALID)
 		{
 			if (!Modify)
-				return MM_SLA_NO_DATA;
-			
+				return Sla->DefaultEntry;
+
 			CurrentPfn = MmpAllocatePhysicalPageSlaInitialized();
 			if (CurrentPfn == PFN_INVALID)
-				return MM_SLA_OUT_OF_MEMORY;
-			
+				return Sla->OutOfMemoryEntry;
+
 			Sla->Indirect[Level] = CurrentPfn;
 		}
-		
+
 		for (int i = 0; i < Level; i++)
 		{
 			MmBeginUsingHHDM();
 			PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
 			MMPFN NextPfn = Entries[CurrentIndex % PFN_ENTRIES_PER_PAGE];
 			MmEndUsingHHDM();
-			
+
 			if (NextPfn == PFN_INVALID)
 			{
 				if (!Modify)
-					return MM_SLA_NO_DATA;
-				
+					return Sla->DefaultEntry;
+
 				NextPfn = MmpAllocatePhysicalPageSlaInitialized();
 				if (NextPfn == PFN_INVALID)
-					return MM_SLA_OUT_OF_MEMORY;
-				
+					return Sla->OutOfMemoryEntry;
+
 				MmBeginUsingHHDM();
 				PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
 				Entries[CurrentIndex % PFN_ENTRIES_PER_PAGE] = NextPfn;
 				MmEndUsingHHDM();
 			}
-			
+
 			CurrentIndex /= PFN_ENTRIES_PER_PAGE;
 			CurrentPfn = NextPfn;
 		}
-		
+
 		MmBeginUsingHHDM();
-		
+
 		uintptr_t BaseAddress = MmPFNToPhysPage(CurrentPfn);
 		PMMSLA_ENTRY Entries = MmGetHHDMOffsetAddr(BaseAddress);
-		
+
 		if (Modify)
 		{
 			Entries[CurrentIndex] = NewValue;
-			
+
 			if (OutPrototypePtePointer)
 			{
 			#ifdef IS_32_BIT
@@ -223,20 +239,22 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 				*OutPrototypePtePointer = &Entries[CurrentIndex];
 			#endif
 			}
+
+			// TODO: If NewValue == Sla->DefaultEntry, check if we need to free this entry.
 		}
 		else if (EntryReferenceFunc)
 		{
 			EntryReferenceFunc(&Entries[CurrentIndex]);
 		}
-		
+
 		MMSLA_ENTRY Entry = Entries[CurrentIndex];
 		MmEndUsingHHDM();
-		
+
 		return Entry;
 	}
-	
+
 	DbgPrint("ERROR in MmLookUpEntrySla: Entry index %llu is too big.", EntryIndex);
-	return MM_SLA_NO_DATA;
+	return Sla->DefaultEntry;
 }
 
 MMSLA_ENTRY MmLookUpEntrySlaEx(
