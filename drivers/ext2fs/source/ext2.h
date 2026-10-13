@@ -4,12 +4,12 @@
 
 Module name:
 	ext2.h
-	
+
 Abstract:
 	This header defines all of the structures used by
 	the ext2 file system driver as well as the ext2
 	I/O dispatch function prototypes.
-	
+
 Author:
 	iProgramInCpp - 15 May 2025
 ***/
@@ -23,6 +23,18 @@ Author:
 
 #include "dskstrct.h"
 
+// Virtual metadata file types
+enum
+{
+	MD_SUPERBLOCK,
+	MD_SUPERBLOCK_BACKUPS,
+	MD_BLOCK_GROUP_DESCRIPTORS,
+	MD_BLOCK_GROUP_DESCRIPTOR_BACKUPS,
+	MD_BLOCK_BITMAPS,
+	MD_INODE_BITMAPS,
+	MD_INODE_TABLES,
+};
+
 // Forward type definitions.
 typedef struct _EXT2_FILE_SYSTEM EXT2_FILE_SYSTEM, *PEXT2_FILE_SYSTEM;
 
@@ -31,23 +43,23 @@ typedef struct _EXT2_FCB_EXT
 {
 	// This inode's number.
 	uint32_t InodeNumber;
-	
+
 	// This inode's reference count.
 	uintptr_t ReferenceCount;
-	
+
 	// The on-disk representation of the file.
 	EXT2_INODE Inode;
-	
+
 	// This guards the direct block array.
 	EX_RW_LOCK BlockRwlock;
-	
+
 	// Back-pointer to the file system instance.
 	PEXT2_FILE_SYSTEM OwnerFS;
-	
+
 	// This FCB's location in the file system's inode tree.
 	bool AddedToInodeTree;
 	RBTREE_ENTRY InodeTreeEntry;
-	
+
 	// This field tells us whether or not we need to re-validate
 	// when performing a "read directory" operation.
 	uint64_t Version;
@@ -59,6 +71,12 @@ EXT2_FCB_EXT, *PEXT2_FCB_EXT;
 
 PFCB Ext2CreateFcb(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber);
 void Ext2FreeInode(PFCB Fcb);
+
+// ** Internal Functions **
+
+BSTATUS Ext2ReadBlockGroupDescriptor(PEXT2_FILE_SYSTEM FileSystem, uint32_t BlockGroup, PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor);
+
+PFILE_OBJECT Ext2CreateMetadataFile(PEXT2_FILE_SYSTEM FileSystem, int MetadataType);
 
 // ** FCB Dispatch Functions **
 
@@ -87,12 +105,12 @@ struct _EXT2_FILE_SYSTEM
 {
 	PDEVICE_OBJECT BackingDevice;
 	PFILE_OBJECT File;
-	
+
 	EXT2_SUPERBLOCK SuperBlock;
-	
+
 	// If this file system is read only because it uses features that make it so.
 	bool ForceReadOnly;
-	
+
 	// Some pre-calculated items.
 	int FirstInode;
 	int InodeSize;
@@ -101,13 +119,22 @@ struct _EXT2_FILE_SYSTEM
 	int InodesPerGroup;
 	int BlocksPerGroup;
 	int BlockSizeLog2;
-	
+
 	// This is for lookup by inode #.
 	RBTREE InodeTree;
 	KMUTEX InodeTreeMutex;
-	
+
 	// This is a quick reference to the root directory.
 	PFCB RootInode;
+
+	// Virtual metadata "files".
+	PFILE_OBJECT SuperBlockFile;
+	PFILE_OBJECT SuperBlockBackupsFile;
+	PFILE_OBJECT BlockGroupDescriptorFile;
+	PFILE_OBJECT BlockGroupDescriptorBackupsFile;
+	PFILE_OBJECT BlockBitmapFile;
+	PFILE_OBJECT InodeBitmapFile;
+	PFILE_OBJECT InodeTableFile;
 };
 
 // ** Ext2 File System object type functions **
