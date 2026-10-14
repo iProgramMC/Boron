@@ -1,7 +1,14 @@
 # I386 Compiler Toolchain
-BCC  ?= clang-22
-BCXX ?= clang++-22
-BLD  ?= ld
+
+HOST_ARCH = $(shell uname -m)
+ifeq ($(HOST_ARCH),x86_64)
+	BLD ?= ld
+else
+	BLD ?= ld.lld
+endif
+
+BCC  ?= clang
+BCXX ?= clang++
 BASM ?= nasm
 
 # We are not using a freestanding toolchain (e.g. i?86-elf-gcc) (although we really should),
