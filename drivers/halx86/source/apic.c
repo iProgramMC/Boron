@@ -4,10 +4,10 @@
 
 Module name:
 	ha/apic.c
-	
+
 Abstract:
 	This module contains the support routines for the APIC.
-	
+
 Author:
 	iProgramInCpp - 14 September 2023
 ***/
@@ -28,6 +28,9 @@ Author:
 #define APIC_LVT_INT_MASKED (0x10000)
 
 #define IA32_APIC_BASE_MSR (0x1B)
+
+uint64_t HalpLapicFrequency;
+uint64_t HalpTscFrequency;
 
 static int HalpVectorApicTimer, HalpVectorSpurious;
 
@@ -78,7 +81,7 @@ static uintptr_t ApicGetPhysicalBase()
 {
 	// Read the specific MSR.
 	/*uintptr_t msr = (uintptr_t)KeGetMSR(IA32_APIC_BASE_MSR);
-	
+
 	return msr & 0x0000'000F'FFFF'F000;
 	*/
 	return 0xFEE00000; // really I think it's fine if we hardcode it
@@ -87,14 +90,14 @@ static uintptr_t ApicGetPhysicalBase()
 static void ApicWriteRegister(uint32_t reg, uint32_t value)
 {
 	volatile uint32_t* ApicAddr = MmGetHHDMOffsetAddr(ApicGetPhysicalBase());
-	
+
 	ApicAddr[reg >> 2] = value;
 }
 
 static uint32_t ApicReadRegister(uint32_t reg)
 {
 	volatile uint32_t* ApicAddr = MmGetHHDMOffsetAddr(ApicGetPhysicalBase());
-	
+
 	return ApicAddr[reg >> 2];
 }
 
@@ -108,7 +111,7 @@ bool HalIsApicAvailable()
 	// Use the CPUID instruction to check if the APIC is present on the current CPU
 	uint32_t eax, edx;
 	ASM("cpuid":"=d"(edx),"=a"(eax):"a"(1));
-	
+
 	return edx & (1 << 9);
 }
 
@@ -117,10 +120,10 @@ static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool self)
 	// wait until our current IPI request is finished
 	while (ApicReadRegister(APIC_REG_ICR0) & APIC_ICR0_DELIVERY_STATUS)
 		KeSpinningHint();
-	
+
 	// write the destination CPU's lapic ID to the ICR1 register
 	ApicWriteRegister(APIC_REG_ICR1, lapicID << 24);
-	
+
 	// write the interrupt vector to the ICR0 register
 	int mode = APIC_ICR0_SINGLE;
 	if (broadcast)
@@ -133,7 +136,7 @@ static void ApicSendIpi(uint32_t lapicID, int vector, bool broadcast, bool self)
 	{
 		mode = APIC_ICR0_SELF;
 	}
-	
+
 	ApicWriteRegister(APIC_REG_ICR0, mode | vector);
 }
 
@@ -167,7 +170,7 @@ void HalBroadcastIpi(int Vector, bool IncludeSelf)
 static void HalpCalculateTicks(uint64_t* ApicTicksOut, uint64_t* TscTicksOut, uint64_t TimerTicks, uint64_t ApicTicksIn, uint64_t TscTicksIn, uint64_t TimerFrequencyHz)
 {
 	uint64_t TimerNano = (uint64_t) TimerTicks * (NANOSECONDS_PER_SECOND / TimerFrequencyHz);
-	
+
 	// Scale the APIC and TSC ticks to be the number of ticks in a second.
 	*ApicTicksOut = ApicTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
 	* TscTicksOut =  TscTicksIn * NANOSECONDS_PER_SECOND / TimerNano;
@@ -192,16 +195,16 @@ static uint64_t HalpAttemptRoundFrequency(uint64_t Frequency)
 {
 	const uint64_t Multiple = 10000000;
 	uint64_t T1 = Frequency / Multiple;
-	
+
 	// If T1 is zero, return the unmodified frequency since it's probably <10^6.
 	if (!T1)
 		return Frequency;
-	
+
 	T1 *= Multiple;
-	
+
 	if (T1 + Multiple / 2 < Frequency)
 		T1 += Multiple;
-	
+
 	return T1;
 }
 
@@ -225,65 +228,90 @@ static void HalpCalibrateApicGeneric(
 )
 {
 	uint64_t AverageApic = 0, AverageTsc = 0;
-	
+
 	for (uint32_t Run = 0; Run < Runs; Run++)
 	{
 		TimerPrepare();
 		uint64_t TscStart   = HalReadTsc();
 		uint64_t TimerStart = TimerRead();
 		uint64_t TimerEnd;
-		
+
 		HalpResetApicCounter();
-		
+
 		while (TimerContinueSpinning(TimerStart, TickCount))
 			KeSpinningHint();
-		
+
 		// Set!!
 		if (TimerRead == HalReadPit)
 			TimerEnd   = TimerRead();
-		
+
 		uint64_t ApicTicks = HalpGetElapsedApicTicks();
 		uint64_t TscTicks  = HalReadTsc() - TscStart;
-		
+
 		if (TimerRead != HalReadPit)
 			TimerEnd   = TimerRead();
-		
+
 		int64_t TimerTicks = TimerFinish(TimerStart, TimerEnd);
-		
+
 		HalpCalculateTicks(&ApicTicks,
 		                   &TscTicks,
 						   TimerTicks,
 						   ApicTicks,
 						   TscTicks,
 						   Frequency);
-		
+
 		AverageApic += ApicTicks;
 		AverageTsc  += TscTicks;
 	}
-	
+
 	AverageApic /= Runs;
 	AverageTsc  /= Runs;
-	
-	//DbgPrint("CPU %u reports APIC: %llu  TSC: %llu   Ticks/s",  KeGetCurrentPRCB()->LapicId,  AverageApic,  AverageTsc);
-	
-	KeGetCurrentHalCB()->LapicFrequency = HalpAttemptRoundFrequency(AverageApic);
-	KeGetCurrentHalCB()->TscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
-	
-	//DbgPrint("Rounded, we get %llu, respectively %llu Ticks/s", KeGetCurrentHalCB()->LapicFrequency, KeGetCurrentHalCB()->TscFrequency);
+
+	DbgPrint("CPU reports APIC: %llu  TSC: %llu   Ticks/s", AverageApic, AverageTsc);
+
+	HalpLapicFrequency = HalpAttemptRoundFrequency(AverageApic);
+	HalpTscFrequency   = HalpAttemptRoundFrequency(AverageTsc);
+
+	DbgPrint("Rounded, we get %llu, respectively %llu Ticks/s", HalpLapicFrequency, HalpTscFrequency);
 }
 
 // ===== HPET =====
 
+void HalHpetPrepare()
+{
+}
+
+uint32_t HalHpetReadValueCalibrate()
+{
+	return (uint32_t) HpetReadValue();
+}
+
+bool HalHpetContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
+{
+	int64_t Time = (int32_t) HpetReadValue() - (int32_t) TimerStart;
+	while (Time < 0)
+		Time += 0x100000000ULL;
+
+	return Time < TickCount;
+}
+
+int64_t HalHpetFinish(uint64_t TimerStart, uint64_t TimerEnd)
+{
+	int64_t Ticks = TimerEnd - TimerStart;
+	return Ticks;
+}
+
 void HalCalibrateApicUsingHpet()
 {
-	// TODO
-	//HalpCalibrateApicGeneric(HalHpetPrepare,
-	//                         HalHpetRead,
-	//                         HalHpetContinueSpinning,
-	//                         HalHpetFinish,
-	//                         16,
-	//                         30000,
-	//                         FREQUENCY_PMT);
+	HalpCalibrateApicGeneric(
+		HalHpetPrepare,
+		HalHpetReadValueCalibrate,
+		HalHpetContinueSpinning,
+		HalHpetFinish,
+		16,
+		300000,
+		HpetGetFrequency()
+	);
 }
 
 // ===== ACPI Power Management Timer =====
@@ -297,31 +325,33 @@ bool HalPmtContinueSpinning(uint32_t TimerStart, uint32_t TickCount)
 	int64_t Time = HalGetPmtCounter() - TimerStart;
 	if (Time < 0)
 		Time += 0x1000000ULL;
-	
+
 	return Time < TickCount;
 }
 
 int64_t HalPmtFinish(uint64_t TimerStart, uint64_t TimerEnd)
 {
 	int64_t Ticks = TimerEnd - TimerStart;
-	
+
 	// Mitigate overflow
-	
+
 	while (Ticks < 0)
 		Ticks += 0x1000000ULL; // 1^24 since we pessimistically assume that the ACPI timer is 24 bit
-	
+
 	return Ticks;
 }
 
 void HalCalibrateApicUsingPmt()
 {
-	HalpCalibrateApicGeneric(HalPmtPrepare,
-	                         HalGetPmtCounter,
-	                         HalPmtContinueSpinning,
-							 HalPmtFinish,
-	                         16,
-	                         30000,
-	                         FREQUENCY_PMT);
+	HalpCalibrateApicGeneric(
+		HalPmtPrepare,
+		HalGetPmtCounter,
+		HalPmtContinueSpinning,
+		HalPmtFinish,
+		16,
+		30000,
+		FREQUENCY_PMT
+	);
 }
 
 // ===== PIT =====
@@ -339,59 +369,60 @@ bool HalPitContinueSpinning(UNUSED uint32_t TimerStart, uint32_t TickCount)
 int64_t HalPitFinish(uint64_t TimerStart, uint64_t TimerEnd)
 {
 	int64_t Ticks = TimerStart - TimerEnd;
-	
+
 	// Mitigate overflow
 	while (Ticks < 0)
 		Ticks += 0x10000ULL;
-	
+
 	return Ticks;
 }
 
 void HalCalibrateApicUsingPit()
 {
-	HalpCalibrateApicGeneric(HalPitPrepare,
-	                         HalReadPit,
-	                         HalPitContinueSpinning,
-							 HalPitFinish,
-	                         16,
-	                         10000,
-	                         FREQUENCY_PIT);
+	HalpCalibrateApicGeneric(
+		HalPitPrepare,
+		HalReadPit,
+		HalPitContinueSpinning,
+		HalPitFinish,
+		16,
+		10000,
+		FREQUENCY_PIT
+	);
 }
-
-static KSPIN_LOCK HalpApicCalibLock;
 
 // Calibrating the APIC
 void HalCalibrateApic()
 {
-	KIPL OldIpl;
-	KeAcquireSpinLock(&HalpApicCalibLock, &OldIpl);
-	
 	// Tell the APIC timer to use a divider of 2.
 	// See the Intel SDM Vol.3A Ch.11 "11.5.4 APIC Timer". Note that bit 2 is reserved.
 	ApicWriteRegister(APIC_REG_TMR_DIV_CFG, 0);
-	
-	if (false && HpetIsAvailable())
-	{
+
+	if (false && HpetIsAvailable()) {
+		DbgPrint("Calibrating with HPET");
 		HalCalibrateApicUsingHpet();
-		KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
-		return;
 	}
-	
-	if (HalAcpiIsPmtAvailable())
-	{
+	else if (HalAcpiIsPmtAvailable()) {
+		DbgPrint("Calibrating with ACPI PMT");
 		HalCalibrateApicUsingPmt();
-		KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
-		return;
 	}
-	
-	HalCalibrateApicUsingPit();
-	KeReleaseSpinLock(&HalpApicCalibLock, OldIpl);
-	
+	else {
+		DbgPrint("Calibrating with PIT");
+		HalCalibrateApicUsingPit();
+	}
 	// if the TSC increases at more than 6 GHz. We have indeed reached 5 GHz
-	if (KeGetCurrentHalCB()->TscFrequency >= 6000000000)
+	if (HalpTscFrequency >= 6000000000)
 	{
-		KeCrash("TSC frequency over 6 GHz?! Ain't no way!");
+		KeCrash(
+			"TSC frequency over 6 GHz?! Ain't no way!  "
+			"(Disable this if you really have a 6 GHz CPU)"
+		);
 	}
+}
+
+void HalpPropagateApicTiming()
+{
+	KeGetCurrentHalCB()->LapicFrequency = HalpLapicFrequency;
+	KeGetCurrentHalCB()->TscFrequency = HalpTscFrequency;
 }
 
 void HalApicSetIrqIn(uint64_t Ticks)
@@ -421,10 +452,10 @@ void HalInitApicUP()
 {
 	HalpVectorApicTimer = KeAllocateInterruptVector(IPL_CLOCK);
 	HalpVectorSpurious  = KeAllocateInterruptVector(IPL_NOINTS);
-	
+
 	KeRegisterInterrupt(HalpVectorSpurious,  HalpSpuriousHandler);
 	KeRegisterInterrupt(HalpVectorApicTimer, HalpApicTimerHandler);
-	
+
 	AcpiDbgPrint("HalpVectorApicTimer: %d", HalpVectorApicTimer);
 }
 
@@ -433,7 +464,6 @@ void HalInitApicMP()
 	// Set the spurious interrupt vector register bit 8 to start receiving interrupts
 	ApicWriteRegister(APIC_REG_SPURIOUS, 0x100 | HalpVectorSpurious);
 }
-
 
 HAL_API void HalEndOfInterrupt(UNUSED int InterruptNumber)
 {

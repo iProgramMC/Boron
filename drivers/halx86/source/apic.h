@@ -4,10 +4,10 @@
 
 Module name:
 	ha/apic.h
-	
+
 Abstract:
 	This module contains support routine prototypes for the APIC.
-	
+
 Author:
 	iProgramInCpp - 16 September 2023
 ***/
@@ -24,5 +24,6 @@ void HalCalibrateApic();
 bool HalIsApicAvailable();
 void HalApicSetIrqIn(uint64_t Ticks);
 void HalInitIoApic();
+void HalpPropagateApicTiming();
 
 #endif//NS64_HAL_APIC_H

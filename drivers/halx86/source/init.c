@@ -4,11 +4,11 @@
 
 Module name:
 	ha/init.c
-	
+
 Abstract:
 	This module contains the two initialization functions
 	(UP-init and MP-init)
-	
+
 Author:
 	iProgramInCpp - 23 September 2023
 ***/
@@ -80,6 +80,7 @@ void HalInitSystemUP()
 	HalInitIoApic();
 	HpetInitialize();
 	HalInitPci();
+	HalCalibrateApic();
 }
 
 // Initialize the HAL separately for each processor.
@@ -87,19 +88,18 @@ void HalInitSystemUP()
 void HalInitSystemMP()
 {
 	KeGetCurrentPRCB()->HalData = MmAllocatePool(POOL_FLAG_NON_PAGED, sizeof(KHALCB));
-	
+
 	HalInitApicMP();
-	HalCalibrateApic();
+	HalpPropagateApicTiming();
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	// Note! The HAL's driver object is kind of useless, it doesn't do anything actually.
-	
+
 	// Hook the HAL's functions.
 	HalSetVftable(&HalpVfTable);
-	
+
 	// And return, that's all we need.
 	return STATUS_SUCCESS;
 }
-
