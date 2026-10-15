@@ -4,11 +4,11 @@
 
 Module name:
 	mm/sview.c
-	
+
 Abstract:
 	This module defines functions that map and unmap views
 	of files or sections into the system's VM space.
-	
+
 Author:
 	iProgramInCpp - 4 June 2025
 ***/
@@ -29,20 +29,24 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	// You cannot map files that are not seekable.
 	if (!IoIsSeekable(FileObject->Fcb))
 		return STATUS_UNSUPPORTED_FUNCTION;
-	
+
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	PMMVAD Vad = NULL;
 	PMMVAD_LIST VadList = &MiSystemVadList;
-	
+
 	CcPurgeViewsOverLimit(1);
-	
+
+	// System view space mappings CANNOT be private.
+	AllocationType &= ~MEM_COW;
+	AllocationType |= MEM_SHARED;
+
 	// First, allocate the space.
 	void* StartAddress = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, ViewSizePages, POOL_TAG("MmVw"));
 	if (!StartAddress)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	// Then try to initialize and add the VAD.
 	BSTATUS Status = MiInitializeAndInsertVad(
 		VadList,
@@ -57,33 +61,33 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 		NULL,  // ViewOverride
 		0      // ViewOffset
 	);
-	
+
 	if (FAILED(Status))
 	{
 		// Deallocate the space we allocated.
 		MmFreePoolBig(StartAddress);
 		return Status;
 	}
-	
+
 	// TODO rewrite this after finishing rewrite of vad.c
-	
+
 	// Vad Protection and Private are filled in by MiInitializeAndInsertVad.
 	//Vad->Flags.Committed = 1;
 	//Vad->MappedObject = ObReferenceObjectByPointer(FileObject);
 	//Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	//Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
-	
+
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
-	
+
 	MmUnlockVadList(VadList);
-	
+
 	// Add this VAD into the FCB's view cache.
 	PFCB Fcb = FileObject->Fcb;
-	
+
 	KeWaitForSingleObject(&Fcb->CacheInfo.ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	InsertItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
 	KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
-	
+
 	CcAddVadToViewCacheLru(Vad);
 	return STATUS_SUCCESS;
 }
@@ -92,22 +96,22 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 {
 	// First of all, fetch the VAD from this pointer.
 	MiLockVadList(&MiSystemVadList);
-	
+
 	DbgPrint("MmUnmapViewOfFileInSystemSpace(%p)", ViewPointer);
-	
+
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&MiSystemVadList.Tree, (uintptr_t) ViewPointer);
 	ASSERT(Entry && "Bad pointer passed into MmUnmapViewOfFileInSystemSpace");
-	
+
 	PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
-	
+
 	// Remove it from the list of VADs.
 	RemoveItemRbTree(&MiSystemVadList.Tree, &Vad->Node.Entry);
-	
+
 	// Decommit the VAD.
 	MiDecommitVadInSystemSpace(Vad);
-	
+
 	MmUnlockVadList(&MiSystemVadList);
-	
+
 	// Remove the VAD from the FCB's view cache.
 	if (RemoveFromFcbViewCache)
 	{
@@ -120,13 +124,13 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 		//RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
 		//KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	}
-	
+
 	// Then, clean up.
 	MiCleanUpVad(Vad);
-	
+
 	// Remove the VAD from the LRU list.
 	CcRemoveVadFromViewCacheLru(Vad);
-	
+
 	// Finally, relinquish the address space we occupied.
 	MmFreePoolBig(ViewPointer);
 }
