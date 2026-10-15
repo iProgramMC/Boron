@@ -4,4 +4,5 @@
 //TEST(Test4ListDirectory)
 //TEST(Test5ForkCurrentProcess)
 //TEST(Test6ForkAndReplaceChildProcess)
-TEST(Test7CreateBigFileAndFlush)
+//TEST(Test7CreateBigFileAndFlush)
+TEST(Test8MapBigFileAndFlush)
