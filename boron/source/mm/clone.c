@@ -18,12 +18,10 @@ Author:
 #include "mi.h"
 
 // NOTE: The address space lock MUST be held during this.
-void MiFlushModifiedStateAndMaybeResetPtes(
+void MiFlushMappedPtes(
 	uintptr_t StartVa,
 	size_t SizePages,
-	bool ResetPtes,
-	bool RequestTlbShootdown,
-	bool OnlyMarkAsReadOnly,
+	int FlushFlags,
 	PMMVIEW View,
 	uintptr_t ViewBaseVa
 )
@@ -68,16 +66,12 @@ void MiFlushModifiedStateAndMaybeResetPtes(
 			MiSetPageModifiedView(View, Address - ViewBaseVa);
 		}
 
-		if (!ResetPtes)
+		if (FlushFlags & MM_FLUSH_DONT_MODIFY_PTES)
 		{
 			continue;
 		}
 
-		if (OnlyMarkAsReadOnly)
-		{
-			*PtePtr = MmReadOnlyPte(Pte);
-		}
-		else
+		if (FlushFlags & MM_FLUSH_DELETE_PTES)
 		{
 			// The PTE has to come from the PMM, I can't explain it otherwise.
 			ASSERT(MmIsFromPmmPte(Pte));
@@ -86,9 +80,19 @@ void MiFlushModifiedStateAndMaybeResetPtes(
 			MmFreePhysicalPage(Pfn);
 			*PtePtr = CommittedButNotFaultedInPte;
 		}
+#ifdef MM_SUPPORTS_HARDWARE_DIRTY_BIT
+		else if (~FlushFlags & MM_FLUSH_READ_ONLY_PTES)
+		{
+			*PtePtr = MmUnmodifiedPte(Pte);
+		}
+#endif
+		else
+		{
+			*PtePtr = MmReadOnlyPte(Pte);
+		}
 	}
 
-	if (ResetPtes && RequestTlbShootdown)
+	if (!(FlushFlags & (MM_FLUSH_NO_SHOOTDOWN | MM_FLUSH_DONT_MODIFY_PTES)))
 	{
 		MmIssueTLBShootDown(StartVa, SizePages, MmGetTargetProcessForShootdown(StartVa));
 	}
@@ -152,12 +156,10 @@ static void MmpCopyOnWriteAllViews(PEPROCESS SourceProcess)
 	{
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, Node.Entry);
 		MmCopyOnWriteView(Vad->View);
-		MiFlushModifiedStateAndMaybeResetPtes(
+		MiFlushMappedPtes(
 			Vad->Node.StartVa,
 			Vad->Node.Size,
-			true, // ResetPtes
-			true, // RequestTlbShootdown
-			true, // OnlyMarkAsReadOnly
+			MM_FLUSH_MODIFIED_STATE | MM_FLUSH_READ_ONLY_PTES,
 			Vad->View,
 			Vad->Node.StartVa - Vad->ViewOffset
 		);

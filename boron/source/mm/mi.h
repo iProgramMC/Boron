@@ -415,8 +415,28 @@ bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
 // Unmaps a range of virtual memory regardless of the existing ranges underneath.
 BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 
+enum
+{
+	// Default: Flush the modified state from the PTEs to the backing store.
+	// (Can't be turned off)
+	MM_FLUSH_MODIFIED_STATE = 0,
+
+	// Do not issue a TLB shootdown request on the requested address.
+	MM_FLUSH_NO_SHOOTDOWN = (1 << 0),
+
+	// Do not touch the PTEs at all, not even to clear the modified state.
+	MM_FLUSH_DONT_MODIFY_PTES = (1 << 1),
+
+	// Mark modified PTEs as read-only. (Default on platforms without hardware
+	// dirty bit support)
+	MM_FLUSH_READ_ONLY_PTES = (1 << 2),
+
+	// Delete modified PTEs entirely.
+	MM_FLUSH_DELETE_PTES = (1 << 3),
+};
+
 //
-// Flushes the modified state of a region of PTEs from within a VAD, and optionally
+// Flushes the modified state of a region of mapped PTEs from within a VAD, and optionally
 // resets the current process' PTEs within a region to an unfaulted or read-only state.
 //
 // NOTE: If provided, the "View" parameter will receive the dirty status of the pages
@@ -427,12 +447,10 @@ BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 //
 // If ResetPtes is false, RequestTlbShootdown and OnlyMarkAsReadOnly are ignored.
 //
-void MiFlushModifiedStateAndMaybeResetPtes(
+void MiFlushMappedPtes(
 	uintptr_t StartVa,
 	size_t SizePages,
-	bool ResetPtes,
-	bool RequestTlbShootdown,
-	bool OnlyMarkAsReadOnly,
+	int FlushFlags,
 	PMMVIEW View,
 	uintptr_t ViewBaseVa
 );

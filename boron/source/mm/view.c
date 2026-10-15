@@ -284,15 +284,15 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 		return STATUS_TYPE_MISMATCH;
 	}
 
-	MiFlushModifiedStateAndMaybeResetPtes(
+	MiFlushMappedPtes(
 		StartVa,
 		SizePages,
-		false, // ResetPtes
-		false, // RequestTlbShootdown
-		false, // OnlyMarkAsReadOnly
+		MM_FLUSH_MODIFIED_STATE,
 		View,
 		ViewBaseVa
 	);
+
+	// TOOD: optimize this and scan other processes mapping this file.
 
 	Status = STATUS_SUCCESS;
 

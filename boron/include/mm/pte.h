@@ -4,12 +4,12 @@
 
 Module name:
 	mm/pte.h
-	
+
 Abstract:
 	This header file contains the definitions for the page table
 	entry builder.  This builds page table entries (PTEs) compatible
 	with the hardware Boron is running on.
-	
+
 Author:
 	iProgramInCpp - 10 March 2026
 ***/
@@ -152,6 +152,11 @@ MM_PTE_API bool MmIsDecommittedPte(MMPTE Pte);
 
 // Gets a read-only version of the specified PTE.
 MM_PTE_API MMPTE MmReadOnlyPte(MMPTE Pte);
+
+// Gets a version of the specified PTE with the modified bit set to off.
+//
+// For platforms without MM_SUPPORTS_HARDWARE_DIRTY_BIT, is a no-op.
+MM_PTE_API MMPTE MmUnmodifiedPte(MMPTE Pte);
 
 // Checks if the PTE has been modified.
 //

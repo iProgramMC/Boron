@@ -4,11 +4,11 @@
 
 Module name:
 	mm/i386/pte.c
-	
+
 Abstract:
 	This module implements page table entry management
 	functions for the i386 platform.
-	
+
 Author:
 	iProgramInCpp - 11 March 2026
 ***/
@@ -73,7 +73,7 @@ MMPTE MmSetPageBitsPte(MMPTE Pte, uintptr_t PageBits)
 		| MM_I386_PTE_ACCESSED
 		| MM_I386_PTE_DIRTY
 		| MM_I386_PTE_ISFROMPMM);
-	
+
 	if (PageBits & MM_PROT_WRITE)         MmHardwarePte(Pte) |= MM_I386_PTE_READWRITE;
 	if (PageBits & MM_PROT_USER)          MmHardwarePte(Pte) |= MM_I386_PTE_USERACCESS;
 	if (PageBits & MM_MISC_DISABLE_CACHE) MmHardwarePte(Pte) |= MM_I386_PTE_CDISABLE;
@@ -87,12 +87,12 @@ MMPTE MmBuildPte(MMPFN Pfn, uintptr_t PageBits)
 {
 	MMPTE Pte = MmSetPageBitsPte(MmSetPfnPte(MmBuildZeroPte(), Pfn), PageBits);
 	MmHardwarePte(Pte) |= MM_I386_PTE_PRESENT;
-	
+
 	//if (~PageBits & MM_MISC_IS_FROM_PMM) {
 	//	DbgPrint("MmBuildPte warning: page potentially declared incorrectly as not from PMM. RA: %p", CallerAddress());
 	//}
-	//DbgPrint("MmBuildPte(%d, 0x%zx) -> %p. RA: %p", Pfn, PageBits, MmHardwarePte(Pte), CallerAddress());	
-	
+	//DbgPrint("MmBuildPte(%d, 0x%zx) -> %p. RA: %p", Pfn, PageBits, MmHardwarePte(Pte), CallerAddress());
+
 	return Pte;
 }
 
@@ -106,13 +106,13 @@ MMPTE MmBuildWasPresentPte(MMPTE OldPte)
 MMPTE MmBuildAbsentPte(uintptr_t PageBits)
 {
 	MMPTE Pte = MmBuildZeroPte();
-	
+
 	if (PageBits & MM_PAGE_DECOMMITTED)
 		MmHardwarePte(Pte) |= MM_I386_DPTE_DECOMMITTED;
-	
+
 	if (PageBits & MM_PAGE_COMMITTED)
 		MmHardwarePte(Pte) |= MM_I386_DPTE_COMMITTED;
-	
+
 	return Pte;
 }
 
@@ -129,7 +129,7 @@ uintptr_t MmGetPoolHeaderAddressPte(MMPTE Pte)
 {
 	if (!MmIsPoolHeaderPte(Pte))
 		return 0;
-	
+
 	uintptr_t Address = MmHardwarePte(Pte);
 	Address &= ~MM_I386_DPTE_ISPOOLHDR;
 	Address += MM_KERNEL_SPACE_BASE;
@@ -144,14 +144,14 @@ MMPFN MmGetPfnPte(MMPTE Pte)
 uintptr_t MmGetPageBitsPte(MMPTE Pte)
 {
 	uintptr_t PageBits = MM_PROT_READ | MM_PROT_EXEC;
-	
+
 	if (MmHardwarePte(Pte) & MM_I386_PTE_READWRITE)  PageBits |= MM_PROT_WRITE;
 	if (MmHardwarePte(Pte) & MM_I386_PTE_USERACCESS) PageBits |= MM_PROT_USER;
 	if (MmHardwarePte(Pte) & MM_I386_PTE_ACCESSED)   PageBits |= MM_MISC_ACCESSED;
 	if (MmHardwarePte(Pte) & MM_I386_PTE_DIRTY)      PageBits |= MM_MISC_DIRTY;
 	if (MmHardwarePte(Pte) & MM_I386_PTE_CDISABLE)   PageBits |= MM_MISC_DISABLE_CACHE;
 	if (MmHardwarePte(Pte) & MM_I386_PTE_ISFROMPMM)  PageBits |= MM_MISC_IS_FROM_PMM;
-	
+
 	return PageBits;
 }
 
@@ -164,12 +164,12 @@ bool MmIsUnsupportedHigherLevelPte(MMPTE Pte)
 {
 	if (!MmIsPresentPte(Pte))
 		return false;
-	
+
 	if (MmHardwarePte(Pte) & MM_I386_PTE_PAGESIZE)
 		return true;
-	
+
 	// other unsupported properties here...?
-	
+
 	return false;
 }
 
@@ -186,5 +186,11 @@ void MmFlushTlbUpdates()
 MMPTE MmReadOnlyPte(MMPTE Pte)
 {
 	MmHardwarePte(Pte) &= ~MM_I386_PTE_READWRITE;
+	return Pte;
+}
+
+MMPTE MmUnmodifiedPte(MMPTE Pte)
+{
+	MmHardwarePte(Pte) &= ~MM_I386_PTE_DIRTY;
 	return Pte;
 }

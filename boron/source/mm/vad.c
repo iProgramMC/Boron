@@ -523,12 +523,10 @@ void MiCleanUpVad(PMMVAD Vad)
 
 	// Zero out all of the PTEs.
 	KIPL Ipl = MmLockSpaceExclusive(Vad->Node.StartVa);
-	MiFlushModifiedStateAndMaybeResetPtes(
+	MiFlushMappedPtes(
 		Vad->Node.StartVa,
 		Vad->Node.Size,
-		true,  // ResetPtes
-		false, // RequestTlbShootdown
-		false, // OnlyMarkAsReadOnly
+		MM_FLUSH_DELETE_PTES | MM_FLUSH_NO_SHOOTDOWN, // FlushFlags
 		Vad->View,
 		Vad->Node.StartVa - Vad->ViewOffset
 	);
