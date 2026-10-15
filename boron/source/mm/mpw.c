@@ -196,10 +196,24 @@ void MmInitializeModifiedPageWriter()
 	ObDereferenceObject(Thread);
 }
 
+typedef struct
+{
+	uint64_t MinOffset;
+	uint64_t MaxOffset;
+}
+MM_FLUSH_CACHE_FILTER_CONTEXT, *PMM_FLUSH_CACHE_FILTER_CONTEXT;
+
 bool MmpFlushFileCacheFilter(MMPFN Pfn, UNUSED uint64_t Offset, UNUSED void* FilterContext)
 {
 	if (Pfn == PFN_INVALID) {
 		return false;
+	}
+
+	if (FilterContext) {
+		PMM_FLUSH_CACHE_FILTER_CONTEXT Context = FilterContext;
+		if (Offset < Context->MinOffset || Offset > Context->MaxOffset) {
+			return false;
+		}
 	}
 
 	KIPL Ipl = MiLockPfdb();
@@ -241,6 +255,26 @@ BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject)
 		MmpFlushFileCacheFilter,
 		MmpFlushFileCacheProcessEntry,
 		NULL,           // FilterContext
+		FileObject->Fcb // ProcessEntryContext
+	);
+}
+
+//
+// Flushes a portion of a file's cache directly to its backing store.
+//
+// Same as MmFlushFileCache, but takes in an additional range.
+//
+BSTATUS MmFlushFileCacheEx(PFILE_OBJECT FileObject, uint64_t StartOffset, size_t SizeBytes)
+{
+	MM_FLUSH_CACHE_FILTER_CONTEXT FilterContext;
+	FilterContext.MinOffset = StartOffset / PAGE_SIZE;
+	FilterContext.MaxOffset = (StartOffset + SizeBytes - 1) / PAGE_SIZE;
+
+	return MmForEachEntryCcb(
+		&FileObject->Fcb->CacheInfo.PageCache,
+		MmpFlushFileCacheFilter,
+		MmpFlushFileCacheProcessEntry,
+		&FilterContext,
 		FileObject->Fcb // ProcessEntryContext
 	);
 }

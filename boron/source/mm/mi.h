@@ -4,10 +4,10 @@
 
 Module name:
 	mm/mi.h
-	
+
 Abstract:
 	This is the internal header file for the Memory Manager.
-	
+
 Author:
 	iProgramInCpp - 12 September 2023
 ***/
@@ -76,7 +76,7 @@ typedef struct MISLAB_ITEM_tag
 {
 	int Check;
 	int Length;
-	
+
 	// If more than 4 items can fit onto one page, then use the full extent of the
 	// bitmap.  Otherwise, use only one part of the bitmap and put the AVL tree entry
 	// into the rest.
@@ -94,14 +94,14 @@ typedef struct MISLAB_ITEM_tag
 		#endif
 		};
 	};
-	
+
 	LIST_ENTRY ListEntry;
 	struct MISLAB_CONTAINER_tag *Parent;
-	
+
 #if IS_32_BIT
 	int Dummy; // alignment
 #endif
-	
+
 	char Data[0];
 }
 MISLAB_ITEM, *PMISLAB_ITEM;
@@ -127,7 +127,7 @@ typedef enum MISLAB_SIZE_tag
 	MISLAB_SIZE_THREAD = MISLAB_EXACT_START,
 	MISLAB_SIZE_PROCESS,
 	MISLAB_EXACT_LIMIT,
-	
+
 	MISLAB_GENERIC_START = MISLAB_EXACT_LIMIT,
 	MISLAB_SIZE_16 = MISLAB_GENERIC_START,
 	MISLAB_SIZE_32,
@@ -146,7 +146,7 @@ typedef enum MISLAB_SIZE_tag
 	MISLAB_SIZE_28672,
 	MISLAB_SIZE_32768,
 	MISLAB_GENERIC_LIMIT,
-	
+
 	MISLAB_SIZE_COUNT = MISLAB_GENERIC_LIMIT,
 }
 MISLAB_SIZE;
@@ -415,20 +415,27 @@ bool MiIsEntireRangeCommittedNoVad(uintptr_t StartVa, size_t SizePages);
 // Unmaps a range of virtual memory regardless of the existing ranges underneath.
 BSTATUS MiUnmapVirtualMemoryPartial(uintptr_t StartAddress, size_t SizePages);
 
-// Resets the current process' PTEs within a region to an unfaulted or read-only state.
+//
+// Flushes the modified state of a region of PTEs from within a VAD, and optionally
+// resets the current process' PTEs within a region to an unfaulted or read-only state.
 //
 // NOTE: If provided, the "View" parameter will receive the dirty status of the pages
 // whose PTEs are being reset.  If the View parameter is provided, the VAD list must
 // be locked, too.
 //
 // ViewBaseVa is to be derived from (Vad->Node.StartVa - Vad->ViewOffset).
-void MiResetRegionPtes(
+//
+// If ResetPtes is false, RequestTlbShootdown and OnlyMarkAsReadOnly are ignored.
+//
+void MiFlushModifiedStateAndMaybeResetPtes(
 	uintptr_t StartVa,
 	size_t SizePages,
-	bool ShootdownRange,
+	bool ResetPtes,
+	bool RequestTlbShootdown,
 	bool OnlyMarkAsReadOnly,
 	PMMVIEW View,
-	uintptr_t ViewBaseVa);
+	uintptr_t ViewBaseVa
+);
 
 // ===== Memory Initialization =====
 #ifdef IS_32_BIT

@@ -4,11 +4,11 @@
 
 Module name:
 	mm/svcs.c
-	
+
 Abstract:
 	This module defines system service functions pertaining
 	to the system's memory manager.
-	
+
 Author:
 	iProgramInCpp - 5 March 2025
 ***/
@@ -61,68 +61,68 @@ BSTATUS OSAllocateVirtualMemory(
 	// Check parameters.
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (!AllocationType)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (AllocationType & ~(MEM_COMMIT | MEM_RESERVE | MEM_TOP_DOWN | MEM_SHARED | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// One of these needs to be set.
 	if (!(AllocationType & (MEM_COMMIT | MEM_RESERVE)))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// You must have passed MEM_FIXED if you passed MEM_OVERRIDE.
 	if ((AllocationType & MEM_OVERRIDE) && !(AllocationType & MEM_FIXED))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
 	if (!ProcessHandle)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	void* BaseAddress = NULL;
 	size_t RegionSize = 0;
 	BSTATUS Status;
-	
+
 	if ((AllocationType & MEM_FIXED) || ((AllocationType & MEM_COMMIT) && !(AllocationType & MEM_RESERVE)))
 	{
 		Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
 		if (FAILED(Status))
 			return Status;
 	}
-	
+
 	Status = MmSafeCopy(&RegionSize, RegionSizeInOut, sizeof(size_t), KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		return Status;
-	
+
 	// Remove the base address' offset inside a page and add it to the region size.
 	size_t VaOffset = (size_t)((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
 	BaseAddress = (void*)((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
 	RegionSize += VaOffset;
-	
+
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	PEPROCESS Process = NULL;
 	PEPROCESS ProcessRestore = NULL;
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
 		if (FAILED(Status))
 			return Status;
-		
+
 		ProcessRestore = PsSetAttachedProcess(Process);
 	}
-	
+
 	bool HasAddressPointer = (AllocationType & MEM_FIXED) != 0;
-	
+
 	if (AllocationType & MEM_RESERVE)
 	{
 		// NOTE: AllocationType & MEM_COMMIT won't be ignored. It marks the VAD as committed.
 		Status = MmReserveVirtualMemory(SizePages, &BaseAddress, AllocationType, Protection);
-		
+
 	}
 	else if (AllocationType & MEM_COMMIT)
 	{
@@ -131,24 +131,24 @@ BSTATUS OSAllocateVirtualMemory(
 		else
 			Status = STATUS_INVALID_PARAMETER;
 	}
-	
+
 	RegionSize = SizePages * PAGE_SIZE;
 	BaseAddress = (void*)((uintptr_t)BaseAddress + VaOffset);
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
-	
+
 	if (SUCCEEDED(Status))
 	{
 		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
-		
+
 		if (SUCCEEDED(Status))
 			Status = MmSafeCopy(RegionSizeInOut, &RegionSize, sizeof(size_t), KeGetPreviousMode(), true);
 	}
-	
+
 	return Status;
 }
 
@@ -189,47 +189,47 @@ BSTATUS OSFreeVirtualMemory(
 	// Check parameters.
 	if (FreeType & ~(MEM_DECOMMIT | MEM_RELEASE | MEM_PARTIAL))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// One of these must be set.
 	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == 0)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// But not both.
 	if ((FreeType & (MEM_DECOMMIT | MEM_RELEASE)) == (MEM_DECOMMIT | MEM_RELEASE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// You must have passed MEM_RELEASE if you passed MEM_PARTIAL.
 	if ((FreeType & MEM_PARTIAL) && !(FreeType & MEM_RELEASE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	bool IsPartial = FreeType & MEM_PARTIAL;
 	FreeType &= ~MEM_PARTIAL;
-	
+
 	// You must pass in a handle, even if it is CURRENT_PROCESS_HANDLE.
 	if (!ProcessHandle)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	RegionSize += (size_t) ((uintptr_t)BaseAddress & (PAGE_SIZE - 1));
 	BaseAddress = (void*) ((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
-	
+
 	BSTATUS Status;
-	
+
 	size_t SizePages = (RegionSize + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (SizePages == 0)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	PEPROCESS Process = NULL;
 	PEPROCESS ProcessRestore = NULL;
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
 		if (FAILED(Status))
 			return Status;
-		
+
 		ProcessRestore = PsSetAttachedProcess(Process);
 	}
-	
+
 	if (IsPartial)
 	{
 		Status = MiUnmapVirtualMemoryPartial((uintptr_t) BaseAddress, SizePages);
@@ -243,7 +243,7 @@ BSTATUS OSFreeVirtualMemory(
 				Status = MmReleaseVirtualMemory(BaseAddress);
 		}
 	}
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		PsSetAttachedProcess(ProcessRestore);
@@ -288,34 +288,34 @@ BSTATUS OSMapViewOfObject(
 {
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (AllocationType & ~(MEM_COMMIT | MEM_SHARED | MEM_TOP_DOWN | MEM_COW | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// You must have passed MEM_FIXED if you passed MEM_OVERRIDE.
 	if ((AllocationType & MEM_OVERRIDE) && !(AllocationType & MEM_FIXED))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (!ViewSize)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	BSTATUS Status;
 	PEPROCESS Process = NULL, ProcessRestore = NULL;
 	void* BaseAddress = NULL;
-	
+
 	Status = MmSafeCopy(&BaseAddress, BaseAddressInOut, sizeof(void*), KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		return Status;
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
 		if (FAILED(Status))
 			return Status;
-		
+
 		ProcessRestore = PsSetAttachedProcess(Process);
 	}
-	
+
 	Status = MmMapViewOfObject(
 		MappedObject,
 		&BaseAddress,
@@ -324,15 +324,60 @@ BSTATUS OSMapViewOfObject(
 		SectionOffset,
 		Protection
 	);
-	
+
 	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
 	{
 		PsSetAttachedProcess(ProcessRestore);
 		ObDereferenceObject(Process);
 	}
-	
+
 	if (SUCCEEDED(Status))
 		Status = MmSafeCopy(BaseAddressInOut, &BaseAddress, sizeof(void*), KeGetPreviousMode(), true);
-	
+
+	return Status;
+}
+
+//
+// Flushes a view of a file to its backing store.
+//
+// Parameters:
+//     ProcessHandle - The handle to the process whose address space is being manipulated.
+//
+//     BaseAddress - The base address of the region to flush.
+//
+//     RegionSize - The size of the region to flush.
+//
+//     Async - Specifies that an update will happen, but not immediately.
+//
+BSTATUS OSFlushVirtualMemory(
+	HANDLE ProcessHandle,
+	void* BaseAddress,
+	size_t RegionSize,
+	bool Async
+)
+{
+	BSTATUS Status;
+	PEPROCESS Process = NULL, ProcessRestore = NULL;
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, (void**) &Process);
+		if (FAILED(Status))
+			return Status;
+
+		ProcessRestore = PsSetAttachedProcess(Process);
+	}
+
+	Status = MmFlushVirtualMemory(
+		BaseAddress,
+		RegionSize,
+		Async
+	);
+
+	if (ProcessHandle != CURRENT_PROCESS_HANDLE)
+	{
+		PsSetAttachedProcess(ProcessRestore);
+		ObDereferenceObject(Process);
+	}
+
 	return Status;
 }

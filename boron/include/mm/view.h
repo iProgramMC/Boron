@@ -4,11 +4,11 @@
 
 Module name:
 	mm/view.h
-	
+
 Abstract:
 	This header defines function prototypes for the memory
 	view manager.
-	
+
 Author:
 	iProgramInCpp - 5 April 2025
 ***/
@@ -35,3 +35,5 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 );
 
 void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCache);
+
+BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async);

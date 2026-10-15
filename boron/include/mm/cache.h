@@ -20,7 +20,6 @@ Author:
 #define MM_CCB_MUTEX_LEVEL    4
 
 typedef struct _FCB FCB, *PFCB;
-typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
 
 typedef struct _CCB
 {
@@ -105,6 +104,3 @@ BSTATUS MmForEachEntryCcb(
 	void* FilterContext,
 	void* ProcessEntryContext
 );
-
-// Flushes the page cache of a file object.
-BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject);

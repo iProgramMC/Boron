@@ -4,11 +4,11 @@
 
 Module name:
 	mm/services.h
-	
+
 Abstract:
 	This header defines the Boron memory manager's
 	exposed system services.
-	
+
 Author:
 	iProgramInCpp - 13 March 2025
 ***/
@@ -65,4 +65,11 @@ BSTATUS OSQueryVirtualMemoryInformation(
 	HANDLE ProcessHandle,
 	PVIRTUAL_MEMORY_INFORMATION OutInformation,
 	uintptr_t VirtualAddress
+);
+
+BSTATUS OSFlushVirtualMemory(
+	HANDLE ProcessHandle,
+	void* BaseAddress,
+	size_t RegionSize,
+	bool Async
 );

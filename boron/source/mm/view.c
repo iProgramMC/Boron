@@ -4,11 +4,11 @@
 
 Module name:
 	mm/view.c
-	
+
 Abstract:
 	This module defines functions that map and unmap views
 	of files or sections into the virtual memory space.
-	
+
 Author:
 	iProgramInCpp - 3 April 2025
 ***/
@@ -29,29 +29,29 @@ static BSTATUS MmpMapViewOfObject(
 	BSTATUS Status;
 
 	MmVerifyMappableHeader(MappableObject);
-	
+
 	bool IncreaseRefcount = true;
-	
+
 	// Provide the state of MEM_SHARED in regards to the state of MEM_COW.
 	if (AllocationType & MEM_COW)
 		AllocationType &= ~MEM_SHARED;
 	else
 		AllocationType |= MEM_SHARED;
-	
+
 	PMMVAD Vad;
 	PMMVAD_LIST VadList;
-	
+
 	void* BaseAddress = *BaseAddressInOut;
 	BaseAddress = (void*)((uintptr_t)BaseAddress & ~(PAGE_SIZE - 1));
-	
+
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	// Increment the reference count of the mappable object.
 	if (IncreaseRefcount) {
 		ObReferenceObjectByPointer(MappableObject);
 	}
-	
+
 	// Reserve the region, and then mark it as committed ourselves.
 	Status = MmReserveVirtualMemoryVad(
 		ViewSizePages,
@@ -63,16 +63,16 @@ static BSTATUS MmpMapViewOfObject(
 		&Vad,
 		&VadList
 	);
-	
+
 	if (FAILED(Status))
 	{
 		ObDereferenceObject(MappableObject);
 		return Status;
 	}
-	
+
 	*BaseAddressInOut = (void*) Vad->Node.StartVa + PageOffset;
 	MmUnlockVadList(VadList);
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -109,16 +109,16 @@ BSTATUS MmMapViewOfObject(
 {
 	if (Protection & ~(PAGE_READ | PAGE_WRITE | PAGE_EXECUTE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (AllocationType & ~(MEM_COMMIT | MEM_TOP_DOWN | MEM_COW | MEM_FIXED | MEM_OVERRIDE))
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (!ViewSize)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	BSTATUS Status;
 	void* MappableObject = NULL;
-	
+
 	Status = ObReferenceObjectByHandle(MappedObject, IoFileType, &MappableObject);
 	if (SUCCEEDED(Status))
 	{
@@ -134,10 +134,10 @@ BSTATUS MmMapViewOfObject(
 	{
 		Status = ObReferenceObjectByHandle(MappedObject, MmSectionObjectType, &MappableObject);
 	}
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = MmpMapViewOfObject(
 		MappableObject,
 		BaseAddressInOut,
@@ -146,7 +146,7 @@ BSTATUS MmMapViewOfObject(
 		SectionOffset,
 		Protection
 	);
-	
+
 	ObDereferenceObject(MappableObject);
 	return Status;
 }
@@ -161,17 +161,17 @@ BSTATUS OSGetMappedFileHandle(
 	void* TargetProcessV;
 	PEPROCESS TargetProcess;
 	BSTATUS Status;
-	
+
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	TargetProcess = TargetProcessV;
 	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
-	
+
 	PMMVAD_LIST VadList = MmLockVadList();
 	PMMVAD Vad = MmLookUpVadByAddress(VadList, Address);
-	
+
 	if (!Vad)
 	{
 		Status = STATUS_MEMORY_NOT_RESERVED;
@@ -180,10 +180,10 @@ BSTATUS OSGetMappedFileHandle(
 		PsSetAttachedProcess(OldProcess);
 		goto ReturnEarly;
 	}
-	
+
 	void* FileObject = MmGetBackingObjectView(Vad->View);
 	MmVerifyMappableHeader(FileObject);
-	
+
 	// TODO: If you still need overlays, uncomment this
 	/*
 	while (ObGetObjectType(BackingObject) == MmOverlayObjectType)
@@ -193,7 +193,7 @@ BSTATUS OSGetMappedFileHandle(
 		ObDereferenceObject(Overlay);
 	}
 	*/
-	
+
 	if (ObGetObjectType(FileObject) != IoFileType)
 	{
 		DbgPrint("Type mismatch in OSGetMappedFileHandle(%p)!", Address);
@@ -204,27 +204,109 @@ BSTATUS OSGetMappedFileHandle(
 		Status = STATUS_TYPE_MISMATCH;
 		goto ReturnEarlyUnlockDetach;
 	}
-	
-	ObReferenceObjectByPointer(FileObject);
-	
+
 	MmUnlockVadList(VadList);
 	PsSetAttachedProcess(OldProcess);
-	
+
 	// Open the file object as a handle.
 	HANDLE FileHandle = 0;
 	Status = ObInsertObject(FileObject, &FileHandle, 0);
 	ObDereferenceObject(FileObject);
-	
+
 	if (FAILED(Status))
 		goto ReturnEarly;
-	
+
 	// Finally, copy the handle.
 	Status = MmSafeCopy(OutHandle, &FileHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (FAILED(Status))
 		ObClose(FileHandle);
-	
+
 ReturnEarly:
 	ObDereferenceObject(TargetProcessV);
+	return Status;
+}
+
+BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
+{
+	if (RegionSize == 0)
+		return STATUS_SUCCESS;
+
+	BSTATUS Status;
+	PMMVAD Vad, VadEnd;
+	PMMVAD_LIST VadList = MmLockVadList();
+
+	uintptr_t StartVa = (uintptr_t) BaseAddress & ~(PAGE_SIZE - 1);
+	uintptr_t EndVa = ((uintptr_t) BaseAddress + RegionSize - 1) & ~(PAGE_SIZE - 1);
+	size_t SizePages = EndVa - StartVa + 1;
+
+	Vad = MmLookUpVadByAddress(VadList, (uintptr_t) BaseAddress);
+
+	if (!Vad)
+	{
+		Status = STATUS_MEMORY_NOT_RESERVED;
+	ReturnEarlyUnlock:
+		MmUnlockVadList(VadList);
+		return Status;
+	}
+
+	VadEnd = MmLookUpVadByAddress(VadList, (uintptr_t) BaseAddress + RegionSize - 1);
+	if (VadEnd != Vad)
+	{
+		Status = STATUS_CONFLICTING_ADDRESSES;
+		goto ReturnEarlyUnlock;
+	}
+
+	// Acquire the details we will need for the transformation from mapped view space
+	// to file space.
+	uintptr_t ViewBaseVa = Vad->Node.StartVa - Vad->ViewOffset;
+	uint64_t SectionOffset = Vad->View->SectionOffset;
+
+	// Acquire a reference to the backing object, too.
+	PMMVIEW View = ObReferenceObjectByPointer(Vad->View);
+	void* MappedObject = MmGetBackingObjectView(View);
+	MmVerifyMappableHeader(MappedObject);
+
+	MmUnlockVadList(VadList);
+
+	POBJECT_TYPE ObjectType = ObGetObjectType(MappedObject);
+	if (ObjectType == MmSectionObjectType)
+	{
+		// No-op for sections.
+		ObDereferenceObject(MappedObject);
+		ObDereferenceObject(View);
+		return STATUS_SUCCESS;
+	}
+
+	if (ObjectType != IoFileType)
+	{
+		ObDereferenceObject(MappedObject);
+		ObDereferenceObject(View);
+		return STATUS_TYPE_MISMATCH;
+	}
+
+	MiFlushModifiedStateAndMaybeResetPtes(
+		StartVa,
+		SizePages,
+		false, // ResetPtes
+		false, // RequestTlbShootdown
+		false, // OnlyMarkAsReadOnly
+		View,
+		ViewBaseVa
+	);
+
+	Status = STATUS_SUCCESS;
+
+	if (!Async)
+	{
+		Status = MmFlushFileCacheEx(
+			MappedObject,
+			SectionOffset + (StartVa - ViewBaseVa),
+			SizePages * PAGE_SIZE
+		);
+	}
+
+	ObDereferenceObject(MappedObject);
+	ObDereferenceObject(View);
 	return Status;
 }
 
@@ -233,16 +315,16 @@ ReturnEarly:
 BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* SourceAddress, size_t ByteCount)
 {
 	BSTATUS Status;
-	
+
 	// Reference the current process handle.
 	void* TargetProcessV;
 	PEPROCESS TargetProcess;
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	TargetProcess = TargetProcessV;
-	
+
 	// Allocate an MDL for the current process' source memory.
 	PMDL Mdl = MmAllocateMdl((uintptr_t) SourceAddress, ByteCount);
 	if (!Mdl)
@@ -250,22 +332,22 @@ BSTATUS OSWriteVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const vo
 		Status = STATUS_INSUFFICIENT_MEMORY;
 		goto Fail0;
 	}
-	
+
 	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		goto Fail1;
-	
+
 	// Map this MDL into system memory.
 	void* SourceAddressMapped = NULL;
 	Status = MmMapPinnedPagesMdl(Mdl, &SourceAddressMapped);
 	if (FAILED(Status))
 		goto Fail2;
-	
+
 	// Now perform the copy.
 	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
 	Status = MmSafeCopy(TargetAddress, SourceAddressMapped, ByteCount, KeGetPreviousMode(), true);
 	PsSetAttachedProcess(OldProcess);
-	
+
 	MmUnmapPagesMdl(Mdl);
 Fail2:
 	MmUnpinPagesMdl(Mdl);
@@ -281,16 +363,16 @@ Fail0:
 BSTATUS OSReadVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const void* SourceAddress, size_t ByteCount)
 {
 	BSTATUS Status;
-	
+
 	// Reference the current process handle.
 	void* TargetProcessV;
 	PEPROCESS TargetProcess;
 	Status = ExReferenceObjectByHandle(ProcessHandle, PsProcessObjectType, &TargetProcessV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	TargetProcess = TargetProcessV;
-	
+
 	// Allocate an MDL for the current process' destination memory.
 	PMDL Mdl = MmAllocateMdl((uintptr_t) TargetAddress, ByteCount);
 	if (!Mdl)
@@ -298,22 +380,22 @@ BSTATUS OSReadVirtualMemory(HANDLE ProcessHandle, void* TargetAddress, const voi
 		Status = STATUS_INSUFFICIENT_MEMORY;
 		goto Fail0;
 	}
-	
+
 	Status = MmProbeAndPinPagesMdl(Mdl, KeGetPreviousMode(), false);
 	if (FAILED(Status))
 		goto Fail1;
-	
+
 	// Map this MDL into system memory.
 	void* DestinationAddress = NULL;
 	Status = MmMapPinnedPagesMdl(Mdl, &DestinationAddress);
 	if (FAILED(Status))
 		goto Fail2;
-	
+
 	// Now perform the copy.
 	PEPROCESS OldProcess = PsSetAttachedProcess(TargetProcess);
 	Status = MmSafeCopy(DestinationAddress, SourceAddress, ByteCount, KeGetPreviousMode(), false);
 	PsSetAttachedProcess(OldProcess);
-	
+
 	MmUnmapPagesMdl(Mdl);
 Fail2:
 	MmUnpinPagesMdl(Mdl);
