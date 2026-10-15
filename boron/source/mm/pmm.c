@@ -848,23 +848,6 @@ void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
-void MmSetModifiedPfn(MMPFN Pfn)
-{
-	ASSERT(Pfn != PFN_INVALID);
-
-	KIPL OldIpl;
-	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
-
-	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
-
-	// This function must only be called for allocated pages.
-	ASSERT(Pfdbe->Type == PF_TYPE_USED);
-
-	Pfdbe->Modified = 1;
-
-	KeReleaseSpinLock(&MmPfnLock, OldIpl);
-}
-
 void MmFreePhysicalPage(MMPFN pfn)
 {
 	ASSERT(pfn != PFN_INVALID);
@@ -914,7 +897,7 @@ void MmFreePhysicalPage(MMPFN pfn)
 				// TODO: Only signal the modified page writer event when significant
 				// build up has happened, or shutdown is requested, or something else.
 				// This is just for debugging.
-				MmStartFlushingModifiedPages();
+				//MmStartFlushingModifiedPages();
 			}
 			else
 			{

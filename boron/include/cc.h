@@ -101,6 +101,3 @@ BSTATUS CcWriteFileCopy(
 	const void* Buffer,
 	size_t Size
 );
-
-// Flushes the page cache of a file object.
-BSTATUS CcFlushFileCache(PFILE_OBJECT FileObject);

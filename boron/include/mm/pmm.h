@@ -4,11 +4,11 @@
 
 Module name:
 	mm/pmm.h
-	
+
 Abstract:
 	This header file contains the definitions for the
 	physical memory manager (PMM).
-	
+
 Author:
 	iProgramInCpp - 28 September 2023
 ***/
@@ -96,9 +96,6 @@ void MmSetPrototypePtePfn(MMPFN Pfn, MM_PROTOTYPE_PTE_PTR PrototypePte);
 // The offset is saved in multiples of page size, but the passed in offset
 // is in bytes.
 void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset);
-
-// Set an allocated page as modified.
-void MmSetModifiedPfn(MMPFN Pfn);
 
 // This expects a PFN. Use MmPhysPageToPFN if you have a physically
 // addressed page to free. Decrements the reference counter of the physical page.

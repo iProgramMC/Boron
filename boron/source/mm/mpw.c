@@ -4,11 +4,11 @@
 
 Module name:
 	mm/mpw.c
-	
+
 Abstract:
 	This module implements the Boron modified page writer and
 	its utilitary functions.
-	
+
 Author:
 	iProgramInCpp - 10 August 2025
 ***/
@@ -34,10 +34,10 @@ volatile bool MmModifiedPageWriterShuttingDown = false;
 static BSTATUS MiFlushModifiedPage(MMPFN Pfn)
 {
 	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
-	
+
 	PFCB Fcb = PFDBE_Fcb(Pfdbe);
 	uint64_t Offset = PFDBE_Offset(Pfdbe) * PAGE_SIZE;
-	
+
 	return IoPerformModifiedPageWrite(Fcb, Pfn, Offset);
 }
 
@@ -54,42 +54,42 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			TIMEOUT_INFINITE,
 			MODE_KERNEL
 		);
-		
+
 		if (MmModifiedPageWriterShuttingDown)
 			break;
-		
+
 		KIPL Ipl = MiLockPfdb();
-		
+
 		while (true)
 		{
 			DbgPrint("Modified page writer is awake and ready to flush data!");
-			
+
 			MMPFN Pfn = MiRemoveOneModifiedPfn();
 			if (Pfn == PFN_INVALID)
 			{
 				MiUnlockPfdb(Ipl);
 				break;
 			}
-			
+
 			PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
-			
+
 			if (!Pfdbe->Modified)
 			{
 				DbgPrint("MPW: Pfn %d was in modified list but isn't modified?", Pfn);
 				MiTransformPageToStandbyPfn(Pfn);
 				continue;
 			}
-			
+
 			// Clear the modified flag, and increase the reference count of the page by one.
 			// This is so that in the event that the page is freed with MmFreePhysicalPage,
 			// the page won't be added back to the modified list.
 			Pfdbe->RefCount++;
 			Pfdbe->Modified = false;
-			
+
 			// The PFDBE is modified, start writing its contents to memory.  Then, transform the page
 			// into standby (if it wasn't faulted in afterwards), and move on to the next page.
 			MiUnlockPfdb(Ipl);
-			
+
 			// As of this point, this PFDBE has a reference count of zero, its type is PF_TYPE_USED,
 			// and the only reference to it is a weak one in the page cache. Now, since we have
 			// unlocked the page frame database lock, additional references may be added to this page.
@@ -104,15 +104,15 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			// STILL, nothing will happen, because the page was modified *after* we started the IO
 			// process.  At worst, data that is partially written is written to disk for a bit, and
 			// then the actual data that was meant to be written, is written.
-			
+
 			// Flush the page frame to disk.
 			Status = MiFlushModifiedPage(Pfn);
-			
+
 			Ipl = MiLockPfdb();
-			
+
 			// Remove the reference we added.
 			Pfdbe->RefCount--;
-			
+
 			if (FAILED(Status))
 			{
 				// ERROR: At this point writing has failed.  Log it, re-insert it at the end of the
@@ -127,9 +127,9 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 					Status,
 					RtlGetStatusString(Status)
 				);
-				
+
 				Pfdbe->Modified = true;
-				
+
 				MiReinsertIntoModifiedList(Pfn);
 			}
 			else
@@ -139,7 +139,7 @@ void MmModifiedPageWriterWorker(UNUSED void* Context)
 			}
 		}
 	}
-	
+
 	DbgPrint("MmModifiedPageWriterWorker: Shutting down.");
 	KeTerminateThread(1);
 }
@@ -158,7 +158,7 @@ void MmModifiedPageWriterShutDown()
 		MmStartFlushingModifiedPages();
 		OSSleep(1000);
 	}
-	
+
 	// While it's flushing modified pages, set the shutdown flag.
 	DbgPrint("Waiting for modified page writer to shut down");
 	MmModifiedPageWriterShuttingDown = true;
@@ -170,16 +170,16 @@ INIT
 void MmInitializeModifiedPageWriter()
 {
 	KeInitializeEvent(&MmModifiedPageWriterEvent, EVENT_SYNCHRONIZATION, false);
-	
+
 	PETHREAD Thread;
-	
+
 	BSTATUS Status = PsCreateSystemThreadFast(
 		&Thread,
 		MmModifiedPageWriterWorker,
 		NULL,
 		false
 	);
-	
+
 	if (FAILED(Status))
 	{
 		KeCrash(
@@ -188,10 +188,56 @@ void MmInitializeModifiedPageWriter()
 			RtlGetStatusString(Status)
 		);
 	}
-	
+
 	// TODO: The object manager reaper worker has real time priority.
 	// Do we want this worker to have real time priority too?
-	
+
 	// NOTE: It really doesn't matter if we do this or not.
 	ObDereferenceObject(Thread);
+}
+
+bool MmpFlushFileCacheFilter(MMPFN Pfn, UNUSED uint64_t Offset, UNUSED void* FilterContext)
+{
+	DbgPrint("MmpFlushFileCacheFilter: Checking PFN %u at offset %llu", Pfn, Offset);
+
+	if (Pfn == PFN_INVALID) {
+		return false;
+	}
+
+	KIPL Ipl = MiLockPfdb();
+	bool IsModified = MmGetPageFrameFromPFN(Pfn)->Modified;
+	MiUnlockPfdb(Ipl);
+
+	return IsModified;
+}
+
+BSTATUS MmpFlushFileCacheProcessEntry(MMPFN Pfn, uint64_t Offset, void* ProcessEntryContext)
+{
+	DbgPrint("MmpFlushFileCacheProcessEntry: Writing PFN %u at offset %llu", Pfn, Offset);
+
+	return IoPerformModifiedPageWrite(
+		(PFCB) ProcessEntryContext,
+		Pfn,
+		Offset * PAGE_SIZE
+	);
+}
+
+//
+// Flushes a file's cache directly to its backing store.
+//
+// This involves scanning a file's page cache for modified pages and flushing them
+// to disk.  It does NOT involve resetting the modified state of a page, because
+// scanning every process' mappings to remove the writable flag from the PTEs would
+// be too expensive.
+//
+BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject)
+{
+	DbgPrint("MmFlushFileCache invoked for FileObject %p, FCB %p", FileObject, FileObject->Fcb);
+	return MmForEachEntryCcb(
+		&FileObject->Fcb->CacheInfo.PageCache,
+		MmpFlushFileCacheFilter,
+		MmpFlushFileCacheProcessEntry,
+		NULL,           // FilterContext
+		FileObject->Fcb // ProcessEntryContext
+	);
 }

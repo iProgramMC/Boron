@@ -461,6 +461,8 @@ BSTATUS IoPerformModifiedPageWrite(
 				return Status;
 			}
 		}
+
+		return Status;
 	}
 
 WriteAll:
@@ -863,7 +865,7 @@ BSTATUS OSFlushFileCache(HANDLE FileHandle)
 	if (FAILED(Status))
 		return Status;
 
-	Status = CcFlushFileCache(FileObjectV);
+	Status = MmFlushFileCache(FileObjectV);
 
 	ObDereferenceObject(FileObjectV);
 	return Status;

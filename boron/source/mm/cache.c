@@ -281,18 +281,21 @@ BSTATUS MmForEachEntryCcb(
 	uint64_t EntriesPerLevel = MM_SLA_ENTRIES_PER_PAGE;
 	for (size_t i = 0; i < MM_SLA_INDIRECT_LEVELS; i++)
 	{
-		Status = MmpForEachEntryByLevelCcb(Ccb,
-			Ccb->Sla.Indirect[i],
-			i, // Level
-			StartOffset,
-			Filter,
-			ProcessEntry,
-			FilterContext,
-			ProcessEntryContext
-		);
+		if (Ccb->Sla.Indirect[i] != PFN_INVALID)
+		{
+			Status = MmpForEachEntryByLevelCcb(Ccb,
+				Ccb->Sla.Indirect[i],
+				i, // Level
+				StartOffset,
+				Filter,
+				ProcessEntry,
+				FilterContext,
+				ProcessEntryContext
+			);
 
-		if (FAILED(Status)) {
-			break;
+			if (FAILED(Status)) {
+				break;
+			}
 		}
 
 		StartOffset += EntriesPerLevel;
