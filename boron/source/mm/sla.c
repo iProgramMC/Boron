@@ -104,7 +104,7 @@ void MmDeinitializeSla(PMMSLA Sla, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc)
 	}
 }
 
-static MMPFN MmpAllocatePhysicalPageSlaInitialized()
+static MMPFN MmpAllocatePhysicalPageSlaInitialized(uintptr_t DefaultEntry)
 {
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	if (Pfn == PFN_INVALID)
@@ -112,9 +112,15 @@ static MMPFN MmpAllocatePhysicalPageSlaInitialized()
 
 	ASSERT(PFN_INVALID == (MMPFN) 0xFFFFFFFFFFFFFFFF
 		&& "PFN_INVALID must be all 1's for correct execution");
+	ASSERT(MM_SLA_NO_DATA == (MMSLA_ENTRY) 0xFFFFFFFFFFFFFFFF
+		&& "MM_SLA_NO_DATA must be all 1's for correct execution");
 	MmBeginUsingHHDM();
-	void* Page = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
-	memset(Page, 0xFF, PAGE_SIZE);
+
+	PMMSLA_ENTRY Page = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
+	for (size_t i = 0; i < PAGE_SIZE / sizeof(MMSLA_ENTRY); i++) {
+		Page[i] = DefaultEntry;
+	}
+
 	MmEndUsingHHDM();
 	return Pfn;
 }
@@ -175,6 +181,10 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 			continue;
 		}
 
+		uint64_t IndexDivisor = MM_SLA_ENTRIES_PER_PAGE;
+		for (int i = 1; i < Level; i++)
+			IndexDivisor *= MM_PFN_ENTRIES_PER_PAGE;
+
 		// Navigate the chain up until the last level.
 		//
 		// Levels up until the last level have MM_PFN_ENTRIES_PER_PAGE entries, because
@@ -188,18 +198,23 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 			if (!Modify)
 				return Sla->DefaultEntry;
 
-			CurrentPfn = MmpAllocatePhysicalPageSlaInitialized();
+			CurrentPfn = MmpAllocatePhysicalPageSlaInitialized(
+				Level == 0 ? Sla->DefaultEntry : MM_SLA_NO_DATA
+			);
 			if (CurrentPfn == PFN_INVALID)
 				return Sla->OutOfMemoryEntry;
 
 			Sla->Indirect[Level] = CurrentPfn;
 		}
 
-		for (int i = 0; i < Level; i++)
+		for (int i = Level - 1; i >= 0; i--)
 		{
+			size_t LevelIndex = (size_t)((CurrentIndex / IndexDivisor) % MM_PFN_ENTRIES_PER_PAGE);
+			IndexDivisor /= MM_PFN_ENTRIES_PER_PAGE;
+
 			MmBeginUsingHHDM();
 			PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
-			MMPFN NextPfn = Entries[CurrentIndex % MM_PFN_ENTRIES_PER_PAGE];
+			MMPFN NextPfn = Entries[LevelIndex];
 			MmEndUsingHHDM();
 
 			if (NextPfn == PFN_INVALID)
@@ -207,21 +222,24 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 				if (!Modify)
 					return Sla->DefaultEntry;
 
-				NextPfn = MmpAllocatePhysicalPageSlaInitialized();
+				NextPfn = MmpAllocatePhysicalPageSlaInitialized(
+					i == 0 ? Sla->DefaultEntry : MM_SLA_NO_DATA
+				);
 				if (NextPfn == PFN_INVALID)
 					return Sla->OutOfMemoryEntry;
 
 				MmBeginUsingHHDM();
 				PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
-				Entries[CurrentIndex % MM_PFN_ENTRIES_PER_PAGE] = NextPfn;
+				Entries[LevelIndex] = NextPfn;
 				MmEndUsingHHDM();
 			}
 
-			CurrentIndex /= MM_PFN_ENTRIES_PER_PAGE;
 			CurrentPfn = NextPfn;
 		}
 
 		MmBeginUsingHHDM();
+
+		CurrentIndex %= MM_SLA_ENTRIES_PER_PAGE;
 
 		uintptr_t BaseAddress = MmPFNToPhysPage(CurrentPfn);
 		PMMSLA_ENTRY Entries = MmGetHHDMOffsetAddr(BaseAddress);

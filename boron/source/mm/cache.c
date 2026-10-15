@@ -195,7 +195,7 @@ BSTATUS MmpForEachEntryByLevelCcb(
 		MMPFN Pfn;
 
 		uint64_t EntriesPerLevel = MM_SLA_ENTRIES_PER_PAGE;
-		for (size_t j = 0; j < IndirectLevel; j++) {
+		for (size_t j = 0; j < IndirectLevel - 1; j++) {
 			EntriesPerLevel *= MM_PFN_ENTRIES_PER_PAGE;
 		}
 

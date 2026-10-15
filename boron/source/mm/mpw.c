@@ -198,8 +198,6 @@ void MmInitializeModifiedPageWriter()
 
 bool MmpFlushFileCacheFilter(MMPFN Pfn, UNUSED uint64_t Offset, UNUSED void* FilterContext)
 {
-	DbgPrint("MmpFlushFileCacheFilter: Checking PFN %u at offset %llu", Pfn, Offset);
-
 	if (Pfn == PFN_INVALID) {
 		return false;
 	}
@@ -213,7 +211,13 @@ bool MmpFlushFileCacheFilter(MMPFN Pfn, UNUSED uint64_t Offset, UNUSED void* Fil
 
 BSTATUS MmpFlushFileCacheProcessEntry(MMPFN Pfn, uint64_t Offset, void* ProcessEntryContext)
 {
-	DbgPrint("MmpFlushFileCacheProcessEntry: Writing PFN %u at offset %llu", Pfn, Offset);
+#ifdef DEBUG
+	uint64_t PfdbeOffset;
+	KIPL Ipl = MiLockPfdb();
+	PfdbeOffset = PFDBE_Offset(MmGetPageFrameFromPFN(Pfn));
+	MiUnlockPfdb(Ipl);
+	ASSERT(Offset == PfdbeOffset && "These should match.  Did you screw up the SLA structure?");
+#endif
 
 	return IoPerformModifiedPageWrite(
 		(PFCB) ProcessEntryContext,
@@ -232,7 +236,6 @@ BSTATUS MmpFlushFileCacheProcessEntry(MMPFN Pfn, uint64_t Offset, void* ProcessE
 //
 BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject)
 {
-	DbgPrint("MmFlushFileCache invoked for FileObject %p, FCB %p", FileObject, FileObject->Fcb);
 	return MmForEachEntryCcb(
 		&FileObject->Fcb->CacheInfo.PageCache,
 		MmpFlushFileCacheFilter,
