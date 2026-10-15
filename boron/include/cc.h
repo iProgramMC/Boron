@@ -4,11 +4,11 @@
 
 Module name:
 	cc.h
-	
+
 Abstract:
 	This header defines all of the structures necessary
 	for the implementation of the Boron view cache manager.
-	
+
 Author:
 	iProgramInCpp - 23 May 2025
 ***/
@@ -101,3 +101,6 @@ BSTATUS CcWriteFileCopy(
 	const void* Buffer,
 	size_t Size
 );
+
+// Flushes the page cache of a file object.
+BSTATUS CcFlushFileCache(PFILE_OBJECT FileObject);

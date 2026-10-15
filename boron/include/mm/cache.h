@@ -4,11 +4,11 @@
 
 Module name:
 	mm/cache.h
-	
+
 Abstract:
 	This header defines the memory manager's page cache
 	control block structure.
-	
+
 Author:
 	iProgramInCpp - 18 August 2024
 ***/
@@ -53,6 +53,9 @@ void MmUnlockCcb(PCCB Ccb)
 	KeReleaseMutex(&Ccb->Mutex);
 }
 
+typedef bool(*PCC_FOREACH_FILTER_CALL)(MMPFN Pfn, uint64_t Offset, void* FilterContext);
+typedef BSTATUS(*PCC_FOREACH_PROCESS_CALL)(MMPFN Pfn, uint64_t Offset, void* ProcessEntryContext);
+
 #if 0
 
 // Gets a pointer to an entry in the CCB.
@@ -84,3 +87,20 @@ MMPFN MmGetEntryCcb(PCCB Ccb, uint64_t PageOffset);
 //
 // If the entry is already assigned, this returns STATUS_CONFLICTING_ADDRESSES.
 BSTATUS MmSetEntryCcb(PCCB Ccb, uint64_t PageOffset, MMPFN Pfn, PMM_PROTOTYPE_PTE_PTR OutPrototypePtePointer);
+
+//
+// Optimized routine to scan for each populated entry inside of a page cache.
+//
+// If an entry is found, call into the Filter function with the CCB lock held
+// to evaluate whether the entry should be processed, and if Filter returns true,
+// call the ProcessEntry function with the entry unlocked.
+//
+// If ProcessEntry returns an unsuccessful status, then processing is aborted.
+//
+BSTATUS MmForEachEntryCcb(
+	PCCB Ccb,
+	PCC_FOREACH_FILTER_CALL Filter,
+	PCC_FOREACH_PROCESS_CALL ProcessEntry,
+	void* FilterContext,
+	void* ProcessEntryContext
+);

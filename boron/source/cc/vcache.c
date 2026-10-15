@@ -294,3 +294,16 @@ BSTATUS CcWriteFileCopy(
 
 	return Status;
 }
+
+//
+// Flushes a file's cache directly to its backing store.
+//
+// This involves scanning a file's page cache for modified pages and flushing them
+// to disk.  It does NOT involve resetting the modified state of a page, because
+// scanning every process' mappings to remove the writable flag from the PTEs would
+// be too expensive.
+//
+BSTATUS CcFlushFileCache(PFILE_OBJECT FileObject)
+{
+	return STATUS_UNIMPLEMENTED;
+}

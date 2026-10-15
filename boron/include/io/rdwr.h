@@ -4,11 +4,11 @@
 
 Module name:
 	io/rdwr.h
-	
+
 Abstract:
 	This header defines the I/O manager's user-facing
 	I/O functions, such as reading and writing.
-	
+
 Author:
 	iProgramInCpp - 2 July 2024
 ***/
@@ -133,3 +133,5 @@ BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* 
 BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
 
 BSTATUS OSCreateSymbolicLink(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength, const char* TargetName, size_t TargetNameLength);
+
+BSTATUS OSFlushFileCache(HANDLE FileHandle);

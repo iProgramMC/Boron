@@ -854,6 +854,21 @@ BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
 	return MmSafeCopy(OutLength, &Length, sizeof(uint64_t), KeGetPreviousMode(), true);
 }
 
+BSTATUS OSFlushFileCache(HANDLE FileHandle)
+{
+	BSTATUS Status;
+	void* FileObjectV;
+
+	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+
+	Status = CcFlushFileCache(FileObjectV);
+
+	ObDereferenceObject(FileObjectV);
+	return Status;
+}
+
 BSTATUS OSDeviceIoControl(
 	HANDLE FileHandle,
 	int IoControlCode,

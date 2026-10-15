@@ -17,9 +17,6 @@ Author:
 ***/
 #include "mi.h"
 
-#define SLA_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(MMSLA_ENTRY))
-#define PFN_ENTRIES_PER_PAGE (PAGE_SIZE / sizeof(MMPFN))
-
 void MmInitializeSlaEx(PMMSLA Sla, MMSLA_ENTRY DefaultEntry, MMSLA_ENTRY OutOfMemoryEntry)
 {
 	Sla->DefaultEntry = DefaultEntry;
@@ -42,7 +39,7 @@ void MmpFreeSlaFinalLevel(MMPFN Pfn, MM_SLA_FREE_ENTRY_FUNC FreeEntryFunc, MMSLA
 {
 	uintptr_t PhysAddr = MmPFNToPhysPage(Pfn);
 
-	for (size_t i = 0; i < SLA_ENTRIES_PER_PAGE; i++)
+	for (size_t i = 0; i < MM_SLA_ENTRIES_PER_PAGE; i++)
 	{
 		// TODO: avoid the HHDM or something
 		MmBeginUsingHHDM();
@@ -73,7 +70,7 @@ static void MmpFreeSlaIntermediateLevel(
 		return;
 	}
 
-	for (size_t i = 0; i < PFN_ENTRIES_PER_PAGE; i++)
+	for (size_t i = 0; i < MM_PFN_ENTRIES_PER_PAGE; i++)
 	{
 		// TODO: avoid the HHDM or something
 		MmBeginUsingHHDM();
@@ -113,6 +110,8 @@ static MMPFN MmpAllocatePhysicalPageSlaInitialized()
 	if (Pfn == PFN_INVALID)
 		return Pfn;
 
+	ASSERT(PFN_INVALID == (MMPFN) 0xFFFFFFFFFFFFFFFF
+		&& "PFN_INVALID must be all 1's for correct execution");
 	MmBeginUsingHHDM();
 	void* Page = MmGetHHDMOffsetAddr(MmPFNToPhysPage(Pfn));
 	memset(Page, 0xFF, PAGE_SIZE);
@@ -165,21 +164,21 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 	}
 
 	uint64_t CurrentIndex = EntryIndex - MM_SLA_DIRECT_ENTRY_COUNT;
-	uint64_t MaxOffset = SLA_ENTRIES_PER_PAGE;
+	uint64_t MaxOffset = MM_SLA_ENTRIES_PER_PAGE;
 	for (int Level = 0; Level < MM_SLA_INDIRECT_LEVELS; Level++)
 	{
 		if (CurrentIndex >= MaxOffset)
 		{
 			// Need to move on to the next level.
 			CurrentIndex -= MaxOffset;
-			MaxOffset *= PFN_ENTRIES_PER_PAGE;
+			MaxOffset *= MM_PFN_ENTRIES_PER_PAGE;
 			continue;
 		}
 
 		// Navigate the chain up until the last level.
 		//
-		// Levels up until the last level have PFN_ENTRIES_PER_PAGE entries, because
-		// they only store PFNs, however the last level stores SLA_ENTRIES_PER_PAGE
+		// Levels up until the last level have MM_PFN_ENTRIES_PER_PAGE entries, because
+		// they only store PFNs, however the last level stores MM_SLA_ENTRIES_PER_PAGE
 		// entries.  This distinction is important on 64-bit platforms where PFNs are
 		// still 32-bit (it was decided that Boron would not run on systems with more
 		// than 16 TB of RAM), but SLA entries are a full pointer size.
@@ -200,7 +199,7 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 		{
 			MmBeginUsingHHDM();
 			PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
-			MMPFN NextPfn = Entries[CurrentIndex % PFN_ENTRIES_PER_PAGE];
+			MMPFN NextPfn = Entries[CurrentIndex % MM_PFN_ENTRIES_PER_PAGE];
 			MmEndUsingHHDM();
 
 			if (NextPfn == PFN_INVALID)
@@ -214,11 +213,11 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 
 				MmBeginUsingHHDM();
 				PMMPFN Entries = MmGetHHDMOffsetAddr(MmPFNToPhysPage(CurrentPfn));
-				Entries[CurrentIndex % PFN_ENTRIES_PER_PAGE] = NextPfn;
+				Entries[CurrentIndex % MM_PFN_ENTRIES_PER_PAGE] = NextPfn;
 				MmEndUsingHHDM();
 			}
 
-			CurrentIndex /= PFN_ENTRIES_PER_PAGE;
+			CurrentIndex /= MM_PFN_ENTRIES_PER_PAGE;
 			CurrentPfn = NextPfn;
 		}
 
@@ -229,7 +228,10 @@ static MMSLA_ENTRY MmpLookUpEntrySlaPlusModify(
 
 		if (Modify)
 		{
-			Entries[CurrentIndex] = NewValue;
+			if (NewValue == Sla->DefaultEntry)
+				AtStoreMO(Entries[CurrentIndex], NewValue, ATOMIC_MEMORD_RELEASE);
+			else
+				AtStoreMO(Entries[CurrentIndex], NewValue, ATOMIC_MEMORD_SEQ_CST);
 
 			if (OutPrototypePtePointer)
 			{
