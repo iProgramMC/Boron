@@ -48,7 +48,7 @@ void Test7CreateBigFileAndFlush()
 	{
 		IO_STATUS_BLOCK Iosb;
 		uint64_t OutSize = 0;
-		DbgPrint("Test7: Writing %zu/%zu", i+1, Iters);
+		//DbgPrint("Test7: Writing %zu/%zu", i+1, Iters);
 		Status = OSWriteFile(
 			&Iosb,
 			Handle,

@@ -159,14 +159,16 @@ BSTATUS CcReadFileCopy(
 
 void CcMarkFileModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t SizeBytes)
 {
+	if (SizeBytes == 0) {
+		return;
+	}
+
 	uint64_t SectionOffsetStart = FileOffset / PAGE_SIZE;
 	uint64_t SectionOffsetEnd = (FileOffset + SizeBytes - 1) / PAGE_SIZE;
 
-	uint64_t SizePages = SectionOffsetEnd - SectionOffsetStart;
-
-	for (uint64_t i = 0; i < SizePages; i++)
+	for (uint64_t i = SectionOffsetStart; i <= SectionOffsetEnd; i++)
 	{
-		(void) MmSetPageModifiedMappable(FileObject, SectionOffsetStart + i);
+		(void) MmSetPageModifiedMappable(FileObject, i);
 	}
 }
 
