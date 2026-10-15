@@ -80,6 +80,8 @@ NO_RETURN void OSExitProcess(int ExitCode);
 
 NO_RETURN void OSExitThread();
 
+BSTATUS OSFlushFileCache(HANDLE FileHandle);
+
 BSTATUS OSForkProcessInternal(PHANDLE OutChildHandle);
 
 BSTATUS OSFreeVirtualMemory(

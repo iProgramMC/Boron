@@ -4,11 +4,11 @@
 
 Module name:
 	ke/i386/syscall.c
-	
+
 Abstract:
 	This module implements the system service dispatcher
 	for the i386 architecture.
-	
+
 Author:
 	iProgramInCpp - 22 October 2025
 ***/
@@ -56,11 +56,11 @@ BSTATUS OSMapViewOfObject_Call(
 {
 	BSTATUS Status;
 	MAP_VIEW_OF_OBJECT_PARAMS ExtraParams;
-	
+
 	Status = MmSafeCopy(&ExtraParams, ExtraParamsPtr, sizeof(MAP_VIEW_OF_OBJECT_PARAMS), MODE_USER, false);
 	if (FAILED(Status))
 		return Status;
-	
+
 	return OSMapViewOfObject(
 		ProcessHandle,
 		MappedObject,
@@ -82,11 +82,11 @@ BSTATUS OSReadFile_Call(
 {
 	BSTATUS Status;
 	READ_FILE_PARAMS ExtraParams;
-	
+
 	Status = MmSafeCopy(&ExtraParams, ExtraParamsPtr, sizeof(READ_FILE_PARAMS), MODE_USER, false);
 	if (FAILED(Status))
 		return Status;
-	
+
 	return OSReadFile(Iosb, Handle, ByteOffset, Buffer, ExtraParams.Length, ExtraParams.Flags);
 }
 
@@ -100,11 +100,11 @@ BSTATUS OSWriteFile_Call(
 {
 	BSTATUS Status;
 	WRITE_FILE_PARAMS ExtraParams;
-	
+
 	Status = MmSafeCopy(&ExtraParams, ExtraParamsPtr, sizeof(WRITE_FILE_PARAMS), MODE_USER, false);
 	if (FAILED(Status))
 		return Status;
-	
+
 	return OSWriteFile(Iosb, Handle, ByteOffset, Buffer, ExtraParams.Length, ExtraParams.Flags, ExtraParams.OutSize);
 }
 
@@ -201,6 +201,7 @@ const void* const KiSystemServiceTable[] =
 	OSSetImageNameProcess,
 	OSQuerySystemInformation,
 	OSShutDownSystem,
+	OSFlushFileCache,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)
@@ -215,11 +216,11 @@ PKREGISTERS KiSystemServiceHandler(PKREGISTERS Regs)
 		Regs->Eax = STATUS_INVALID_PARAMETER;
 		return Regs;
 	}
-	
+
 #ifdef ENABLE_SYSCALL_TRACE
 	KePrintSystemServiceDebug(Regs->Eax);
 #endif
-	
+
 	// Now call the function.
 	//
 	// Note: Most system call handlers completely ignore the 7th and 8th parameters, except for
@@ -227,8 +228,8 @@ PKREGISTERS KiSystemServiceHandler(PKREGISTERS Regs)
 	KI_SYSCALL_HANDLER Handler = KiSystemServiceTable[Regs->Eax];
 	int Return = Handler(Regs->Ebx, Regs->Ecx, Regs->Edx, Regs->Esi, Regs->Edi, Regs->Ebp, Regs->Eip, Regs->Esp);
 	Regs->Eax = Return;
-	
+
 	KiCheckTerminatedUserMode();
-	
+
 	return Regs;
 }

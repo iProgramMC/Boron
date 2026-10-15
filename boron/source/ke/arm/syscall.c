@@ -4,11 +4,11 @@
 
 Module name:
 	ke/arm/syscall.c
-	
+
 Abstract:
 	This module implements the system service dispatcher
 	for the arm architecture.
-	
+
 Author:
 	iProgramInCpp - 30 December 2025
 ***/
@@ -124,6 +124,7 @@ const void* const KiSystemServiceTable[] =
 	OSSetImageNameProcess,
 	OSQuerySystemInformation,
 	OSShutDownSystem,
+	OSFlushFileCache,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)
@@ -161,23 +162,23 @@ void KiSystemServiceHandler(PKREGISTERS Regs, uintptr_t Sp_Usr)
 		Regs->R0 = Status;
 		return;
 	}
-	
+
 	// Keep Immediate (the system call will be executed like `svc #callNumber`)
 	Opcode &= 0xFFFFFF;
-	
+
 	// This is the call number
 	CallNumber = Opcode;
-	
+
 	if (CallNumber >= KI_SYSCALL_COUNT)
 	{
 		Regs->R0 = STATUS_INVALID_PARAMETER;
 		return;
 	}
-	
+
 #ifdef ENABLE_SYSCALL_TRACE
 	KePrintSystemServiceDebug(CallNumber);
 #endif
-	
+
 	// Now call the function.
 	//
 	// Note: Most system call handlers completely ignore the 7th and 8th parameters, except for
@@ -197,7 +198,7 @@ void KiSystemServiceHandler(PKREGISTERS Regs, uintptr_t Sp_Usr)
 		Sp_Usr
 	);
 	Regs->R0 = Return;
-	
+
 	KiCheckTerminatedUserMode();
 }
 
