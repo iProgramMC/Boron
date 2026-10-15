@@ -43,10 +43,12 @@ void Test7CreateBigFileAndFlush()
 #endif
 
 	const char* DataToWrite = "Boron is cool!\n";
-	for (size_t i = 0; i < 10000; i++)
+	const size_t Iters = 1000000;
+	for (size_t i = 0; i < Iters; i++)
 	{
 		IO_STATUS_BLOCK Iosb;
 		uint64_t OutSize = 0;
+		DbgPrint("Test7: Writing %zu/%zu", i+1, Iters);
 		Status = OSWriteFile(
 			&Iosb,
 			Handle,
