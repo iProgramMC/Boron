@@ -237,7 +237,7 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 
 	uintptr_t StartVa = (uintptr_t) BaseAddress & ~(PAGE_SIZE - 1);
 	uintptr_t EndVa = ((uintptr_t) BaseAddress + RegionSize - 1) & ~(PAGE_SIZE - 1);
-	size_t SizePages = EndVa - StartVa + 1;
+	size_t SizePages = (EndVa - StartVa) / PAGE_SIZE + 1;
 
 	Vad = MmLookUpVadByAddress(VadList, (uintptr_t) BaseAddress);
 

@@ -82,6 +82,13 @@ NO_RETURN void OSExitThread();
 
 BSTATUS OSFlushFileCache(HANDLE FileHandle);
 
+BSTATUS OSFlushVirtualMemory(
+	HANDLE ProcessHandle,
+	void* BaseAddress,
+	size_t RegionSize,
+	bool Async
+);
+
 BSTATUS OSForkProcessInternal(PHANDLE OutChildHandle);
 
 BSTATUS OSFreeVirtualMemory(
