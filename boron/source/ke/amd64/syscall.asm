@@ -81,6 +81,7 @@ extern OSWaitForMultipleObjects
 extern OSWaitForSingleObject
 extern OSWriteFile
 extern OSWriteVirtualMemory
+extern OSFlushVirtualMemory
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
@@ -147,6 +148,7 @@ KiSystemServiceTable:
 	dq OSQuerySystemInformation
 	dq OSShutDownSystem
 	dq OSFlushFileCache
+	dq OSFlushVirtualMemory
 KiSystemServiceTableEnd:
 	nop
 

@@ -65,6 +65,7 @@ CALL 58, 3, OSSetImageNameProcess
 CALL 59, 4, OSQuerySystemInformation
 CALL 60, 1, OSShutDownSystem
 CALL 61, 1, OSFlushFileCache
+CALL 62, 4, OSFlushVirtualMemory
 
 // The following system calls use at least one 64-bit parameter.
 // On 32-bit, 64-bit arguments typically get passed as high/low pairs of 32-bit arguments.

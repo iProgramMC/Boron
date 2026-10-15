@@ -202,6 +202,7 @@ const void* const KiSystemServiceTable[] =
 	OSQuerySystemInformation,
 	OSShutDownSystem,
 	OSFlushFileCache,
+	OSFlushVirtualMemory,
 };
 
 #define KI_SYSCALL_COUNT ARRAY_COUNT(KiSystemServiceTable)
