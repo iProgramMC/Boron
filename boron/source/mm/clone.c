@@ -75,7 +75,8 @@ void MiFlushMappedPtes(
 
 		if (MmIsModifiedPte(Pte) && View)
 		{
-			MiSetPageModifiedView(View, Address - ViewBaseVa);
+			// TOOD: Do we need anything more advanced here?
+			MmSetModifiedPage(MmGetPfnPte(Pte));
 		}
 
 		if (FlushFlags & MM_FLUSH_DONT_MODIFY_PTES)
