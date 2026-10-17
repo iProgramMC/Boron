@@ -17,6 +17,8 @@ Author:
 
 #include "mi.h"
 
+KMUTEX MmModifiedStateFlushMutex;
+
 // NOTE: The address space lock MUST be held during this.
 void MiFlushMappedPtes(
 	uintptr_t StartVa,
@@ -26,6 +28,16 @@ void MiFlushMappedPtes(
 	uintptr_t ViewBaseVa
 )
 {
+	//
+	// NOTE: We need a mutex here to prevent a race condition against IoPerformModifiedPageWrite.
+	// Basically, if the modified list is flushed concurrently with this function, there is a
+	// potential race condition where a thread is being actively written to, its PTE already
+	// has the DIRTY bit cleared,
+	//
+	UNUSED BSTATUS Status;
+	Status = KeWaitForSingleObject(&MmModifiedStateFlushMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+
 	MMPTE CommittedButNotFaultedInPte = MmBuildZeroPte();
 
 	// Now go through each page and put all of the allocated PFNs inside.
@@ -96,6 +108,8 @@ void MiFlushMappedPtes(
 	{
 		MmIssueTLBShootDown(StartVa, SizePages, MmGetTargetProcessForShootdown(StartVa));
 	}
+
+	KeReleaseMutex(&MmModifiedStateFlushMutex);
 }
 
 static BSTATUS MmpCloneAddressNodes(PRBTREE DestTree, PRBTREE SrcTree, size_t ItemSize)

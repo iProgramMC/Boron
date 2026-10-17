@@ -15,6 +15,39 @@ Author:
 #include "iop.h"
 #include <cc.h>
 
+//
+// Clear the modified state on pages when writing them back.
+//
+// This flag can be disabled at some point to debug data loss, but it should
+// be enabled by default.  It reduces needless I/O.
+//
+// The order of operations for a flush (while the page is in memory) is as follows:
+//
+// * Read the PTEs, flush the DIRTY state of the PTE to the PFDBE of each page frame
+//   (or WRITABLE state for platforms without a hardware dirty bit) and reset its
+//   flag to zero.  Then, do a TLB shootdown to make sure the DIRTY bit gets updated
+//   again.
+//
+//   NOTE: Between the time where we clear the dirty bit and when we do the TLB
+//   shootdown, it's possible that the page is still being written to, but the
+//   dirty bit will remain switched off.  There will be an additional mutex acquired
+//   to prevent this race condition.
+//
+// * When flushing, clear the modified bit, and start writing the page. (If the I/O
+//   operation fails, then restore the modified bit (TODO: and report this to the
+//   user.))
+//
+//   NOTE: Between the time that the modified bit is cleared, and the time that
+//   the page is actually written to disk, the page could still be written to in
+//   memory.  This is fine, because the process will signal the DIRTY/WRITABLE
+//   state in the PTE, so on an additional flush, this process will repeat and
+//   any potential errors would self-correct.
+//
+#define IO_CLEAR_MODIFIED_PAGE_ON_WRITE
+
+// TODO: Move this mutex to a per-view or per-file-object space.
+extern KMUTEX MmModifiedStateFlushMutex;
+
 enum
 {
 	IO_OP_READ,
@@ -406,6 +439,25 @@ BSTATUS IoPerformModifiedPageWrite(
 	memset(&File, 0, sizeof File);
 	File.Fcb = Fcb;
 
+	//
+	// Clear the modified state of this PFN here.
+	//
+	// If the PFN gets written to again, then eventually it will be set as modified again
+	// and we'll be back here with the PFN.  In fact, it could happen even as soon as the
+	// moment before we start writing, which is fine.
+	//
+#ifdef IO_CLEAR_MODIFIED_PAGE_ON_WRITE
+	Status = KeWaitForSingleObject(&MmModifiedStateFlushMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	ASSERT(SUCCEEDED(Status));
+
+	// NOTE: In this function, we only need to acquire the lock for THIS modification.
+	// The reason is that we need to serialize the "flush PTE dirty state to PFDBE, then
+	// shoot down the TLB" phase.  Read the comment above for an explanation of why.
+	MmClearModifiedPage(Pfn);
+
+	KeReleaseMutex(&MmModifiedStateFlushMutex);
+#endif
+
 	if (Fcb->CacheInfo.ModBitmap)
 	{
 		ASSERT(FileOffset % PAGE_SIZE == 0);
@@ -458,6 +510,7 @@ BSTATUS IoPerformModifiedPageWrite(
 					"device: %s",
 					RtlGetStatusString(Status)
 				);
+				MmSetModifiedPage(Pfn);
 				return Status;
 			}
 		}
@@ -469,6 +522,12 @@ WriteAll:
 	MmInitializeSinglePageMdl(&Mdl, Pfn, 0);
 	Status = IopWriteFile(&Iosb, &File, &Mdl.Base, IO_RW_PAGING, FileOffset, false, &Unused);
 	MmFreeMdl(&Mdl.Base);
+
+#ifdef IO_CLEAR_MODIFIED_PAGE_ON_WRITE
+	if (IOFAILED(Status)) {
+		MmSetModifiedPage(Pfn);
+	}
+#endif
 
 	return Status;
 }

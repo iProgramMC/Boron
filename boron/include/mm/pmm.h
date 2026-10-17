@@ -84,6 +84,9 @@ void MmPageAddReference(MMPFN Pfn);
 // Sets a referenced PFN as modified.
 void MmSetModifiedPage(MMPFN Pfn);
 
+// Sets a referenced PFN as unmodified.
+void MmClearModifiedPage(MMPFN Pfn);
+
 // Assign a prototype PTE address to the page frame.
 void MmSetPrototypePtePfn(MMPFN Pfn, MM_PROTOTYPE_PTE_PTR PrototypePte);
 

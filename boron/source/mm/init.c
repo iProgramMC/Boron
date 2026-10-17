@@ -4,14 +4,14 @@
 
 Module name:
 	mm/init.c
-	
+
 Abstract:
 	This module implements a small part of the memory manager
 	initialization process.
-	
+
 	This one initializes the object types used in the memory
 	manager.
-	
+
 Author:
 	iProgramInCpp - 7 December 2025
 ***/
@@ -47,41 +47,43 @@ static OBJECT_TYPE_INFO MmViewObjectTypeInfo =
 
 bool MmInitSystem()
 {
+	KeInitializeMutex(&MmModifiedStateFlushMutex, MM_MODIFIED_STATE_FLUSH_MUTEX_LEVEL);
+
 	BSTATUS Status = ObCreateObjectType(
 		"Section",
 		&MmSectionObjectTypeInfo,
 		&MmSectionObjectType
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to create Section object type: %s (%d)", RtlGetStatusString(Status), Status);
 		return false;
 	}
-	
+
 	Status = ObCreateObjectType(
 		"Overlay",
 		&MmOverlayObjectTypeInfo,
 		&MmOverlayObjectType
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to create Overlay object type: %s (%d)", RtlGetStatusString(Status), Status);
 		return false;
 	}
-	
+
 	Status = ObCreateObjectType(
 		"View",
 		&MmViewObjectTypeInfo,
 		&MmViewObjectType
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to create View object type: %s (%d)", RtlGetStatusString(Status), Status);
 		return false;
 	}
-	
+
 	return true;
 }

@@ -498,5 +498,7 @@ BSTATUS MiSetPageRangeModifiedView(PMMVIEW View, size_t ViewOffsetStart, size_t 
 
 #endif
 
+#define MM_MODIFIED_STATE_FLUSH_MUTEX_LEVEL 9
+extern KMUTEX MmModifiedStateFlushMutex;
 
 #endif//NS64_MI_H

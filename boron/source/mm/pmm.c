@@ -1095,6 +1095,18 @@ void MmSetModifiedPage(MMPFN Pfn)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
+void MmClearModifiedPage(MMPFN Pfn)
+{
+	ASSERT(Pfn != PFN_INVALID);
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+
+	PMMPFDBE PageFrame = MmGetPageFrameFromPFN(Pfn);
+	PageFrame->Modified = false;
+
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
 void MmPageAddReference(MMPFN Pfn)
 {
 #ifdef PMMDEBUG
