@@ -12,6 +12,7 @@ APPS := \
 	init \
 	test \
 	ls \
+	cat \
 	VideoTerminal \
 	TestHarness \
 	MinimalShell \
@@ -33,4 +34,3 @@ all:
 
 # Other goals you might want
 clean: all
-
