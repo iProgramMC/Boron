@@ -23,9 +23,7 @@ KMUTEX MmModifiedStateFlushMutex;
 void MiFlushMappedPtes(
 	uintptr_t StartVa,
 	size_t SizePages,
-	int FlushFlags,
-	PMMVIEW View,
-	uintptr_t ViewBaseVa
+	int FlushFlags
 )
 {
 	//
@@ -73,7 +71,7 @@ void MiFlushMappedPtes(
 			continue;
 		}
 
-		if (MmIsModifiedPte(Pte) && View)
+		if (MmIsModifiedPte(Pte))
 		{
 			// TOOD: Do we need anything more advanced here?
 			MmSetModifiedPage(MmGetPfnPte(Pte));
@@ -174,9 +172,7 @@ static void MmpCopyOnWriteAllViews(PEPROCESS SourceProcess)
 		MiFlushMappedPtes(
 			Vad->Node.StartVa,
 			Vad->Node.Size,
-			MM_FLUSH_MODIFIED_STATE | MM_FLUSH_READ_ONLY_PTES,
-			Vad->View,
-			Vad->Node.StartVa - Vad->ViewOffset
+			MM_FLUSH_MODIFIED_STATE | MM_FLUSH_READ_ONLY_PTES
 		);
 	}
 }

@@ -262,8 +262,7 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 	uint64_t SectionOffset = Vad->View->SectionOffset;
 
 	// Acquire a reference to the backing object, too.
-	PMMVIEW View = ObReferenceObjectByPointer(Vad->View);
-	void* MappedObject = MmGetBackingObjectView(View);
+	void* MappedObject = MmGetBackingObjectView(Vad->View);
 	MmVerifyMappableHeader(MappedObject);
 
 	MmUnlockVadList(VadList);
@@ -273,23 +272,19 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 	{
 		// No-op for sections.
 		ObDereferenceObject(MappedObject);
-		ObDereferenceObject(View);
 		return STATUS_SUCCESS;
 	}
 
 	if (ObjectType != IoFileType)
 	{
 		ObDereferenceObject(MappedObject);
-		ObDereferenceObject(View);
 		return STATUS_TYPE_MISMATCH;
 	}
 
 	MiFlushMappedPtes(
 		StartVa,
 		SizePages,
-		MM_FLUSH_MODIFIED_STATE,
-		View,
-		ViewBaseVa
+		MM_FLUSH_MODIFIED_STATE
 	);
 
 	// TOOD: optimize this and scan other processes mapping this file.
@@ -306,7 +301,6 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 	}
 
 	ObDereferenceObject(MappedObject);
-	ObDereferenceObject(View);
 	return Status;
 }
 

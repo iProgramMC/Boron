@@ -450,9 +450,7 @@ enum
 void MiFlushMappedPtes(
 	uintptr_t StartVa,
 	size_t SizePages,
-	int FlushFlags,
-	PMMVIEW View,
-	uintptr_t ViewBaseVa
+	int FlushFlags
 );
 
 // ===== Memory Initialization =====

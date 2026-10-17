@@ -526,9 +526,7 @@ void MiCleanUpVad(PMMVAD Vad)
 	MiFlushMappedPtes(
 		Vad->Node.StartVa,
 		Vad->Node.Size,
-		MM_FLUSH_DELETE_PTES | MM_FLUSH_NO_SHOOTDOWN, // FlushFlags
-		Vad->View,
-		Vad->Node.StartVa - Vad->ViewOffset
+		MM_FLUSH_DELETE_PTES | MM_FLUSH_NO_SHOOTDOWN
 	);
 
 	MiFreeUnusedMappingLevelsInCurrentMap(Vad->Node.StartVa, Vad->Node.Size);
