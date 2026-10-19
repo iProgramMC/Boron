@@ -4,11 +4,11 @@
 
 Module name:
 	ex/servsup.c
-	
+
 Abstract:
 	This module defines routines to support the implementation
 	of system services.
-	
+
 Author:
 	iProgramInCpp - 9 August 2024
 ***/
@@ -21,27 +21,27 @@ Author:
 BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength)
 {
 	BSTATUS Status;
-	
+
 	if (StringLength > MAX_STRING_LENGTH)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	Status = MmProbeAddress((void*) UserString, StringLength, false, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	char* Str = MmAllocatePool(POOL_PAGED, StringLength + 1);
 	if (!Str)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	Str[StringLength] = 0;
-	
+
 	Status = MmSafeCopy(Str, UserString, StringLength, KeGetPreviousMode(), false);
 	if (FAILED(Status))
 	{
 		MmFreePool(Str);
 		return Status;
 	}
-	
+
 	*OutNewString = Str;
 	return STATUS_SUCCESS;
 }
@@ -49,13 +49,13 @@ BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_
 BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRIBUTES UserAttrs)
 {
 	BSTATUS Status;
-	
+
 	// Copy the entire struct.  Note that any pointers will be invalid to access (since they're potentially
 	// provided from userspace), so we will replace them below.
-	
+
 	if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
 		return Status;
-	
+
 	char* Name = NULL;
 	if (OutNewAttrs->ObjectName &&
 		OutNewAttrs->ObjectNameLength &&
@@ -63,7 +63,7 @@ BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRI
 	{
 		return Status;
 	}
-	
+
 	OutNewAttrs->ObjectName = Name;
 	return STATUS_SUCCESS;
 }
@@ -72,7 +72,7 @@ void ExDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes)
 {
 	if (Attributes->ObjectName)
 		MmFreePool((char*)Attributes->ObjectName);
-	
+
 	Attributes->ObjectName = NULL;
 	Attributes->ObjectNameLength = 0;
 	Attributes->RootDirectory = HANDLE_NONE;
@@ -96,7 +96,7 @@ BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 		ObReferenceObjectByPointer(Thrd);
 		return STATUS_SUCCESS;
 	}
-	
+
 	if (ExpectedType == PsProcessObjectType && Handle == CURRENT_PROCESS_HANDLE)
 	{
 		void* Proc = PsGetCurrentProcess();
@@ -104,7 +104,7 @@ BSTATUS ExReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 		ObReferenceObjectByPointer(Proc);
 		return STATUS_SUCCESS;
 	}
-	
+
 	return ObReferenceObjectByHandle(Handle, ExpectedType, OutObject);
 }
 
@@ -124,10 +124,10 @@ BSTATUS ExCreateObjectUserCall(
 	OBJECT_ATTRIBUTES Attributes;
 	bool CopyAttrs = KeGetPreviousMode() == MODE_USER;
 	int Flags = 0;
-	
+
 	if (!CopyAttrs)
 		Flags |= OB_FLAG_KERNEL;
-	
+
 	if (!ObjectAttributes)
 	{
 		Attributes.ObjectName = NULL;
@@ -147,15 +147,15 @@ BSTATUS ExCreateObjectUserCall(
 	{
 		Attributes = *ObjectAttributes;
 	}
-	
+
 	if (!Attributes.ObjectNameLength)
 		Flags |= OB_FLAG_NO_DIRECTORY;
-	
+
 	if (PoolFlag & POOL_NONPAGED)
 		Flags |= OB_FLAG_NONPAGED;
-	
+
 	void* ParentDirectory = NULL;
-	
+
 	// Reference the parent directory.
 	if (Attributes.RootDirectory != HANDLE_NONE)
 	{
@@ -163,7 +163,7 @@ BSTATUS ExCreateObjectUserCall(
 		if (FAILED(Status))
 			goto Fail;
 	}
-	
+
 	if ((Attributes.OpenFlags & OB_OPEN_DUPLICATE_ON_FORK) && ObjectType->TypeInfo.Duplicate == NULL)
 	{
 		DbgPrint(
@@ -173,7 +173,7 @@ BSTATUS ExCreateObjectUserCall(
 		Status = STATUS_UNSUPPORTED_FUNCTION;
 		goto Fail;
 	}
-	
+
 	void* OutObject = NULL;
 	Status = ObCreateObject(
 		&OutObject,
@@ -184,22 +184,22 @@ BSTATUS ExCreateObjectUserCall(
 		NULL,
 		ObjectBodySize
 	);
-	
+
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	// The object was created, so initialize it.
 	Status = CreateMethod(OutObject, CreateContext);
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	// OK, now insert this object into the handle table.
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObInsertObject(OutObject, &Handle, Attributes.OpenFlags);
-	
+
 	if (FAILED(Status))
 		goto FailUndo;
-	
+
 	// Finally, copy the handle.
 	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), TrustHandlePointer ? MODE_KERNEL : KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
@@ -211,7 +211,7 @@ BSTATUS ExCreateObjectUserCall(
 			ExDisposeCopiedObjectAttributes(&Attributes);
 		return Status;
 	}
-	
+
 	// Nope. We will need to dispose of this object and return an error status.
 	// First, close the handle.  The status code is ignored because closing it is sure
 	// to succeed, and we want to return the cause of the error, and not a handle table
@@ -223,7 +223,7 @@ FailUndo:
 	// unlinking the object can only fail if it isn't linked to a directory, in which case
 	// there's no reference count bias to undo.
 	(void) ObUnlinkObject(OutObject);
-	
+
 	// Finally, remove the initial (ObCreateObject given) reference.
 	ObDereferenceObject(OutObject);
 
@@ -231,10 +231,10 @@ Fail:
 	// We will also need to dereference the parent directory if we referenced one.
 	if (ParentDirectory)
 		ObDereferenceObject(ParentDirectory);
-	
+
 	if (CopyAttrs)
 		ExDisposeCopiedObjectAttributes(&Attributes);
-	
+
 	return Status;
 }
 
@@ -244,10 +244,10 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
 	bool CopyAttrs = KeGetPreviousMode() == MODE_USER;
-	
+
 	if (!ObjectAttributes)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	if (CopyAttrs)
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
@@ -260,12 +260,10 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	{
 		Attributes = *ObjectAttributes;
 	}
-	
+
 	if (KeGetPreviousMode() == MODE_USER)
 		Attributes.OpenFlags |= OB_OPEN_USER_MODE;
-	
-	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
-	
+
 	if ((Attributes.OpenFlags & OB_OPEN_DUPLICATE_ON_FORK) && ObjectType->TypeInfo.Duplicate == NULL)
 	{
 		DbgPrint(
@@ -275,7 +273,9 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		Status = STATUS_UNSUPPORTED_FUNCTION;
 		goto Fail;
 	}
-	
+
+	KPROCESSOR_MODE OldMode = KeSetAddressMode(MODE_KERNEL);
+
 	HANDLE Handle = HANDLE_NONE;
 	Status = ObOpenObjectByName(
 		Attributes.ObjectName,
@@ -284,12 +284,12 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		ObjectType,
 		&Handle
 	);
-	
+
 	KeSetAddressMode(OldMode);
-	
+
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	// Finally, copy the handle.
 	Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
@@ -299,17 +299,17 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 			ExDisposeCopiedObjectAttributes(&Attributes);
 		return Status;
 	}
-	
+
 	// Nope. We will need to close this object and return an error status.
 	// First, close the handle.  The status code is ignored because closing it is sure
 	// to succeed, and we want to return the cause of the error, and not a handle table
 	// error (if it exists).
 	(void) ObClose(Handle);
-	
+
 Fail:
 	if (CopyAttrs)
 		ExDisposeCopiedObjectAttributes(&Attributes);
-	
+
 	return Status;
 }
 
@@ -333,7 +333,7 @@ BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
 {
 	BSTATUS Status;
 	char* Memory;
-	
+
 #ifdef SHOW_PID_IN_DEBUG_LOGS
 	const int OFFSET = 2 + 2 * sizeof(uintptr_t);
 #else
@@ -342,7 +342,7 @@ BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
 	Memory = MmAllocatePool(POOL_PAGED, StringLength + 1 + OFFSET);
 	if (!Memory)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	Memory[StringLength + OFFSET] = 0;
 	Status = MmSafeCopy(Memory + OFFSET, String, StringLength, KeGetPreviousMode(), false);
 	if (SUCCEEDED(Status))
@@ -354,7 +354,7 @@ BSTATUS OSOutputDebugString(const char* String, size_t StringLength)
 	#endif
 		DbgPrintStringLocked(Memory);
 	}
-	
+
 	MmFreePool(Memory);
 	return Status;
 }
@@ -365,22 +365,22 @@ BSTATUS OSDuplicateHandle(HANDLE SourceHandle, HANDLE DestinationProcessHandle, 
 	BSTATUS Status;
 	PEPROCESS DestinationProcess;
 	void* Object;
-	
+
 	Status = ExReferenceObjectByHandle(DestinationProcessHandle, PsProcessObjectType, (void**) &DestinationProcess);
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	Status = ExReferenceObjectByHandle(SourceHandle, NULL, &Object);
 	if (FAILED(Status))
 		goto Fail2;
-	
+
 	HANDLE OutHandle = HANDLE_NONE;
 	Status = ObInsertObjectProcess(DestinationProcess, Object, &OutHandle, OpenFlags);
 	if (FAILED(Status))
 		goto Fail3;
-	
+
 	Status = MmSafeCopy(OutNewHandle, &OutHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
-	
+
 Fail3:
 	ObDereferenceObject(Object);
 Fail2:
