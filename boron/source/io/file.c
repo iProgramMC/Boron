@@ -53,6 +53,7 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t CreateOpt
 		CreateObjMethod(Fcb, FileObject);
 
 	IoReferenceFcb(Fcb);
+	//DbgPrint("IoCreateFileObject => %p", FileObject);
 	return STATUS_SUCCESS;
 }
 
@@ -94,6 +95,7 @@ void IopDeleteFile(void* Object)
 	if (DeleteObjMethod)
 		DeleteObjMethod(File->Fcb, Object);
 
+	//DbgPrint("IopDeleteFile      => %p", Object);
 	IoDereferenceFcb(File->Fcb);
 }
 

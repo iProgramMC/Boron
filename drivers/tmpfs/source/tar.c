@@ -102,6 +102,12 @@ BSTATUS TmpMountTarFile(PLOADER_MODULE Module)
 		return Status;
 	}
 
+#ifdef DEBUG
+	PTMPFS_EXT Ext_ = (PTMPFS_EXT) RootObject->Fcb->Extension;
+	strncpy(Ext_->GivenName, "[Root Directory]", sizeof Ext_->GivenName);
+	Ext_->GivenName[sizeof Ext_->GivenName - 1] = 0;
+#endif
+
 	// Unless the configuration specified an override for the name, use the module's
 	// name as the mount point's name.
 	snprintf(Buffer, sizeof Buffer, "NameOverride:%s", SanitizedPath);

@@ -95,12 +95,14 @@ static BSTATUS IopCallParse(
 	// Note that ParseDir will have added a reference to the FCB.
 	PFILE_OBJECT* OutObject2 = (PFILE_OBJECT*) OutObject;
 
-	// NOTE: Transfers the reference to the FCB into the file object.
+	// NOTE: Creates a new reference to the FCB within the file object.
 	Status = IoCreateFileObject(
 		FoundFcb,
 		OutObject2,
 		ParseContext->CreateOptions
 	);
+
+	IoDereferenceFcb(FoundFcb);
 
 	return Status;
 }
