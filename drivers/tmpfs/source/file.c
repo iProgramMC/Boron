@@ -564,6 +564,8 @@ BSTATUS TmpParseDir(
 		ParsePath
 	);
 
+	Iosb->ParseDir.FoundFcb = NewFcb;
+	Iosb->ParseDir.ReparsePath = NULL;
 	KeReleaseMutex(&Ext->Lock);
 	return IOSB_STATUS(Iosb, Status);
 }
