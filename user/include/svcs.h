@@ -22,17 +22,24 @@ BSTATUS OSClose(HANDLE Handle);
 
 BSTATUS OSCloseAllUninheritableHandles();
 
-BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
+#ifdef IS_BORON_DLL
+
+BSTATUS OSCreateFileCall(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	PCREATE_FILE_PARAMS ExtraParamsUser
+);
+
+#endif
 
 BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, int EventType, bool State);
-
-BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
 
 BSTATUS OSCreateMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, size_t BufferSize, bool NonBlock);
-
-BSTATUS OSCreateSymbolicLink(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength, const char* TargetName, size_t TargetNameLength);
 
 #ifdef IS_BORON_DLL
 
@@ -127,8 +134,6 @@ BSTATUS OSMapViewOfObject(
 );
 
 BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
-
-BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 
 BSTATUS OSOpenMutex(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
 

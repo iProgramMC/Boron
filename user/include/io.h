@@ -26,6 +26,29 @@ HANDLE OSGetStandardOutput();
 
 HANDLE OSGetStandardError();
 
+BSTATUS OSCreateFile(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t FileAttributes,
+	uint64_t AllocationSize,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	const char* TargetName,
+	size_t TargetNameLength
+);
+
+BSTATUS OSOpenFile(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes
+);
+
+BSTATUS OSOpenFileEx(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	uint32_t FileType
+);
+
 #ifdef __cplusplus
 }
 #endif

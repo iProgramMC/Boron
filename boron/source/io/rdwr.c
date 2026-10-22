@@ -798,7 +798,7 @@ BSTATUS IopSetStatusCodeSafeIosb(PIO_STATUS_BLOCK Iosb, BSTATUS Status)
 	return MmSafeCopy(&Iosb->Status, &Status, sizeof(BSTATUS), KeGetPreviousMode(), true);
 }
 
-BSTATUS IoCreateFile2(
+BSTATUS IoCreateFile(
 	PHANDLE OutFileHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	PIO_STATUS_BLOCK IoStatusBlock,
@@ -1073,7 +1073,7 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 	return STATUS_SUCCESS;
 }
 
-BSTATUS OSCreateFile2(
+BSTATUS OSCreateFile(
 	PHANDLE OutFileHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
 	PIO_STATUS_BLOCK IoStatusBlock,
@@ -1085,7 +1085,7 @@ BSTATUS OSCreateFile2(
 	size_t TargetNameLength
 )
 {
-	return IoCreateFile2(
+	return IoCreateFile(
 		OutFileHandle,
 		ObjectAttributes,
 		IoStatusBlock,
@@ -1098,6 +1098,52 @@ BSTATUS OSCreateFile2(
 		false   // TrustAttributesRegion
 	);
 }
+
+BSTATUS OSCreateFileCall(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	PCREATE_FILE_PARAMS ExtraParamsUser
+)
+{
+	CREATE_FILE_PARAMS ExtraParams;
+	if (!ExtraParamsUser)
+	{
+		ExtraParams.AllocationSize = 0;
+		ExtraParams.TargetName = NULL;
+		ExtraParams.TargetNameLength = 0;
+		ExtraParams.FileAttributes = 0;
+	}
+	else
+	{
+		BSTATUS Status = MmSafeCopy(
+			&ExtraParams,
+			ExtraParamsUser,
+			sizeof(CREATE_FILE_PARAMS),
+			KeGetPreviousMode(),
+			false
+		);
+
+		if (FAILED(Status))
+			return Status;
+	}
+
+	return OSCreateFile(
+		OutFileHandle,
+		ObjectAttributes,
+		IoStatusBlock,
+		ExtraParams.FileAttributes,
+		ExtraParams.AllocationSize,
+		CreateDisposition,
+		CreateOptions,
+		ExtraParams.TargetName,
+		ExtraParams.TargetNameLength
+	);
+}
+
+#if 0
 
 // TODO: Remove these system calls, they're vestigial.
 BSTATUS OSOpenFile(PHANDLE OutFileHandle, POBJECT_ATTRIBUTES ObjectAttributes)
@@ -1197,3 +1243,5 @@ BSTATUS OSCreateSymbolicLink(
 		true                   // TrustAttributesRegion
 	);
 }
+
+#endif

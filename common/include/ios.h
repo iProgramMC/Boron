@@ -243,3 +243,16 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 )
 
 #endif
+
+#if defined(KERNEL) || defined(IS_BORON_DLL)
+
+typedef struct
+{
+	uint64_t AllocationSize;
+	const char* TargetName;
+	size_t TargetNameLength;
+	uint32_t FileAttributes;
+}
+CREATE_FILE_PARAMS, *PCREATE_FILE_PARAMS;
+
+#endif

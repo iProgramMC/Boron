@@ -114,8 +114,6 @@ BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, vo
 
 BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, const void* Buffer, size_t Length, uint32_t Flags, uint64_t* OutSize);
 
-BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes);
-
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* Length);
 
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite);
@@ -128,10 +126,29 @@ BSTATUS OSReadDirectoryEntries(PIO_STATUS_BLOCK Iosb, HANDLE FileHandle, size_t 
 
 BSTATUS OSDeviceIoControl(HANDLE FileHandle, int IoControlCode, void* InBuffer, size_t InBufferSize, void* OutBuffer, size_t OutBufferSize);
 
-BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
-
-BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength);
-
-BSTATUS OSCreateSymbolicLink(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength, const char* TargetName, size_t TargetNameLength);
-
 BSTATUS OSFlushFileCache(HANDLE FileHandle);
+
+BSTATUS OSCreateFile(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t FileAttributes,
+	uint64_t AllocationSize,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	const char* TargetName,
+	size_t TargetNameLength
+);
+
+#ifdef KERNEL
+
+BSTATUS OSCreateFileCall(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	PCREATE_FILE_PARAMS ExtraParamsUser
+);
+
+#endif

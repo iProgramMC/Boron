@@ -24,13 +24,11 @@ extern OSCheckIsTerminalFile
 extern OSCheckIsValidHandle
 extern OSClose
 extern OSCloseAllUninheritableHandles
-extern OSCreateDirectory
 extern OSCreateEvent
-extern OSCreateFile
+extern OSCreateFileCall
 extern OSCreateMutex
 extern OSCreatePipe
 extern OSCreateProcess
-extern OSCreateSymbolicLink
 extern OSCreateTerminal
 extern OSCreateTerminalIoHandles
 extern OSCreateThread
@@ -39,8 +37,9 @@ extern OSDuplicateHandle
 extern OSExitProcess
 extern OSExitThread
 extern OSFlushFileCache
-extern OSFreeVirtualMemory
+extern OSFlushVirtualMemory
 extern OSForkProcess
+extern OSFreeVirtualMemory
 extern OSGetAlignmentFile
 extern OSGetCurrentPeb
 extern OSGetCurrentTeb
@@ -52,7 +51,6 @@ extern OSGetTickFrequency
 extern OSGetVersionNumber
 extern OSMapViewOfObject
 extern OSOpenEvent
-extern OSOpenFile
 extern OSOpenMutex
 extern OSOutputDebugString
 extern OSPulseEvent
@@ -81,15 +79,17 @@ extern OSWaitForMultipleObjects
 extern OSWaitForSingleObject
 extern OSWriteFile
 extern OSWriteVirtualMemory
-extern OSFlushVirtualMemory
 
 global KiSystemServiceTable
 global KiSystemServiceTableEnd
 KiSystemServiceTable:
 	dq OSAllocateVirtualMemory
 	dq OSCheckIsTerminalFile
+	dq OSCheckIsValidHandle
 	dq OSClose
+	dq OSCloseAllUninheritableHandles
 	dq OSCreateEvent
+	dq OSCreateFileCall
 	dq OSCreateMutex
 	dq OSCreatePipe
 	dq OSCreateProcess
@@ -100,6 +100,9 @@ KiSystemServiceTable:
 	dq OSDuplicateHandle
 	dq OSExitProcess
 	dq OSExitThread
+	dq OSFlushFileCache
+	dq OSFlushVirtualMemory
+	dq OSForkProcess
 	dq OSFreeVirtualMemory
 	dq OSGetAlignmentFile
 	dq OSGetCurrentPeb
@@ -112,12 +115,13 @@ KiSystemServiceTable:
 	dq OSGetVersionNumber
 	dq OSMapViewOfObject
 	dq OSOpenEvent
-	dq OSOpenFile
 	dq OSOpenMutex
 	dq OSOutputDebugString
 	dq OSPulseEvent
 	dq OSQueryEvent
 	dq OSQueryMutex
+	dq OSQuerySystemInformation
+	dq OSQueryVirtualMemoryInformation
 	dq OSReadDirectoryEntries
 	dq OSReadFile
 	dq OSReadVirtualMemory
@@ -128,8 +132,10 @@ KiSystemServiceTable:
 	dq OSSetCurrentTeb
 	dq OSSetEvent
 	dq OSSetExitCode
+	dq OSSetImageNameProcess
 	dq OSSetPebProcess
 	dq OSSetSuspendedThread
+	dq OSShutDownSystem
 	dq OSSleep
 	dq OSTerminateThread
 	dq OSTouchFile
@@ -137,18 +143,6 @@ KiSystemServiceTable:
 	dq OSWaitForSingleObject
 	dq OSWriteFile
 	dq OSWriteVirtualMemory
-	dq OSForkProcessA
-	dq OSQueryVirtualMemoryInformation
-	dq OSCloseAllUninheritableHandles
-	dq OSCheckIsValidHandle
-	dq OSCreateFile
-	dq OSCreateDirectory
-	dq OSCreateSymbolicLink
-	dq OSSetImageNameProcess
-	dq OSQuerySystemInformation
-	dq OSShutDownSystem
-	dq OSFlushFileCache
-	dq OSFlushVirtualMemory
 KiSystemServiceTableEnd:
 	nop
 

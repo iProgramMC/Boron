@@ -75,7 +75,17 @@ void FileList(const char* Path, size_t StartOffset, size_t Size, size_t SizePrin
 	Attrs.ObjectNameLength = strlen(Path);
 	Attrs.OpenFlags = 0;
 
-	Status = OSOpenFile(&Handle, &Attrs);
+	Status = OSCreateFile(
+		&Handle,
+		&Attrs,
+		NULL, // Iosb
+		0,    // FileAttributes
+		0,    // AllocationSize
+		IO_OPEN,
+		IO_FILE_REGULAR_FILE,
+		NULL, // TargetName
+		0     // TargetNameLength
+	);
 	if (FAILED(Status))
 		KeCrash("Fs1: Failed to open %s: %d (%s)", Path, Status, RtlGetStatusString(Status));
 
