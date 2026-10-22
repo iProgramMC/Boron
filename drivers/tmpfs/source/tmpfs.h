@@ -51,10 +51,6 @@ typedef struct
 
 	// If this is a directory.
 	PTMPFS_DIR_ENTRY ParentEntry;
-
-#ifdef DEBUG
-	char GivenName[32];
-#endif
 }
 TMPFS_EXT, *PTMPFS_EXT;
 

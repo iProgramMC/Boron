@@ -30,20 +30,13 @@ static uint64_t NextTmpfsInodeNumber = 1;
 void TmpReferenceFcb(PFCB Fcb)
 {
 	PREP_EXT;
-
-	size_t ReferenceCount = AtAddFetch(Ext->ReferenceCount, 1);
-
-	//DbgPrint("TmpReferenceFcb(%p)   (RA:%p) (%s)   -> %d", Fcb, CallerAddress(), Ext->GivenName, ReferenceCount);
+	AtAddFetch(Ext->ReferenceCount, 1);
 }
 
 void TmpDereferenceFcb(PFCB Fcb)
 {
 	PREP_EXT;
-
-	size_t ReferenceCount = AtAddFetch(Ext->ReferenceCount, -1);
-
-	//DbgPrint("TmpDereferenceFcb(%p) (RA:%p) (%s)   -> %d", Fcb, CallerAddress(), Ext->GivenName, ReferenceCount);
-	if (ReferenceCount == 0)
+	if (AtAddFetch(Ext->ReferenceCount, -1) == 0)
 	{
 		DbgPrint("TmpDereferenceFcb(%p) DELETING!", Fcb);
 
@@ -536,16 +529,6 @@ BSTATUS TmpParseDir(
 			// Dereference the old FCB and put the new FCB in its place.
 			PFCB OldFcb = DirEntry->Fcb;
 			DirEntry->Fcb = NewFcb;
-
-#ifdef DEBUG
-			PTMPFS_EXT Ext__ = (PTMPFS_EXT) OldFcb->Extension;
-			snprintf(Ext__->GivenName, sizeof Ext__->GivenName, "[S]%s", ParsePath);
-
-			PTMPFS_EXT Ext_ = (PTMPFS_EXT) NewFcb->Extension;
-			strncpy(Ext_->GivenName, ParsePath, sizeof Ext_->GivenName);
-			Ext_->GivenName[sizeof Ext_->GivenName - 1] = 0;
-#endif
-
 			TmpDereferenceFcb(OldFcb);
 		}
 
@@ -805,10 +788,6 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 	Ext->PageListCount = 0;
 	Ext->Version = 1;
 
-#ifdef DEBUG
-	memset(Ext->GivenName, 0, sizeof Ext->GivenName);
-#endif
-
 	InitializeListHead(&Ext->ChildrenListHead);
 
 	// If there is a parent FCB, add this FCB to the parent.
@@ -832,11 +811,6 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 		strncpy(DirEntry->Name, Name, sizeof DirEntry->Name);
 		DirEntry->Name[sizeof DirEntry->Name - 1] = 0;
 
-#ifdef DEBUG
-		strncpy(Ext->GivenName, Name, sizeof Ext->GivenName);
-		Ext->GivenName[sizeof Ext->GivenName - 1] = 0;
-#endif
-
 		PREP_EXT_PARENT;
 		Status = KeWaitForSingleObject(&ParentExt->Lock, false, TMPFS_TIMEOUT, MODE_KERNEL);
 		ASSERT(SUCCEEDED(Status));
@@ -846,8 +820,6 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 
 		KeReleaseMutex(&ParentExt->Lock);
 	}
-
-	//DbgPrint("TmpCreateFcb(%p)      (RA:%p) (%s)   -> %d", Fcb, CallerAddress(), Ext->GivenName, Ext->ReferenceCount);
 
 	// If this is a directory, add the "." and ".." entries.
 	if (FileType == FILE_TYPE_DIRECTORY)
