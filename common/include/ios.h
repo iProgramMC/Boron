@@ -104,7 +104,7 @@ enum
 enum
 {
 	// If the file exists, replace it with a new file. Otherwise, create the file.
-	IO_FILE_SUPERSEDE,
+	IO_SUPERSEDE,
 	// If the file exists, report an error, else create it.
 	IO_CREATE,
 	// If the file exists, open it, else report an error.

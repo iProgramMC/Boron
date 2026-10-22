@@ -355,75 +355,197 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }
 
+static bool TmpIsRequestedTypeValid(uint32_t CreateOptions, uint32_t FileType)
+{
+	uint32_t RequestedType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
+
+	if (RequestedType == FILE_TYPE_UNKNOWN)
+		return true;
+
+	return RequestedType == FileType;
+}
+
 BSTATUS TmpParseDir(
 	PIO_STATUS_BLOCK Iosb,
 	PFILE_OBJECT FileObject,
 	const char* ParsePath,
 	UNUSED int ParseLoopCount,
-	UNUSED PIO_PARSE_CONTEXT ParseContext
+	PIO_PARSE_CONTEXT ParseContext
 )
 {
+	BSTATUS Status;
 	PFCB InitialFcb = FileObject->Fcb;
 
-	if (InitialFcb->FileType == FILE_TYPE_DIRECTORY)
-	{
-		if (*ParsePath == '\0' || *ParsePath == OB_PATH_SEPARATOR)
-			goto ParsedThis;
+	uint32_t CreateOptions = ParseContext->CreateOptions;
+	uint32_t CreateDisposition = ParseContext->CreateDisposition;
 
-		// This is a directory, so let's read it until we find something.
-		BSTATUS Status;
-		PTMPFS_EXT Ext;
-
-		Ext = EXT(InitialFcb);
-		Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
-		if (FAILED(Status))
-			return IOSB_STATUS(Iosb, Status);
-
-		for (PLIST_ENTRY ListEntry = Ext->ChildrenListHead.Flink;
-			ListEntry != &Ext->ChildrenListHead;
-			ListEntry = ListEntry->Flink)
-		{
-			PTMPFS_DIR_ENTRY DirEntry = CONTAINING_RECORD(ListEntry, TMPFS_DIR_ENTRY, ListEntry);
-
-			size_t Match = ObMatchPathName(DirEntry->Name, ParsePath);
-			if (!Match)
-				continue;
-
-			// Path name matched, so return the new FCB.
-			ASSERT(DirEntry->ParentFcb == InitialFcb);
-
-			TmpReferenceFcb(DirEntry->Fcb);
-			Iosb->ParseDir.FoundFcb = DirEntry->Fcb;
-			Iosb->ParseDir.ReparsePath = ParsePath + Match;
-			KeReleaseMutex(&Ext->Lock);
-			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
-		}
-
-		// Not Found
-		KeReleaseMutex(&Ext->Lock);
-		return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
-	}
-	else if (InitialFcb->FileType == FILE_TYPE_SYMBOLIC_LINK)
+	if (InitialFcb->FileType == FILE_TYPE_SYMBOLIC_LINK)
 	{
 		// TODO
 		ASSERT(!"Symlink Parse Not Implemented");
 		return IOSB_STATUS(Iosb, STATUS_UNIMPLEMENTED);
 	}
-	else
+
+	if (InitialFcb->FileType != FILE_TYPE_DIRECTORY)
 	{
 		// This is a file or something else, so only return success
 		// if there are no remaining path components remaining.
-		if (!ParsePath || *ParsePath == '\0')
+		if (ParsePath && *ParsePath != '\0')
 		{
-		ParsedThis:
-			Iosb->ParseDir.FoundFcb = InitialFcb;
-			Iosb->ParseDir.ReparsePath = NULL;
-			TmpReferenceFcb(InitialFcb);
-			return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+			return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
 		}
 
-		return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
+		if (!TmpIsRequestedTypeValid(CreateOptions, InitialFcb->FileType))
+		{
+			// TODO: a status for every other type mismatch, or is this enough?
+			if ((CreateOptions & IO_FILE_TYPE_CREATE_MASK) == FILE_TYPE_DIRECTORY)
+				return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
+			else
+				return IOSB_STATUS(Iosb, STATUS_TYPE_MISMATCH);
+		}
+
+		if (CreateDisposition == IO_CREATE)
+		{
+			return IOSB_STATUS(Iosb, STATUS_NAME_COLLISION);
+		}
+
+		if (CreateDisposition == IO_TRUNCATE || CreateDisposition == IO_TRUNCATE_OR_CREATE)
+		{
+			Status = TmpResize(InitialFcb, ParseContext->AllocationSize);
+			if (FAILED(Status))
+			{
+				DbgPrint("TmpParseDir: Failed to truncate file: %s", RtlGetStatusString(Status));
+				return IOSB_STATUS(Iosb, Status);
+			}
+		}
+
+		Iosb->ParseDir.FoundFcb = InitialFcb;
+		Iosb->ParseDir.ReparsePath = NULL;
+		Iosb->ParseDir.ResultCode = IO_FILE_OPENED;
+
+		if (CreateDisposition == IO_SUPERSEDE)
+		{
+			// The caller will have done the superseding, not us.
+			Iosb->ParseDir.ResultCode = IO_FILE_SUPERSEDED;
+		}
+
+		TmpReferenceFcb(InitialFcb);
+		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
+
+	if (*ParsePath == '\0' || *ParsePath == OB_PATH_SEPARATOR)
+	{
+		if (!TmpIsRequestedTypeValid(CreateOptions, FILE_TYPE_DIRECTORY))
+		{
+			return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
+		}
+
+		if (CreateDisposition == IO_TRUNCATE ||
+			CreateDisposition == IO_TRUNCATE_OR_CREATE ||
+			CreateDisposition == IO_SUPERSEDE)
+		{
+			return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
+		}
+
+		if (CreateDisposition == IO_CREATE)
+		{
+			return IOSB_STATUS(Iosb, STATUS_NAME_COLLISION);
+		}
+
+		Iosb->ParseDir.FoundFcb = InitialFcb;
+		Iosb->ParseDir.ReparsePath = NULL;
+		Iosb->ParseDir.ResultCode = IO_FILE_OPENED;
+		TmpReferenceFcb(InitialFcb);
+		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+	}
+
+	// This is a directory, so let's read it until we find something.
+	PTMPFS_EXT Ext;
+
+	Ext = EXT(InitialFcb);
+	Status = KeWaitForSingleObject(&Ext->Lock, true, TMPFS_TIMEOUT, KeGetPreviousMode());
+	if (FAILED(Status))
+		return IOSB_STATUS(Iosb, Status);
+
+	for (PLIST_ENTRY ListEntry = Ext->ChildrenListHead.Flink;
+		ListEntry != &Ext->ChildrenListHead;
+		ListEntry = ListEntry->Flink)
+	{
+		PTMPFS_DIR_ENTRY DirEntry = CONTAINING_RECORD(ListEntry, TMPFS_DIR_ENTRY, ListEntry);
+
+		size_t Match = ObMatchPathName(DirEntry->Name, ParsePath);
+		if (!Match)
+			continue;
+
+		// If we're trying to supersede, check what exactly we're trying to supersede and whether
+		// this is the last path component.
+		if (CreateDisposition == IO_SUPERSEDE)
+		{
+			if (DirEntry->Fcb->FileType == FILE_TYPE_DIRECTORY)
+			{
+				// Supersedure cannot happen.
+				KeReleaseMutex(&Ext->Lock);
+				return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
+			}
+
+			bool IsLastPathComponent = true;
+
+			for (const char* Ptr = ParsePath; *Ptr != 0; Ptr++)
+			{
+				if (*Ptr == OB_PATH_SEPARATOR) {
+					IsLastPathComponent = false;
+					break;
+				}
+			}
+
+			if (IsLastPathComponent)
+			{
+				// Swap the FCB in place, the old FCB will be dereferenced and deleted on close.
+				uint32_t FileType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
+				if (FileType == FILE_TYPE_UNKNOWN)
+					FileType = FILE_TYPE_FILE;
+
+				PFCB NewFcb;
+				Status = TmpCreateFcb(
+					&NewFcb,
+					NULL, // InitialAddress
+					ParseContext->AllocationSize,
+					FileType,
+					NULL, // ParentFcb
+					NULL  // Name
+				);
+
+				if (FAILED(Status))
+				{
+					DbgPrint(
+						"TmpParseDir: Supersedure of path '%s' failed: %s",
+						ParsePath,
+						RtlGetStatusString(Status)
+					);
+					KeReleaseMutex(&Ext->Lock);
+					return IOSB_STATUS(Iosb, Status);
+				}
+
+				// Dereference the old FCB and put the new FCB in its place.
+				PFCB OldFcb = DirEntry->Fcb;
+				DirEntry->Fcb = NewFcb;
+				TmpDereferenceFcb(OldFcb);
+			}
+		}
+
+		// Path name matched, so return the new FCB.
+		ASSERT(DirEntry->ParentFcb == InitialFcb);
+
+		TmpReferenceFcb(DirEntry->Fcb);
+		Iosb->ParseDir.FoundFcb = DirEntry->Fcb;
+		Iosb->ParseDir.ReparsePath = ParsePath + Match;
+		KeReleaseMutex(&Ext->Lock);
+		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
+	}
+
+	// Not Found
+	KeReleaseMutex(&Ext->Lock);
+	return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
 }
 
 BSTATUS TmpUnlink(PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry)
@@ -616,7 +738,7 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 
 // ** Done with FCB dispatch functions **
 
-BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name)
+BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name)
 {
 	BSTATUS Status;
 	PFCB Fcb = IoAllocateFcb(&TmpDispatchTable, sizeof(TMPFS_EXT), true);
@@ -636,19 +758,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 	Ext->PageListCount = 0;
 	Ext->Version = 1;
 
-	// If InitialLength is set, then InitialAddress must also be set.
-	ASSERT(Ext->InitialLength ? (Ext->InitialAddress != NULL) : true);
-
 	InitializeListHead(&Ext->ChildrenListHead);
-
-	// Create a file object for it.
-	PFILE_OBJECT FileObject;
-	Status = IoCreateFileObject(Fcb, &FileObject, 0);
-	if (FAILED(Status))
-	{
-		IoFreeFcb(Fcb);
-		return Status;
-	}
 
 	// If there is a parent FCB, add this FCB to the parent.
 	PTMPFS_DIR_ENTRY DirEntry = NULL;
@@ -661,8 +771,6 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 		if (!DirEntry)
 		{
 			TmpDereferenceFcb(ParentFcb);
-			TmpDereferenceFcb(Fcb);
-			ObDereferenceObject(FileObject);
 			IoFreeFcb(Fcb);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
@@ -705,7 +813,6 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 				TmpDereferenceFcb(ParentFcb);
 			}
 
-			ObDereferenceObject(FileObject);
 			IoFreeFcb(Fcb);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
@@ -724,6 +831,30 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t 
 		TmpReferenceFcb(DotDotDirEntry->ParentFcb);
 		TmpReferenceFcb(DotDirEntry->Fcb);
 		TmpReferenceFcb(DotDotDirEntry->Fcb);
+	}
+
+	*OutFcb = Fcb;
+	return Status;
+}
+
+BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, uint64_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name)
+{
+	PFCB Fcb;
+	BSTATUS Status;
+
+	Status = TmpCreateFcb(&Fcb, InitialAddress, InitialLength, FileType, ParentFcb, Name);
+	if (FAILED(Status))
+	{
+		return Status;
+	}
+
+	// Create a file object for it.
+	PFILE_OBJECT FileObject;
+	Status = IoCreateFileObject(Fcb, &FileObject, 0);
+	if (FAILED(Status))
+	{
+		TmpDereferenceFcb(Fcb);
+		return Status;
 	}
 
 	*OutFileObject = FileObject;
