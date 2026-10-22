@@ -479,7 +479,7 @@ BSTATUS TmpParseDir(
 
 		// If we're trying to supersede, check what exactly we're trying to supersede and whether
 		// this is the last path component.
-		if (CreateDisposition == IO_SUPERSEDE)
+		if (CreateDisposition == IO_SUPERSEDE && IsLastPathComponent)
 		{
 			if (DirEntry->Fcb->FileType == FILE_TYPE_DIRECTORY)
 			{
@@ -488,39 +488,36 @@ BSTATUS TmpParseDir(
 				return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
 			}
 
-			if (IsLastPathComponent)
+			// Swap the FCB in place, the old FCB will be dereferenced and deleted on close.
+			uint32_t FileType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
+			if (FileType == FILE_TYPE_UNKNOWN)
+				FileType = FILE_TYPE_FILE;
+
+			PFCB NewFcb;
+			Status = TmpCreateFcb(
+				&NewFcb,
+				NULL, // InitialAddress
+				ParseContext->AllocationSize,
+				FileType,
+				NULL, // ParentFcb
+				NULL  // Name
+			);
+
+			if (FAILED(Status))
 			{
-				// Swap the FCB in place, the old FCB will be dereferenced and deleted on close.
-				uint32_t FileType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
-				if (FileType == FILE_TYPE_UNKNOWN)
-					FileType = FILE_TYPE_FILE;
-
-				PFCB NewFcb;
-				Status = TmpCreateFcb(
-					&NewFcb,
-					NULL, // InitialAddress
-					ParseContext->AllocationSize,
-					FileType,
-					NULL, // ParentFcb
-					NULL  // Name
+				DbgPrint(
+					"TmpParseDir: Supersedure of path '%s' failed: %s",
+					ParsePath,
+					RtlGetStatusString(Status)
 				);
-
-				if (FAILED(Status))
-				{
-					DbgPrint(
-						"TmpParseDir: Supersedure of path '%s' failed: %s",
-						ParsePath,
-						RtlGetStatusString(Status)
-					);
-					KeReleaseMutex(&Ext->Lock);
-					return IOSB_STATUS(Iosb, Status);
-				}
-
-				// Dereference the old FCB and put the new FCB in its place.
-				PFCB OldFcb = DirEntry->Fcb;
-				DirEntry->Fcb = NewFcb;
-				TmpDereferenceFcb(OldFcb);
+				KeReleaseMutex(&Ext->Lock);
+				return IOSB_STATUS(Iosb, Status);
 			}
+
+			// Dereference the old FCB and put the new FCB in its place.
+			PFCB OldFcb = DirEntry->Fcb;
+			DirEntry->Fcb = NewFcb;
+			TmpDereferenceFcb(OldFcb);
 		}
 
 		// Path name matched, so return the new FCB.
