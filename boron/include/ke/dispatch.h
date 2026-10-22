@@ -4,11 +4,11 @@
 
 Module name:
 	ke/dispatch.h
-	
+
 Abstract:
 	This header file contains the definitions for the
 	dispatch objects.
-	
+
 Author:
 	iProgramInCpp - 30 October 2023
 ***/
@@ -25,7 +25,7 @@ typedef struct KDISPATCH_HEADER_tag
 	uint8_t Type;
 	uint8_t Spare1;
 	short   Signaled;
-	
+
 	LIST_ENTRY WaitBlockList;
 }
 KDISPATCH_HEADER, *PKDISPATCH_HEADER;
@@ -65,3 +65,4 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 #include "mutex.h"
 #include "semaphor.h"
 #include "process.h"
+#include "fmutex.h"
