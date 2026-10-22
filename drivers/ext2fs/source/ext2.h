@@ -4,12 +4,12 @@
 
 Module name:
 	ext2.h
-	
+
 Abstract:
 	This header defines all of the structures used by
 	the ext2 file system driver as well as the ext2
 	I/O dispatch function prototypes.
-	
+
 Author:
 	iProgramInCpp - 15 May 2025
 ***/
@@ -31,23 +31,23 @@ typedef struct _EXT2_FCB_EXT
 {
 	// This inode's number.
 	uint32_t InodeNumber;
-	
+
 	// This inode's reference count.
 	uintptr_t ReferenceCount;
-	
+
 	// The on-disk representation of the file.
 	EXT2_INODE Inode;
-	
+
 	// This guards the direct block array.
 	EX_RW_LOCK BlockRwlock;
-	
+
 	// Back-pointer to the file system instance.
 	PEXT2_FILE_SYSTEM OwnerFS;
-	
+
 	// This FCB's location in the file system's inode tree.
 	bool AddedToInodeTree;
 	RBTREE_ENTRY InodeTreeEntry;
-	
+
 	// This field tells us whether or not we need to re-validate
 	// when performing a "read directory" operation.
 	uint64_t Version;
@@ -78,7 +78,7 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 
 BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
 
-BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, UNUSED int ParseLoopCount);
+BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, UNUSED int ParseLoopCount, PIO_PARSE_CONTEXT ParseContext);
 
 // *** Ext2 File System Struct ***
 
@@ -87,12 +87,12 @@ struct _EXT2_FILE_SYSTEM
 {
 	PDEVICE_OBJECT BackingDevice;
 	PFILE_OBJECT File;
-	
+
 	EXT2_SUPERBLOCK SuperBlock;
-	
+
 	// If this file system is read only because it uses features that make it so.
 	bool ForceReadOnly;
-	
+
 	// Some pre-calculated items.
 	int FirstInode;
 	int InodeSize;
@@ -101,11 +101,11 @@ struct _EXT2_FILE_SYSTEM
 	int InodesPerGroup;
 	int BlocksPerGroup;
 	int BlockSizeLog2;
-	
+
 	// This is for lookup by inode #.
 	RBTREE InodeTree;
 	KMUTEX InodeTreeMutex;
-	
+
 	// This is a quick reference to the root directory.
 	PFCB RootInode;
 };

@@ -355,7 +355,13 @@ BSTATUS TmpReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offs
 	return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 }
 
-BSTATUS TmpParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, UNUSED int ParseLoopCount)
+BSTATUS TmpParseDir(
+	PIO_STATUS_BLOCK Iosb,
+	PFILE_OBJECT FileObject,
+	const char* ParsePath,
+	UNUSED int ParseLoopCount,
+	UNUSED PIO_PARSE_CONTEXT ParseContext
+)
 {
 	PFCB InitialFcb = FileObject->Fcb;
 

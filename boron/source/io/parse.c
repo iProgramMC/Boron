@@ -15,15 +15,33 @@ Author:
 #include "iop.h"
 
 // NOTE: Unlocks the FCB when done.
-static BSTATUS IopCallParse(PFILE_OBJECT FileObject, const char* Path, int LoopCount, const char** OutReparsePath, void** OutObject)
+static BSTATUS IopCallParse(
+	PFILE_OBJECT FileObject,
+	const char* Path,
+	int LoopCount,
+	const char** OutReparsePath,
+	PIO_PARSE_CONTEXT ParseContext,
+	void** OutObject
+)
 {
 	BSTATUS Status;
 	PFCB Fcb = FileObject->Fcb;
 
 	PFCB FoundFcb = NULL;
-	IO_PARSE_DIR_METHOD Parse = Fcb->DispatchTable->ParseDir;
+	IO_PARSE_DIR_METHOD ParseDir = Fcb->DispatchTable->ParseDir;
 
-	if (!Parse)
+	IO_PARSE_CONTEXT DefaultParseContext;
+	if (!ParseContext)
+	{
+		DefaultParseContext.FileAttributes = 0;
+		DefaultParseContext.CreateOptions = IO_FILE_ANY_TYPE;
+		DefaultParseContext.CreateDisposition = IO_OPEN;
+		DefaultParseContext.AllocationSize = 0;
+		DefaultParseContext.TargetName = NULL;
+		ParseContext = &DefaultParseContext;
+	}
+
+	if (!ParseDir)
 	{
 		if (Fcb->DispatchTable->Flags & DISPATCH_FLAG_DIRECTLY_OPENABLE)
 		{
@@ -48,7 +66,7 @@ static BSTATUS IopCallParse(PFILE_OBJECT FileObject, const char* Path, int LoopC
 		memset (&Iosb, 0, sizeof Iosb);
 	#endif
 
-		Status = Parse(&Iosb, FileObject, Path, LoopCount);
+		Status = ParseDir(&Iosb, FileObject, Path, LoopCount, ParseContext);
 
 		IoUnlockFcb(Fcb);
 
@@ -78,7 +96,7 @@ static BSTATUS IopCallParse(PFILE_OBJECT FileObject, const char* Path, int LoopC
 	Status = IoCreateFileObject(
 		FoundFcb,
 		OutObject2,
-		0 // CreateOptions
+		ParseContext->CreateOptions
 	);
 
 	return Status;
@@ -117,12 +135,12 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 	return STATUS_NOT_A_DIRECTORY;
 }
 
-BSTATUS IopParseFile(void* Object, const char** ParsePath, UNUSED void* Context, int LoopCount, void** OutObject)
+BSTATUS IopParseFile(void* Object, const char** ParsePath, void* ParseContext, int LoopCount, void** OutObject)
 {
 	const char* PathName = *ParsePath;
 
 	PFILE_OBJECT FileObject = Object;
 
 	IoLockFcbShared(FileObject->Fcb);
-	return IopCallParse(FileObject, PathName, LoopCount, ParsePath, OutObject);
+	return IopCallParse(FileObject, PathName, LoopCount, ParsePath, ParseContext, OutObject);
 }

@@ -4,11 +4,11 @@
 
 Module name:
 	io/dispatch.h
-	
+
 Abstract:
 	This header file defines the I/O dispatch table used by
 	driver objects.
-	
+
 Author:
 	iProgramInCpp - 29 June 2024
 ***/
@@ -17,6 +17,7 @@ Author:
 #include <ios.h>
 
 typedef struct _FCB FCB, *PFCB;
+typedef struct _IO_PARSE_CONTEXT IO_PARSE_CONTEXT, *PIO_PARSE_CONTEXT;
 
 //
 // Notes:  (please clean up soon!)
@@ -35,7 +36,7 @@ typedef struct _FCB FCB, *PFCB;
 //
 // - IO_MOUNT_METHOD returns whether or not this device object (e.g. a partition on a drive, or a floppy diskette, etc)
 //   (actually a file object that *can* refer to a device object), contains the file system described by this dispatch table.
-//   If it does, the file system will try to mount this file system. Otherwise, it will return STATUS_NOT_THIS_FILE_SYSTEM. 
+//   If it does, the file system will try to mount this file system. Otherwise, it will return STATUS_NOT_THIS_FILE_SYSTEM.
 //   On debug builds, any status codes other than STATUS_NOT_THIS_FILE_SYSTEM will throw up an assertion error.  The
 //   BackingFile pointer *must* be opened from the BackingDevice pointer. The `MountDir' must exist.
 //
@@ -137,7 +138,7 @@ typedef BSTATUS(*IO_WRITE_METHOD)       (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64
 typedef BSTATUS(*IO_OPEN_DIR_METHOD)    (PFCB Fcb);
 typedef BSTATUS(*IO_CLOSE_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)    (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
-typedef BSTATUS(*IO_PARSE_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount);
+typedef BSTATUS(*IO_PARSE_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount, PIO_PARSE_CONTEXT ParseContext);
 typedef BSTATUS(*IO_RESIZE_METHOD)      (PFCB Fcb, uint64_t NewLength);
 typedef BSTATUS(*IO_MAKE_FILE_METHOD)   (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
 typedef BSTATUS(*IO_MAKE_DIR_METHOD)    (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
@@ -171,11 +172,11 @@ enum
 	//
 	// This does not affect operations other than `Read` and `Write`.
 	DISPATCH_FLAG_EXCLUSIVE = 1 << 0,
-	
+
 	// If this flag is set, then the FCB is directly mappable and you should be
 	// using IO_BACKING_MEM_METHOD instead of the cache control block.
 	DISPATCH_FLAG_DIRECTLY_MAPPABLE = 1 << 1,
-	
+
 	// If this flag is set, then a file object that is attached to the object
 	// manager namespace may just be duplicated, instead of attempting to parse
 	// it as a directory, when opened.
@@ -220,3 +221,13 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_ALIGN_INFO_METHOD   GetAlignmentInfo;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;
+
+typedef struct _IO_PARSE_CONTEXT
+{
+	uint64_t AllocationSize;
+	const char* TargetName;
+	uint32_t FileAttributes;
+	uint32_t CreateOptions;
+	uint32_t CreateDisposition;
+}
+IO_PARSE_CONTEXT, *PIO_PARSE_CONTEXT;
