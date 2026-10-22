@@ -238,16 +238,6 @@ BSTATUS TmpResize(PFCB Fcb, uint64_t NewLength)
 	return STATUS_SUCCESS;
 }
 
-BSTATUS TmpMakeFile(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
-{
-	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_FILE, ContainingFcb, FileName);
-}
-
-BSTATUS TmpMakeDirectory(PFILE_OBJECT* OutFileObject, PFCB ContainingFcb, const char* FileName)
-{
-	return TmpCreateFile(OutFileObject, NULL, 0, FILE_TYPE_DIRECTORY, ContainingFcb, FileName);
-}
-
 typedef union
 {
 	struct
@@ -467,6 +457,16 @@ BSTATUS TmpParseDir(
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 
+	bool IsLastPathComponent = true;
+
+	for (const char* Ptr = ParsePath; *Ptr != 0; Ptr++)
+	{
+		if (*Ptr == OB_PATH_SEPARATOR) {
+			IsLastPathComponent = false;
+			break;
+		}
+	}
+
 	for (PLIST_ENTRY ListEntry = Ext->ChildrenListHead.Flink;
 		ListEntry != &Ext->ChildrenListHead;
 		ListEntry = ListEntry->Flink)
@@ -486,16 +486,6 @@ BSTATUS TmpParseDir(
 				// Supersedure cannot happen.
 				KeReleaseMutex(&Ext->Lock);
 				return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
-			}
-
-			bool IsLastPathComponent = true;
-
-			for (const char* Ptr = ParsePath; *Ptr != 0; Ptr++)
-			{
-				if (*Ptr == OB_PATH_SEPARATOR) {
-					IsLastPathComponent = false;
-					break;
-				}
 			}
 
 			if (IsLastPathComponent)
@@ -543,9 +533,39 @@ BSTATUS TmpParseDir(
 		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
 
-	// Not Found
+	// Not found.  Create it if needed.
+	if (CreateDisposition != IO_CREATE &&
+		CreateDisposition != IO_CREATE_OR_OPEN &&
+		CreateDisposition != IO_TRUNCATE_OR_CREATE &&
+		CreateDisposition != IO_SUPERSEDE)
+	{
+		KeReleaseMutex(&Ext->Lock);
+		return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
+	}
+
+	// If this is not the last path component, DON'T create it.
+	if (!IsLastPathComponent)
+	{
+		KeReleaseMutex(&Ext->Lock);
+		return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
+	}
+
+	uint32_t FileType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
+	if (FileType == FILE_TYPE_UNKNOWN)
+		FileType = FILE_TYPE_FILE;
+
+	PFCB NewFcb;
+	Status = TmpCreateFcb(
+		&NewFcb,
+		NULL, // InitialAddress
+		ParseContext->AllocationSize,
+		FileType,
+		InitialFcb,
+		ParsePath
+	);
+
 	KeReleaseMutex(&Ext->Lock);
-	return IOSB_STATUS(Iosb, STATUS_NAME_NOT_FOUND);
+	return IOSB_STATUS(Iosb, Status);
 }
 
 BSTATUS TmpUnlink(PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry)
@@ -727,8 +747,6 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 	.Read = TmpRead,
 	.Write = TmpWrite,
 	.Resize = TmpResize,
-	.MakeFile = TmpMakeFile,
-	.MakeDirectory = TmpMakeDirectory,
 	.MakeHardLink = TmpMakeHardLink,
 	.Unlink = TmpUnlink,
 	.RemoveDir = TmpRemoveDir,
@@ -740,7 +758,7 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 
 BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name)
 {
-	BSTATUS Status;
+	BSTATUS Status = STATUS_SUCCESS;
 	PFCB Fcb = IoAllocateFcb(&TmpDispatchTable, sizeof(TMPFS_EXT), true);
 	if (!Fcb)
 		return STATUS_INSUFFICIENT_MEMORY;

@@ -432,7 +432,7 @@ BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 		else
 		{
 			CopyAttrs = true;
-			Status = ExCopySafeObjectAttributes(&AttributesCopy, ObjectAttributes);
+			Status = ExCopySafeObjectAttributes(&AttributesCopy, ObjectAttributes, false);
 			if (FAILED(Status))
 				return Status;
 		}

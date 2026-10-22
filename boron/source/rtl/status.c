@@ -4,10 +4,10 @@
 
 Module name:
 	rtl/status.c
-	
+
 Abstract:
 	This module contains string descriptions for each status code.
-	
+
 Author:
 	iProgramInCpp - 19 April 2025
 ***/
@@ -21,7 +21,7 @@ static const char* const RtlpStatusCodes[] =
 {
 	// NOTE: Keep synced with status.h!
 	"Success",
-	
+
 	"An invalid parameter was passed to a function or system service.",
 	"An instruction referenced memory which could not be accessed.",
 	"Not enough memory is available to complete the operation.",
@@ -29,16 +29,16 @@ static const char* const RtlpStatusCodes[] =
 	"The interrupt priority level that this function was called at is too high.",
 	"An instruction has triggered a page fault and the page fault handler has returned without completely resolving the page fault.",
 	"An instruction has triggered a page fault and the page fault handler is waiting for memory.",
-	
+
 	"The current thread is waiting.",
 	"The current thread has been alerted.",
 	"The given timeout interval has expired.",
 	"The current thread has been killed.",
 	"A kernel APC was received, resuming the wait process.",
-	
+
 	"An access violation has occurred while trying to access a parameter during a system service.",
 	"This object cannot be remapped.",
-	
+
 	"The object name is invalid.",
 	"The object name already exists.",
 	"The object is not of the requested type.",
@@ -55,11 +55,11 @@ static const char* const RtlpStatusCodes[] =
 	"The object is already linked to a directory.",
 	"The handle is invalid.",
 	"The provided buffer is too small to fit the requested data.",
-	
+
 	"The handle table is not empty.",
 	"The handle delete operation was cancelled.",
 	"Too many handles have been opened.",
-	
+
 	"The operation is in progress.",
 	"The header is invalid.",
 	"STATUS_SAME_FRAME",
@@ -78,19 +78,19 @@ static const char* const RtlpStatusCodes[] =
 	"The specified directory is not empty.",
 	"The specified offset is located outside of the specified file's boundaries.",
 	"The specified object is not a terminal.",
-	
+
 	"Not enough virtual address space is available to complete the operation.",
 	"The virtual address requested is not located at the base of a reserved region.",
 	"The virtual address requested does not have a reserved memory range associated with it.",
 	"The memory could not be released because it hasn't been decommitted in its entirety.",
 	"The given address range conflicts with existing address space, or overlaps multiple regions.",
-	
+
 	"The executable file is invalid.",
 	"The executable file is valid, but for a machine type other than the current machine.",
 	"The current process is created as a result of an OSForkProcess() operation.",
-	
+
 	"The process is still running.",
-	
+
 	"The host closed the port before a connection could be created.",
 	"The message could not be created because the specified buffer is too long."
 };
@@ -99,15 +99,18 @@ const char* RtlGetStatusString(int code)
 {
 	if (code < 0)
 		return "Unknown Error";
-	
+
 	if (code >= STATUS_RANGE_ABANDONED_WAIT + MAXIMUM_WAIT_BLOCKS)
 		return "Unknown Error";
-	
+
 	if (code >= STATUS_RANGE_ABANDONED_WAIT)
 		return "The caller attempted to wait for an object that has been abandoned.";
-	
+
 	if (code >= STATUS_RANGE_WAIT)
 		return "The caller specified WAIT_ANY for the wait type and one of the objects has been set to the signalled state.";
-	
+
+	if (code >= STATUS_MAX)
+		return "Unknown Error";
+
 	return RtlpStatusCodes[code];
 }

@@ -675,51 +675,6 @@ BSTATUS IoDeviceIoControl(
 	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
 }
 
-BSTATUS IoMakeFile(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, const char* Name)
-{
-	PFCB Fcb = DirectoryObject->Fcb;
-	IO_MAKE_FILE_METHOD MakeFile = Fcb->DispatchTable->MakeFile;
-
-	if (!MakeFile)
-		return STATUS_UNSUPPORTED_FUNCTION;
-
-	return MakeFile(OutFileObject, Fcb, Name);
-}
-
-BSTATUS IoMakeDirectory(PFILE_OBJECT* OutFileObject, PFILE_OBJECT DirectoryObject, const char* Name)
-{
-	PFCB Fcb = DirectoryObject->Fcb;
-	IO_MAKE_DIR_METHOD MakeDirectory = Fcb->DispatchTable->MakeDirectory;
-
-	if (!MakeDirectory)
-		return STATUS_UNSUPPORTED_FUNCTION;
-
-	return MakeDirectory(OutFileObject, Fcb, Name);
-}
-
-BSTATUS IoMakeSymbolicLink(
-	PFILE_OBJECT* OutFileObject,
-	PFILE_OBJECT DirectoryObject,
-	const char* Name,
-	const char* DestinationName,
-	size_t DestinationNameLength
-)
-{
-	PFCB Fcb = DirectoryObject->Fcb;
-	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink = Fcb->DispatchTable->MakeSymbolicLink;
-
-	if (!MakeSymbolicLink)
-		return STATUS_UNSUPPORTED_FUNCTION;
-
-	return MakeSymbolicLink(
-		OutFileObject,
-		Fcb,
-		Name,
-		DestinationName,
-		DestinationNameLength
-	);
-}
-
 BSTATUS IoMakeHardLink(
 	PFILE_OBJECT DirectoryObject,
 	PIO_DIRECTORY_ENTRY Name,
@@ -834,6 +789,105 @@ BSTATUS OSPerformOperationFileHandle(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint6
 	return Status2;
 }
 
+
+BSTATUS IopSetStatusCodeSafeIosb(PIO_STATUS_BLOCK Iosb, BSTATUS Status)
+{
+	if (!Iosb)
+		return STATUS_SUCCESS;
+
+	return MmSafeCopy(&Iosb->Status, &Status, sizeof(BSTATUS), KeGetPreviousMode(), true);
+}
+
+BSTATUS IoCreateFile2(
+	PHANDLE OutFileHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t FileAttributes,
+	uint64_t AllocationSize,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
+	const char* TargetName,
+	size_t TargetNameLength,
+	bool TrustAttributesRegion
+)
+{
+	BSTATUS Status;
+	IO_PARSE_CONTEXT ParseContext;
+	ParseContext.AllocationSize = AllocationSize;
+	ParseContext.CreateDisposition = CreateDisposition;
+	ParseContext.CreateOptions = CreateOptions;
+	ParseContext.FileAttributes = FileAttributes;
+	ParseContext.ResultCode = IO_FILE_NO_ACTION_TAKEN;
+	ParseContext.TargetName = NULL;
+
+	uint32_t RequestedType = CreateOptions & IO_FILE_TYPE_CREATE_MASK;
+	if (RequestedType == FILE_TYPE_SYMBOLIC_LINK && (!TargetName || !TargetNameLength))
+	{
+		DbgPrint("OSCreateFile: Invalid parameter for TargetName/Length when creating a symbolic link");
+		(void) IopSetStatusCodeSafeIosb(IoStatusBlock, STATUS_INVALID_PARAMETER);
+		return STATUS_INVALID_PARAMETER;
+	}
+	else if (TargetName || TargetNameLength)
+	{
+		DbgPrint("OSCreateFile: Invalid parameter for TargetName/Length when creating a non-link");
+		(void) IopSetStatusCodeSafeIosb(IoStatusBlock, STATUS_INVALID_PARAMETER);
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	char* TargetNameCopy = NULL;
+	if (RequestedType == FILE_TYPE_SYMBOLIC_LINK)
+	{
+		TargetNameCopy = MmAllocatePool(POOL_PAGED, TargetNameLength + 1);
+		if (!TargetNameCopy)
+		{
+			DbgPrint("OSCreateFile: Cannot allocate space for target name when creating a symbolic link");
+			(void) IopSetStatusCodeSafeIosb(IoStatusBlock, STATUS_INSUFFICIENT_MEMORY);
+			return STATUS_INSUFFICIENT_MEMORY;
+		}
+
+		Status = MmSafeCopy(TargetNameCopy, TargetName, TargetNameLength, KeGetPreviousMode(), false);
+		if (FAILED(Status))
+		{
+			DbgPrint("OSCreateFile: Cannot copy memory for target name when creating a symbolic link: %s", RtlGetStatusString(Status));
+			(void) IopSetStatusCodeSafeIosb(IoStatusBlock, Status);
+			return Status;
+		}
+
+		ParseContext.TargetName = TargetNameCopy;
+	}
+
+	Status = ExOpenObjectUserCallEx(
+		OutFileHandle,
+		ObjectAttributes,
+		IoFileType,
+		&ParseContext,
+		TrustAttributesRegion
+	);
+
+	if (TargetNameCopy) {
+		MmFreePool(TargetNameCopy);
+	}
+
+	if (IoStatusBlock)
+	{
+		// Create an I/O status block to pass back to the caller.
+		IO_STATUS_BLOCK SrcIosb;
+		memset(&SrcIosb, 0, sizeof SrcIosb);
+		SrcIosb.Status = Status;
+
+		if (SUCCEEDED(Status)) {
+			SrcIosb.CreateInformation = ParseContext.ResultCode;
+		}
+
+		BSTATUS NewStatus = MmSafeCopy(IoStatusBlock, &SrcIosb, sizeof(IO_STATUS_BLOCK), KeGetPreviousMode(), true);
+
+		if (SUCCEEDED(Status))
+			return NewStatus;
+	}
+
+	return Status;
+}
+
 // =========== User-facing API ===========
 
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
@@ -885,11 +939,6 @@ BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, c
 		Flags &= ~IO_RW_USER_MODE_FORBIDDEN_FLAGS;
 
 	return OSPerformOperationFileHandle(Iosb, Handle, ByteOffset, (uintptr_t) Buffer, Length, Flags, OutFileSize, IO_OP_WRITE);
-}
-
-BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
-{
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType, NULL);
 }
 
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)
@@ -1024,134 +1073,97 @@ BSTATUS OSSeekFile(HANDLE FileHandle, int64_t Offset, int Whence, uint64_t* OutN
 	return STATUS_SUCCESS;
 }
 
-// TODO: add more parameters like permissions etc.
-//
-// Creates a new object inside of a directory.
-BSTATUS IoCreateObjectInDirectory(
+BSTATUS OSCreateFile2(
 	PHANDLE OutFileHandle,
-	HANDLE DirectoryHandle,
-	const char* FileName,
-	size_t FileNameLength,
-	int FileType,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK IoStatusBlock,
+	uint32_t FileAttributes,
+	uint64_t AllocationSize,
+	uint32_t CreateDisposition,
+	uint32_t CreateOptions,
 	const char* TargetName,
 	size_t TargetNameLength
 )
 {
-	BSTATUS Status;
-	if (!OutFileHandle || !FileName || !FileNameLength)
-		return STATUS_INVALID_PARAMETER;
+	return IoCreateFile2(
+		OutFileHandle,
+		ObjectAttributes,
+		IoStatusBlock,
+		FileAttributes,
+		AllocationSize,
+		CreateDisposition,
+		CreateOptions,
+		TargetName,
+		TargetNameLength,
+		false   // TrustAttributesRegion
+	);
+}
 
-	if (FileNameLength >= IO_MAX_NAME)
-		return STATUS_NAME_TOO_LONG;
-
-	char* FileNameCopy = MmAllocatePool(POOL_PAGED, FileNameLength + 1);
-	if (!FileNameCopy)
-		return STATUS_INSUFFICIENT_MEMORY;
-
-	FileNameCopy[FileNameLength] = 0;
-	Status = MmSafeCopy(FileNameCopy, FileName, FileNameLength, KeGetPreviousMode(), false);
-	if (FAILED(Status))
-	{
-		MmFreePool(FileNameCopy);
-		return Status;
-	}
-
-	char* TargetNameCopy = NULL;
-	if (TargetName)
-	{
-		if (TargetNameLength > PAGE_SIZE)
-			return STATUS_NAME_TOO_LONG;
-
-		TargetNameCopy = MmAllocatePool(POOL_PAGED, TargetNameLength + 1);
-		if (!TargetNameCopy)
-		{
-			MmFreePool(FileNameCopy);
-			return STATUS_INSUFFICIENT_MEMORY;
-		}
-
-		TargetNameCopy[TargetNameLength] = 0;
-
-		Status = MmSafeCopy(TargetNameCopy, TargetName, TargetNameLength, KeGetPreviousMode(), false);
-		if (FAILED(Status))
-		{
-		Fail:
-			MmFreePool(FileNameCopy);
-
-			if (TargetNameCopy)
-				MmFreePool(TargetNameCopy);
-
-			return Status;
-		}
-	}
-
-	void* DirectoryObjectV;
-	Status = ObReferenceObjectByHandle(DirectoryHandle, IoFileType, &DirectoryObjectV);
-	if (FAILED(Status))
-		goto Fail;
-
-	PFILE_OBJECT DirectoryObject = DirectoryObjectV;
-	PFILE_OBJECT NewFileObject = NULL;
-
-	switch (FileType)
-	{
-		case FILE_TYPE_FILE:
-			Status = IoMakeFile(&NewFileObject, DirectoryObject, FileNameCopy);
-			break;
-		case FILE_TYPE_DIRECTORY:
-			Status = IoMakeDirectory(&NewFileObject, DirectoryObject, FileNameCopy);
-			break;
-		case FILE_TYPE_SYMBOLIC_LINK:
-			Status = IoMakeSymbolicLink(&NewFileObject, DirectoryObject, FileNameCopy, TargetNameCopy, TargetNameLength);
-			break;
-		default:
-			DbgPrint("IoCreateObjectInDirectory(%d, '%s') unimplemented.", FileType, FileNameCopy);
-			Status = STATUS_UNIMPLEMENTED;
-			break;
-	}
-
-	ObDereferenceObject(DirectoryObject);
-
-	if (FAILED(Status))
-		goto Fail;
-
-	// OK, we have a reference to the new file object, but we still need to add it to our handle
-	// table.  So do so now.
-	HANDLE Handle = HANDLE_NONE;
-	Status = ObInsertObject(NewFileObject, &Handle, 0);
-
-	if (FAILED(Status))
-	{
-		ObDereferenceObject(NewFileObject);
-		goto Fail;
-	}
-
-	// Then, copy it in.
-	Status = MmSafeCopy(OutFileHandle, &Handle, sizeof Handle, KeGetPreviousMode(), true);
-	if (FAILED(Status))
-	{
-		// Failed, so close the handle.
-		OSClose(Handle);
-	}
-
-	ObDereferenceObject(NewFileObject);
-	MmFreePool(FileNameCopy);
-
-	if (TargetNameCopy)
-		MmFreePool(TargetNameCopy);
-
-	return Status;
+// TODO: Remove these system calls, they're vestigial.
+BSTATUS OSOpenFile(PHANDLE OutFileHandle, POBJECT_ATTRIBUTES ObjectAttributes)
+{
+	return IoCreateFile2(
+		OutFileHandle,
+		ObjectAttributes,
+		NULL,             // Iosb
+		0,                // FileAttributes
+		0,                // AllocationSize
+		IO_OPEN,          // CreateDisposition
+		IO_FILE_ANY_TYPE, // CreateOptions
+		NULL,             // TargetName
+		0,                // TargetNameLength
+		false             // TrustAttributesRegion
+	);
 }
 
 // Creates an empty file in a directory.
 BSTATUS OSCreateFile(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength)
 {
-	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, FileName, FileNameLength, FILE_TYPE_FILE, NULL, 0);
+	OBJECT_ATTRIBUTES Attributes;
+	memset(&Attributes, 0, sizeof Attributes);
+
+	Attributes.RootDirectory = DirectoryHandle;
+	Attributes.ObjectName = FileName;
+	Attributes.ObjectNameLength = FileNameLength;
+	Attributes.OpenFlags = 0;
+
+	return IoCreateFile2(
+		OutFileHandle,
+		&Attributes,
+		NULL,                 // Iosb
+		0,                    // FileAttributes
+		0,                    // AllocationSize
+		IO_CREATE,            // CreateDisposition
+		IO_FILE_REGULAR_FILE, // CreateOptions
+		NULL,                 // TargetName
+		0,                    // TargetNameLength
+		true                  // TrustAttributesRegion
+	);
 }
 
 // Creates an empty directory in a directory.
 BSTATUS OSCreateDirectory(PHANDLE OutFileHandle, HANDLE DirectoryHandle, const char* FileName, size_t FileNameLength)
 {
-	return IoCreateObjectInDirectory(OutFileHandle, DirectoryHandle, FileName, FileNameLength, FILE_TYPE_DIRECTORY, NULL, 0);
+	OBJECT_ATTRIBUTES Attributes;
+	memset(&Attributes, 0, sizeof Attributes);
+
+	Attributes.RootDirectory = DirectoryHandle;
+	Attributes.ObjectName = FileName;
+	Attributes.ObjectNameLength = FileNameLength;
+	Attributes.OpenFlags = 0;
+
+	return IoCreateFile2(
+		OutFileHandle,
+		&Attributes,
+		NULL,                   // Iosb
+		0,                      // FileAttributes
+		0,                      // AllocationSize
+		IO_CREATE,              // CreateDisposition
+		IO_FILE_DIRECTORY_FILE, // CreateOptions
+		NULL,                   // TargetName
+		0,                      // TargetNameLength
+		true                    // TrustAttributesRegion
+	);
 }
 
 // Creates a symbolic link in a directory.
@@ -1164,13 +1176,24 @@ BSTATUS OSCreateSymbolicLink(
 	size_t TargetNameLength
 )
 {
-	return IoCreateObjectInDirectory(
+	OBJECT_ATTRIBUTES Attributes;
+	memset(&Attributes, 0, sizeof Attributes);
+
+	Attributes.RootDirectory = DirectoryHandle;
+	Attributes.ObjectName = FileName;
+	Attributes.ObjectNameLength = FileNameLength;
+	Attributes.OpenFlags = 0;
+
+	return IoCreateFile2(
 		OutFileHandle,
-		DirectoryHandle,
-		FileName,
-		FileNameLength,
-		FILE_TYPE_SYMBOLIC_LINK,
+		&Attributes,
+		NULL,                  // Iosb
+		0,                     // FileAttributes
+		0,                     // AllocationSize
+		IO_CREATE,             // CreateDisposition
+		IO_FILE_SYMBOLIC_LINK, // CreateOptions
 		TargetName,
-		TargetNameLength
+		TargetNameLength,
+		true                   // TrustAttributesRegion
 	);
 }

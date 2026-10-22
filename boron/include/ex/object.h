@@ -47,6 +47,17 @@ BSTATUS ExOpenObjectUserCall(
 	void* ParseContext
 );
 
+// The only difference is that setting TrustAttributesRegion to true makes this function
+// trust the region fed into the ObjectAttributes pointer ONLY. It does not trust any
+// data coming in *through* the pointer, only trusts that copying from the pointer is safe.
+BSTATUS ExOpenObjectUserCallEx(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	void* ParseContext,
+	bool TrustAttributesRegion
+);
+
 #endif
 
 #define EX_DISPATCH_BOOST ((KPRIORITY) 1)

@@ -22,7 +22,15 @@ Author:
 BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_t StringLength);
 
 // Safely copy an OBJECT_ATTRIBUTES instance.
-BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttributes, POBJECT_ATTRIBUTES UserAttributes);
+//
+// NOTE: TrustAttributesRegion = true means that ONLY the UserAttributes pointer is trusted,
+// nothing else.  If true, ExCopySafeObjectAttributes assumes that a memory copy from UserAttributes
+// will never fail.
+BSTATUS ExCopySafeObjectAttributes(
+	POBJECT_ATTRIBUTES OutNewAttributes,
+	POBJECT_ATTRIBUTES UserAttributes,
+	bool TrustAttributesRegion
+);
 
 // Dispose of a copied OBJECT_ATTRIBUTES instance.
 void ExDisposeCopiedObjectAttributes(POBJECT_ATTRIBUTES Attributes);

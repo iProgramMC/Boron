@@ -46,15 +46,22 @@ BSTATUS ExDuplicateUserString(char** OutNewString, const char* UserString, size_
 	return STATUS_SUCCESS;
 }
 
-BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRIBUTES UserAttrs)
+BSTATUS ExCopySafeObjectAttributes(POBJECT_ATTRIBUTES OutNewAttrs, POBJECT_ATTRIBUTES UserAttrs, bool TrustAttributesRegion)
 {
 	BSTATUS Status;
 
 	// Copy the entire struct.  Note that any pointers will be invalid to access (since they're potentially
 	// provided from userspace), so we will replace them below.
 
-	if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
-		return Status;
+	if (TrustAttributesRegion)
+	{
+		memcpy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES));
+	}
+	else
+	{
+		if (FAILED(Status = MmSafeCopy(OutNewAttrs, UserAttrs, sizeof(OBJECT_ATTRIBUTES), KeGetPreviousMode(), false)))
+			return Status;
+	}
 
 	char* Name = NULL;
 	if (OutNewAttrs->ObjectName &&
@@ -139,7 +146,7 @@ BSTATUS ExCreateObjectUserCall(
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
 		// a helper function to copy everything into kernel mode.
-		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes);
+		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes, false);
 		if (FAILED(Status))
 			return Status;
 	}
@@ -238,7 +245,13 @@ Fail:
 }
 
 // Opens an object from a user system service call.  This ensures that code is not duplicated.
-BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, void* ParseContext)
+BSTATUS ExOpenObjectUserCallEx(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	void* ParseContext,
+	bool TrustAttributesRegion
+)
 {
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
@@ -251,7 +264,7 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 	{
 		// If the previous mode was user, don't copy directly.  Instead, use
 		// a helper function to copy everything into kernel mode.
-		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes);
+		Status = ExCopySafeObjectAttributes(&Attributes, ObjectAttributes, TrustAttributesRegion);
 		if (FAILED(Status))
 			return Status;
 	}
@@ -311,6 +324,22 @@ Fail:
 		ExDisposeCopiedObjectAttributes(&Attributes);
 
 	return Status;
+}
+
+BSTATUS ExOpenObjectUserCall(
+	PHANDLE OutHandle,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	POBJECT_TYPE ObjectType,
+	void* ParseContext
+)
+{
+	return ExOpenObjectUserCallEx(
+		OutHandle,
+		ObjectAttributes,
+		ObjectType,
+		ParseContext,
+		false // TrustAttributesRegion
+	);
 }
 
 // Closes a handle to an object.

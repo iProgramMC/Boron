@@ -113,16 +113,6 @@ typedef struct _IO_PARSE_CONTEXT IO_PARSE_CONTEXT, *PIO_PARSE_CONTEXT;
 //
 // - TODO: Add a function that creates a symbolic link.
 //
-// - In IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, IO_MAKE_LINK_METHOD, and IO_MAKE_SYMLINK_METHOD, anything but
-//   IO_DIRECTORY_ENTRY->Name is ignored for now.  Soon, I'll add permission information and more which will be used too.
-//   Information about the *type* of a file (FILE_TYPE) is, and will remain, ignored.
-//
-// - IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, IO_MAKE_LINK_METHOD, and IO_MAKE_SYMLINK_METHOD aren't called with any locks
-//   held, so the driver must take care of locking.
-//
-// - IO_MAKE_FILE_METHOD, IO_MAKE_DIR_METHOD, and IO_MAKE_SYMLINK_METHOD return pointers to the new file object corresponding
-//   to the newly-created FCB.  IO_MAKE_LINK_METHOD does not, because the caller already has a reference to the same file.
-//
 typedef BSTATUS(*IO_MOUNT_METHOD)       (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
 //typedef BSTATUS(*IO_CREATE_METHOD)    (PFCB Fcb, void* Context);
 //typedef void   (*IO_DELETE_METHOD)    (PFCB Fcb);
@@ -140,9 +130,6 @@ typedef BSTATUS(*IO_CLOSE_DIR_METHOD)   (PFCB Fcb);
 typedef BSTATUS(*IO_READ_DIR_METHOD)    (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_PARSE_DIR_METHOD)   (PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, int ParseLoopCount, PIO_PARSE_CONTEXT ParseContext);
 typedef BSTATUS(*IO_RESIZE_METHOD)      (PFCB Fcb, uint64_t NewLength);
-typedef BSTATUS(*IO_MAKE_FILE_METHOD)   (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
-typedef BSTATUS(*IO_MAKE_DIR_METHOD)    (PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName);
-typedef BSTATUS(*IO_MAKE_SYMLINK_METHOD)(PFILE_OBJECT* OutCreatedFileObject, PFCB ContainingFcb, const char* FileName, const char* DestinationName, size_t DestinationNameLength);
 typedef BSTATUS(*IO_MAKE_LINK_METHOD)   (PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestinationFile);
 typedef BSTATUS(*IO_UNLINK_METHOD)      (PFCB ContainingFcb, bool IsEntryFromReadDir, PIO_DIRECTORY_ENTRY DirectoryEntry);
 typedef BSTATUS(*IO_REMOVE_DIR_METHOD)  (PFCB Fcb);
@@ -206,9 +193,6 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_READ_DIR_METHOD     ReadDir;
 	IO_PARSE_DIR_METHOD    ParseDir;
 	IO_RESIZE_METHOD       Resize;
-	IO_MAKE_FILE_METHOD    MakeFile;
-	IO_MAKE_DIR_METHOD     MakeDirectory;
-	IO_MAKE_SYMLINK_METHOD MakeSymbolicLink;
 	IO_MAKE_LINK_METHOD    MakeHardLink;
 	IO_UNLINK_METHOD       Unlink;
 	IO_REMOVE_DIR_METHOD   RemoveDir;
@@ -229,5 +213,6 @@ typedef struct _IO_PARSE_CONTEXT
 	uint32_t FileAttributes;
 	uint32_t CreateOptions;
 	uint32_t CreateDisposition;
+	uint32_t ResultCode;
 }
 IO_PARSE_CONTEXT, *PIO_PARSE_CONTEXT;

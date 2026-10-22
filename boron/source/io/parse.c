@@ -38,6 +38,7 @@ static BSTATUS IopCallParse(
 		DefaultParseContext.CreateDisposition = IO_OPEN;
 		DefaultParseContext.AllocationSize = 0;
 		DefaultParseContext.TargetName = NULL;
+		DefaultParseContext.ResultCode = IO_FILE_NO_ACTION_TAKEN;
 		ParseContext = &DefaultParseContext;
 	}
 
@@ -86,6 +87,8 @@ static BSTATUS IopCallParse(
 		ASSERT((Iosb.ParseDir.ReparsePath == NULL || (Path <= Iosb.ParseDir.ReparsePath && Iosb.ParseDir.ReparsePath <= Path + Length)) &&
 			"ParseDir is supposed to return a substring of the initial path or NULL");
 #endif
+
+		ParseContext->ResultCode = Iosb.ParseDir.ResultCode;
 	}
 
 	// Create a file object based on that file and return.

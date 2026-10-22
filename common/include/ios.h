@@ -46,6 +46,9 @@ typedef struct _IO_STATUS_BLOCK
 		// ReadDirectoryEntries
 		size_t EntriesRead;
 
+		// CreateFile
+		uint32_t CreateInformation;
+
 		// Dummies to imitate the kernel mode structures below:
 		struct
 		{
@@ -122,6 +125,7 @@ enum
 //
 enum
 {
+	IO_FILE_NO_ACTION_TAKEN,
 	IO_FILE_DOES_NOT_EXIST,
 	IO_FILE_EXISTS,
 	IO_FILE_CREATED,
