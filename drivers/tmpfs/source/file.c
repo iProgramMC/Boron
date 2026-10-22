@@ -13,6 +13,7 @@ Author:
 	iProgramInCpp - 3 November 2025
 ***/
 #include "tmpfs.h"
+#include <cc.h>
 
 #define TMPFS_TIMEOUT 2000
 #define TMPFS_MUTEX_LEVEL 3 // TODO: We may want to outright remove mutex levels.
@@ -26,6 +27,19 @@ Author:
 // The lock ordering has been established to be backwards because of TmpRemoveDir.
 
 static uint64_t NextTmpfsInodeNumber = 1;
+
+void TmpAddLink(PFCB Fcb)
+{
+	EXT(Fcb)->LinkCount++;
+	DbgPrint("TmpAddLink: %p (%d)", Fcb, EXT(Fcb)->LinkCount);
+}
+
+void TmpRemoveLink(PFCB Fcb)
+{
+	size_t OldRefCount = EXT(Fcb)->LinkCount--;
+	ASSERT(EXT(Fcb)->LinkCount < OldRefCount);
+	DbgPrint("TmpRemLink: %p (%d)", Fcb, EXT(Fcb)->LinkCount);
+}
 
 void TmpReferenceFcb(PFCB Fcb)
 {
@@ -698,6 +712,11 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 		return Status;
 	}
 
+	// Remove the link counts.
+	TmpRemoveLink(ParentFcb); // for the ".." entry
+	TmpRemoveLink(Fcb); // for the "." entry
+	TmpRemoveLink(Fcb); // for the entry into the parentfcb
+
 	// Remove the parent's entry.
 	RemoveEntryList(&Ext->ParentEntry->ListEntry);
 	TmpDereferenceFcb(Ext->ParentEntry->ParentFcb);
@@ -746,8 +765,19 @@ BSTATUS TmpMakeHardLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
 	memcpy(DirEntry->Name, NewName->Name, IO_MAX_NAME);
 	InsertTailList(&Ext->ChildrenListHead, &DirEntry->ListEntry);
 
+	TmpAddLink(DestFcb);
+
 	KeReleaseMutex(&Ext->Lock);
 	return STATUS_SUCCESS;
+}
+
+void TmpOnDeleteObjectFcb(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)
+{
+	if (EXT(Fcb)->LinkCount == 0)
+	{
+		DbgPrint("Fcb %p has link count of 0, so purging all views!", Fcb);
+		CcPurgeViewsForFile(Fcb);
+	}
 }
 
 IO_DISPATCH_TABLE TmpDispatchTable =
@@ -755,6 +785,7 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 	.Seekable = TmpFileSeekable,
 	.Reference = TmpReferenceFcb,
 	.Dereference = TmpDereferenceFcb,
+	.DeleteObject = TmpOnDeleteObjectFcb,
 	.BackingMemory = TmpBackingMemory,
 	.Read = TmpRead,
 	.Write = TmpWrite,
@@ -781,6 +812,7 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 	PREP_EXT;
 	KeInitializeMutex(&Ext->Lock, TMPFS_MUTEX_LEVEL);
 	Ext->ReferenceCount = 1;
+	Ext->LinkCount = 0;
 	Ext->InitialAddress = InitialAddress;
 	Ext->InitialLength = InitialLength;
 	Ext->InodeNumber = AtAddFetch(NextTmpfsInodeNumber, 1);
@@ -817,6 +849,8 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 
 		InsertTailList(&ParentExt->ChildrenListHead, &DirEntry->ListEntry);
 		ParentExt->Version++;
+
+		TmpAddLink(Fcb);
 
 		KeReleaseMutex(&ParentExt->Lock);
 	}
@@ -858,6 +892,9 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 
 		InsertTailList(&Ext->ChildrenListHead, &DotDirEntry->ListEntry);
 		InsertTailList(&Ext->ChildrenListHead, &DotDotDirEntry->ListEntry);
+
+		TmpAddLink(Fcb);
+		TmpAddLink(ParentFcb ? ParentFcb : Fcb);
 
 		// Add references to all of them.
 		TmpReferenceFcb(DotDirEntry->ParentFcb);

@@ -4,11 +4,11 @@
 
 Module name:
 	mm/vad.h
-	
+
 Abstract:
 	This header defines function prototypes related to the VAD
 	(Virtual Address Descriptor) and its list.
-	
+
 Author:
 	iProgramInCpp - 18 August 2024
 ***/
@@ -33,14 +33,14 @@ typedef union
 		// address. Otherwise, the PTEs have to be specifically marked "committed"
 		// to be committed.
 		unsigned Committed : 1;
-		
+
 		// Protection flags, see the ACCESS_FLAG enum.
 		unsigned Protection : 3;
-		
+
 		// If this region is private (so, copy-on-write duplicated across forks for example)
 		unsigned Private : 1;
 	};
-	
+
 	uint32_t LongFlags;
 }
 MMVAD_FLAGS;
@@ -48,28 +48,20 @@ MMVAD_FLAGS;
 typedef struct _MMVAD_ENTRY
 {
 	MMADDRESS_NODE Node;
-	
+
 	PMMVIEW View;
-	
+
 	// An offset into the view, for calculating page fault addresses.
 	// This allows multiple VADs to refer to the same view, although the
 	// situations in which this can happen are restricted and behavior
 	// should be predictable.
 	uintptr_t ViewOffset;
-	
-	//MMVAD_FLAGS Flags;
-	//
-	//// Note: Ref count is increased by 1 because of this reference.
-	//void* MappedObject;
-	//
-	//// If this is a file or section, then the offset within it.
-	//uint64_t SectionOffset;
-	
+
 	union
 	{
 		// NOTE: Only used for system-space VADs, NOT used for user-space VADs.
 		RBTREE_ENTRY ViewCacheEntry;
-		
+
 		struct
 		{
 			uintptr_t Spare1;
@@ -78,12 +70,12 @@ typedef struct _MMVAD_ENTRY
 			uintptr_t Spare4;
 		};
 	};
-	
+
 	union
 	{
 		// NOTE: Only used for system-space VADs, NOT used for user-space VADs.
 		LIST_ENTRY ViewCacheLruEntry;
-		
+
 		struct
 		{
 			uintptr_t Spare5;

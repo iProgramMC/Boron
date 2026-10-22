@@ -32,6 +32,9 @@ typedef struct
 	// links to work.
 	size_t ReferenceCount;
 
+	// The amount of times this file is linked to within the file system.
+	size_t LinkCount;
+
 	void* InitialAddress;
 	uint64_t InitialLength;
 

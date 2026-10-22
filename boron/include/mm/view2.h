@@ -4,11 +4,11 @@
 
 Module name:
 	mm/view.h
-	
+
 Abstract:
 	This header defines the memory manager's View object as well as its
 	interface functions.
-	
+
 Author:
 	iProgramInCpp - 3 October 2026
 ***/
@@ -28,7 +28,7 @@ typedef union
 		MMPFN Pfn : 32;
 		uintptr_t Spare : 27;
 	#endif
-	
+
 		// The permissions associated with this page.
 		unsigned Permissions : 3;
 		// Copy-on-write: If reading, use the PFN stored inside. However,
@@ -39,7 +39,7 @@ typedef union
 		// and will instead throw an access violation.
 		unsigned Committed : 1;
 	};
-	
+
 	uintptr_t LongEntry;
 }
 MMVIEW_ENTRY, *PMMVIEW_ENTRY;
@@ -52,10 +52,10 @@ typedef union
 	{
 		// Pages are copy-on-write by default.
 		unsigned Private : 1;
-		
+
 		// Pages are committed by default.
 		unsigned Committed : 1;
-		
+
 		// Default permissions
 		unsigned Permissions : 3;
 	};
@@ -67,18 +67,21 @@ MMVIEW_FLAGS, *PMMVIEW_FLAGS;
 typedef struct
 {
 	PMMVIEW_ENTRY Entries;
-	
+
+	// Entry into a list of system space views associated with the specific file object.
+	LIST_ENTRY SystemViewListEntry;
+
 	size_t SizePages;
-	
+
 	MMVIEW_FLAGS Flags;
-	
+
 	// Offset into the backing object.
 	uint64_t SectionOffset;
-	
+
 	// A mappable object, such as a section or file, is referenced here.
 	// If NULL, this view is backed by physical memory (and, eventually, page files) instead.
 	void* BackingObject;
-	
+
 #ifdef IS_32_BIT
 	// TODO: Remove this on 32-bit.
 	void* TemporaryPageSizeBuffer;
@@ -123,7 +126,7 @@ void MmCopyOnWriteView(PMMVIEW View);
 //
 // NOTE: Entry.CopyOnWrite means the entire mapping is private, NOT that each individual
 // page is privately mapped.  This is because some pages may still be in their copy-on-write
-// state and reference the backing object rather than a private copy. 
+// state and reference the backing object rather than a private copy.
 BSTATUS MmQueryView(
 	PMMVIEW View,
 	uintptr_t Offset,
