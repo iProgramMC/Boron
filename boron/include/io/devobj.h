@@ -4,10 +4,10 @@
 
 Module name:
 	io/devobj.h
-	
+
 Abstract:
 	This header file defines the I/O device object structure.
-	
+
 Author:
 	iProgramInCpp - 16 February 2024
 ***/
@@ -32,33 +32,33 @@ struct _DEVICE_OBJECT
 {
 	// The type of device object this is.
 	DEVICE_TYPE DeviceType;
-	
+
 	// The driver object that we belong to.
 	PDRIVER_OBJECT DriverObject;
-	
+
 	// The entry in the driver object's list of devices.
 	LIST_ENTRY ListEntry;
-	
+
 	// A pointer to the I/O operation dispatch table.
 	PIO_DISPATCH_TABLE DispatchTable;
-	
+
 	PFCB Fcb;
-	
+
 	// If this is part of a controller, this is the pointer to that controller.
 	PCONTROLLER_OBJECT ParentController;
-	
+
 	// If this is part of a controller, this is the entry into the controller's
 	// device tree.
 	RBTREE_ENTRY DeviceTreeEntry;
-	
+
 	// If this is a partition, this is the device object this one belongs to
 	// (Note: This object is referenced for the lifetime of this device)
 	PDEVICE_OBJECT ParentDevice;
-	
+
 	// If this is a partitionable device, this is an entry into the list of
 	// partitionable objects.
 	LIST_ENTRY PartitionableListEntry;
-	
+
 	// Extension data.
 	size_t ExtensionSize;
 	char Extension[];
@@ -96,6 +96,5 @@ BSTATUS IoWriteDevice(
 BSTATUS IoOpenDeviceObject(
 	PDEVICE_OBJECT DeviceObject,
 	PFILE_OBJECT* OutObject,
-	uint32_t Flags,
-	uint32_t OpenFlags
+	uint32_t CreateOptions
 );

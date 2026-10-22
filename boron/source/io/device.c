@@ -35,11 +35,11 @@ bool IopInitializeDevicesDir()
 	return true;
 }
 
-BSTATUS IoOpenDeviceObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
+BSTATUS IoOpenDeviceObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t CreateOptions)
 {
-	BSTATUS Status = IoCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
+	BSTATUS Status = IoCreateFileObject(DeviceObject->Fcb, OutObject, CreateOptions);
 
-	// TODO: Permission inheritance
+	// TODO: Permission inheritance (2026: what did you mean?)
 
 	return Status;
 }

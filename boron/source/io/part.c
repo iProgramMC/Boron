@@ -4,11 +4,11 @@
 
 Module name:
 	main.c
-	
+
 Abstract:
 	This module implements the partition manager component
 	of the Boron kernel.
-	
+
 Author:
 	iProgramInCpp - 30 April 2025
 ***/
@@ -65,32 +65,32 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 		MbrPartition->PartSizeSectors * 512,
 		Number
 	);
-	
+
 	if (FAILED(Status))
 		KeCrash("Cannot create partition object: %d (%s).", Status, RtlGetStatusString(Status)); // TODO: More comprehensive debug info.
-	
+
 	// Open this partition as a file.
 	PFILE_OBJECT FileObject;
-	Status = IoOpenDeviceObject(DeviceObject, &FileObject, 0, 0);
+	Status = IoOpenDeviceObject(DeviceObject, &FileObject, 0);
 	if (FAILED(Status))
 		KeCrash("Cannot open newly created partition device object as a file: %d (%s)", Status, RtlGetStatusString(Status));
-	
+
 	// Check the registerable file systems.
 	PLIST_ENTRY Entry = IopFileSystemListHead.Flink;
 	while (Entry != &IopFileSystemListHead)
 	{
 		PIO_DISPATCH_TABLE Dispatch = CONTAINING_RECORD(Entry, IO_DISPATCH_TABLE, FileSystemListEntry);
 		ASSERT(Dispatch->Mount);
-		
+
 		// Add a reference to the device and file object.
 		ObReferenceObjectByPointer(DeviceObject);
 		ObReferenceObjectByPointer(FileObject);
-		
+
 		// Try to mount.
 		BSTATUS Status = Dispatch->Mount(DeviceObject, FileObject, MountDir);
 		if (FAILED(Status) && Status != STATUS_NOT_THIS_FILE_SYSTEM)
 			KeCrash("Failed to mount partition %d: %d (%s)", Number, Status, RtlGetStatusString(Status));
-		
+
 		// If the mount failed (because this is not the right file system), then
 		// they don't need these references and we can dereference them here.
 		if (FAILED(Status))
@@ -98,10 +98,10 @@ static void IopRegisterMbrPartition(PDEVICE_OBJECT Device, PMBR_PARTITION MbrPar
 			ObDereferenceObject(DeviceObject);
 			ObDereferenceObject(FileObject);
 		}
-		
+
 		Entry = Entry->Flink;
 	}
-	
+
 	// Remove this function's reference to the object.
 	ObDereferenceObject(FileObject);
 }
@@ -113,15 +113,15 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device, POBJECT_DIRECTO
 	const char* Name = OBJECT_GET_HEADER(Device)->ObjectName;
 	LogMsg("Scanning %s for partitions...", Name);
 #endif
-	
+
 	PFILE_OBJECT FileObject;
-	Status = IoOpenDeviceObject(Device, &FileObject, 0, 0);
+	Status = IoOpenDeviceObject(Device, &FileObject, 0);
 	if (FAILED(Status))
 		KeCrash("Cannot open newly disk device object as a file: %d (%s)", Status, RtlGetStatusString(Status));
-	
+
 	// Try MBR first
 	uint8_t Header[512];
-	
+
 	IO_STATUS_BLOCK Iosb;
 	Status = IoReadFile(
 		&Iosb,
@@ -133,35 +133,35 @@ static void IopScanForFileSystemsOnDevice(PDEVICE_OBJECT Device, POBJECT_DIRECTO
 		true, // Cached
 		true  // TrustBuffer
 	);
-	
+
 	if (FAILED(Status))
 		goto Done;
-	
+
 	// See if this is indeed an MBR
 	PMASTER_BOOT_RECORD Mbr = (void*) Header;
-	
+
 	if (Mbr->BootSignature != MBR_BOOT_SIGNATURE)
 	{
 		Status = STATUS_INVALID_HEADER;
 		goto Done;
 	}
-	
+
 	// Scan the partition list
 	for (int i = 0; i < 4; i++)
 	{
 		PMBR_PARTITION Partition = &Mbr->Partitions[i];
-		
+
 		if (Partition->PartTypeDesc == 0)
 			// If this entry is unused.
 			continue;
-		
+
 		if (Partition->StartLBA == 0 || Partition->PartSizeSectors == 0)
 			// If this entry has invalid LBA settings.  We do not support CHS addressing.
 			continue;
-		
+
 		IopRegisterMbrPartition(Device, Partition, i, MountDir);
 	}
-	
+
 Done:
 	if (FAILED(Status))
 		DbgPrint("Failed to find partitions on %s: %d (%s)", Name, Status, RtlGetStatusString(Status));
@@ -172,7 +172,7 @@ void IoScanForFileSystems()
 {
 	void* Objects[] = { &IopPartitionableListLock, &IopFileSystemListLock };
 	KeWaitForMultipleObjects(2, Objects, WAIT_TYPE_ALL, false, TIMEOUT_INFINITE, NULL, MODE_KERNEL);
-	
+
 	// Create the "/Mount" directory.
 	POBJECT_DIRECTORY MountDir;
 	BSTATUS Status = ObCreateDirectoryObject(
@@ -181,19 +181,19 @@ void IoScanForFileSystems()
 		IopDefaultMountPath,
 		OB_FLAG_PERMANENT
 	);
-	
+
 	if (FAILED(Status))
 		KeCrash("ERROR: Failed to create %s: %d (%s)", IopDefaultMountPath, Status, RtlGetStatusString(Status));
-	
+
 	for (PLIST_ENTRY Entry = IopPartitionableListHead.Flink;
 		Entry != &IopPartitionableListHead;
 		Entry = Entry->Flink)
 	{
 		PDEVICE_OBJECT Device = CONTAINING_RECORD(Entry, DEVICE_OBJECT, PartitionableListEntry);
-		
+
 		IopScanForFileSystemsOnDevice(Device, MountDir);
 	}
-	
+
 	KeReleaseMutex(&IopPartitionableListLock);
 	KeReleaseMutex(&IopFileSystemListLock);
 }

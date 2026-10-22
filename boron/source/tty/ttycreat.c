@@ -4,11 +4,11 @@
 
 Module name:
 	ttyobj.c
-	
+
 Abstract:
 	This module implements the TTY (Virtual Teletype)
 	object's creation routines.
-	
+
 Author:
 	iProgramInCpp - 30 October 2025
 ***/
@@ -19,7 +19,7 @@ BSTATUS OSCreateTerminal(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes,
 {
 	TERMINAL_INIT_CONTEXT InitContext;
 	InitContext.BufferSize = BufferSize;
-	
+
 	return ExCreateObjectUserCall(
 		OutHandle,
 		ObjectAttributes,
@@ -36,24 +36,24 @@ BSTATUS OSCreateTerminalIoHandles(PHANDLE OutHostHandle, PHANDLE OutSessionHandl
 {
 	if (!OutHostHandle && !OutSessionHandle)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	BSTATUS Status;
 	void* TerminalV;
-	
+
 	Status = ObReferenceObjectByHandle(TerminalHandle, TtyTerminalObjectType, &TerminalV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PTERMINAL Terminal = TerminalV;
 	HANDLE HostHandle = HANDLE_NONE, SessionHandle = HANDLE_NONE;
-	
+
 	if (OutHostHandle)
 	{
 		PFILE_OBJECT FileObject = NULL;
-		Status = IoCreateFileObject(Terminal->HostFcb, &FileObject, 0, 0);
+		Status = IoCreateFileObject(Terminal->HostFcb, &FileObject, 0);
 		if (FAILED(Status))
 			goto Fail;
-		
+
 		Status = ObInsertObject(FileObject, &HostHandle, 0);
 		if (FAILED(Status))
 		{
@@ -61,14 +61,14 @@ BSTATUS OSCreateTerminalIoHandles(PHANDLE OutHostHandle, PHANDLE OutSessionHandl
 			goto Fail;
 		}
 	}
-	
+
 	if (OutSessionHandle)
 	{
 		PFILE_OBJECT FileObject = NULL;
-		Status = IoCreateFileObject(Terminal->SessionFcb, &FileObject, 0, 0);
+		Status = IoCreateFileObject(Terminal->SessionFcb, &FileObject, 0);
 		if (FAILED(Status))
 			goto Fail;
-		
+
 		Status = ObInsertObject(FileObject, &SessionHandle, 0);
 		if (FAILED(Status))
 		{
@@ -76,22 +76,22 @@ BSTATUS OSCreateTerminalIoHandles(PHANDLE OutHostHandle, PHANDLE OutSessionHandl
 			goto Fail;
 		}
 	}
-	
+
 	Status = MmSafeCopy(OutHostHandle, &HostHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (FAILED(Status))
 		goto Fail;
-	
+
 	Status = MmSafeCopy(OutSessionHandle, &SessionHandle, sizeof(HANDLE), KeGetPreviousMode(), true);
 	if (SUCCEEDED(Status))
 		goto Success;
-	
+
 Fail:
 	if (HostHandle)
 		OSClose(HostHandle);
-	
+
 	if (SessionHandle)
 		OSClose(SessionHandle);
-	
+
 Success:
 	ObDereferenceObject(Terminal);
 	return Status;

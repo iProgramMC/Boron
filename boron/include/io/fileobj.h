@@ -4,10 +4,10 @@
 
 Module name:
 	io/fileobj.h
-	
+
 Abstract:
 	This header defines the structure of the opened file object.
-	
+
 Author:
 	iProgramInCpp - 22 June 2024
 ***/
@@ -18,20 +18,19 @@ typedef struct _IO_STATUS_BLOCK IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 typedef struct _FILE_OBJECT
 {
 	MAPPABLE_HEADER Mappable;
-	
+
 	PFCB Fcb;
-	
+
 	void* Context1;
 	void* Context2;
-	
+
 	KMUTEX FileOffsetMutex;
 	uint64_t CurrentFileOffset;
 	uint64_t CurrentDirectoryVersion;
-	
-	uint32_t Flags;
-	uint32_t OpenFlags;
+
+	uint32_t CreateOptions;
 }
 FILE_OBJECT, *PFILE_OBJECT;
 
 // Create a file object. This doesn't actually open the object.
-BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags);
+BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t CreateOptions);

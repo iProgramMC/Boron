@@ -133,8 +133,7 @@ bool LdriAddFile(POBJECT_DIRECTORY Directory, PLOADER_MODULE File)
 	FileObject->Fcb = Fcb;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
-	FileObject->Flags = 0;
-	FileObject->OpenFlags = 0;
+	FileObject->CreateOptions = 0;
 
 	return true;
 }

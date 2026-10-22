@@ -4,17 +4,17 @@
 
 Module name:
 	io/pipe.c
-	
+
 Abstract:
 	This implements the I/O pipe object.  The pipe object
 	is implemented using a circular ring buffer of variable
 	size.
-	
+
 	This implementation supports anonymous pipes and named
 	pipes.  Named pipes are implemented using a special object
 	type called NamedPipe which parses into a file object when
 	looked up.
-	
+
 Author:
 	iProgramInCpp - 1 September 2025
 ***/
@@ -61,20 +61,20 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 {
 	// The FCB does not need to be locked.  We have our own mutex.
 	IoUnlockFcb(Fcb);
-	
+
 	BSTATUS Status = STATUS_SUCCESS;
 	ASSERT(MdlBuffer->Flags & MDL_FLAG_WRITE);
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
-	
+
 	size_t BytesRead = 0;
 	Iosb->BytesRead = 0;
 	Iosb->Status = Status;
-	
+
 	// Lock the pipe for the first time.
 	Status = KeWaitForSingleObject(&Pipe->Mutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		goto Finish;
-	
+
 	size_t ByteCount = MdlBuffer->ByteCount;
 	while (BytesRead < ByteCount)
 	{
@@ -88,7 +88,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 				Status = STATUS_END_OF_FILE;
 				goto FinishRelease;
 			}
-			
+
 			// No data. Check if we need to wait for more.
 			// Either:
 			// - the full IO_RW_NONBLOCK is specified, at which point the operation will abort
@@ -99,7 +99,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 				Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
 			}
-			
+
 			// If the writer requested that reads end here, then acknowledge this request.
 			if (Pipe->EndReadNow)
 			{
@@ -107,23 +107,23 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 				Status = STATUS_END_OF_FILE;
 				goto FinishRelease;
 			}
-			
+
 			// NOTE: The following block is performed atomically, that is, there is no point in time
 			// where the mutex is unlocked but the wait isn't being performed, between these two lines.
 			KeReleaseMutexWait(&Pipe->Mutex);
 			Status = KeWaitForSingleObject(&Pipe->QueueEmptyEvent, true, TIMEOUT_INFINITE, KeGetPreviousMode());
-			
+
 			if (FAILED(Status))
 				// Wait failed, likely because of an interruption.
 				goto Finish;
-			
+
 			Status = KeWaitForSingleObject(&Pipe->Mutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 			if (FAILED(Status))
 				goto Finish;
-			
+
 			continue;
 		}
-		
+
 		// There is data... but how much?
 		size_t AvailableData;
 		if (Pipe->Head >= Pipe->Tail)
@@ -134,7 +134,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 		{
 			AvailableData = Pipe->Head + Pipe->BufferSize - Pipe->Tail;
 		}
-		
+
 		size_t ReadSize = ByteCount - BytesRead;
 		if (ReadSize > AvailableData)
 		{
@@ -142,7 +142,7 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			// Read what we can, then re-enter into the loop.
 			ReadSize = AvailableData;
 		}
-		
+
 		if (Flags & IO_RW_FINISH_ON_NEWLINE)
 		{
 			// The read operation wants to terminate on a newline character.
@@ -153,22 +153,22 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			{
 				if (j >= Pipe->BufferSize)
 					j = 0;
-				
+
 				char Chr = Pipe->Buffer[j];
 				if (Chr != '\n' && Chr != '\r')
 					continue;
-				
+
 				// Update properties such as the read size and read count.
 				// Note that the read size should also include the newline in question.
 				ReadSize = i + 1;
 				ByteCount = BytesRead + ReadSize;
 			}
 		}
-		
+
 		size_t TailAfterRead = Pipe->Tail + ReadSize;
 		if (TailAfterRead >= Pipe->BufferSize)
 			TailAfterRead -= Pipe->BufferSize;
-		
+
 		if (Pipe->Tail <= TailAfterRead)
 		{
 			// The tail can catch up to the head without overflowing.
@@ -181,31 +181,31 @@ BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMD
 			ASSERT(TailSize <= ReadSize);
 			ASSERT(TailSize <= AvailableData);
 			size_t HeadSize = ReadSize - TailSize;
-			
+
 			if (TailSize)
 				MmCopyIntoMdl(MdlBuffer, BytesRead, Pipe->Buffer + Pipe->Tail, TailSize);
-			
+
 			if (HeadSize)
 				MmCopyIntoMdl(MdlBuffer, BytesRead + TailSize, Pipe->Buffer, HeadSize);
 		}
-		
+
 		Pipe->Tail = TailAfterRead;
-		
+
 		BytesRead += ReadSize;
-		
+
 		// Since some data was consumed, signal writers to write
 		KePulseEvent(&Pipe->QueueFullEvent, PIPE_INCREMENT);
 	}
-	
+
 	Status = STATUS_SUCCESS;
-	
+
 FinishRelease:
 	KeReleaseMutex(&Pipe->Mutex);
-	
+
 Finish:
 	Iosb->Status = Status;
 	Iosb->BytesRead = BytesRead;
-	
+
 	// Relock the rwlock because the caller expects us to do so.
 	IoLockFcbShared(Fcb);
 	return Status;
@@ -216,31 +216,31 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 {
 	// The FCB does not need to be locked.  We have our own mutex.
 	IoUnlockFcb(Fcb);
-	
+
 	BSTATUS Status = STATUS_SUCCESS;
 	ASSERT(~MdlBuffer->Flags & MDL_FLAG_WRITE);
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
-	
+
 	size_t BytesWritten = 0;
 	Iosb->BytesWritten = 0;
 	Iosb->Status = Status;
-	
+
 	// Lock the pipe for the first time.
 	Status = KeWaitForSingleObject(&Pipe->Mutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		goto Finish;
-	
+
 	size_t ByteCount = MdlBuffer->ByteCount;
 	while (BytesWritten < ByteCount)
 	{
 		Iosb->BytesWritten = BytesWritten;
-		
+
 		size_t FreeSpace;
 		if (Pipe->Head >= Pipe->Tail)
 			FreeSpace = Pipe->BufferSize - 1 - (Pipe->Head - Pipe->Tail);
 		else
 			FreeSpace = Pipe->Tail - Pipe->Head - 1;
-		
+
 		if (FreeSpace == 0)
 		{
 			// No free space, so wait.
@@ -250,27 +250,27 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 				Status = STATUS_END_OF_FILE;
 				goto FinishRelease;
 			}
-			
+
 			// Full of data, need to wait to send more.
 			if (Flags & IO_RW_NONBLOCK)
 			{
 				Status = STATUS_BLOCKING_OPERATION;
 				goto FinishRelease;
 			}
-			
+
 			KeReleaseMutexWait(&Pipe->Mutex);
-			
+
 			Status = KeWaitForSingleObject(&Pipe->QueueFullEvent, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 			if (FAILED(Status))
 				goto Finish;
-			
+
 			Status = KeWaitForSingleObject(&Pipe->Mutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 			if (FAILED(Status))
 				goto Finish;
-			
+
 			continue;
 		}
-		
+
 		// There is free space.
 		size_t WriteSize = ByteCount - BytesWritten;
 		if (WriteSize > FreeSpace)
@@ -279,11 +279,11 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 			// Write what we can, then re-enter the loop.
 			WriteSize = FreeSpace;
 		}
-		
+
 		size_t HeadAfterWrite = Pipe->Head + WriteSize;
 		if (HeadAfterWrite >= Pipe->BufferSize)
 			HeadAfterWrite %= Pipe->BufferSize;
-		
+
 		if (Pipe->Head <= HeadAfterWrite)
 		{
 			// The head can catch up to the tail without overflowing.
@@ -296,25 +296,25 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 			ASSERT(HeadSize <= WriteSize);
 			ASSERT(HeadSize <= FreeSpace);
 			size_t TailSize = WriteSize - HeadSize;
-			
+
 			if (HeadSize)
 				MmCopyFromMdl(MdlBuffer, BytesWritten, Pipe->Buffer + Pipe->Head, HeadSize);
-			
+
 			if (TailSize)
 				MmCopyFromMdl(MdlBuffer, BytesWritten + HeadSize, Pipe->Buffer, TailSize);
 		}
-		
+
 		Pipe->Head = HeadAfterWrite;
 		ASSERT(Pipe->Tail != Pipe->Head);
-		
+
 		BytesWritten += WriteSize;
-		
+
 		// Since some data was written, signal readers to read
 		KePulseEvent(&Pipe->QueueEmptyEvent, PIPE_INCREMENT);
 	}
-	
+
 	Status = STATUS_SUCCESS;
-	
+
 	// Executive specific: If IO_RW_TERMINATE_READ is passed, the current pending read (if available)
 	// will return immediately after receiving the current data placed inside the pipe.
 	if (Flags & IO_RW_TERMINATE_READ)
@@ -322,13 +322,13 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 		Pipe->EndReadNow = true;
 		KePulseEvent(&Pipe->QueueEmptyEvent, PIPE_INCREMENT);
 	}
-	
+
 FinishRelease:
 	KeReleaseMutex(&Pipe->Mutex);
-	
+
 Finish:
 	Iosb->Status = Status;
-	
+
 	// Relock the rwlock because the caller expects us to do so.
 	IoLockFcbShared(Fcb);
 	return Status;
@@ -337,14 +337,14 @@ Finish:
 void IopReferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
-	
+
 	AtAddFetch(Pipe->ReferenceCount, 1);
 }
 
 void IopDereferencePipe(PFCB Fcb)
 {
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
-	
+
 	if (AtAddFetch(Pipe->ReferenceCount, -1) == 0)
 	{
 		DbgPrint("IopDereferencePipe: Freeing pipe FCB");
@@ -368,22 +368,22 @@ BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_AT
 		// Named pipes are currently not supported.  TODO
 		return STATUS_UNIMPLEMENTED;
 	}
-	
+
 	PFCB Fcb = IoAllocateFcb(&IopPipeDispatchTable, sizeof(PIPE) + BufferSize, false);
 	if (!Fcb)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	// Initialize the pipe with the specified buffer size, create its corresponding
 	// file object, and then insert it into the handle table.
 	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize);
-	
-	BSTATUS Status = IoCreateFileObject(Fcb, OutFileObject, 0, 0);
+
+	BSTATUS Status = IoCreateFileObject(Fcb, OutFileObject, 0);
 	if (FAILED(Status))
 	{
 		IoFreeFcb(Fcb);
 		return Status;
 	}
-	
+
 	*OutFcb = Fcb;
 	return Status;
 }
@@ -393,7 +393,7 @@ BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 	PFCB Fcb = NULL;
 	PFILE_OBJECT FileObject = NULL;
 	BSTATUS Status = IoCreatePipeObject(&FileObject, &Fcb, ObjectAttributes, BufferSize);
-	
+
 	Status = ObInsertObject(FileObject, OutHandle, 0);
 	if (FAILED(Status))
 	{
@@ -401,7 +401,7 @@ BSTATUS IoCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 		IoFreeFcb(Fcb);
 		return Status;
 	}
-	
+
 	IopDereferencePipe(Fcb);
 	ObDereferenceObject(FileObject);
 	return Status;
@@ -413,13 +413,13 @@ BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 	BSTATUS Status = STATUS_SUCCESS;
 	bool CopyAttrs = false;
 	OBJECT_ATTRIBUTES AttributesCopy;
-	
+
 	if (BufferSize == 0)
 		BufferSize = DEFAULT_PIPE_SIZE;
-	
+
 	if (BufferSize < 64 || BufferSize > MAX_PIPE_SIZE)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	// If needed, copy the attributes on the stack so that they're safe to use
 	// by IoCreatePipe.  This is because IoCreatePipe is kernel-mode only, so
 	// faults on user mode are unacceptable.
@@ -437,19 +437,19 @@ BSTATUS OSCreatePipe(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, siz
 				return Status;
 		}
 	}
-	
+
 	HANDLE Handle;
 	Status = IoCreatePipe(&Handle, ObjectAttributes ? &AttributesCopy : NULL, BufferSize);
 	if (SUCCEEDED(Status))
 	{
 		Status = MmSafeCopy(OutHandle, &Handle, sizeof(HANDLE), KeGetPreviousMode(), true);
-		
+
 		if (FAILED(Status))
 			OSClose(Handle);
 	}
-	
+
 	if (CopyAttrs)
 		ExDisposeCopiedObjectAttributes(&AttributesCopy);
-	
+
 	return Status;
 }

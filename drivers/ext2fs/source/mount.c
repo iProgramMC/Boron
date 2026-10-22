@@ -148,5 +148,5 @@ BSTATUS Ext2ParseFileSystem(
 	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
 	DbgPrint("Ext2ParseFileSystem");
 
-	return IoCreateFileObject(FileSystem->RootInode, (PFILE_OBJECT*) OutObject, 0, 0);
+	return IoCreateFileObject(FileSystem->RootInode, (PFILE_OBJECT*) OutObject, 0);
 }

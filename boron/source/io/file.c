@@ -14,7 +14,7 @@ Author:
 #include "iop.h"
 
 // Create a file object from an FCB.
-BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
+BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t CreateOptions)
 {
 	BSTATUS Status;
 
@@ -38,12 +38,11 @@ BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t Flags, ui
 	// Initialize the file object.
 	MmInitializeMappableHeader(&FileObject->Mappable, &IopFileObjectMappableDispatch);
 	FileObject->Fcb      = Fcb;
-	FileObject->Flags    = Flags;
 	FileObject->Context1 = NULL;
 	FileObject->Context2 = NULL;
 	FileObject->CurrentFileOffset = 0;
 	FileObject->CurrentDirectoryVersion = 0;
-	FileObject->OpenFlags = OpenFlags;
+	FileObject->CreateOptions = CreateOptions;
 
 	KeInitializeMutex(&FileObject->FileOffsetMutex, 0);
 
@@ -64,7 +63,7 @@ BSTATUS IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON 
 	IO_OPEN_METHOD OpenMethod = File->Fcb->DispatchTable->Open;
 
 	if (OpenMethod)
-		Status = OpenMethod(File->Fcb, File->OpenFlags);
+		Status = OpenMethod(File->Fcb, File->CreateOptions);
 
 	return Status;
 }
