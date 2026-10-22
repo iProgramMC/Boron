@@ -136,4 +136,8 @@ MMPFN MmAllocatePhysicalContiguousRegion(int PageCount, uintptr_t Alignment);
 // PfnStart and PfnStart + PageCount - 1.
 void MmFreePhysicalContiguousRegion(MMPFN PfnStart, int PageCount);
 
+// Relinquishes a page from the page cache (reset the prototype PTE pointer,
+// file reference and offset, and turn it into a plain old used page)
+void MmRelinquishPageFromCache(MMPFN Pfn);
+
 #endif//BORON_MM_PMM_H

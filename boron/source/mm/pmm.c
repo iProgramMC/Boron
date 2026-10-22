@@ -848,6 +848,59 @@ void MmSetCacheDetailsPfn(MMPFN Pfn, PFCB Fcb, uint64_t Offset)
 	KeReleaseSpinLock(&MmPfnLock, OldIpl);
 }
 
+static void MmpRemovePfnFromItsList(MMPFN Pfn);
+
+void MmRelinquishPageFromCache(MMPFN Pfn)
+{
+	KIPL OldIpl;
+	KeAcquireSpinLock(&MmPfnLock, &OldIpl);
+
+	DbgPrint("MmRelinquishPageFromCache: PFN %d", Pfn);
+
+	PMMPFDBE Pfdbe = MmGetPageFrameFromPFN(Pfn);
+
+	bool WasFileCache = Pfdbe->IsFileCache;
+	if (!WasFileCache) {
+		KeReleaseSpinLock(&MmPfnLock, OldIpl);
+		DbgPrint("MmRelinquishPageFromCache: PFN %d not actually part of a file cache", Pfn);
+		return;
+	}
+
+	// This might have been an assert or KeCrash at one point, but tmpfs depends on this
+	// not actually crashing.
+	if (Pfdbe->Modified)
+	{
+		DbgPrint(
+			"MmRelinquishPageFromCache: WARNING: PFN %d not flushed.  "
+			"Always call MmFlushFileCache before freeing an FCB!",
+			Pfn
+		);
+	}
+
+	// I hope this works because I don't feel like debugging it.
+	Pfdbe->FileCache._Fcb = 0;
+	Pfdbe->FileCache._OffsetLower = 0;
+	Pfdbe->_OffsetUpper = 0;
+	Pfdbe->IsFileCache = 0;
+	Pfdbe->Modified = 0;
+
+	if (Pfdbe->RefCount == 0)
+	{
+		// If this page is part of a list, remove it and put it into the free list.
+		Pfdbe->Type = PF_TYPE_FREE;
+
+		if (Pfdbe->IsInModifiedPageList) {
+			MmpRemovePfnFromList(&MiFirstModifiedPFN, &MiLastModifiedPFN, Pfn);
+		} else {
+			MmpRemovePfnFromItsList(Pfn);
+		}
+
+		MmpAddPfnToList(&MiFirstFreePFN, &MiLastFreePFN, Pfn);
+	}
+
+	KeReleaseSpinLock(&MmPfnLock, OldIpl);
+}
+
 void MmFreePhysicalPage(MMPFN pfn)
 {
 	ASSERT(pfn != PFN_INVALID);

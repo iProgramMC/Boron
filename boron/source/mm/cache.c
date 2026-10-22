@@ -29,7 +29,16 @@ static void MmpCcbFreeEntrySla(MMSLA_ENTRY Entry)
 {
 	// TODO: remove this page from the standby list if it's there,
 	// and put it on the free list.
-	(void) Entry;
+	if (Entry != MM_SLA_NO_DATA)
+	{
+		MMPFN Pfn = (MMPFN) Entry;
+		ASSERT(Pfn != PFN_INVALID);
+
+		// NOTE: the page cache uses WEAK references -- that means that
+		// they don't count towards the refcount and so it's possible that
+		// a page could have a refcount of 0.
+		MmRelinquishPageFromCache(Pfn);
+	}
 }
 
 void MmTearDownCcb(PCCB Ccb)
@@ -37,9 +46,11 @@ void MmTearDownCcb(PCCB Ccb)
 	// This is used when an FCB is freed.  This looks at every cached page,
 	// flushes it to disk if it is modified, and frees it.  Then, it frees
 	// the indirection levels too.
-
-	// TODO
-	DbgPrint("TODO: MmTearDownCcb(%p)", Ccb);
+	//
+	// NOTE: This is called when NO references to the FCB or file objects are
+	// made anymore.  (Hopefully, this means all contents have been written
+	// back too)
+	DbgPrint("MmTearDownCcb(%p)", Ccb);
 	MmDeinitializeSla(&Ccb->Sla, MmpCcbFreeEntrySla);
 }
 
