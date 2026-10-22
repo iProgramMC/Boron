@@ -39,6 +39,18 @@ void TmpDereferenceFcb(PFCB Fcb)
 	if (AtAddFetch(Ext->ReferenceCount, -1) == 0)
 	{
 		DbgPrint("TmpDereferenceFcb(%p) DELETING!", Fcb);
+
+		for (size_t i = 0; i < Ext->PageListCount; i++)
+		{
+			if (Ext->PageList[i]) {
+				MmFreePhysicalPage(Ext->PageList[i]);
+			}
+		}
+
+		if (Ext->PageList) {
+			MmFreePool(Ext->PageList);
+		}
+
 		IoFreeFcb(Fcb);
 	}
 }
@@ -663,10 +675,10 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 		return STATUS_DIRECTORY_NOT_EMPTY;
 	}
 
-	if (!DotDotEntry)
+	if (!DotDotEntry || !DotEntry)
 	{
 		// This shouldn't be possible.
-		DbgPrint("TmpRemoveDir: No dot dot entry?!");
+		DbgPrint("TmpRemoveDir: No dot or dot dot entry?!");
 		KeReleaseMutex(&Ext->Lock);
 		return STATUS_DIRECTORY_NOT_EMPTY;
 	}
@@ -691,6 +703,7 @@ BSTATUS TmpRemoveDir(PFCB Fcb)
 	TmpDereferenceFcb(Ext->ParentEntry->ParentFcb);
 	TmpDereferenceFcb(Ext->ParentEntry->Fcb);
 	MmFreePool(Ext->ParentEntry);
+	Ext->ParentEntry = NULL;
 
 	// Free our entries.
 	TmpDereferenceFcb(DotEntry->ParentFcb);
@@ -843,6 +856,9 @@ BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength,
 		DotDirEntry->Fcb = Fcb;
 		DotDotDirEntry->Fcb = ParentFcb ? ParentFcb : Fcb;
 
+		InsertTailList(&Ext->ChildrenListHead, &DotDirEntry->ListEntry);
+		InsertTailList(&Ext->ChildrenListHead, &DotDotDirEntry->ListEntry);
+
 		// Add references to all of them.
 		TmpReferenceFcb(DotDirEntry->ParentFcb);
 		TmpReferenceFcb(DotDotDirEntry->ParentFcb);
@@ -870,6 +886,7 @@ BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, uint64_
 	Status = IoCreateFileObject(Fcb, &FileObject, 0);
 	if (FAILED(Status))
 	{
+		// NOTE: The file will have been created, but no file object.
 		TmpDereferenceFcb(Fcb);
 		return Status;
 	}
