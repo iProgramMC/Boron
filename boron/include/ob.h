@@ -4,11 +4,11 @@
 
 Module name:
 	ob.h
-	
+
 Abstract:
 	This header file contains the definitions related to
 	the Boron object manager.
-	
+
 Author:
 	iProgramInCpp - 7 December 2023
 ***/
@@ -61,7 +61,7 @@ typedef void*(*OBJ_DUPLICATE_FUNC)(void* Object, int OpenReason);
 //
 //  3. The "Name" value will be overwritten if an object was found, with the following:
 //     - NULL: This is the desired object, or
-//     - A valid offset of the original value of 'Name' which can be used to lookup 
+//     - A valid offset of the original value of 'Name' which can be used to lookup
 //
 //  4. The passed in ParseObject will have a net zero difference in reference count after the
 //     call (so, the initial reference won't be dereferenced while inside of the function).
@@ -70,7 +70,7 @@ typedef void*(*OBJ_DUPLICATE_FUNC)(void* Object, int OpenReason);
 typedef BSTATUS(*OBJ_PARSE_FUNC) (
 	void* ParseObject,
 	const char** Name,
-	void* Context,
+	void* ParseContext,
 	int LoopCount,
 	void** Object
 );
@@ -95,13 +95,13 @@ struct _OBJECT_TYPE_INFO
 {
 	// Properties
 	int InvalidAttributes;
-	
+
 	int ValidAccessMask;
-	
+
 	bool NonPagedPool;
-	
+
 	bool MaintainHandleCount;
-	
+
 	// Virtual function table
 	OBJ_OPEN_FUNC      Open;
 	OBJ_CLOSE_FUNC     Close;
@@ -117,14 +117,14 @@ struct _OBJECT_TYPE_INFO
 struct _OBJECT_TYPE
 {
 	OBJECT_TYPE_INFO TypeInfo;
-	
+
 	// Mirror of OBJECT_GET_HEADER(.)->ObjectName
 	const char* TypeName;
-	
+
 	// List of object types that use this type.
 	// Each entry is a field inside OBJECT_HEADER.
 	LIST_ENTRY ObjectListHead;
-	
+
 	// Number of objects that use this type.
 	int TotalObjectCount;
 };
@@ -132,10 +132,10 @@ struct _OBJECT_TYPE
 struct _NONPAGED_OBJECT_HEADER
 {
 	POBJECT_TYPE ObjectType;
-	
+
 	int PointerCount;
 	int HandleCount;
-	
+
 	POBJECT_HEADER NormalHeader;
 };
 
@@ -153,15 +153,15 @@ struct _OBJECT_HEADER
 	int Dummy;
 #endif
 #endif
-	
+
 	// Object behavior flags.
 	int Flags;
-	
+
 	// Pool-allocated pointer to characters - the object's name.
 	// May be NULL, in which case the object is nameless and does not belong to
 	// the global object namespace.
 	char* ObjectName;
-	
+
 	// Entry into the parent directory's list of entries.
 	// TODO: Replace with an AATREE entry
 	//
@@ -171,20 +171,15 @@ struct _OBJECT_HEADER
 		LIST_ENTRY DirectoryListEntry;
 		LIST_ENTRY ReapedListEntry;
 	};
-	
+
 	// Pointer to the parent directory.
 	POBJECT_DIRECTORY ParentDirectory;
-	
-	// Context for the parse function.
-	// This is an opaque pointer, that is, not used by the object system
-	// itself, but passed into calls to the type's Parse method.
-	void* ParseContext;
-	
+
 	PNONPAGED_OBJECT_HEADER NonPagedObjectHeader;
-	
+
 	// The size of the body.
 	size_t BodySize;
-	
+
 	char Body[0];
 };
 
@@ -225,11 +220,11 @@ struct _OBJECT_DIRECTORY
 {
 	// The mutex guarding this object directory.
 	KMUTEX Mutex;
-	
+
 	// Head of the list of children.
 	// TODO: Replace with an AATREE
 	LIST_ENTRY ListHead;
-	
+
 	// Number of children.
 	int Count;
 };
@@ -255,7 +250,6 @@ BSTATUS ObCreateObject(
 	POBJECT_TYPE ObjectType,
 	const char* ObjectName,
 	int Flags,
-	void* ParseContext,
 	size_t BodySize
 );
 
@@ -269,7 +263,6 @@ BSTATUS ObCreateObjectCallback(
 	POBJECT_TYPE ObjectType,
 	const char* ObjectName,
 	int Flags,
-	void* ParseContext,
 	size_t BodySize,
 	OB_INIT_CALLBACK Callback,
 	void* CallbackContext
@@ -321,6 +314,7 @@ BSTATUS ObOpenObjectByName(
 	HANDLE RootDirectory,
 	int OpenFlags,
 	POBJECT_TYPE ExpectedType,
+	void* ParseContext,
 	PHANDLE OutHandle
 );
 
@@ -335,11 +329,14 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 //
 // N.B. The InitialParseObject will have a net zero difference in reference count
 //      across calls to this function.
+//
+// N.B. The ParseContext will only be passed into objects with the type of ExpectedType.
 BSTATUS ObReferenceObjectByName(
 	const char* Path,
 	void* InitialParseObject,
 	int OpenFlags,
 	POBJECT_TYPE ExpectedType,
+	void* ParseContext,
 	void** OutObject
 );
 
@@ -406,5 +403,3 @@ extern POBJECT_TYPE ObGetBuiltInType(int Id);
 #define ObSymbolicLinkType ObGetBuiltInType(__OB_SYMLINK_TYPE)
 
 #endif
-
-

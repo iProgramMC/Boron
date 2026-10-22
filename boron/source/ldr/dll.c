@@ -4,10 +4,10 @@
 
 Module name:
 	ldr/loader.c
-	
+
 Abstract:
 	This module implements the driver DLL loader.
-	
+
 Author:
 	iProgramInCpp - 22 October 2023
 ***/
@@ -40,23 +40,23 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 {
 	if (Phdr->SizeInMemory == 0)
 		return;
-	
+
 	const int PageMask = PAGE_SIZE - 1;
-	
+
 	// Store the virtual address (here it's actually the offset from the image base) for later use.
 	uintptr_t Offset = Phdr->VirtualAddress;
 	uintptr_t VirtAddr = (BaseVirtAddr + Offset) & ~PageMask, Padding = (BaseVirtAddr + Offset) & PageMask;
-	
+
 	// Calculate the size of the total allocation.
 	size_t SizePages = (Phdr->SizeInMemory + Padding + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	uintptr_t Permissions = MM_MISC_IS_FROM_PMM | MM_PROT_READ;
 	if (Phdr->Flags & ELF_PHDR_EXEC)
 		Permissions |= MM_PROT_EXEC;
-	
+
 	// TODO: restrain permissions here
 	Permissions |= MM_PROT_WRITE;
-	
+
 	// Now map it in.
 	uintptr_t VirtAddrBackup = VirtAddr;
 	for (size_t i = 0; i < SizePages; i++)
@@ -64,52 +64,52 @@ static void LdriMapInProgramHeader(PLOADER_MODULE File, PELF_PROGRAM_HEADER Phdr
 		// NOTE: I should just map the module directly, however, the
 		// BSS doesn't actually occupy any space in the file itself,
 		// so this needs to be done.
-		
+
 		// Normally in a mmap based elf loader, mmap itself would take
 		// care of zero-filling everything. But not here.
-		
+
 		// Some entries overlap. Check if there's already a PTE beforehand.
 		PMMPTE Pte = MmGetPteLocationCheck(VirtAddr, false);
 		if (Pte && MmIsPresentPte(*Pte))
 		{
 			MMPTE Pte1 = *Pte;
 			uintptr_t OldPageBits = MmGetPageBitsPte(Pte1);
-			
+
 			// Update the permissions. There shouldn't really be any
 			// execute segments inside of an NX segment, or reverse...
 			OldPageBits |= MM_PROT_EXEC;
-			
+
 			*Pte = MmSetPageBitsPte(Pte1, OldPageBits);
-			
+
 			// If the PTE has changed, invalidate. We aren't ready to take
 			// page faults at this point, even if they'd be solved quickly.
 			if (!MmIsEqualPte(Pte1, *Pte))
 				KeInvalidatePage((void*) VirtAddr);
-			
+
 			VirtAddr += PAGE_SIZE;
 			continue;
 		}
-		
+
 		MMPFN Pfn = MmAllocatePhysicalPage();
 		if (Pfn == PFN_INVALID)
 			KeCrashBeforeSMPInit("Out of memory trying to map program header!");
-		
+
 		uintptr_t Page = MmPFNToPhysPage(Pfn);
-		
+
 		if (!MiMapPhysicalPage(Page,
 		                       VirtAddr,
 		                       Permissions))
 			KeCrashBeforeSMPInit("Can't map in program header to virtual address %p!", VirtAddr);
-		
+
 		KeInvalidatePage((void*) VirtAddr);
 		VirtAddr += PAGE_SIZE;
 	}
-	
+
 	VirtAddr = VirtAddrBackup;
-	
+
 	// Clear the segment.
 	memset((void*)(BaseVirtAddr + Offset), 0, Phdr->SizeInMemory);
-	
+
 	// Copy in the data.
 	memcpy((void*)(BaseVirtAddr + Offset),
 	       (void*)((uintptr_t) File->Address + Phdr->Offset),
@@ -121,15 +121,15 @@ static void LdrpGetLimits(PLOADER_MODULE File, uintptr_t* BaseAddr, uintptr_t* L
 {
 	*BaseAddr = ~0U;
 	*LargestAddr = 0;
-	
+
 	PELF_HEADER Header = (PELF_HEADER) File->Address;
 	uintptr_t Offset = (uintptr_t) File->Address + Header->ProgramHeadersOffset;
-	
+
 	for (int i = 0; i < Header->ProgramHeaderCount; i++)
 	{
 		PELF_PROGRAM_HEADER ProgramHeader = (PELF_PROGRAM_HEADER) Offset;
 		Offset += Header->ProgramHeaderSize;
-		
+
 		if (*BaseAddr > ProgramHeader->VirtualAddress)
 			*BaseAddr = ProgramHeader->VirtualAddress;
 		if (*LargestAddr < ProgramHeader->VirtualAddress + ProgramHeader->SizeInMemory)
@@ -141,46 +141,46 @@ INIT
 static PELF_PROGRAM_HEADER LdrpLoadProgramHeaders(PLOADER_MODULE File, uintptr_t *LoadBase, size_t *LoadSize)
 {
 	PELF_HEADER Header = (PELF_HEADER) File->Address;
-	
+
 	PELF_PROGRAM_HEADER Dynamic = NULL; // needed later
-	
+
 	uintptr_t Offset = (uintptr_t) File->Address + Header->ProgramHeadersOffset;
-	
+
 	// Scan the program headers to determine the size of our memory region.
 	uintptr_t BaseAddr, LargestAddr;
 	LdrpGetLimits(File, &BaseAddr, &LargestAddr);
-	
+
 	if (BaseAddr > LargestAddr)
 		KeCrashBeforeSMPInit("LdrpLoadProgramHeaders: Error, base address %p > largest address %p", BaseAddr, LargestAddr);
-	
+
 	uintptr_t Size = LargestAddr - BaseAddr;
-	
+
 	// Allocate this many pages.
 	Size = (Size + PAGE_SIZE - 1) / PAGE_SIZE;
 	if (Size == 0)
 		KeCrashBeforeSMPInit("LdrpLoadProgramHeaders: Error, size is zero");
-	
+
 	uintptr_t VirtualAddr = LdrAllocateRange(Size);
 	*LoadBase = VirtualAddr;
 	*LoadSize = Size * PAGE_SIZE;
-	
+
 	// The program headers can be placed anywhere page aligned so long as the PHDRs' position relative to each other isn't changed.
 	for (int i = 0; i < Header->ProgramHeaderCount; i++)
 	{
 		PELF_PROGRAM_HEADER ProgramHeader = (PELF_PROGRAM_HEADER) Offset;
 		Offset += Header->ProgramHeaderSize;
-		
+
 		LdriMapInProgramHeader(File, ProgramHeader, VirtualAddr);
-		
+
 		if (ProgramHeader->Type == PROG_DYNAMIC)
 		{
 			if (Dynamic)
 				KeCrashBeforeSMPInit("LdrpLoadProgramHeaders: More than one dynamic section?!");
-			
+
 			Dynamic = ProgramHeader;
 		}
 	}
-	
+
 	return Dynamic;
 }
 
@@ -192,51 +192,51 @@ void LdriLoadDll(PLOADER_MODULE File)
 		DbgPrint("Loaded too many DLLs! Refusing to load more... (%s was ignored)", File->Path);
 		return;
 	}
-	
+
 	PLOADED_DLL LoadedDLL = &KeLoadedDLLs[KeLoadedDLLCount++];
-	
+
 	LoadedDLL->LoaderModule = File;
 	LoadedDLL->Name         = File->Path;
-	
+
 	PELF_HEADER Header = (PELF_HEADER) File->Address;
-	
+
 	if (Header->Type != ELF_TYPE_DYNAMIC)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Error, module is not actually a DLL", File->Path);
-	
+
 	// Load the program headers into memory.
 	uintptr_t LoadBase;
 	size_t LoadSize;
 	PELF_PROGRAM_HEADER Dynamic = LdrpLoadProgramHeaders(File, &LoadBase, &LoadSize);
-	
+
 	LoadedDLL->ImageBase = LoadBase;
 	LoadedDLL->ImageSize = LoadSize;
-	
+
 	if (!Dynamic)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: No dynamic table?", File->Path);
-	
+
 	ELF_DYNAMIC_INFO DynInfo;
 	PELF_DYNAMIC_ITEM DynTable = (PELF_DYNAMIC_ITEM) (File->Address + Dynamic->Offset);
 	if (!RtlParseDynamicTable(DynTable, &DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to parse dynamic table", File->Path);
-	
+
 	if (!RtlPerformRelocations(&DynInfo, LoadBase))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to perform relocations", File->Path);
-	
+
 	RtlFindSymbolTable(File->Address, &DynInfo);
 	RtlRelocateRelrEntries(&DynInfo, LoadBase);
-	
+
 	if (!RtlLinkPlt(&DynInfo, LoadBase, File->Path))
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Failed to link with the kernel", File->Path);
-	
+
 	LoadedDLL->EntryPoint = (PDLL_ENTRY_POINT)(LoadBase + (uintptr_t) Header->EntryPoint);
-	
+
 	if (!LoadedDLL->EntryPoint)
 		KeCrashBeforeSMPInit("LdriLoadDll: %s: Unable to find DriverEntry", File->Path);
-	
+
 	LoadedDLL->StringTable     = DynInfo.StringTable;
 	LoadedDLL->SymbolTable     = DynInfo.SymbolTable;
 	LoadedDLL->SymbolTableSize = DynInfo.SymbolTableSize;
-	
+
 	DbgPrint("Module %s was loaded at base %p", File->Path, LoadBase);
 }
 
@@ -244,26 +244,26 @@ const char* LdrLookUpRoutineNameByAddress(PLOADED_DLL LoadedDll, uintptr_t Addre
 {
 	if (!LoadedDll->StringTable || !LoadedDll->SymbolTable)
 		return NULL;
-	
+
 	const uintptr_t No = (uintptr_t)-1;
-	
+
 	uintptr_t NameOffset = No;
 	uintptr_t ClosestAddress = 0;
-	
+
 	size_t SymbolTableSize  = LoadedDll->SymbolTableSize;
 	PELF_SYMBOL SymbolTable = LoadedDll->SymbolTable;
-	
+
 	for (size_t i = 0; i < SymbolTableSize; i++)
 	{
 		uintptr_t SymAddr = SymbolTable[i].Value;
-		
+
 		if (ClosestAddress < SymAddr && SymAddr <= Address)
 			ClosestAddress = SymAddr, NameOffset = SymbolTable[i].Name;
 	}
-	
+
 	if (NameOffset == No)
 		return NULL;
-	
+
 	*BaseAddress = ClosestAddress;
 	return LoadedDll->StringTable + NameOffset;
 }
@@ -273,13 +273,13 @@ static size_t LdrpGetBareNameLength(const char* Name)
 {
 	size_t Length = strlen(Name);
 	size_t LengthCopy = Length;
-	
+
 	for (; Length != 0; Length--)
 	{
 		if (strcmp(Name + Length, ".sys") == 0)
 			return Length;
 	}
-	
+
 	// Just don't do it.
 	return LengthCopy;
 }
@@ -290,7 +290,7 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 	// Create a driver object.
 	BSTATUS Status;
 	void* ObjectPtr = NULL;
-	
+
 	// The first DLL to be loaded is the HAL. Therefore, check if this
 	// matches with KeLoadedDLLs[0].
 	if (Dll == &KeLoadedDLLs[0])
@@ -301,15 +301,15 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 	else
 	{
 		// Use the object manager to create a driver object.
-		
+
 		// Take off the ".sys" from the driver's name.
 		char DriverName[16];
 		size_t Length = LdrpGetBareNameLength(Dll->Name) + 1;
 		if (Length > 16)
 			Length = 16;
-		
+
 		StringCopySafe(DriverName, Dll->Name, Length);
-		
+
 		DbgPrint("Creating driver object at /Drivers/%s", DriverName);
 		Status = ObCreateObject(
 			&ObjectPtr,
@@ -317,24 +317,23 @@ static void LdrpInitializeDllByIndex(PLOADED_DLL Dll)
 			IoDriverType,
 			DriverName,
 			OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT, // <-- TODO: Unloadable drivers
-			NULL,
 			sizeof(DRIVER_OBJECT)
 		);
-		
+
 		if (FAILED(Status))
 			KeCrash("Could not create driver object at /Drivers/%s: error %d", DriverName, Status);
 	}
-	
+
 	PDRIVER_OBJECT Driver = ObjectPtr;
 	Dll->DriverObject = Driver;
-	
+
 	// Initialize the driver object with basic details.
 	// The driver itself will fill in the rest.
 	memset(Driver, 0, sizeof * Driver);
 	Driver->DriverName = Dll->Name;
 	Driver->DriverEntry = Dll->EntryPoint;
 	InitializeListHead(&Driver->DeviceList);
-	
+
 	// Call the entry point now.
 	BSTATUS Result = Dll->EntryPoint(Driver);
 	if (Result != 0)

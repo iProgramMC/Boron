@@ -4,11 +4,11 @@
 
 Module name:
 	main.c
-	
+
 Abstract:
 	This module implements the main function of the
 	Ext2 File System driver.
-	
+
 Author:
 	iProgramInCpp - 30 April 2025
 ***/
@@ -45,7 +45,7 @@ POBJECT_TYPE Ext2FileSystemType;
 BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 {
 	void* Object = NULL;
-	
+
 	// The object will be assigned a directory later.
 	BSTATUS Status = ObCreateObject(
 		&Object,
@@ -53,16 +53,15 @@ BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 		Ext2FileSystemType,
 		NULL,
 		OB_FLAG_NO_DIRECTORY,
-		NULL,
 		sizeof(EXT2_FILE_SYSTEM)
 	);
-	
+
 	if (FAILED(Status))
 	{
 		LogMsg("Ext2: failed to create file system object: %d (%s)", Status, RtlGetStatusString(Status));
 		return Status;
 	}
-	
+
 	*Out = Object;
 	return STATUS_SUCCESS;
 }
@@ -70,12 +69,12 @@ BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	BSTATUS Status;
-	
+
 	// Declare the "Ext2FileSystem" type.
 	Status = ObCreateObjectType("Ext2FileSystem", &Ext2FileSystemTypeInfo, &Ext2FileSystemType);
 	if (FAILED(Status))
 		KeCrash("Failed to create Ext2FileSystem type: %d (%s)", Status, RtlGetStatusString(Status));
-	
+
 	// Now register this file system as a valid FSD.
 	IoRegisterFileSystemDriver(&Ext2DispatchTable);
 	return STATUS_SUCCESS;

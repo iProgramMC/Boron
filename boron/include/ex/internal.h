@@ -4,13 +4,13 @@
 
 Module name:
 	ex/internal.h
-	
+
 Abstract:
 	This header file defines executive internal calls.
-	
+
 	This must only be included by the kernel and will not expose
 	anything if included from a driver.
-	
+
 Author:
 	iProgramInCpp - 3 September 2024
 ***/
@@ -45,7 +45,8 @@ BSTATUS ExCreateObjectUserCall(
 BSTATUS ExOpenObjectUserCall(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	POBJECT_TYPE ObjectType
+	POBJECT_TYPE ObjectType,
+	void* ParseContext
 );
 
 #else

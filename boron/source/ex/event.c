@@ -4,10 +4,10 @@
 
 Module name:
 	ex/event.c
-	
+
 Abstract:
 	This module implements the Event executive dispatch object.
-	
+
 Author:
 	iProgramInCpp - 12 August 2024
 ***/
@@ -22,7 +22,7 @@ void* ExpDuplicateEvent(void* EventV, UNUSED int OpenReason)
 {
 	BSTATUS Status;
 	PKEVENT Event = EventV;
-	
+
 	void* NewObject = NULL;
 	Status = ObCreateObject(
 		&NewObject,
@@ -30,17 +30,16 @@ void* ExpDuplicateEvent(void* EventV, UNUSED int OpenReason)
 		ExEventObjectType,
 		NULL, // ObjectName
 		OB_FLAG_NO_DIRECTORY,
-		NULL, // ParseContext
 		sizeof(KEVENT) // BodySize
 	);
-	
+
 	if (FAILED(Status)) {
 		DbgPrint("ExpDuplicateEvent: Failed to duplicate event: %s (%d)", RtlGetStatusString(Status), Status);
 		return NULL;
 	}
-	
+
 	KeInitializeEvent((PKEVENT) NewObject, Event->Type, Event->Header.Signaled != 0);
-	
+
 	return NewObject;
 }
 
@@ -48,24 +47,24 @@ bool ExpCreateEventType()
 {
 	OBJECT_TYPE_INFO ObjectInfo;
 	memset (&ObjectInfo, 0, sizeof ObjectInfo);
-	
+
 	ObjectInfo.NonPagedPool = true;
 	ObjectInfo.MaintainHandleCount = true;
-	
+
 	ObjectInfo.Duplicate = ExpDuplicateEvent;
-	
+
 	BSTATUS Status = ObCreateObjectType(
 		"Event",
 		&ObjectInfo,
 		&ExEventObjectType
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("Could not create Event type: %d", Status);
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -73,15 +72,15 @@ BSTATUS OSSetEvent(HANDLE EventHandle)
 {
 	BSTATUS Status;
 	void* EventV;
-	
+
 	Status = ObReferenceObjectByHandle(EventHandle, ExEventObjectType, &EventV);
-	
+
 	if (SUCCEEDED(Status))
 	{
 		KeSetEvent((PKEVENT) EventV, EX_DISPATCH_BOOST);
 		ObDereferenceObject(EventV);
 	}
-	
+
 	return Status;
 }
 
@@ -89,15 +88,15 @@ BSTATUS OSResetEvent(HANDLE EventHandle)
 {
 	BSTATUS Status;
 	void* EventV;
-	
+
 	Status = ObReferenceObjectByHandle(EventHandle, ExEventObjectType, &EventV);
-	
+
 	if (SUCCEEDED(Status))
 	{
 		KeResetEvent((PKEVENT) EventV);
 		ObDereferenceObject(EventV);
 	}
-	
+
 	return Status;
 }
 
@@ -105,15 +104,15 @@ BSTATUS OSPulseEvent(HANDLE EventHandle)
 {
 	BSTATUS Status;
 	void* EventV;
-	
+
 	Status = ObReferenceObjectByHandle(EventHandle, ExEventObjectType, &EventV);
-	
+
 	if (SUCCEEDED(Status))
 	{
 		KePulseEvent((PKEVENT) EventV, EX_DISPATCH_BOOST);
 		ObDereferenceObject(EventV);
 	}
-	
+
 	return Status;
 }
 
@@ -121,23 +120,23 @@ BSTATUS OSQueryEvent(HANDLE EventHandle, int* EventState)
 {
 	if (!EventState)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	BSTATUS Status;
 	void* EventV;
-	
+
 	Status = MmProbeAddress(EventState, sizeof(int), true, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = ObReferenceObjectByHandle(EventHandle, ExMutexObjectType, &EventV);
-	
+
 	if (SUCCEEDED(Status))
 	{
 		int State = KeReadStateEvent((PKEVENT) EventV);
 		Status = MmSafeCopy(EventState, &State, sizeof(int), KeGetPreviousMode(), true);
 		ObDereferenceObject(EventV);
 	}
-	
+
 	return Status;
 }
 
@@ -159,15 +158,15 @@ BSTATUS OSCreateEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, in
 	// Check if the event type is within parameters.
 	if (EventType != EVENT_SYNCHRONIZATION && EventType != EVENT_NOTIFICATION)
 		return STATUS_INVALID_PARAMETER;
-	
+
 	EVENT_DATA EventData;
 	EventData.EventType = EventType;
 	EventData.State     = State;
-	
+
 	return ExCreateObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, sizeof(KEVENT), ExpInitializeEventObject, &EventData, POOL_NONPAGED, false);
 }
 
 BSTATUS OSOpenEvent(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, ExEventObjectType, NULL);
 }

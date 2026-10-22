@@ -4,10 +4,10 @@
 
 Module name:
 	stortst.c
-	
+
 Abstract:
 	This module implements the storage test for the test driver.
-	
+
 Author:
 	iProgramInCpp - 30 July 2024
 ***/
@@ -32,7 +32,7 @@ static void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t Buffer
 	uint64_t lastSec = HalGetTickCount();
 	uint64_t frequency = HalGetTickFrequency();
 	int iops = 0;
-	
+
 	while (true)
 	{
 		if (lastSec + frequency < HalGetTickCount())
@@ -41,11 +41,11 @@ static void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t Buffer
 			LogMsg("Iops: %d", iops);
 			iops = 0;
 		}
-		
+
 		Status = OSReadFile(&Iosb, DeviceHandle, 0, Buffer, BufferSize, 0);
 		if (FAILED(Status))
 			KeCrash("Failed to read, OSReadFile returned %d.  Performed %d iops before fail", Status, iops);
-		
+
 		iops++;
 	}
 }
@@ -54,46 +54,47 @@ static void IopsPerformanceTest(HANDLE DeviceHandle, void* Buffer, size_t Buffer
 void PerformStorageTest()
 {
 	BSTATUS Status;
-	
+
 	// Open the device
 	HANDLE DeviceHandle = HANDLE_NONE;
-	
+
 	Status = ObOpenObjectByName(
 		StorDeviceName,
 		HANDLE_NONE, // RootDirectory
 		0,           // Flags
 		IoFileType,
+		NULL,        // ParseContext
 		&DeviceHandle
 	);
-	
+
 	LogMsg("Opened storage device, got handle %d, status %d.", DeviceHandle, Status);
-	
+
 	// Fetch alignment info.
 	IO_STATUS_BLOCK Iosb = {};
 	size_t Alignment;
 	Status = OSGetAlignmentFile(DeviceHandle, &Alignment);
 	ASSERT(SUCCEEDED(Status));
-	
+
 	Alignment = 1024;
 	void* Buffer = MmAllocatePool(POOL_NONPAGED, Alignment);
-	
+
 	if (FAILED(Status))
 		KeCrash("Failed to open %s, ObOpenDeviceByName returned %d", StorDeviceName, Status);
-	
+
 	LogMsg("Reading... %p", Buffer);
 	memset(Buffer, 0xCC, Alignment);
-	
+
 #ifdef PERFORMANCE_TEST
 	IopsPerformanceTest(DeviceHandle, Buffer, Alignment);
 #else
 	Status = OSReadFile(&Iosb, DeviceHandle, 0, Buffer, Alignment, 0);
 	if (FAILED(Status))
 		KeCrash("Failed to read, OSReadFile returned %d.", Status);
-	
+
 	DumpHex(Buffer, Alignment > 1024 ? 1024 : Alignment, true);
 	//DumpHex(Buffer, Alignment, false);
 #endif
-	
+
 	// Close the device once a key has been pressed
 	ObClose(DeviceHandle);
 }

@@ -4,11 +4,11 @@
 
 Module name:
 	ob/link.c
-	
+
 Abstract:
 	This module implements the symbolic link object type for
 	the object manager.
-	
+
 Author:
 	iProgramInCpp - 23 December 2023
 ***/
@@ -26,21 +26,22 @@ BSTATUS ObpParseSymbolicLink(
 	void** OutObject)
 {
 	POBJECT_SYMLINK SymbolicLink = SymLinkObject;
-	
+
 	if (!SymbolicLink->DestPath)
 		// The symbolic link was not assigned.
 		return STATUS_UNASSIGNED_LINK;
-	
+
 	// Perform a lookup on the destination path.
 	BSTATUS Status = ObpLookUpObjectPath(
-		NULL,
+		NULL,      // InitialParseObject
 		SymbolicLink->DestPath,
-		NULL,
+		NULL,      // ExpectedType
 		LoopCount,
-		0,
+		0,         // OpenFlags
+		NULL,      // ParseContext
 		OutObject
 	);
-	
+
 	// That's all, folks!
 	//
 	// N.B. We are only human, after all, so symbolic link lookups can fail.
@@ -61,10 +62,10 @@ BSTATUS ObpParseSymbolicLink(
 void ObpDeleteSymbolicLink(void* SymLinkVoid)
 {
 	POBJECT_SYMLINK SymLink = SymLinkVoid;
-	
+
 	if (SymLink->DestPath)
 		MmFreePool(SymLink->DestPath);
-	
+
 	SymLink->DestPath = NULL;
 }
 
@@ -102,14 +103,14 @@ BSTATUS ObpInitializeSymbolicLink(void* Object, void* Context)
 {
 	POBJECT_SYMLINK SymLink = Object;
 	const char* LinkTarget = Context;
-	
+
 	size_t Length = strlen(LinkTarget);
-	
+
 	// Fill in the symbolic link.
 	SymLink->DestPath = MmAllocatePool(POOL_FLAG_NON_PAGED, Length + 1);
 	if (!SymLink->DestPath)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	strcpy(SymLink->DestPath, LinkTarget);
 	return STATUS_SUCCESS;
 }
@@ -121,9 +122,9 @@ BSTATUS ObCreateSymbolicLinkObject(
 	int Flags)
 {
 	BSTATUS Status;
-	
+
 	void* Object;
-	
+
 	// Attempt to resolve the link target first.  A symbolic link
 	// may only be created if the object actually exists.
 	Status = ObpLookUpObjectPath(
@@ -132,19 +133,20 @@ BSTATUS ObCreateSymbolicLinkObject(
 		NULL,       // ExpectedType
 		0,          // LoopCount
 		0,          // OpenFlags
+		NULL,       // ParseContext
 		&Object     // FoundObject
 	);
-	
+
 	if (FAILED(Status))
 	{
 		// Object wasn't found.
 		return Status;
 	}
-	
+
 	// That's all we wanted to do, just check for the object's existence.
 	ObDereferenceObject(Object);
 	Object = NULL;
-	
+
 	// Create the link itself.
 	Status = ObCreateObjectCallback(
 		&Object,
@@ -152,27 +154,26 @@ BSTATUS ObCreateSymbolicLinkObject(
 		ObSymbolicLinkType,
 		ObjectName,
 		Flags | OB_FLAG_NONPAGED, // <--- TODO: Right now, everything related to object directories is nonpaged.
-		NULL,
 		sizeof(OBJECT_SYMLINK),
 		ObpInitializeSymbolicLink,
 		(void*) LinkTarget
 	);
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	*OutObject = Object;
-	
+
 	// Ta-da!
 	return STATUS_SUCCESS;
 }
-	
+
 bool ObLinkRootDirectory()
 {
 	const char* RootPath = ExGetConfigValue("Root", NULL);
 	if (!RootPath)
 		KeCrash("No root path specified.  Add \"Root=[your root path here]\" to the boot command line.");
-	
+
 	void* Object = NULL;
 	BSTATUS Status = ObCreateSymbolicLinkObject(
 		&Object,
@@ -180,13 +181,13 @@ bool ObLinkRootDirectory()
 		"/Root",
 		OB_FLAG_PERMANENT
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("Failed to create symbolic link from %s to /Root: %s (%d)", RootPath, RtlGetStatusString(Status), Status);
 		return false;
 	}
-	
+
 	ObpFileSystemRootLink = Object;
 	return true;
 }

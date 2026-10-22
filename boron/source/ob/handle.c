@@ -4,11 +4,11 @@
 
 Module name:
 	ob/handle.c
-	
+
 Abstract:
 	This module implements functions to manipulate the object
 	handle table for the object manager.
-	
+
 Author:
 	iProgramInCpp - 11 June 2024
 ***/
@@ -33,7 +33,7 @@ typedef union
 		uintptr_t AddressBits : 29;
 	#endif
 	} U;
-	
+
 	void* Pointer;
 }
 OB_HANDLE_ITEM;
@@ -44,36 +44,36 @@ BSTATUS ObReferenceObjectByHandle(HANDLE Handle, POBJECT_TYPE ExpectedType, void
 {
 	BSTATUS Status;
 	PEPROCESS Process = PsGetCurrentProcess();
-	
+
 	// Look for the handle in the table.
 	OB_HANDLE_ITEM HandleItem;
 	HandleItem.Pointer = NULL;
 	HandleItem.U.AddressBits = 0; // simply to ignore a warning
-	
+
 	Status = ExGetPointerFromHandle(Process->HandleTable, Handle, &HandleItem.Pointer);
 	if (FAILED(Status))
 		return Status;
-	
+
 	// If it returned STATUS_SUCCESS, it should have returned a valid object.
 	ASSERT(HandleItem.U.AddressBits);
-	
+
 	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
-	
+
 	// Check if the object is of the correct type.
 	if (ExpectedType && OBJECT_GET_HEADER(Object)->NonPagedObjectHeader->ObjectType != ExpectedType)
 	{
 		ExUnlockHandleTable(Process->HandleTable);
 		return STATUS_TYPE_MISMATCH;
 	}
-	
+
 	// Reference the object.
 	ObReferenceObjectByPointer(Object);
-	
+
 	// Unlock the process' handle table.
 	ExUnlockHandleTable(Process->HandleTable);
-	
+
 	*OutObject = Object;
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -81,24 +81,24 @@ bool ObpCloseHandle(void* HandleItemV, UNUSED void* Context)
 {
 	if (!HandleItemV)
 		return false;
-	
+
 	OB_HANDLE_ITEM HandleItem;
 	HandleItem.U.AddressBits = 0; // simply to ignore a warning
 	HandleItem.Pointer = HandleItemV;
 	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
-	
+
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	POBJECT_TYPE Type = Header->NonPagedObjectHeader->ObjectType;
-	
+
 	OBJ_CLOSE_FUNC CloseMethod = Type->TypeInfo.Close;
-	
+
 	int HandleCount = 0;
 	if (Type->TypeInfo.MaintainHandleCount)
 		HandleCount = AtFetchAdd(Header->NonPagedObjectHeader->HandleCount, -1);
-	
+
 	if (CloseMethod)
 		CloseMethod(Object, HandleCount);
-	
+
 	ObDereferenceObject(Object);
 	return true;
 }
@@ -112,23 +112,23 @@ BSTATUS ObClose(HANDLE Handle)
 BSTATUS ObpInsertObject(PEPROCESS Process, void* Object, PHANDLE OutHandle, OB_OPEN_REASON OpenReason, int OpenFlags)
 {
 	BSTATUS Status;
-	
+
 	// Ensure the 3 LS bits are clear. This is enforced to be the case.
 	ASSERT(((uintptr_t) Object & 0x7) == 0);
-	
+
 	// Add a reference to this object, because it is now also referenced in the handle table.
 	ObReferenceObjectByPointer(Object);
-	
+
 	OB_HANDLE_ITEM HandleItem;
 	HandleItem.Pointer = 0;
 	HandleItem.U.AddressBits = (uintptr_t)Object >> 3;
-	
+
 	if (~OpenFlags & OB_OPEN_NO_INHERIT)
 		HandleItem.U.Inherit = 1;
-	
+
 	if (OpenFlags & OB_OPEN_DUPLICATE_ON_FORK)
 		HandleItem.U.Duplicate = 1;
-	
+
 	Status = ExCreateHandle(Process->HandleTable, HandleItem.Pointer, OutHandle);
 	if (FAILED(Status))
 	{
@@ -136,22 +136,22 @@ BSTATUS ObpInsertObject(PEPROCESS Process, void* Object, PHANDLE OutHandle, OB_O
 		ObDereferenceObject(Object);
 		return Status;
 	}
-	
+
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	PNONPAGED_OBJECT_HEADER NPHeader = Header->NonPagedObjectHeader;
-	
+
 	bool MaintainHandleCount = NPHeader->ObjectType->TypeInfo.MaintainHandleCount;
 	int HandleCount = 0;
-	
+
 	// Increment the handle count if needed.
 	if (MaintainHandleCount)
 		HandleCount = AtAddFetch(NPHeader->HandleCount, 1);
-	
+
 	// Call the object type's Open method.
 	OBJ_OPEN_FUNC OpenMethod = NPHeader->ObjectType->TypeInfo.Open;
 	if (OpenMethod)
 		OpenMethod(Object, HandleCount, OpenReason);
-	
+
 	// Added successfully, so return.
 	return Status;
 }
@@ -171,6 +171,7 @@ BSTATUS ObReferenceObjectByName(
 	void* InitialParseObject,
 	int OpenFlags,
 	POBJECT_TYPE ExpectedType,
+	void* ParseContext,
 	void** OutObject)
 {
 	return ObpLookUpObjectPath(
@@ -179,6 +180,7 @@ BSTATUS ObReferenceObjectByName(
 		ExpectedType,
 		0,             // LoopCount
 		OpenFlags,
+		ParseContext,
 		OutObject      // FoundObject
 	);
 }
@@ -188,31 +190,33 @@ BSTATUS ObOpenObjectByName(
 	HANDLE RootDirectory,
 	int OpenFlags,
 	POBJECT_TYPE ExpectedType,
+	void* ParseContext,
 	PHANDLE OutHandle)
 {
 	BSTATUS Status;
 	void* InitialParseObject = NULL;
-	
+
 	if (RootDirectory != HANDLE_NONE)
 	{
 		Status = ObReferenceObjectByHandle(RootDirectory, NULL, &InitialParseObject);
 		if (FAILED(Status))
 			return Status;
 	}
-	
+
 	void* Object = NULL;
-	
+
 	Status = ObReferenceObjectByName(
 		ObjectName,
 		InitialParseObject,
 		OpenFlags,
 		ExpectedType,
+		ParseContext,
 		&Object
 	);
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	OBJ_OPEN_FUNC OpenFunc = ObGetObjectType(Object)->TypeInfo.Open;
 	if (OpenFunc)
 	{
@@ -223,7 +227,7 @@ BSTATUS ObOpenObjectByName(
 			return Status;
 		}
 	}
-	
+
 	// OK, the object was found.
 	Status = ObpInsertObject(PsGetCurrentProcess(), Object, OutHandle, OB_OPEN_HANDLE, OpenFlags);
 
@@ -239,18 +243,18 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 	HandleItem.U.AddressBits = 0; // simply to ignore a warning
 	HandleItem.Pointer = HandleItemV;
 	void* Object = (void*) ((uintptr_t)HandleItem.U.AddressBits << 3);
-	
+
 	if (HandleItem.U.Inherit == 0 && OpenReason == OB_INHERIT_HANDLE)
 	{
 		// This handle is NOT to be inherited as it wasn't opened with OB_FLAG_INHERIT.
 		return NULL;
 	}
-	
+
 	void* NewObject = Object;
-	
+
 	POBJECT_HEADER Header = OBJECT_GET_HEADER(Object);
 	PNONPAGED_OBJECT_HEADER NPHeader = Header->NonPagedObjectHeader;
-	
+
 	if (HandleItem.U.Duplicate == 1 && OpenReason == OB_DUPLICATE_HANDLE)
 	{
 		// If this object has a duplicate function, call it.
@@ -258,11 +262,11 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 		if (DuplicateMethod)
 		{
 			NewObject = DuplicateMethod(Object, OpenReason);
-			
+
 			if (!NewObject)
 				NewObject = Object;
 		}
-		
+
 		if (NewObject == Object)
 		{
 			// TODO: should we use a status here? not provide anything at all?
@@ -271,7 +275,7 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 			DbgPrint("WARNING: Could not duplicate object %p.  Things won't work as expected.", Object);
 		}
 	}
-	
+
 	if (NewObject == Object)
 	{
 		// Reference the object and add 1 to its handle count if needed.
@@ -282,18 +286,18 @@ void* ObpDuplicateHandle(void* HandleItemV, void* Context)
 		// Update the pointer without changing the bits.
 		HandleItem.U.AddressBits = (uintptr_t) NewObject >> 3;
 	}
-	
+
 	bool MaintainHandleCount = NPHeader->ObjectType->TypeInfo.MaintainHandleCount;
 	int HandleCount = 0;
-	
+
 	if (MaintainHandleCount)
 		HandleCount = AtAddFetch(NPHeader->HandleCount, 1);
-	
+
 	// Call the object type's Open method.
 	OBJ_OPEN_FUNC OpenMethod = NPHeader->ObjectType->TypeInfo.Open;
 	if (OpenMethod)
 		OpenMethod(NewObject, HandleCount, OpenReason);
-	
+
 	return HandleItem.Pointer;
 }
 

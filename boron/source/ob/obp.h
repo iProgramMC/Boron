@@ -4,11 +4,11 @@
 
 Module name:
 	ob/obp.h
-	
+
 Abstract:
 	This header file defines private object manager data,
 	and includes some header files that are usually included.
-	
+
 Author:
 	iProgramInCpp - 7 December 2023
 ***/
@@ -36,7 +36,6 @@ Author:
 BSTATUS ObpAllocateObject(
 	POBJECT_TYPE Type,
 	size_t BodySize,
-	void* ParseContext,
 	int Flags,
 	POBJECT_HEADER* OutObjectHeader
 );
@@ -70,6 +69,7 @@ BSTATUS ObpLookUpObjectPath(
 	POBJECT_TYPE ExpectedType,
 	int LoopCount,
 	int OpenFlags,
+	void* ParseContext,
 	void** FoundObject
 );
 

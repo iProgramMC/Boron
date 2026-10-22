@@ -889,7 +889,7 @@ BSTATUS OSWriteFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, c
 
 BSTATUS OSOpenFile(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes)
 {
-	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType);
+	return ExOpenObjectUserCall(OutHandle, ObjectAttributes, IoFileType, NULL);
 }
 
 BSTATUS OSGetLengthFile(HANDLE FileHandle, uint64_t* OutLength)

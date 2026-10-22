@@ -4,11 +4,11 @@
 
 Module name:
 	ob/type.c
-	
+
 Abstract:
 	This module implements the "object type" type for the
 	object manager.
-	
+
 Author:
 	iProgramInCpp - 18 December 2023
 ***/
@@ -52,15 +52,15 @@ BSTATUS ObCreateObjectType(
 {
 	// Check if the type name has any invalid characters.
 	const char* TypeNameTemp = TypeName;
-	
+
 	POBJECT_HEADER Hdr;
 	BSTATUS Status;
-	
+
 	while (*TypeNameTemp)
 	{
 		if (*TypeNameTemp == '/')
 			return STATUS_NAME_INVALID;
-		
+
 		TypeNameTemp++;
 	}
 
@@ -68,44 +68,43 @@ BSTATUS ObCreateObjectType(
 	Status = ObpAllocateObject(
 		ObObjectTypeType,
 		sizeof(OBJECT_TYPE),
-		NULL,
 		OB_FLAG_KERNEL | OB_FLAG_NONPAGED | OB_FLAG_PERMANENT,
 		&Hdr
 	);
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = ObpAssignName(Hdr, TypeName);
 	if (FAILED(Status))
 	{
 		ObpFreeObject(Hdr);
 		return Status;
 	}
-	
+
 	POBJECT_TYPE NewType = (POBJECT_TYPE) Hdr->Body;
-	
+
 	NewType->TypeName = Hdr->ObjectName;
-	
+
 	ObpEnterObjectTypeMutex();
-	
+
 	// The first ever object type created MUST be the ObjectType object type.
 	if (!ObObjectTypeType)
 	{
 		ObObjectTypeType = NewType;
-		
+
 		Hdr->NonPagedObjectHeader->ObjectType = NewType;
 		NewType->TotalObjectCount = 1;
 	}
-	
+
 	NewType->TypeInfo = *TypeInfo;
-	
+
 	ObpLeaveObjectTypeMutex();
-	
+
 	// If we have an object types directory, add it there.
 	if (ObpObjectTypesDirectory)
 		ObLinkObject(ObpObjectTypesDirectory, NewType, NULL);
-	
+
 	*OutObjectType = NewType;
 	return STATUS_SUCCESS;
 }
@@ -115,13 +114,13 @@ BSTATUS ObCreateObjectType(
 BSTATUS ObpDebugObjectType(void* Object)
 {
 	POBJECT_TYPE Type = Object;
-	
+
 	DbgPrint(
 		"Object type - name '%s', total number of objects: %d",
 		Type->TypeName,
 		Type->TotalObjectCount
 	);
-	
+
 	return STATUS_SUCCESS;
 }
 #endif
@@ -171,7 +170,7 @@ bool ObpInitializeBasicTypes()
 		DbgPrint("Failed to create SymbolicLink object type");
 		return false;
 	}
-	
+
 	return true;
 }
 

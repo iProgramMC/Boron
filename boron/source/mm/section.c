@@ -4,13 +4,13 @@
 
 Module name:
 	mm/section.c
-	
+
 Abstract:
 	This module implements the section object.
-	
+
 	The section object represents a section of memory, either backed
 	by a file, or backed by virtual memory and page files.
-	
+
 Author:
 	iProgramInCpp - 7 December 2025
 ***/
@@ -25,7 +25,7 @@ typedef union
 	}
 	PACKED
 	Data;
-	
+
 	MMSLA_ENTRY Entry;
 }
 MMSECTION_SLA_ENTRY, *PMMSECTION_SLA_ENTRY;
@@ -34,7 +34,7 @@ static void MmpFreeEntrySectionObject(MMSLA_ENTRY Entry)
 {
 	MMSECTION_SLA_ENTRY SectionEntry;
 	SectionEntry.Entry = Entry;
-	
+
 	MMPFN Pfn = SectionEntry.Data.Pfn;
 	if (Pfn != PFN_INVALID)
 		MmFreePhysicalPage(Pfn);
@@ -45,11 +45,11 @@ BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN P
 	MMSECTION_SLA_ENTRY SlaEntry;
 	SlaEntry.Entry = 0;
 	SlaEntry.Data.Pfn = Pfn;
-	
+
 	MMSLA_ENTRY NewEntry = MmAssignEntrySla(&Section->Sla, SectionOffset, SlaEntry.Entry);
 	if (NewEntry == MM_SLA_OUT_OF_MEMORY)
 		return STATUS_INSUFFICIENT_MEMORY;
-	
+
 	// Now add a reference to it.
 	MmPageAddReference(Pfn);
 	return STATUS_SUCCESS;
@@ -58,10 +58,10 @@ BSTATUS MiAssignEntrySection(PMMSECTION Section, uint64_t SectionOffset, MMPFN P
 static BSTATUS MmpGetPageSection(void* MappableObject, uint64_t SectionOffset, PMMPFN OutPfn)
 {
 	PMMSECTION Section = MappableObject;
-	
+
 	BSTATUS Status = KeWaitForSingleObject(&Section->Mutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
 	ASSERT(SUCCEEDED(Status));
-	
+
 	// N.B. Unlike page caches, we don't need to worry about anything modifying the list while
 	// it's locked with a mutex.
 	MMSECTION_SLA_ENTRY SlaEntry;
@@ -74,10 +74,10 @@ static BSTATUS MmpGetPageSection(void* MappableObject, uint64_t SectionOffset, P
 			KeReleaseMutex(&Section->Mutex);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
-		
+
 		SlaEntry.Entry = 0;
 		SlaEntry.Data.Pfn = Pfn;
-		
+
 		MMSLA_ENTRY NewEntry = MmAssignEntrySla(&Section->Sla, SectionOffset, SlaEntry.Entry);
 		if (NewEntry == MM_SLA_OUT_OF_MEMORY)
 		{
@@ -85,10 +85,10 @@ static BSTATUS MmpGetPageSection(void* MappableObject, uint64_t SectionOffset, P
 			KeReleaseMutex(&Section->Mutex);
 			return STATUS_INSUFFICIENT_MEMORY;
 		}
-		
+
 		ASSERT(NewEntry == SlaEntry.Entry);
 	}
-	
+
 	MmPageAddReference(SlaEntry.Data.Pfn);
 	KeReleaseMutex(&Section->Mutex);
 	*OutPfn = SlaEntry.Data.Pfn;
@@ -100,7 +100,7 @@ static BSTATUS MmpReadPageSection(void* MappableObject, uint64_t SectionOffset, 
 	(void) MappableObject;
 	(void) SectionOffset;
 	(void) OutPfn;
-	
+
 	// There is nothing to page in. (for now!)
 	return STATUS_HARDWARE_IO_ERROR;
 }
@@ -109,7 +109,7 @@ static BSTATUS MmpPrepareWriteSection(void* MappableObject, uint64_t SectionOffs
 {
 	(void) MappableObject;
 	(void) SectionOffset;
-	
+
 	// Sections are shared, so no special programming needed.
 	return STATUS_SUCCESS;
 }
@@ -118,7 +118,7 @@ static BSTATUS MmpSetPageModifiedSection(void* MappableObject, uint64_t SectionO
 {
 	(void) MappableObject;
 	(void) SectionOffset;
-	
+
 	// Sections are shared, and not backed by a file, so no special programming needed.
 	return STATUS_SUCCESS;
 }
@@ -156,10 +156,10 @@ static BSTATUS MmpInitializeSectionObject(void* Object, void* Context)
 {
 	PMMSECTION Section = Object;
 	SECTION_CREATE_CONTEXT* CreateContext = Context;
-	
+
 	MmInitializeSectionObject(Section);
 	Section->MaxSizePages = (CreateContext->MaxSize + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -167,26 +167,25 @@ BSTATUS MmCreateAnonymousSectionObject(PMMSECTION* OutSection, uint64_t MaxSize)
 {
 	void* OutObject;
 	BSTATUS Status;
-	
+
 	Status = ObCreateObject(
 		&OutObject,
 		NULL, // ParentDirectory
 		MmSectionObjectType,
 		NULL, // ObjectName
 		OB_FLAG_NO_DIRECTORY,
-		NULL, // ParseContext
 		sizeof(MMSECTION)
 	);
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	SECTION_CREATE_CONTEXT CreateContext;
 	CreateContext.MaxSize = MaxSize;
-	
+
 	Status = MmpInitializeSectionObject(OutObject, &CreateContext);
 	ASSERT(SUCCEEDED(Status));
-	
+
 	*OutSection = OutObject;
 	return STATUS_SUCCESS;
 }
@@ -199,7 +198,7 @@ BSTATUS OSCreateSectionObject(
 {
 	SECTION_CREATE_CONTEXT CreateContext;
 	CreateContext.MaxSize = MaxSize;
-	
+
 	return ExCreateObjectUserCall(
 		OutSectionHandle,
 		ObjectAttributes,

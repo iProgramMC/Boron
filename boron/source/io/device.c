@@ -4,10 +4,10 @@
 
 Module name:
 	io/device.c
-	
+
 Abstract:
 	This module implements the I/O Device object type.
-	
+
 Author:
 	iProgramInCpp - 26 February 2024
 ***/
@@ -22,25 +22,25 @@ bool IopInitializeDevicesDir()
 		"/Devices",
 		OB_FLAG_KERNEL | OB_FLAG_PERMANENT
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create /Devices directory");
 		return false;
 	}
-	
+
 	// The devices directory is now created.
 	// N.B.  We keep a permanent reference to it at all times, will be useful.
-	
+
 	return true;
 }
 
 BSTATUS IoOpenDeviceObject(PDEVICE_OBJECT DeviceObject, PFILE_OBJECT* OutObject, uint32_t Flags, uint32_t OpenFlags)
 {
 	BSTATUS Status = IoCreateFileObject(DeviceObject->Fcb, OutObject, Flags, OpenFlags);
-	
+
 	// TODO: Permission inheritance
-	
+
 	return Status;
 }
 
@@ -57,36 +57,35 @@ BSTATUS IoCreateDevice(
 {
 	PDEVICE_OBJECT DeviceObject = NULL;
 	BSTATUS Status;
-	
+
 	Status = ObCreateObject(
 		(void**) &DeviceObject,
 		IoDevicesDir,
 		IoDeviceType,
 		DeviceName,
 		OB_FLAG_PERMANENT,
-		NULL,
 		sizeof (DEVICE_OBJECT) + DeviceExtensionSize
 	);
 	// ^^^^ TODO: All devices are permanent for now.  Implement IopDeleteDevice
 	//            and then come back and fix this.
-	
+
 	if (FAILED(Status))
 		return Status;
-	
+
 	*OutDeviceObject = DeviceObject;
-	
+
 	// Initialize the device object.
 	DeviceObject->DeviceType    = Type;
 	DeviceObject->DriverObject  = DriverObject;
 	DeviceObject->DispatchTable = DispatchTable;
-	
+
 	// Create the associated FCB.
 	DeviceObject->Fcb = IoAllocateFcb(
 		DeviceObject->DispatchTable,
 		FcbExtensionSize,
 		true
 	);
-	
+
 	if (!DeviceObject->Fcb)
 	{
 		DbgPrint("ERROR: Could not allocate FCB for device");
@@ -94,20 +93,20 @@ BSTATUS IoCreateDevice(
 		ObDereferenceObject(DeviceObject);
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
-	
+
 	// Insert the device into the driver's list of devices.
 	KIPL Ipl;
 	KeAcquireSpinLock(&DriverObject->DeviceListLock, &Ipl);
 	InsertTailList(&DriverObject->DeviceList, &DeviceObject->ListEntry);
 	KeReleaseSpinLock(&DriverObject->DeviceListLock, Ipl);
-	
+
 	// If this driver has an AddDevice callback, call it.
 	if (DriverObject->AddDevice)
 		DriverObject->AddDevice(DriverObject, DeviceObject);
-	
+
 	// Increment the reference count of the driver object.
 	ObReferenceObjectByPointer(DriverObject);
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -117,7 +116,7 @@ void IopDeleteDevice(void* Object)
 	// Steps I know so far:
 	// - Remove the object from the driver object's device list
 	// - Update IoCreateDevice to make the object not always permanent
-	
+
 	DbgPrint("UNIMPLEMENTED: IopDeleteDevice(%p)", Object);
 }
 

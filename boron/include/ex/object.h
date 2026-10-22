@@ -4,11 +4,11 @@
 
 Module name:
 	ex/object.h
-	
+
 Abstract:
 	This header defines prototypes for executive dispatch
 	object manipulation functions.
-	
+
 Author:
 	iProgramInCpp - 9 August 2024
 ***/
@@ -43,7 +43,8 @@ BSTATUS ExCreateObjectUserCall(
 BSTATUS ExOpenObjectUserCall(
 	PHANDLE OutHandle,
 	POBJECT_ATTRIBUTES ObjectAttributes,
-	POBJECT_TYPE ObjectType
+	POBJECT_TYPE ObjectType,
+	void* ParseContext
 );
 
 #endif

@@ -181,7 +181,6 @@ BSTATUS ExCreateObjectUserCall(
 		ObjectType,
 		Attributes.ObjectName,
 		Flags,
-		NULL,
 		ObjectBodySize
 	);
 
@@ -239,7 +238,7 @@ Fail:
 }
 
 // Opens an object from a user system service call.  This ensures that code is not duplicated.
-BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType)
+BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttributes, POBJECT_TYPE ObjectType, void* ParseContext)
 {
 	BSTATUS Status;
 	OBJECT_ATTRIBUTES Attributes;
@@ -282,6 +281,7 @@ BSTATUS ExOpenObjectUserCall(PHANDLE OutHandle, POBJECT_ATTRIBUTES ObjectAttribu
 		Attributes.RootDirectory,
 		Attributes.OpenFlags,
 		ObjectType,
+		ParseContext,
 		&Handle
 	);
 
