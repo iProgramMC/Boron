@@ -28,17 +28,21 @@ Author:
 
 static uint64_t NextTmpfsInodeNumber = 1;
 
+void TmpPurgeViewsForDeletedFileIfNeeded(PFCB Fcb);
+
 void TmpAddLink(PFCB Fcb)
 {
 	EXT(Fcb)->LinkCount++;
-	DbgPrint("TmpAddLink: %p (%d)", Fcb, EXT(Fcb)->LinkCount);
 }
 
 void TmpRemoveLink(PFCB Fcb)
 {
-	size_t OldRefCount = EXT(Fcb)->LinkCount--;
+	UNUSED size_t OldRefCount;
+
+	OldRefCount = EXT(Fcb)->LinkCount--;
 	ASSERT(EXT(Fcb)->LinkCount < OldRefCount);
-	DbgPrint("TmpRemLink: %p (%d)", Fcb, EXT(Fcb)->LinkCount);
+
+	TmpPurgeViewsForDeletedFileIfNeeded(Fcb);
 }
 
 void TmpReferenceFcb(PFCB Fcb)
@@ -67,6 +71,15 @@ void TmpDereferenceFcb(PFCB Fcb)
 
 		IoFreeFcb(Fcb);
 	}
+}
+
+void TmpPurgeViewsForDeletedFileIfNeeded(PFCB Fcb)
+{
+	if (EXT(Fcb)->LinkCount != 0)
+		return;
+
+	//DbgPrint("Fcb %p has link count of 0, so purging all views!", Fcb);
+	CcPurgeViewsForFile(Fcb);
 }
 
 bool TmpFileSeekable(UNUSED PFCB Fcb)
@@ -503,6 +516,8 @@ BSTATUS TmpParseDir(
 		if (!Match)
 			continue;
 
+		PFCB FcbToRemove = NULL;
+
 		// If we're trying to supersede, check what exactly we're trying to supersede and whether
 		// this is the last path component.
 		if (CreateDisposition == IO_SUPERSEDE && IsLastPathComponent)
@@ -541,9 +556,9 @@ BSTATUS TmpParseDir(
 			}
 
 			// Dereference the old FCB and put the new FCB in its place.
-			PFCB OldFcb = DirEntry->Fcb;
+			FcbToRemove = DirEntry->Fcb;
 			DirEntry->Fcb = NewFcb;
-			TmpDereferenceFcb(OldFcb);
+			TmpAddLink(NewFcb);
 		}
 
 		// Path name matched, so return the new FCB.
@@ -553,6 +568,13 @@ BSTATUS TmpParseDir(
 		Iosb->ParseDir.FoundFcb = DirEntry->Fcb;
 		Iosb->ParseDir.ReparsePath = ParsePath + Match;
 		KeReleaseMutex(&Ext->Lock);
+
+		if (FcbToRemove)
+		{
+			TmpRemoveLink(FcbToRemove);
+			TmpDereferenceFcb(FcbToRemove);
+		}
+
 		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
 
@@ -773,11 +795,7 @@ BSTATUS TmpMakeHardLink(PFCB Fcb, PIO_DIRECTORY_ENTRY NewName, PFCB DestFcb)
 
 void TmpOnDeleteObjectFcb(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)
 {
-	if (EXT(Fcb)->LinkCount == 0)
-	{
-		DbgPrint("Fcb %p has link count of 0, so purging all views!", Fcb);
-		CcPurgeViewsForFile(Fcb);
-	}
+	TmpPurgeViewsForDeletedFileIfNeeded(Fcb);
 }
 
 IO_DISPATCH_TABLE TmpDispatchTable =
