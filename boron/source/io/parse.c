@@ -102,6 +102,8 @@ static BSTATUS IopCallParse(
 		ParseContext->CreateOptions
 	);
 
+	IoDereferenceFcb(FoundFcb);
+
 	return Status;
 }
 
