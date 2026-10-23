@@ -18,6 +18,7 @@ Author:
 #pragma once
 
 #include <ex/rwlock.h>
+#include <ex/fmutex.h>
 #include <mm/cache.h>
 #include <io/dispatch.h>
 

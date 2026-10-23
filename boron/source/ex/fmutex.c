@@ -3,19 +3,20 @@
 	Copyright (C) 2026 iProgramInCpp
 
 Module name:
-	ke/fmutex.c
+	ex/fmutex.c
 
 Abstract:
-	This module implements
+	This module implements the fast mutex synchronization primitive.
 
 Author:
 	iProgramInCpp - 22 October 2026
 ***/
 #include <ke.h>
+#include <ex.h>
 
 #define FAST_MUTEX_PRIORITY_INCREMENT 2
 
-void KeInitializeFastMutex(PFAST_MUTEX Mutex)
+void ExInitializeFastMutex(PFAST_MUTEX Mutex)
 {
 	Mutex->Count = 1;
 	Mutex->OwnerThread = NULL;
@@ -28,7 +29,7 @@ void KeInitializeFastMutex(PFAST_MUTEX Mutex)
 #endif
 }
 
-void KeAcquireFastMutex(PFAST_MUTEX Mutex)
+void ExAcquireFastMutex(PFAST_MUTEX Mutex)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
 
@@ -59,7 +60,7 @@ void KeAcquireFastMutex(PFAST_MUTEX Mutex)
 	Mutex->OwnerCount++;
 }
 
-void KeReleaseFastMutex(PFAST_MUTEX Mutex)
+void ExReleaseFastMutex(PFAST_MUTEX Mutex)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
 
@@ -89,7 +90,7 @@ void KeReleaseFastMutex(PFAST_MUTEX Mutex)
 	KeSetEvent(&Mutex->Event, FAST_MUTEX_PRIORITY_INCREMENT);
 }
 
-bool KeTryToAcquireFastMutex(PFAST_MUTEX Mutex)
+bool ExTryToAcquireFastMutex(PFAST_MUTEX Mutex)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
 

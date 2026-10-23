@@ -3,7 +3,7 @@
 	Copyright (C) 2026 iProgramInCpp
 
 Module name:
-	ke/fmutex.h
+	ex/fmutex.h
 
 Abstract:
 	This header file defines the fast mutex structure and defines the
@@ -29,10 +29,10 @@ typedef struct
 }
 FAST_MUTEX, *PFAST_MUTEX;
 
-void KeInitializeFastMutex(PFAST_MUTEX Mutex);
+void ExInitializeFastMutex(PFAST_MUTEX Mutex);
 
-void KeAcquireFastMutex(PFAST_MUTEX Mutex);
+void ExAcquireFastMutex(PFAST_MUTEX Mutex);
 
-void KeReleaseFastMutex(PFAST_MUTEX Mutex);
+void ExReleaseFastMutex(PFAST_MUTEX Mutex);
 
-bool KeTryToAcquireFastMutex(PFAST_MUTEX Mutex);
+bool ExTryToAcquireFastMutex(PFAST_MUTEX Mutex);

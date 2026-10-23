@@ -4,13 +4,13 @@
 
 Module name:
 	ex.h
-	
+
 Abstract:
 	This header file defines prototypes for routines from the
 	extended runtime library. The extended runtime library
 	contains routines that depend on the kernel, unlike Rtl
 	which is entirely freestanding.
-	
+
 Author:
 	iProgramInCpp - 27 September 2023
 ***/
@@ -24,6 +24,7 @@ Author:
 #include <ex/process.h>
 #include <ex/object.h>
 #include <ex/bootcfg.h>
+#include <ex/fmutex.h>
 
 BSTATUS OSQuerySystemInformation(
 	uint32_t QueryType,

@@ -22,23 +22,23 @@ void CcPurgeViewsForFile(PFCB Fcb)
 	// the FCB for the last time, and it's about to be wiped out!
 	//
 	// However we will still protect against race conditions just in case.
-	KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 
 	while (!IsEmptyRbTree(&Fcb->CacheInfo.ViewCache))
 	{
 		// Get the first entry and remove it.
 		PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&Fcb->CacheInfo.ViewCache);
 		RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, Entry);
-		KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, ViewCacheEntry);
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, false);
 
-		KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	}
 
 	ASSERT(IsEmptyRbTree(&Fcb->CacheInfo.ViewCache));
-	KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 }
 
 // NOTE: The view cache mutex needs to be locked.
@@ -97,7 +97,7 @@ BSTATUS CcReadFileMdl(
 
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 
 	while (Size)
 	{
@@ -119,7 +119,7 @@ BSTATUS CcReadFileMdl(
 
 		if (FAILED(Status))
 		{
-			KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+			ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 			return Status;
 		}
 
@@ -131,7 +131,7 @@ BSTATUS CcReadFileMdl(
 		Size -= CopyAmount;
 	}
 
-	KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	return STATUS_SUCCESS;
 }
 
@@ -220,7 +220,7 @@ BSTATUS CcWriteFileMdl(
 
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 
 	// Do this before anything else.  The order of operations is important: if we marked the _pages_
 	// modified first, they could see the blocks modified bitmap and think "oh, nothing to write!?"
@@ -234,7 +234,7 @@ BSTATUS CcWriteFileMdl(
 		// to perform pageout (unless you plan on expanding the pagefile(s)!?  TODO: think about
 		// this carefully.)
 		DbgPrint("ERROR: CcWriteFileMdl: Cannot mark block device as modified, out of memory.");
-		KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 
@@ -258,7 +258,7 @@ BSTATUS CcWriteFileMdl(
 
 		if (FAILED(Status))
 		{
-			KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+			ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 			return Status;
 		}
 
@@ -271,7 +271,7 @@ BSTATUS CcWriteFileMdl(
 		Size -= CopyAmount;
 	}
 
-	KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	return STATUS_SUCCESS;
 }
 

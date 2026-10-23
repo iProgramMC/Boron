@@ -84,9 +84,9 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	// Add this VAD into the FCB's view cache.
 	PFCB Fcb = FileObject->Fcb;
 
-	KeAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	InsertItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
-	KeReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 
 	CcAddVadToViewCacheLru(Vad);
 	return STATUS_SUCCESS;

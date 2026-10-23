@@ -65,4 +65,3 @@ void KeInitializeDispatchHeader(PKDISPATCH_HEADER Object, int Type);
 #include "mutex.h"
 #include "semaphor.h"
 #include "process.h"
-#include "fmutex.h"

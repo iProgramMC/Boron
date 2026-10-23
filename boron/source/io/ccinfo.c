@@ -19,8 +19,8 @@ Author:
 void IoInitializeCacheInfo(PIO_CACHE_INFO CacheInfo)
 {
 	MmInitializeCcb(&CacheInfo->PageCache);
-	KeInitializeFastMutex(&CacheInfo->ViewCacheMutex);
-	KeInitializeFastMutex(&CacheInfo->ModBitmapMutex);
+	ExInitializeFastMutex(&CacheInfo->ViewCacheMutex);
+	ExInitializeFastMutex(&CacheInfo->ModBitmapMutex);
 	CacheInfo->ModBitmap = NULL;
 	CacheInfo->BlockSize = 0;
 }
@@ -104,7 +104,7 @@ bool IoModRangeModifiedCacheInfo(
 
 	MMSLA_ENTRY Mask, Entry, Result;
 
-	KeAcquireFastMutex(&CacheInfo->ModBitmapMutex);
+	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex);
 
 	// If Start and End are inside the same entry.
 	if (Start == End)
@@ -116,7 +116,7 @@ bool IoModRangeModifiedCacheInfo(
 		if (!Set && Entry == 0)
 		{
 			// Already cleared.
-			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+			ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return true;
 		}
 
@@ -135,11 +135,11 @@ bool IoModRangeModifiedCacheInfo(
 			// when an entry is fully cleared and there are no more modified blocks
 			// for that specific SLA entry.
 			DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (one block range)");
-			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+			ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return false;
 		}
 
-		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+		ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return true;
 	}
 
@@ -158,7 +158,7 @@ bool IoModRangeModifiedCacheInfo(
 	{
 		// Out of memory.
 		DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting start)");
-		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+		ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return false;
 	}
 
@@ -168,7 +168,7 @@ bool IoModRangeModifiedCacheInfo(
 		if (Result == 0 && Set)
 		{
 			DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting middle)");
-			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+			ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return false;
 		}
 	}
@@ -187,11 +187,11 @@ bool IoModRangeModifiedCacheInfo(
 	{
 		// Out of memory.
 		DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting end)");
-		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+		ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return false;
 	}
 
-	KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+	ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 	return true;
 }
 
@@ -240,7 +240,7 @@ uint64_t IoGetModifiedMaskPerPageCacheInfo(
 	uint64_t Start = PageNumberOffset * BlocksPerPage;
 	uint64_t End = (PageNumberOffset + 1) * BlocksPerPage;
 
-	KeAcquireFastMutex(&CacheInfo->ModBitmapMutex);
+	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex);
 
 	uint64_t Current = 1, All = 0;
 	MMSLA_ENTRY EntryCache = 0;
@@ -255,7 +255,7 @@ uint64_t IoGetModifiedMaskPerPageCacheInfo(
 		Current <<= 1;
 	}
 
-	KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
+	ExReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 
 	if (OutBitsetAll) {
 		*OutBitsetAll = All;
