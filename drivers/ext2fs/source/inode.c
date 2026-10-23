@@ -121,6 +121,8 @@ void Ext2FreeInode(PFCB Fcb)
 		ObDereferenceObject(FileSystem);
 	}
 
+	ExDeinitializeRwLock(&Ext->BlockRwlock);
+
 	IoFreeFcb(Fcb);
 }
 
