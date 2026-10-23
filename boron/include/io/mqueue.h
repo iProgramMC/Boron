@@ -17,13 +17,13 @@ Author:
 #include <ex.h>
 
 // Stream-based communication: messages may be spliced together and partial reads are
-// allowed.  This flag only applies to I/O read/write operations: IoPushMessage and
-// IoPopMessage still operate in distinct units.
+// allowed.  This set of behaviors makes the message queue object behave like a FIFO pipe.
 //
 // The default behavior is discrete packet-based communication.
-//
-// IO_MQ_STREAM implies IO_MQ_TRUNCATE_PARTIAL_READS.
-#define IO_MQ_STREAM  (1 << 0)
+#define IO_MQ_STREAM (IO_MQ_MULTI_MESSAGE_READ | IO_MQ_TRUNCATE_PARTIAL_READS | IO_MQ_SEGMENT_MESSAGES)
+
+// Allow multiple messages to be read through a single I/O read call.
+#define IO_MQ_MULTI_MESSAGE_READ  (1 << 0)
 
 // Drop a message if a read operation could not be completely read into a buffer.
 //
@@ -31,7 +31,28 @@ Author:
 // size into the IO_STATUS_BLOCK instead.
 #define IO_MQ_DROP_PARTIAL_READS (1 << 1)
 
+// Truncate the pending message if a read operation is called with an insufficient buffer
+// size.  Implied if IO_MQ_STREAM is set.
 #define IO_MQ_TRUNCATE_PARTIAL_READS (1 << 2)
+
+// Stop reading immediately when reading an empty message.  This applies to the normal
+// I/O read/write operations only.
+#define IO_MQ_STOP_ON_EMPTY_MESSAGES (1 << 3)
+
+// Split a message into multiple segments of MaxMessageLength's size if it is too big to
+// fit inside of one message.
+//
+// The default behavior is to fail with STATUS_BUFFER_OVERFLOW.
+//
+// WARNING: If a message is being split, the order in which each segment arrives is
+// undefined.  If multiple threads are sending messages through the message queue,
+// their message segments may be interleaved.
+#define IO_MQ_SEGMENT_MESSAGES (1 << 4)
+
+// Block only on the first read - subsequent reads are non-blocking.
+//
+// The default is to either block for ALL reads, or block for NONE of them.
+#define IO_MQ_BLOCK_ONLY_ON_FIRST_READ (1 << 5)
 
 typedef struct
 {
@@ -110,7 +131,8 @@ BSTATUS IoPushMessage(
 	PIO_MESSAGE_QUEUE MessageQueue,
 	uint8_t* Buffer,
 	size_t MessageSize,
-	bool NoBlocking
+	bool NoBlocking,
+	bool AlertableWait
 );
 
 BSTATUS IoPopMessage(
@@ -118,5 +140,27 @@ BSTATUS IoPopMessage(
 	uint8_t* Buffer,
 	size_t BufferSize,
 	size_t* OutMessageSize,
-	bool NoBlocking
+	bool IsFirstPop,
+	bool NoBlocking,
+	bool AlertableWait
+);
+
+BSTATUS IoPushMessageMdl(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
+	size_t MdlByteCount,
+	bool NoBlocking,
+	bool AlertableWait
+);
+
+BSTATUS IoPopMessageMdl(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
+	size_t MdlByteCount,
+	size_t* OutMessageSize,
+	bool IsFirstPop,
+	bool NoBlocking,
+	bool AlertableWait
 );

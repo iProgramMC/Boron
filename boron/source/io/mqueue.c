@@ -114,8 +114,11 @@ BSTATUS IoCreateMessageQueue(
 		BytesForWakeUp = ByteCapacity - MaxMessageLength;
 	}
 
-	if (Flags & IO_MQ_STREAM) {
-		Flags |= IO_MQ_TRUNCATE_PARTIAL_READS;
+	if ((Flags & IO_MQ_DROP_PARTIAL_READS) &&
+		(Flags & IO_MQ_TRUNCATE_PARTIAL_READS))
+	{
+		DbgPrint("IoCreateMessageQueue: Cannot drop and truncate at the same time.");
+		return STATUS_INVALID_PARAMETER;
 	}
 
 	// Create the actual object.
@@ -196,27 +199,21 @@ Failure:
 	return Status;
 }
 
-//
-// Add a message to the message queue object.
-//
-// Parameters:
-//    MessageQueue - The affected message queue.
-//
-//    Buffer - The buffer that contains the message that will be appended to the
-//             message queue.
-//
-//    MessageSize - The size of the message.
-//
-//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
-//                 rather than blocking.
-//
-BSTATUS IoPushMessage(
+BSTATUS IopPushMessage(
 	PIO_MESSAGE_QUEUE MessageQueue,
 	uint8_t* Buffer,
 	size_t MessageSize,
-	bool NoBlocking
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
+	bool NoBlocking,
+	bool AlertableWait
 )
 {
+	if (MessageSize != 0 && ((Buffer && MdlBuffer) || (Buffer == NULL && MdlBuffer == NULL))) {
+		DbgPrint("IoPushMessage: Cannot provide no buffer or both buffers!");
+		return STATUS_INVALID_PARAMETER;
+	}
+
 	// NOTE: MaxMessageLength isn't expected to be changed mid-operation, so this should
 	// be safe to do.
 	if (MessageSize > MessageQueue->MaxMessageLength)
@@ -233,7 +230,11 @@ BSTATUS IoPushMessage(
 
 	do
 	{
-		ExAcquireFastMutex(&MessageQueue->Mutex, false);
+		Status = ExAcquireFastMutex(&MessageQueue->Mutex, AlertableWait);
+		if (FAILED(Status)) {
+			ASSERT(AlertableWait);
+			break;
+		}
 
 		// Check if we have enough space.
 		if (MessageQueue->MessageCount >= MessageQueue->MaxMessageCount ||
@@ -257,7 +258,7 @@ BSTATUS IoPushMessage(
 
 			Status = KeWaitForSingleObject(
 				&MessageQueue->WriterEvent,
-				true, // Alertable
+				AlertableWait,
 				TIMEOUT_INFINITE,
 				MODE_KERNEL
 			);
@@ -296,15 +297,28 @@ BSTATUS IoPushMessage(
 		// Now, copy the contents.
 		if (Message->Start + MessageSize <= MessageQueue->ByteCapacity)
 		{
-			memcpy(&MessageQueue->CircularBuffer[Message->Start], Buffer, MessageSize);
+			if (MdlBuffer) {
+				MmCopyFromMdl(MdlBuffer, MdlOffset, &MessageQueue->CircularBuffer[Message->Start], MessageSize);
+			}
+			else {
+				memcpy(&MessageQueue->CircularBuffer[Message->Start], Buffer, MessageSize);
+			}
 		}
 		else
 		{
 			size_t TailEndSize = MessageQueue->ByteCapacity - Message->Start;
 			size_t HeadEndSize = MessageSize - TailEndSize;
 
-			memcpy(&MessageQueue->CircularBuffer[Message->Start], Buffer, TailEndSize);
-			memcpy(&MessageQueue->CircularBuffer[0], Buffer + TailEndSize, HeadEndSize);
+			if (MdlBuffer)
+			{
+				MmCopyFromMdl(MdlBuffer, MdlOffset, &MessageQueue->CircularBuffer[Message->Start], TailEndSize);
+				MmCopyFromMdl(MdlBuffer, MdlOffset + TailEndSize, &MessageQueue->CircularBuffer[0], HeadEndSize);
+			}
+			else
+			{
+				memcpy(&MessageQueue->CircularBuffer[Message->Start], Buffer, TailEndSize);
+				memcpy(&MessageQueue->CircularBuffer[0], Buffer + TailEndSize, HeadEndSize);
+			}
 		}
 
 		// Signal success, unlock the mutex, and return.
@@ -318,29 +332,28 @@ BSTATUS IoPushMessage(
 	return Status;
 }
 
-//
-// Remove a message from the message queue object.
-//
-// Parameters:
-//    MessageQueue - The affected message queue.
-//
-//    Buffer - The buffer that will receive the message's contents.
-//
-//    BufferSize - The size of the aforementioned buffer.
-//
-//    OutMessageSize - The region that will receive the size of the message.
-//
-//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
-//                 rather than blocking.
-//
-BSTATUS IoPopMessage(
+BSTATUS IopPopMessage(
 	PIO_MESSAGE_QUEUE MessageQueue,
 	uint8_t* Buffer,
 	size_t BufferSize,
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
 	size_t* OutMessageSize,
-	bool NoBlocking
+	bool IsFirstPop,
+	bool NoBlocking,
+	bool AlertableWait
 )
 {
+	if ((Buffer && MdlBuffer) || (Buffer == NULL && MdlBuffer == NULL)) {
+		DbgPrint("IoPopMessage: Cannot provide no buffer or both buffers!");
+		return STATUS_INVALID_PARAMETER;
+	}
+
+	if (!BufferSize) {
+		DbgPrint("IoPopMessage: Specified a buffer size of 0!?");
+		return STATUS_SUCCESS;
+	}
+
 	BSTATUS Status = STATUS_BLOCKING_OPERATION;
 
 	bool TruncatePartialReads = MessageQueue->Flags & IO_MQ_TRUNCATE_PARTIAL_READS;
@@ -348,7 +361,11 @@ BSTATUS IoPopMessage(
 
 	do
 	{
-		ExAcquireFastMutex(&MessageQueue->Mutex, false);
+		Status = ExAcquireFastMutex(&MessageQueue->Mutex, AlertableWait);
+		if (FAILED(Status)) {
+			ASSERT(AlertableWait);
+			break;
+		}
 
 		// Check if there is anything inside.
 		if (MessageQueue->MessageCount == 0)
@@ -371,7 +388,7 @@ BSTATUS IoPopMessage(
 
 			Status = KeWaitForSingleObject(
 				&MessageQueue->ReaderEvent,
-				true, // Alertable
+				AlertableWait,
 				TIMEOUT_INFINITE,
 				MODE_KERNEL
 			);
@@ -386,6 +403,18 @@ BSTATUS IoPopMessage(
 
 		// There is something inside.
 		PIO_MESSAGE Message = &MessageQueue->Messages[MessageQueue->MessageListTail];
+
+		if (Message->ByteCount == 0)
+		{
+			// Empty message - determine whether we should pop it or not.
+			if (!IsFirstPop && (MessageQueue->Flags & IO_MQ_STOP_ON_EMPTY_MESSAGES))
+			{
+				*OutMessageSize = 0;
+				Status = STATUS_END_OF_FILE;
+				ExReleaseFastMutex(&MessageQueue->Mutex);
+				break;
+			}
+		}
 
 		// If the buffer size can fit this message, advance the tail.  Otherwise, depends on
 		// the specified behavior.
@@ -452,7 +481,12 @@ BSTATUS IoPopMessage(
 		// Now, copy the contents.
 		if (StartPosition + ReturnSize <= MessageQueue->ByteCapacity)
 		{
-			memcpy(Buffer, &MessageQueue->CircularBuffer[StartPosition], ReturnSize);
+			if (MdlBuffer) {
+				MmCopyIntoMdl(MdlBuffer, MdlOffset, &MessageQueue->CircularBuffer[StartPosition], ReturnSize);
+			}
+			else {
+				memcpy(Buffer, &MessageQueue->CircularBuffer[StartPosition], ReturnSize);
+			}
 
 #ifdef DEBUG
 			memset(&MessageQueue->CircularBuffer[StartPosition], 0xCC, ReturnSize);
@@ -463,8 +497,16 @@ BSTATUS IoPopMessage(
 			size_t TailEndSize = MessageQueue->ByteCapacity - StartPosition;
 			size_t HeadEndSize = ReturnSize - TailEndSize;
 
-			memcpy(Buffer, &MessageQueue->CircularBuffer[StartPosition], TailEndSize);
-			memcpy(Buffer + TailEndSize, &MessageQueue->CircularBuffer[0], HeadEndSize);
+			if (MdlBuffer)
+			{
+				MmCopyIntoMdl(MdlBuffer, MdlOffset, &MessageQueue->CircularBuffer[StartPosition], TailEndSize);
+				MmCopyIntoMdl(MdlBuffer, MdlOffset + TailEndSize, &MessageQueue->CircularBuffer[0], HeadEndSize);
+			}
+			else
+			{
+				memcpy(Buffer, &MessageQueue->CircularBuffer[StartPosition], TailEndSize);
+				memcpy(Buffer + TailEndSize, &MessageQueue->CircularBuffer[0], HeadEndSize);
+			}
 
 #ifdef DEBUG
 			memset(&MessageQueue->CircularBuffer[StartPosition], 0xCC, TailEndSize);
@@ -477,7 +519,6 @@ BSTATUS IoPopMessage(
 		*OutMessageSize = ReturnSize;
 
 		// If the amount of bytes in the buffer is low enough, signal the writers to wake up.
-		// Else, reset.
 		if (MessageQueue->EnqueuedByteCount <= MessageQueue->BytesForWakeUp)
 		{
 			KeSetEvent(&MessageQueue->WriterEvent, WRITERS_INCREMENT);
@@ -492,6 +533,171 @@ BSTATUS IoPopMessage(
 }
 
 //
+// Add a message to the message queue object.
+//
+// Parameters:
+//    MessageQueue - The affected message queue.
+//
+//    Buffer - The buffer that contains the message that will be appended to the
+//             message queue.
+//
+//    MessageSize - The size of the message.
+//
+//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
+//                 rather than blocking.
+//
+//    AlertableWait - Whether the wait on the message queue's mutex can be interrupted.
+//
+BSTATUS IoPushMessage(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	uint8_t* Buffer,
+	size_t MessageSize,
+	bool NoBlocking,
+	bool AlertableWait
+)
+{
+	return IopPushMessage(
+		MessageQueue,
+		Buffer,
+		MessageSize,
+		NULL,  // MdlBuffer
+		0,     // MdlOffset
+		NoBlocking,
+		AlertableWait
+	);
+}
+
+//
+// Remove a message from the message queue object.
+//
+// Parameters:
+//    MessageQueue - The affected message queue.
+//
+//    Buffer - The buffer that will receive the message's contents.
+//
+//    BufferSize - The size of the aforementioned buffer.
+//
+//    OutMessageSize - The region that will receive the size of the message.
+//
+//    IsFirstPop - If IO_MQ_STOP_ON_EMPTY_MESSAGES is set, controls whether to pop
+//                 an empty message from the queue or not.  If this is the first pop
+//                 call during a multi message read, the empty message will be popped.
+//                 Otherwise, it will be left in for the next time Read is called.
+//
+//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
+//                 rather than blocking.
+//
+//    AlertableWait - Whether the wait on the message queue's mutex can be interrupted.
+//
+BSTATUS IoPopMessage(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	uint8_t* Buffer,
+	size_t BufferSize,
+	size_t* OutMessageSize,
+	bool IsFirstPop,
+	bool NoBlocking,
+	bool AlertableWait
+)
+{
+	return IopPopMessage(
+		MessageQueue,
+		Buffer,
+		BufferSize,
+		NULL,  // MdlBuffer
+		0,     // MdlOffset
+		OutMessageSize,
+		IsFirstPop,
+		NoBlocking,
+		AlertableWait
+	);
+}
+
+//
+// Add a message to the message queue object, taking its contents from an MDL.
+//
+// Parameters:
+//    MessageQueue - The affected message queue.
+//
+//    MdlBuffer - The buffer that contains the message that will be appended to the
+//                message queue.
+//
+//    MdlOffset - The offset into said MDL.
+//
+//    MdlByteCount - The amount of bytes to cover inside the MDL.
+//
+//    MessageSize - The size of the message.
+//
+//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
+//                 rather than blocking.
+//
+//    AlertableWait - Whether the wait on the message queue's mutex can be interrupted.
+//
+BSTATUS IoPushMessageMdl(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
+	size_t MdlByteCount,
+	bool NoBlocking,
+	bool AlertableWait
+)
+{
+	return IopPushMessage(
+		MessageQueue,
+		NULL,  // Buffer
+		MdlByteCount,
+		MdlBuffer,
+		MdlOffset,
+		NoBlocking,
+		AlertableWait
+	);
+}
+
+//
+// Remove a message from the message queue object and put its contents in an MDL.
+//
+// Parameters:
+//    MessageQueue - The affected message queue.
+//
+//    MdlBuffer - The buffer that the received message will be copied into.
+//
+//    MdlOffset - The offset into the MDL.
+//
+//    MdlByteCount - The amount of bytes to cover inside the MDL.
+//
+//    OutMessageSize - The region that will receive the size of the message.
+//
+//    IsFirstPop - See IoPopMessage.
+//
+//    NoBlocking - If the request would block, returns with STATUS_BLOCKING_OPERATION
+//                 rather than blocking.
+//
+//    AlertableWait - Whether the wait on the message queue's mutex can be interrupted.
+//
+BSTATUS IoPopMessageMdl(
+	PIO_MESSAGE_QUEUE MessageQueue,
+	PMDL MdlBuffer,
+	uintptr_t MdlOffset,
+	size_t MdlByteCount,
+	size_t* OutMessageSize,
+	bool IsFirstPop,
+	bool NoBlocking,
+	bool AlertableWait
+)
+{
+	return IopPopMessage(
+		MessageQueue,
+		NULL,  // Buffer
+		MdlByteCount,
+		MdlBuffer,
+		MdlOffset,
+		OutMessageSize,
+		IsFirstPop,
+		NoBlocking,
+		AlertableWait
+	);
+}
+
+//
 // Destructor function for the message queue object.
 //
 void IopDeleteMessageQueue(void* Object)
@@ -499,7 +705,7 @@ void IopDeleteMessageQueue(void* Object)
 	PIO_MESSAGE_QUEUE Queue = Object;
 
 	(void) Queue;
-	DbgPrint("TODO: IopDeleteMessageQueue");
+	DbgPrint("IopDeleteMessageQueue");
 
 	if (Queue->CircularBuffer) {
 		MmFreePool(Queue->CircularBuffer);
@@ -527,9 +733,206 @@ void IopDereferenceMessageQueueFcb(PFCB Fcb)
 	ObDereferenceObject(EXT(Fcb)->MessageQueue);
 }
 
+BSTATUS IopReadMessageQueue(
+	PIO_STATUS_BLOCK Iosb,
+	PFCB Fcb,
+	UNUSED uint64_t Offset,
+	PMDL MdlBuffer,
+	uint32_t Flags
+)
+{
+	// The FCB need not be locked.  We have our own mutex.
+	IoUnlockFcb(Fcb);
+
+	PIO_MESSAGE_QUEUE MessageQueue = EXT(Fcb)->MessageQueue;
+	BSTATUS Status = STATUS_SUCCESS;
+
+	ASSERT(MdlBuffer->Flags & MDL_FLAG_WRITE);
+
+	size_t BytesRead = 0;
+	Iosb->BytesRead = 0;
+	Iosb->Status = Status;
+
+	bool NoBlocking = Flags & IO_RW_NONBLOCK;
+	bool BlockOnlyOnFirstRead = MessageQueue->Flags & IO_MQ_BLOCK_ONLY_ON_FIRST_READ;
+
+	if (MessageQueue->Flags & IO_MQ_MULTI_MESSAGE_READ)
+	{
+		// Continuously read messages until the buffer is full.
+		while (BytesRead < MdlBuffer->ByteCount)
+		{
+			size_t BytesLeft = MdlBuffer->ByteCount - BytesRead;
+			size_t MessageSize = 0;
+			Status = IoPopMessageMdl(
+				MessageQueue,
+				MdlBuffer,
+				BytesRead, // MdlOffset
+				BytesLeft, // MdlByteCount
+				&MessageSize,
+				BytesRead == 0, // IsFirstPop
+				NoBlocking,
+				true       // AlertableWait
+			);
+
+			if (FAILED(Status))
+			{
+				if ((!NoBlocking || Status != STATUS_BLOCKING_OPERATION) && Status != STATUS_END_OF_FILE)
+				{
+					DbgPrint("IopReadMessageQueue: Failed to pop message: %s", RtlGetStatusString(Status));
+				}
+
+				if ((Status == STATUS_BLOCKING_OPERATION || Status == STATUS_END_OF_FILE) && BytesRead != 0)
+				{
+					// Non-block should report success if at least one byte was read
+					Status = STATUS_SUCCESS;
+				}
+
+				if (Status == STATUS_BUFFER_OVERFLOW)
+				{
+					if (BytesRead != 0) {
+						// Buffer overflow is to only be returned if the buffer was too
+						// small for the first message.  (Note: cases where messages are
+						// dropped/truncated never return buffer overflow.)
+						Status = STATUS_SUCCESS;
+					}
+					else {
+						// There is a buffer overflow, and it will be reported, so put the
+						// expected size here.
+						//
+						// Note that after the 'break', the only piece of code that uses
+						// BytesRead is the part that puts it in the IOSB.
+						BytesRead = MessageSize;
+					}
+				}
+
+				break;
+			}
+
+			BytesRead += MessageSize;
+
+			if (MessageSize == 0 && (MessageQueue->Flags & IO_MQ_STOP_ON_EMPTY_MESSAGES))
+			{
+				// Received an empty message, that means it's time to stop.
+				break;
+			}
+
+			if (BlockOnlyOnFirstRead && MessageSize != 0)
+			{
+				NoBlocking = true;
+			}
+		}
+	}
+	else
+	{
+		// In packet mode, just read the first packet.
+		size_t MessageSize = 0;
+		Status = IoPopMessageMdl(
+			MessageQueue,
+			MdlBuffer,
+			0,         // MdlOffset
+			MdlBuffer->ByteCount,
+			&MessageSize,
+			true,      // IsFirstPop
+			NoBlocking,
+			true       // AlertableWait
+		);
+
+		if (SUCCEEDED(Status) || Status == STATUS_BUFFER_OVERFLOW || Status == STATUS_END_OF_FILE) {
+			BytesRead = MessageSize;
+		}
+	}
+
+	Iosb->Status = Status;
+	Iosb->BytesRead = BytesRead;
+
+	// Relock the rwlock because the caller expects us to do so.
+	IoLockFcbShared(Fcb);
+	return Status;
+}
+
+BSTATUS IopWriteMessageQueue(
+	PIO_STATUS_BLOCK Iosb,
+	PFCB Fcb,
+	UNUSED uint64_t Offset,
+	PMDL MdlBuffer,
+	uint32_t Flags
+)
+{
+	// The FCB need not be locked.  We have our own mutex.
+	IoUnlockFcb(Fcb);
+
+	PIO_MESSAGE_QUEUE MessageQueue = EXT(Fcb)->MessageQueue;
+	BSTATUS Status = STATUS_SUCCESS;
+
+	ASSERT(~MdlBuffer->Flags & MDL_FLAG_WRITE);
+
+	size_t BytesWritten = 0;
+	Iosb->BytesWritten = 0;
+	Iosb->Status = Status;
+
+	bool NoBlocking = Flags & IO_RW_NONBLOCK;
+	bool AllowSegmentation = MessageQueue->Flags & IO_MQ_SEGMENT_MESSAGES;
+	size_t MaxMessageLength = MessageQueue->MaxMessageLength;
+
+	if (!AllowSegmentation)
+	{
+		if (MdlBuffer->ByteCount > MaxMessageLength)
+		{
+			DbgPrint("IopWriteMessageQueue: Refusing to send because messages are not segmentable.");
+			Status = STATUS_BUFFER_OVERFLOW;
+			goto Finish;
+		}
+	}
+
+	// NOTE: This while loop should only ever do one iteration if segmentation is disabled.
+	size_t IterationCount = 0;
+	while (BytesWritten < MdlBuffer->ByteCount)
+	{
+		IterationCount++;
+		ASSERT(IterationCount == 1 || AllowSegmentation);
+
+		size_t BytesToAdd = MdlBuffer->ByteCount - BytesWritten;
+		if (BytesToAdd >= MaxMessageLength)
+			BytesToAdd = MaxMessageLength;
+
+		Status = IoPushMessageMdl(
+			MessageQueue,
+			MdlBuffer,
+			BytesWritten,
+			BytesToAdd,
+			NoBlocking,
+			true  // AlertableWait
+		);
+
+		if (FAILED(Status)) {
+			if (!NoBlocking || Status != STATUS_BLOCKING_OPERATION)
+				DbgPrint("IopWriteMessageQueue: Failed to add message: %s", RtlGetStatusString(Status));
+
+			if (Status == STATUS_BLOCKING_OPERATION && BytesWritten != 0) {
+				// Non-block should report success if at least one byte was written
+				Status = STATUS_SUCCESS;
+			}
+
+			break;
+		}
+
+		BytesWritten += BytesToAdd;
+	}
+
+Finish:
+	Iosb->Status = Status;
+	Iosb->BytesWritten = BytesWritten;
+
+	// Relock the rwlock because the caller expects us to do so.
+	IoLockFcbShared(Fcb);
+	return Status;
+}
+
 IO_DISPATCH_TABLE IopMessageQueueDispatchTable =
 {
 	.Reference = IopReferenceMessageQueueFcb,
 	.Dereference = IopDereferenceMessageQueueFcb,
-	// TODO: read, write, iocontrol
+	// TODO: iocontrol
+	.Read = IopReadMessageQueue,
+	.Write = IopWriteMessageQueue
 };
