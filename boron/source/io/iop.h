@@ -45,6 +45,9 @@ BSTATUS IopParseDevice(void* Object, const char** Name, void* Context, int LoopC
 // Controller object operations
 void IopDeleteController(void* Object);
 
+// Message queue object operations
+void IopDeleteMessageQueue(void* Object);
+
 // File object operations
 BSTATUS IopOpenFile(void* Object, UNUSED int HandleCount, UNUSED OB_OPEN_REASON OpenReason);
 void IopDeleteFile(void* Object);
@@ -53,9 +56,6 @@ BSTATUS IopParseFile(void* Object, const char** Name, void* Context, int LoopCou
 
 bool IopInitializeDevicesDir();
 bool IopInitializeDriversDir();
-bool IopInitializeDeviceType();
-bool IopInitializeDriverType();
-bool IopInitializeFileType();
 
 // Initializes the partition manager mutexes.
 void IopInitPartitionManager();
@@ -71,3 +71,7 @@ BSTATUS IoCreatePartition(PDEVICE_OBJECT* OutDevice, PDEVICE_OBJECT InDevice, ui
 
 // File object mappable
 extern MAPPABLE_DISPATCH_TABLE IopFileObjectMappableDispatch;
+
+extern POBJECT_TYPE IoMessageQueueType;
+
+bool IopInitializeMessageQueueType();

@@ -4,11 +4,11 @@
 
 Module name:
 	io.h
-	
+
 Abstract:
 	This header file contains the definitions related to
 	the Boron kernel I/O manager.
-	
+
 Author:
 	iProgramInCpp - 15 February 2024
 ***/
@@ -33,6 +33,7 @@ typedef struct _FCB FCB, *PFCB;
 #include <io/rdwr.h>
 #include <io/part.h>
 #include <io/pipe.h>
+#include <io/mqueue.h>
 
 // These aren't meant to be used directly. Instead, they're used
 // by the IoGetBuiltInData function. If the compile unit including
@@ -68,4 +69,3 @@ extern POBJECT_DIRECTORY IoDriversDir, IoDevicesDir;
 #endif
 
 bool IoInitSystem();
-

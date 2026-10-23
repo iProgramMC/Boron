@@ -4,11 +4,11 @@
 
 Module name:
 	io/init.c
-	
+
 Abstract:
 	This module implements the initialization procedure
 	for the I/O subsystem.
-	
+
 Author:
 	iProgramInCpp - 15 February 2024
 ***/
@@ -19,7 +19,11 @@ Author:
 #define IO_INIT_DEBUG
 #endif
 
-POBJECT_TYPE IoDriverType, IoDeviceType, IoFileType, IoControllerType;
+POBJECT_TYPE IoDriverType;
+POBJECT_TYPE IoDeviceType;
+POBJECT_TYPE IoFileType;
+POBJECT_TYPE IoControllerType;
+POBJECT_TYPE IoMessageQueueType;
 POBJECT_DIRECTORY IoDriversDir;
 POBJECT_DIRECTORY IoDevicesDir;
 
@@ -43,20 +47,20 @@ bool IopInitializeObjectTypes()
 	BSTATUS Status;
 	OBJECT_TYPE_INFO Info;
 	memset (&Info, 0, sizeof Info);
-	
+
 	// Initialize common fields.
 	Info.NonPagedPool = true;
-	
+
 	// Initialize the Driver object type.
 	Info.Delete = IopDeleteDriver;
 	Status = ObCreateObjectType("Driver", &Info, &IoDriverType);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create Driver type.");
 		return false;
 	}
-	
+
 	// Initialize the Device object type.
 	Info.Delete = IopDeleteDevice;
 	Info.Parse = IopParseDevice;
@@ -66,18 +70,29 @@ bool IopInitializeObjectTypes()
 		DbgPrint("IO: Failed to create Device type.");
 		return false;
 	}
-	
+
 	// Initialize the Controller object type.
 	Info.Delete = IopDeleteController;
 	Info.Parse = NULL;
 	Status = ObCreateObjectType("Controller", &Info, &IoControllerType);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("IO: Failed to create Controller type.");
 		return false;
 	}
-	
+
+	// Initialize the MessageQueue object type.
+	Info.Delete = IopDeleteMessageQueue;
+	Info.MaintainHandleCount = true;
+
+	Status = ObCreateObjectType("MessageQueue", &Info, &IoMessageQueueType);
+	if (FAILED(Status))
+	{
+		DbgPrint("IO: Failed to create MessageQueue type.");
+		return false;
+	}
+
 	// Initialize the File object type.
 	Info.MaintainHandleCount = true;
 	Info.Open = IopOpenFile;
@@ -90,7 +105,7 @@ bool IopInitializeObjectTypes()
 		DbgPrint("IO: Failed to create File type.");
 		return false;
 	}
-	
+
 	// All done.
 	return true;
 }
@@ -100,13 +115,13 @@ bool IoInitSystem()
 {
 	if (!IopInitializeDevicesDir())
 		return false;
-	
+
 	if (!IopInitializeDriversDir())
 		return false;
-	
+
 	if (!IopInitializeObjectTypes())
 		return false;
-	
+
 #ifdef IO_INIT_DEBUG
 	// TEST: This is test code.
 	extern POBJECT_DIRECTORY ObpRootDirectory;
@@ -114,17 +129,17 @@ bool IoInitSystem()
 	DbgPrint("Dumping root directory:");
 	ObpDebugDirectory(ObpRootDirectory);
 #endif
-	
+
 	IopInitPartitionManager();
-	
+
 	LdrInitializeDrivers();
-	
+
 	IoScanForFileSystems();
-	
+
 #ifdef IO_INIT_DEBUG
 	// TEST: This is test code.
 	extern POBJECT_DIRECTORY ObpObjectTypesDirectory;
-	
+
 	DbgPrint("Dumping drivers directory:");
 	ObpDebugDirectory(IoDriversDir);
 	DbgPrint("Dumping devices directory:");
@@ -132,6 +147,6 @@ bool IoInitSystem()
 	DbgPrint("Dumping types directory:");
 	ObpDebugDirectory(ObpObjectTypesDirectory);
 #endif
-	
+
 	return true;
 }
