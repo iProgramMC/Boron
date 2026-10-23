@@ -16,14 +16,11 @@ Author:
 #include <ke.h>
 #include <mm.h>
 
-#define VIEW_CACHE_MUTEX_LEVEL 0 // TODO: specify a level.
-#define MOD_BITMAP_MUTEX_LEVEL 6
-
 void IoInitializeCacheInfo(PIO_CACHE_INFO CacheInfo)
 {
 	MmInitializeCcb(&CacheInfo->PageCache);
-	KeInitializeMutex(&CacheInfo->ViewCacheMutex, VIEW_CACHE_MUTEX_LEVEL);
-	KeInitializeMutex(&CacheInfo->ModBitmapMutex, MOD_BITMAP_MUTEX_LEVEL);
+	KeInitializeFastMutex(&CacheInfo->ViewCacheMutex);
+	KeInitializeFastMutex(&CacheInfo->ModBitmapMutex);
 	CacheInfo->ModBitmap = NULL;
 	CacheInfo->BlockSize = 0;
 }
@@ -107,7 +104,7 @@ bool IoModRangeModifiedCacheInfo(
 
 	MMSLA_ENTRY Mask, Entry, Result;
 
-	KeWaitForSingleObject(&CacheInfo->ModBitmapMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	KeAcquireFastMutex(&CacheInfo->ModBitmapMutex);
 
 	// If Start and End are inside the same entry.
 	if (Start == End)
@@ -119,7 +116,7 @@ bool IoModRangeModifiedCacheInfo(
 		if (!Set && Entry == 0)
 		{
 			// Already cleared.
-			KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return true;
 		}
 
@@ -138,11 +135,11 @@ bool IoModRangeModifiedCacheInfo(
 			// when an entry is fully cleared and there are no more modified blocks
 			// for that specific SLA entry.
 			DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (one block range)");
-			KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return false;
 		}
 
-		KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return true;
 	}
 
@@ -161,7 +158,7 @@ bool IoModRangeModifiedCacheInfo(
 	{
 		// Out of memory.
 		DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting start)");
-		KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return false;
 	}
 
@@ -171,7 +168,7 @@ bool IoModRangeModifiedCacheInfo(
 		if (Result == 0 && Set)
 		{
 			DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting middle)");
-			KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+			KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 			return false;
 		}
 	}
@@ -190,11 +187,11 @@ bool IoModRangeModifiedCacheInfo(
 	{
 		// Out of memory.
 		DbgPrint("IoSetRangeModifiedCacheInfo: Out of memory. (longer range, setting end)");
-		KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+		KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 		return false;
 	}
 
-	KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+	KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 	return true;
 }
 
@@ -243,7 +240,7 @@ uint64_t IoGetModifiedMaskPerPageCacheInfo(
 	uint64_t Start = PageNumberOffset * BlocksPerPage;
 	uint64_t End = (PageNumberOffset + 1) * BlocksPerPage;
 
-	KeWaitForSingleObject(&CacheInfo->ModBitmapMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
+	KeAcquireFastMutex(&CacheInfo->ModBitmapMutex);
 
 	uint64_t Current = 1, All = 0;
 	MMSLA_ENTRY EntryCache = 0;
@@ -258,7 +255,7 @@ uint64_t IoGetModifiedMaskPerPageCacheInfo(
 		Current <<= 1;
 	}
 
-	KeReleaseMutex(&CacheInfo->ModBitmapMutex);
+	KeReleaseFastMutex(&CacheInfo->ModBitmapMutex);
 
 	if (OutBitsetAll) {
 		*OutBitsetAll = All;

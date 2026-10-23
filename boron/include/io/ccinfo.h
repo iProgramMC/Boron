@@ -25,7 +25,7 @@ typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
 
 typedef struct
 {
-	KMUTEX ViewCacheMutex;
+	FAST_MUTEX ViewCacheMutex;
 	RBTREE ViewCache;
 
 	CCB PageCache;
@@ -35,7 +35,7 @@ typedef struct
 	// means that pages won't get flushed to the backing store in the
 	// usual manner)
 	size_t BlockSize;
-	KMUTEX ModBitmapMutex;
+	FAST_MUTEX ModBitmapMutex;
 	PMMSLA ModBitmap;
 }
 IO_CACHE_INFO, *PIO_CACHE_INFO;
