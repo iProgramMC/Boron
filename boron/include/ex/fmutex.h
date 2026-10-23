@@ -31,7 +31,7 @@ FAST_MUTEX, *PFAST_MUTEX;
 
 void ExInitializeFastMutex(PFAST_MUTEX Mutex);
 
-void ExAcquireFastMutex(PFAST_MUTEX Mutex);
+BSTATUS ExAcquireFastMutex(PFAST_MUTEX Mutex, bool Alertable);
 
 void ExReleaseFastMutex(PFAST_MUTEX Mutex);
 

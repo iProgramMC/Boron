@@ -22,7 +22,7 @@ void CcPurgeViewsForFile(PFCB Fcb)
 	// the FCB for the last time, and it's about to be wiped out!
 	//
 	// However we will still protect against race conditions just in case.
-	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 
 	while (!IsEmptyRbTree(&Fcb->CacheInfo.ViewCache))
 	{
@@ -34,7 +34,7 @@ void CcPurgeViewsForFile(PFCB Fcb)
 		PMMVAD Vad = CONTAINING_RECORD(Entry, MMVAD, ViewCacheEntry);
 		MmUnmapViewOfFileInSystemSpace((void*) Vad->Node.StartVa, false);
 
-		ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 	}
 
 	ASSERT(IsEmptyRbTree(&Fcb->CacheInfo.ViewCache));
@@ -97,7 +97,7 @@ BSTATUS CcReadFileMdl(
 
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 
 	while (Size)
 	{
@@ -220,7 +220,7 @@ BSTATUS CcWriteFileMdl(
 
 	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
-	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 
 	// Do this before anything else.  The order of operations is important: if we marked the _pages_
 	// modified first, they could see the blocks modified bitmap and think "oh, nothing to write!?"
@@ -271,7 +271,7 @@ BSTATUS CcWriteFileMdl(
 		Size -= CopyAmount;
 	}
 
-	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
+	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 	return STATUS_SUCCESS;
 }
 

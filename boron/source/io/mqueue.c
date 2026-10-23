@@ -233,7 +233,7 @@ BSTATUS IoPushMessage(
 
 	do
 	{
-		ExAcquireFastMutex(&MessageQueue->Mutex);
+		ExAcquireFastMutex(&MessageQueue->Mutex, false);
 
 		// Check if we have enough space.
 		if (MessageQueue->MessageCount >= MessageQueue->MaxMessageCount ||
@@ -348,7 +348,7 @@ BSTATUS IoPopMessage(
 
 	do
 	{
-		ExAcquireFastMutex(&MessageQueue->Mutex);
+		ExAcquireFastMutex(&MessageQueue->Mutex, false);
 
 		// Check if there is anything inside.
 		if (MessageQueue->MessageCount == 0)

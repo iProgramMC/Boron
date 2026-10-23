@@ -104,7 +104,7 @@ bool IoModRangeModifiedCacheInfo(
 
 	MMSLA_ENTRY Mask, Entry, Result;
 
-	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex);
+	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex, false);
 
 	// If Start and End are inside the same entry.
 	if (Start == End)
@@ -240,7 +240,7 @@ uint64_t IoGetModifiedMaskPerPageCacheInfo(
 	uint64_t Start = PageNumberOffset * BlocksPerPage;
 	uint64_t End = (PageNumberOffset + 1) * BlocksPerPage;
 
-	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex);
+	ExAcquireFastMutex(&CacheInfo->ModBitmapMutex, false);
 
 	uint64_t Current = 1, All = 0;
 	MMSLA_ENTRY EntryCache = 0;

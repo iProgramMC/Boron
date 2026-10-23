@@ -57,7 +57,7 @@ void IopInitializePipe(PPIPE Pipe, size_t BufferSize)
 }
 
 // Reads data from a pipe.
-BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMDL MdlBuffer, UNUSED uint32_t Flags)
+BSTATUS IopReadPipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PMDL MdlBuffer, uint32_t Flags)
 {
 	// The FCB does not need to be locked.  We have our own mutex.
 	IoUnlockFcb(Fcb);

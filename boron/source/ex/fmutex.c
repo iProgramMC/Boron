@@ -29,7 +29,7 @@ void ExInitializeFastMutex(PFAST_MUTEX Mutex)
 #endif
 }
 
-void ExAcquireFastMutex(PFAST_MUTEX Mutex)
+BSTATUS ExAcquireFastMutex(PFAST_MUTEX Mutex, bool Alertable)
 {
 	PKTHREAD CurrentThread = KeGetCurrentThread();
 
@@ -39,7 +39,7 @@ void ExAcquireFastMutex(PFAST_MUTEX Mutex)
 	if (AtLoadMO(Mutex->OwnerThread, ATOMIC_MEMORD_RELAXED) == CurrentThread)
 	{
 		Mutex->OwnerCount++;
-		return;
+		return STATUS_SUCCESS;
 	}
 
 	intptr_t Count = AtAddFetchMO(Mutex->Count, -1, ATOMIC_MEMORD_ACQUIRE);
@@ -52,12 +52,19 @@ void ExAcquireFastMutex(PFAST_MUTEX Mutex)
 
 		// Could not acquire ownership, do it the slow way.
 		UNUSED BSTATUS Status;
-		Status = KeWaitForSingleObject(&Mutex->Event, false, TIMEOUT_INFINITE, MODE_KERNEL);
+		Status = KeWaitForSingleObject(&Mutex->Event, Alertable, TIMEOUT_INFINITE, MODE_KERNEL);
+
+		if (Alertable && FAILED(Status)) {
+			// Cannot acquire because we got alerted.
+			return Status;
+		}
+
 		ASSERT(SUCCEEDED(Status) && "Fast mutexes may never fail to be acquired.");
 	}
 
 	Mutex->OwnerThread = KeGetCurrentThread();
 	Mutex->OwnerCount++;
+	return STATUS_SUCCESS;
 }
 
 void ExReleaseFastMutex(PFAST_MUTEX Mutex)
