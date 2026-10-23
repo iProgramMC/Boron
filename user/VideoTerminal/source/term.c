@@ -10,23 +10,43 @@ BSTATUS CreatePseudoterminal()
 	BSTATUS Status = OSCreateTerminal(&TerminalHandle, NULL, DEFAULT_BUFFER_SIZE);
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = OSCreateTerminalIoHandles(&TerminalHostHandle, &TerminalSessionHandle, TerminalHandle);
-	if (FAILED(Status))
+	if (FAILED(Status)) {
+		OSClose(TerminalHandle);
 		return Status;
-	
+	}
+
 	// Give ourselves the handle to the session for standard IO.
 	PPEB Peb = OSGetCurrentPeb();
-	
+
+	HANDLE Handle1, Handle2;
+	Status = OSDuplicateHandle(TerminalSessionHandle, CURRENT_PROCESS_HANDLE, &Handle1, 0);
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: Could not duplicate terminal session handle: %s", RtlGetStatusString(Status));
+		OSClose(TerminalHandle);
+		OSClose(TerminalHostHandle);
+		return Status;
+	}
+
+	Status = OSDuplicateHandle(TerminalSessionHandle, CURRENT_PROCESS_HANDLE, &Handle2, 0);
+	if (FAILED(Status)) {
+		DbgPrint("ERROR: Could not duplicate terminal session handle: %s", RtlGetStatusString(Status));
+		OSClose(TerminalHandle);
+		OSClose(TerminalHostHandle);
+		OSClose(Handle1);
+		return Status;
+	}
+
 	Peb->StandardIO[0] = TerminalSessionHandle;
-	Peb->StandardIO[1] = TerminalSessionHandle;
-	Peb->StandardIO[2] = TerminalSessionHandle;
-	
+	Peb->StandardIO[1] = Handle1;
+	Peb->StandardIO[2] = Handle2;
+
 	// Initialize the default window size.
 	TERMINAL_WINDOW_SIZE WindowSize;
 	TerminalGetDimensions(&WindowSize.Width, &WindowSize.Height);
 	Status = OSDeviceIoControl(TerminalHostHandle, IOCTL_TERMINAL_SET_WINDOW_SIZE, &WindowSize, sizeof WindowSize, NULL, 0);
-	
+
 	return Status;
 }
 
@@ -36,7 +56,7 @@ void InputLoop(UNUSED void* Context)
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	char Buffer[1024];
-	
+
 	while (true)
 	{
 		Status = OSReadFile(
@@ -47,19 +67,19 @@ void InputLoop(UNUSED void* Context)
 			sizeof Buffer,
 			IO_RW_NONBLOCK_UNLESS_EMPTY
 		);
-		
+
 		if (IOFAILED(Status))
 		{
 			DbgPrint("Reading from session failed. %s (%d)", RtlGetStatusString(Status), Status);
 			continue;
 		}
-		
+
 		if (Iosb.BytesRead == 0)
 		{
 			DbgPrint("Read 0 bytes!");
 			continue;
 		}
-		
+
 		TerminalWrite(Buffer, Iosb.BytesRead);
 		Iosb.BytesRead = 0;
 	}
@@ -81,11 +101,11 @@ void OutputLoop(UNUSED void* Context)
 		DbgPrint("No keyboard attached - this session will be uninteractable!");
 		OSExitThread();
 	}
-	
+
 	BSTATUS Status;
 	IO_STATUS_BLOCK Iosb;
 	uint16_t Buffer[16];
-	
+
 	while (true)
 	{
 		Status = OSReadFile(
@@ -96,24 +116,24 @@ void OutputLoop(UNUSED void* Context)
 			sizeof Buffer,
 			IO_RW_NONBLOCK_UNLESS_EMPTY
 		);
-		
+
 		if (IOFAILED(Status))
 		{
 			DbgPrint("Reading from keyboard failed. %s (%d)", RtlGetStatusString(Status), Status);
 			continue;
 		}
-		
+
 		if (Iosb.BytesRead == 0)
 		{
 			DbgPrint("Read 0 bytes!");
 			continue;
 		}
-		
+
 		if (Iosb.BytesRead % 2 != 0)
 		{
 			DbgPrint("Oops - read one extra byte?");
 		}
-		
+
 		char OutputBuffer[256];
 		size_t OutputBufferLength = 0;
 		for (size_t i = 0; i < Iosb.BytesRead / 2; i++)
@@ -122,10 +142,10 @@ void OutputLoop(UNUSED void* Context)
 			TranslateKeyCode(InputBuffer, (uint16_t) Buffer[i]);
 			CharactersTyped(OutputBuffer, &OutputBufferLength, InputBuffer);
 		}
-		
+
 		if (OutputBufferLength == 0)
 			continue;
-		
+
 		Status = OSWriteFile(
 			&Iosb,
 			TerminalHostHandle,
@@ -135,7 +155,7 @@ void OutputLoop(UNUSED void* Context)
 			0,    // Flags
 			NULL  // OutFileSize
 		);
-		
+
 		if (IOFAILED(Status))
 		{
 			DbgPrint("Writing to session failed. %s (%d)", RtlGetStatusString(Status), Status);
@@ -156,7 +176,7 @@ BSTATUS CreateIOLoopThreads()
 	);
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = OSCreateThread(
 		&OutputThread,
 		CURRENT_PROCESS_HANDLE,
@@ -173,6 +193,6 @@ BSTATUS WaitOnIOLoopThreads()
 	HANDLE Handles[2];
 	Handles[0] = InputThread;
 	Handles[1] = OutputThread;
-	
+
 	return OSWaitForMultipleObjects(2, Handles, WAIT_ALL_OBJECTS, false, WAIT_TIMEOUT_INFINITE);
 }
