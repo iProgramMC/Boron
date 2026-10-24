@@ -7,4 +7,5 @@ DRIVERS_LIST = \
 	hals5l8900 \
 	framebuf   \
 	tmpfs      \
-	ipodbtns
+	ipodbtns   \
+	ipodnor

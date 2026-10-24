@@ -18,7 +18,7 @@ Author:
 // TODO: do not hardcode the UART's location in the kernel.
 
 //#define USE_PL011
-#define USE_EXYNOS4210
+//#define USE_EXYNOS4210
 
 void DbgPrintDouble(const char* String)
 {
