@@ -4,11 +4,11 @@
 
 Module name:
 	kbd.c
-	
+
 Abstract:
 	This module implements the keyboard part of the
 	i8042 device driver.
-	
+
 Author:
 	iProgramInCpp - 2 April 2024
 ***/
@@ -53,13 +53,13 @@ static PFCB_EXTENSION KbdFcbExtension;
 static void KbdAddKeyToBuffer(uint8_t Code)
 {
 	PFCB_EXTENSION Ext = KbdFcbExtension;
-	
+
 	int NewHead = (Ext->Head + 1) % sizeof (Ext->KeyCodes);
 	if (NewHead == Ext->Tail) {
 		DbgPrint("Key press dropped due to full buffer");
 		return;
 	}
-	
+
 	Ext->KeyCodes[Ext->Head] = Code;
 	Ext->Head = NewHead;
 }
@@ -67,14 +67,14 @@ static void KbdAddKeyToBuffer(uint8_t Code)
 static uint8_t KbdReadKeyFromBuffer()
 {
 	PFCB_EXTENSION Ext = KbdFcbExtension;
-	
+
 	if (Ext->Head == Ext->Tail)
 		return 0xFF;
-	
+
 	int NewTail = (Ext->Tail + 1) % sizeof (Ext->KeyCodes);
 	uint8_t Read = Ext->KeyCodes[Ext->Tail];
 	Ext->Tail = NewTail;
-	
+
 	return Read;
 }
 
@@ -84,7 +84,7 @@ static int KbdFetchBuffer(UNUSED void* Context)
 	// Fetch the amount of key codes and reset it to zero.
 	int Result = KbdPendingReads;
 	KbdPendingReads = 0;
-	
+
 	// Copy the buffer over.
 #ifdef SECURE
 	memcpy(KbdBuffer, KbdBufferInt, sizeof KbdBufferInt);
@@ -92,7 +92,7 @@ static int KbdFetchBuffer(UNUSED void* Context)
 #else
 	memcpy(KbdBuffer, KbdBufferInt, Result);
 #endif
-	
+
 	// Return the amount of key codes that have been received.
 	return Result;
 }
@@ -106,20 +106,20 @@ static void KbdDpcRoutine(UNUSED PKDPC Dpc, UNUSED void* Context, UNUSED void* S
 	// to ensure atomicity with it, and to ensure that no keyboard
 	// inputs are being missed.
 	int Count = KeSynchronizeExecution(&KbdInterrupt, 0, KbdFetchBuffer, NULL);
-	
+
 	for (int i = 0; i < Count; i++)
 	{
 		KbdAddKeyToBuffer(KbdBuffer[i]);
 	}
-	
+
 #ifdef MEASURE_LATENCIES
 	kbdLastDpcTick = HalGetTickCount();
 #endif
-	
+
 #ifdef SECURE
 	memset(KbdBuffer, 0, sizeof KbdBuffer);
 #endif
-	
+
 	if (Count != 0)
 	{
 		KeSetEvent(&KbdAvailableEvent, KEYBOARD_PRIORITY_BOOST);
@@ -132,29 +132,29 @@ static void KbdInterruptRoutine(UNUSED PKINTERRUPT Interrupt, void* Context)
 	uint8_t Status = KePortReadByte(I8042_PORT_STATUS);
 	if (~Status & I8042_STATUS_OUTPUT_FULL)
 		return;
-	
+
 	uint8_t Code = KePortReadByte(I8042_PORT_DATA);
-	
+
 	if (KbdPendingReads >= sizeof KbdBufferInt)
 		// Key codes haven't been read fast enough!  Simply return as
 		// there isn't really anything we can do to solve this.
 		return;
-	
+
 	// Add the code to the buffer.
 	KbdBufferInt[KbdPendingReads] = Code;
 	KbdPendingReads++;
-	
+
 	// If there were no pending reads before this interrupt,
 	// enqueue the keyboard DPC.
 	if (KbdPendingReads != 1)
 		return;
-	
+
 	// Initialize and enqueue the DPC now.
 	// TODO: Don't think we should reinitialize the DPC every time
 	KeInitializeDpc(&KbdDpc, KbdDpcRoutine, Context);
 	KeSetImportantDpc(&KbdDpc, true);
 	KeEnqueueDpc(&KbdDpc, NULL, NULL);
-	
+
 #ifdef MEASURE_LATENCIES
 	kbdLastInterruptTick = HalGetTickCount();
 #endif
@@ -165,7 +165,7 @@ void KbdInitialize(int Vector, KIPL Ipl)
 	// TODO: Maybe we should reform the KeInitializeInterrupt to actually operate on legacy IRQs?
 	// Example: IrqNum IN [0, 32) -> Legacy IRQ, IrqNum | 0x10000000 -> MSI IRQ or whatever else.
 	// This would avert the need to configure the IOAPIC directly in the driver.
-	
+
 	KeInitializeInterrupt(
 		&KbdInterrupt,
 		KbdInterruptRoutine,
@@ -175,10 +175,10 @@ void KbdInitialize(int Vector, KIPL Ipl)
 		Ipl,
 		false
 	);
-	
+
 	if (!KeConnectInterrupt(&KbdInterrupt))
 		KeCrash("KbdInitialize: Cannot connect interrupt");
-	
+
 	// Clear the keyboard input queue.
 	while (KePortReadByte(I8042_PORT_STATUS) & I8042_STATUS_OUTPUT_FULL)
 		KePortReadByte(I8042_PORT_DATA);
@@ -189,7 +189,7 @@ void KbdMeasuredLatency()
 {
 	uint64_t tickCount = HalGetTickCount();
 	DbgPrint(
-		"latency: %lld ticks since last interrupt (%lld since last DPC, %lld ticks between int and dpc), clock ticking at %lld ticks/s", 
+		"latency: %lld ticks since last interrupt (%lld since last DPC, %lld ticks between int and dpc), clock ticking at %lld ticks/s",
 		tickCount - kbdLastInterruptTick,
 		tickCount - kbdLastDpcTick,
 		kbdLastDpcTick - kbdLastInterruptTick,
@@ -209,7 +209,7 @@ BSTATUS KbdRead(
 )
 {
 	ASSERT(Extension(Fcb) == KbdFcbExtension);
-	
+
 	void* Buffer = NULL;
 	BSTATUS Status;
 	Status = MmMapPinnedPagesMdl(Mdl, &Buffer);
@@ -218,11 +218,11 @@ BSTATUS KbdRead(
 		Iosb->Status = Status;
 		return Status;
 	}
-	
+
 	size_t Length = Mdl->ByteCount;
-	
+
 	uint8_t* BufferBytes = Buffer;
-	
+
 	for (size_t i = 0; i < Length; )
 	{
 		if (KbdFcbExtension->ReadingHighByte)
@@ -242,13 +242,13 @@ BSTATUS KbdRead(
 				KbdFcbExtension->ReadingExtendedScanCode = true;
 				continue;
 			}
-			
+
 			if (KbdFcbExtension->ReadingExtendedScanCode && RawCode != 0xFF)
 			{
 				RawCode |= 0xE000;
 				KbdFcbExtension->ReadingExtendedScanCode = false;
 			}
-			
+
 			uint16_t Code = KbdTranslateToKbdevCode(RawCode);
 			if (RawCode != 0xFF && Code != KBDEV_KEY_NONE)
 			{
@@ -260,8 +260,8 @@ BSTATUS KbdRead(
 				continue;
 			}
 		}
-		
-		// Have to blok or return.
+
+		// Have to block or return.
 		if ((Flags & IO_RW_NONBLOCK) || ((Flags & IO_RW_NONBLOCK_UNLESS_EMPTY) && i != 0))
 		{
 			// Can't block, so return now.
@@ -269,24 +269,24 @@ BSTATUS KbdRead(
 			Iosb->BytesRead = i;
 			return Iosb->Status;
 		}
-		
+
 		BSTATUS Status = KeWaitForSingleObject(&KbdAvailableEvent, true, TIMEOUT_INFINITE, MODE_KERNEL);
-		
+
 		if (Status != STATUS_SUCCESS)
 		{
 			Iosb->BytesRead = i;
 			Iosb->Status = Status;
 			return Status;
 		}
-		
+
 		// The read will be re-tried.
 	}
-	
+
 	Iosb->BytesRead = Length;
 	Iosb->Status = STATUS_SUCCESS;
-	
+
 	//MmUnmapPagesMdl(Mdl);
-	
+
 	return STATUS_SUCCESS;
 }
 
@@ -306,13 +306,13 @@ extern PDRIVER_OBJECT I8042DriverObject;
 BSTATUS KbdCreateDeviceObject()
 {
 	BSTATUS Status;
-	
+
 	KeInitializeEvent(
 		&KbdAvailableEvent,
 		EVENT_SYNCHRONIZATION,
 		false
 	);
-	
+
 	Status = IoCreateDevice(
 		I8042DriverObject,
 		0,                      // DeviceExtensionSize
@@ -323,14 +323,14 @@ BSTATUS KbdCreateDeviceObject()
 		&KbdDispatchTable,
 		&KbdDeviceObject
 	);
-	
+
 	if (FAILED(Status))
 	{
 		DbgPrint("IoCreateDevice for I8042prt Keyboard failed: %d", Status);
 		return Status;
 	}
-	
+
 	KbdFcbExtension = Extension(KbdDeviceObject->Fcb);
-	
+
 	return Status;
 }
