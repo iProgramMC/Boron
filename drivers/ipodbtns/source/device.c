@@ -38,6 +38,8 @@ static KSPIN_LOCK BtnsSpinLock;
 void BtnsAddKeyToBuffer(uint8_t Code)
 {
 	PFCB_EXTENSION Ext = BtnsFcbExtension;
+	if (!Ext)
+		return;
 
 	KIPL Ipl;
 	KeAcquireSpinLock(&BtnsSpinLock, &Ipl);
@@ -58,6 +60,8 @@ void BtnsAddKeyToBuffer(uint8_t Code)
 uint8_t BtnsReadKeyFromBuffer()
 {
 	PFCB_EXTENSION Ext = BtnsFcbExtension;
+	if (!Ext)
+		return 0xFF;
 
 	KIPL Ipl;
 	KeAcquireSpinLock(&BtnsSpinLock, &Ipl);
