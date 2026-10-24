@@ -212,7 +212,7 @@ void HalCalculatePllFrequencies()
 		}
 
 		HalPllFrequencies[Pll] = (uint32_t) AfterSDiv;
-		DbgPrint("PLL %u: %u hz\n", Pll, HalPllFrequencies[Pll]);
+		DbgPrint("PLL %u: %u hz", Pll, HalPllFrequencies[Pll]);
 	}
 
 	HalFrequencies[FREQ_BASE_CLOCK] = HalPllFrequencies[ClockPll] / ClockDivisor;

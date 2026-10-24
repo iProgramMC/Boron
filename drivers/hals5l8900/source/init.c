@@ -4,11 +4,11 @@
 
 Module name:
 	ha/init.c
-	
+
 Abstract:
 	This module contains the two initialization functions
 	(UP-init and MP-init) for the iPod touch 1G HAL.
-	
+
 Author:
 	iProgramInCpp - 14 March 2026
 ***/
@@ -20,6 +20,8 @@ Author:
 #include "timer.h"
 #include "gpio.h"
 #include "crash.h"
+#include "chipid.h"
+#include "spi.h"
 
 void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
@@ -32,6 +34,7 @@ void HalInitTerminal();
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
 {
+	HalInitChipId();
 	HalInitCLCD();
 	HalInitTerminal();
 	HalInitPL192();
@@ -44,6 +47,7 @@ HAL_API void HalInitSystemMP()
 	HalInitClock();
 	HalInitTimer();
 	HalInitGpio();
+	HalInitSpi();
 }
 
 static const HAL_VFTABLE HalpVfTable =
@@ -81,10 +85,10 @@ static const HAL_VFTABLE HalpVfTable =
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	// Note! The HAL's driver object is kind of useless, it doesn't do anything actually.
-	
+
 	// Hook the HAL's functions.
 	HalSetVftable(&HalpVfTable);
-	
+
 	// And return, that's all we need.
 	return STATUS_SUCCESS;
 }

@@ -4,12 +4,12 @@
 
 Module name:
 	hal/init.h
-	
+
 Abstract:
-	This header file contains the definition for the 
+	This header file contains the definition for the
 	HAL function pointer structure and miscellaneous
 	HAL initialization details.
-	
+
 Author:
 	iProgramInCpp - 27 October 2023
 ***/
@@ -61,6 +61,10 @@ typedef void(*PFHAL_ENABLE_GPIO_INTERRUPT)(int InterruptNumber);
 typedef void(*PFHAL_DISABLE_GPIO_INTERRUPT)(int InterruptNumber);
 typedef void(*PFHAL_SET_INPUT_PIN_GPIO)(int Port);
 typedef void(*PFHAL_SET_OUTPUT_PIN_GPIO)(int Port, int Bit);
+typedef int(*PFHAL_TRANSMIT_SPI)(int Port, const void* Buffer, size_t BufferSize, bool Block, int Unknown);
+typedef int(*PFHAL_RECEIVE_SPI)(int Port, void* Buffer, size_t BufferSize, bool Block, bool DontTransmitJunk);
+typedef int(*PFHAL_TRANSMIT_AND_RECEIVE_SPI)(int Port, const void* TxBuffer, size_t TxBufferLength, void* RxBuffer, size_t RxBufferLength, bool Block);
+typedef void(*PFHAL_SET_BAUD_RATE_SPI)(int Port, int BaudRate, int WordSize, bool IsMaster, bool IsActiveLow, bool LastClockEdgeMissing);
 #endif
 
 #if defined TARGET_AMD64 || defined TARGET_I386
@@ -74,7 +78,7 @@ typedef void(*PFHAL_SET_OUTPUT_PIN_GPIO)(int Port, int Bit);
 typedef struct
 {
 	uint64_t Flags;
-	
+
 	PFHAL_END_OF_INTERRUPT EndOfInterrupt;
 	PFHAL_REQUEST_INTERRUPT_IN_TICKS RequestInterruptInTicks;
 	PFHAL_REQUEST_IPI RequestIpi;
@@ -90,7 +94,7 @@ typedef struct
 	PFHAL_GET_INT_TIMER_DELTA_TICKS GetIntTimerDeltaTicks;
 	PFHAL_BEGIN_SHUTDOWN BeginShutdown;
 	PFHAL_PERFORM_POWEROFF PerformPoweroff;
-	
+
 #ifdef TARGET_AMD64
 	PFHAL_IOAPIC_SET_IRQ_REDIRECT IoApicSetIrqRedirect;
 #endif
@@ -124,6 +128,10 @@ typedef struct
 	PFHAL_DISABLE_GPIO_INTERRUPT DisableGpioInterrupt;
 	PFHAL_SET_INPUT_PIN_GPIO SetInputPinGpio;
 	PFHAL_SET_OUTPUT_PIN_GPIO SetOutputPinGpio;
+	PFHAL_TRANSMIT_SPI TransmitSpi;
+	PFHAL_RECEIVE_SPI ReceiveSpi;
+	PFHAL_TRANSMIT_AND_RECEIVE_SPI TransmitAndReceiveSpi;
+	PFHAL_SET_BAUD_RATE_SPI SetBaudRateSpi;
 	// APPLE HAL END
 #endif
 }

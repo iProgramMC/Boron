@@ -4,11 +4,11 @@
 
 Module name:
 	hal/armhals.h
-	
+
 Abstract:
 	This header file contains the definitions for the ARM-specific
 	HAL callbacks.
-	
+
 Author:
 	iProgramInCpp - 6 May 2026
 ***/
@@ -40,6 +40,9 @@ PKREGISTERS HalOnFastInterruptRequest(PKREGISTERS Registers);
 // Really, a more proper solution would be to allow drivers to link against the HAL.
 
 // APPLE HAL START
+#define HAL_SPI_CLOCKSOURCE_PCLK 0 // Peripheral Clock
+#define HAL_SPI_CLOCKSOURCE_NCLK 1 // Fixed Clock
+
 void HalSetEnabledClockGate(int ClockGateId, bool Enabled);
 
 void HalRegisterGpioInterrupt(int InterruptNumber, bool TriggerEdge, bool Level, bool FlipLevel);
@@ -55,4 +58,12 @@ void HalDisableGpioInterrupt(int InterruptNumber);
 void HalSetInputPin(int Port);
 
 void HalSetOutputPin(int Port, int Bit);
+
+int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, int Unknown);
+
+int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool DontTransmitJunk);
+
+int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLength, void* RxBuffer, size_t RxBufferLength, bool Block);
+
+void HalSetBaudRateSpi(int Port, int BaudRate, int WordSize, bool IsMaster, bool IsActiveLow, bool LastClockEdgeMissing);
 // APPLE HAL END

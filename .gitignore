@@ -19,6 +19,8 @@ root/lib/*
 root/include/*
 root/usr/*
 
+root/etc/zephyr2.bin
+
 vdiske2.img
 vdiske2.vdi
 vdiske2.vmdk

@@ -4,11 +4,11 @@
 
 Module name:
 	hal/armhals.c
-	
+
 Abstract:
 	This module contains the implementation of the ARM-specific
 	HAL dispatch functions.
-	
+
 Author:
 	iProgramInCpp - 6 May 2026
 ***/
@@ -87,6 +87,46 @@ void HalSetInputPinGpio(int Port)
 void HalSetOutputPinGpio(int Port, int Bit)
 {
 	return HalpVftable.SetOutputPinGpio(Port, Bit);
+}
+
+int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, int Unknown)
+{
+	if (!HalpVftable.TransmitSpi) {
+		HalDisplayString("WARNING: HalTransmitSpi not supported");
+		return -1;
+	}
+
+	return HalpVftable.TransmitSpi(Port, Buffer, BufferSize, Block, Unknown);
+}
+
+int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool DontTransmitJunk)
+{
+	if (!HalpVftable.ReceiveSpi) {
+		HalDisplayString("WARNING: HalReceiveSpi not supported\n");
+		return -1;
+	}
+
+	return HalpVftable.ReceiveSpi(Port, Buffer, BufferSize, Block, DontTransmitJunk);
+}
+
+int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLength, void* RxBuffer, size_t RxBufferLength, bool Block)
+{
+	if (!HalpVftable.TransmitAndReceiveSpi) {
+		HalDisplayString("WARNING: HalTransmitAndReceiveSpi not supported\n");
+		return -1;
+	}
+
+	return HalpVftable.TransmitAndReceiveSpi(Port, TxBuffer, TxBufferLength, RxBuffer, RxBufferLength, Block);
+}
+
+void HalSetBaudRateSpi(int Port, int BaudRate, int WordSize, bool IsMaster, bool IsActiveLow, bool LastClockEdgeMissing)
+{
+	if (!HalpVftable.SetBaudRateSpi) {
+		HalDisplayString("WARNING: HalSetBaudRateSpi not supported\n");
+		return;
+	}
+
+	HalpVftable.SetBaudRateSpi(Port, BaudRate, WordSize, IsMaster, IsActiveLow, LastClockEdgeMissing);
 }
 
 #endif

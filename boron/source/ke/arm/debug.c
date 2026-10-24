@@ -4,11 +4,11 @@
 
 Module name:
 	ke/arm/debug.c
-	
+
 Abstract:
 	This module implements architecture specific debugging
 	routines.
-	
+
 Author:
 	iProgramInCpp - 26 December 2025
 ***/
@@ -18,7 +18,7 @@ Author:
 // TODO: do not hardcode the UART's location in the kernel.
 
 //#define USE_PL011
-//#define USE_EXYNOS4210
+#define USE_EXYNOS4210
 
 void DbgPrintDouble(const char* String)
 {
@@ -29,23 +29,23 @@ void DbgPrintDouble(const char* String)
 void DbgPrintStackTrace(uintptr_t Rbp)
 {
 	(void) Rbp;
-	
+
 	DbgPrintDouble("TODO: DbgPrintStackTrace\n");
 }
 
 void DbgDumpPageTables()
 {
 	uintptr_t Ttbr0 = (uintptr_t) KeGetCurrentPageTable();
-	
+
 	KeFlushTLB();
 	KeSweepIcache();
 	KeSweepDcache();
-	
+
 	// we're lucky that (right now) the entire system memory fits inside 256MB
 	// otherwise we'd be screwed
-	
+
 	DbgPrint("Dumping page table at %p:", Ttbr0);
-	
+
 	uintptr_t* L1 = (uintptr_t*) (0xC0000000 | Ttbr0);
 	for (int i = 0; i < 4096; i++)
 	{
@@ -55,17 +55,17 @@ void DbgDumpPageTables()
 		if (L1Type == 0b00)
 			// Unmapped
 			continue;
-		
+
 		if (L1Type == 0b10)
 		{
 			// Section
 			int Ap = (L1Pte >> 10) & 0b11;
 			int Tex = (L1Pte >> 12) & 0b111;
 			int Cb = (L1Pte >> 2) & 0b11;
-			
+
 			int SuperSection = L1Pte & (1 << 18);
 			PhysPage = L1Pte & ~((1 << 20) - 1);
-			
+
 			DbgPrint("	%p - %d - %p - %s AP:%x TEX:%x CB:%x  RawPte:%p",
 				i << 20,
 				i,
@@ -76,7 +76,7 @@ void DbgDumpPageTables()
 				Cb,
 				L1Pte
 			);
-			
+
 			continue;
 		}
 		else if (L1Type == 0b11)
@@ -84,23 +84,23 @@ void DbgDumpPageTables()
 			DbgPrint("	%p - %d - Reserved (this entry's presence is an error) RawPte:%p", i << 20, i, L1Pte);
 			continue;
 		}
-		
+
 		// Coarse Page Table
 		PhysPage = L1Pte & ~((1 << 10) - 1);
 		DbgPrint("	%p - %d - %p - Coarse Page Table  RawPte:%p", i << 20, i, PhysPage, L1Pte);
-		
+
 		uintptr_t* L2 = (uintptr_t*) (0xC0000000 | PhysPage);
-		
+
 		for (int j = 0; j < 256; j++)
 		{
 			uintptr_t Pte = L2[j];
 			uintptr_t RealAddr = (i << 20) | (j << 12);
 			int Type = Pte & 0b11;
-			
+
 			if (Type == 0b00)
 				// Unmapped
 				continue;
-			
+
 			PhysPage = Pte & ~((1 << 12) - 1);
 			if (Type == 0b01)
 			{
@@ -114,7 +114,7 @@ void DbgDumpPageTables()
 				);
 				continue;
 			}
-			
+
 			bool IsNX = Type == 0b11;
 			int Ap = (Pte >> 4) & 0b11;
 			int Tex = (Pte >> 6) & 0b111;
@@ -122,7 +122,7 @@ void DbgDumpPageTables()
 			int Apx = (Pte >> 9) & 0b1;
 			int S = (Pte >> 10) & 0b1;
 			int nG = (Pte >> 11) & 0b1;
-			
+
 			DbgPrint(
 				"		%p - %d - %d - %p - page NX:%d TEX:%x CB:%x AP:%x APX:%x S:%d NG:%d  RawPte:%p",
 				RealAddr,
@@ -160,7 +160,7 @@ void DbgPrintChar(char c)
     while (UART0_FR & (1 << 5)) {
 		ASM("" ::: "memory");
 	}
-	
+
     UART0_DR = c;
 }
 
@@ -198,7 +198,7 @@ void DbgPrintChar(char c)
     while (!(UART0_TRSTAT & (1 << 1))) {
 		ASM("" ::: "memory");
 	}
-	
+
     UART0_TXH = c;
 }
 
@@ -249,7 +249,7 @@ void DbgPrintStringLocked(const char* str)
 #endif
 
 	DbgPrintString(str);
-	
+
 #ifndef DONT_LOCK
 	KeReleaseSpinLock(&KiDebugPrintLock, OldIpl);
 #endif
