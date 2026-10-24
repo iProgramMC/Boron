@@ -4,12 +4,12 @@
 
 Module name:
 	rtl/elf.c
-	
+
 Abstract:
 	This module implements methods for ELF loading used
 	by both the driver loader and the initial process
 	loader.
-	
+
 Author:
 	iProgramInCpp - 19 April 2025
 ***/
@@ -47,7 +47,7 @@ static bool RtlpComputeRelocation(
 {
 	*Length = 0;
 	*Value  = 0;
-	
+
 	switch (Type)
 	{
 		// I prefer to go here with the "Add as you go with no plan" method
@@ -227,26 +227,26 @@ static bool RtlpComputeRelocation(
 			DbgPrint("RtlpComputeRelocation: Unknown relocation type %u", Type);
 			return false;
 	}
-	
+
 	return true;
 }
 
 static uintptr_t RtlpResolveSymbolAddress(PELF_DYNAMIC_INFO DynInfo, int SymbolIndex, uintptr_t LoadBase)
 {
 	PELF_SYMBOL ElfSymbol = &DynInfo->DynSymTable[SymbolIndex];
-	
+
 	if (ElfSymbol->Value)
 		return LoadBase + ElfSymbol->Value;
-	
+
 	// Resolve it externally
 	const char *SymbolName = DynInfo->DynStrTable + ElfSymbol->Name;
-	
+
 #ifdef KERNEL
 	// Try linking against the kernel
 	uintptr_t Address = DbgLookUpAddress(SymbolName);
 	if (!Address)
 		KeCrashBeforeSMPInit("ERROR (BoronKernel): Lookup of function %s failed (offs %d value %d index %d)", SymbolName, ElfSymbol->Name, ElfSymbol->Value, SymbolIndex);
-	
+
 	return Address;
 #else
 	return OSDLLGetProcedureAddress(SymbolName);
@@ -262,7 +262,7 @@ static bool RtlpApplyRelocation(
 {
 	if (!PtrRel && !PtrRela)
 		return false;
-	
+
 	ELF_RELA Rela;
 	if (PtrRela)
 	{
@@ -270,21 +270,49 @@ static bool RtlpApplyRelocation(
 	}
 	else
 	{
-		Rela.Addend = 0;
 		Rela.Offset = PtrRel->Offset;
 		Rela.Info   = PtrRel->Info;
+
+		// NOTE: REL entries have the addend directly inside the base.
+		uintptr_t RelPlace = LoadBase + Rela.Offset;
+		switch (ELF_R_TYPE(Rela.Info))
+		{
+#ifdef TARGET_ARM
+			case R_ARM_RELATIVE:
+			case R_ARM_ABS32:
+			case R_ARM_REL32:
+			case R_ARM_SBREL32:
+				Rela.Addend = *(uint32_t*) RelPlace;
+				break;
+			case R_ARM_ABS16:
+				Rela.Addend = *(uint16_t*) RelPlace;
+				break;
+			case R_ARM_ABS8:
+				Rela.Addend = *(uint8_t*) RelPlace;
+				break;
+#elif defined TARGET_I386
+			case R_386_32:
+			case R_386_RELATIVE:
+				Rela.Addend = *(uint32_t*) RelPlace;
+				break;
+#endif
+			default:
+				(void) RelPlace;
+				Rela.Addend = 0;
+				break;
+		}
 	}
-	
+
 	// If there is no pre-resolved symbol and we actually have a symbol index, then look it up
 	if (ResolvedSymbol == 0 && ELF_R_SYM(Rela.Info) != 0)
 		ResolvedSymbol = RtlpResolveSymbolAddress(DynInfo, ELF_R_SYM(Rela.Info), LoadBase);
-	
+
 	uintptr_t Place  = LoadBase + Rela.Offset;
 	uintptr_t Addend = Rela.Addend;
-	
+
 	uintptr_t Value, Length;
 	uint32_t RelType = ELF_R_TYPE(Rela.Info);
-	
+
 	if (!RtlpComputeRelocation(RelType,
 	                           Addend,
 	                           LoadBase,
@@ -296,12 +324,12 @@ static bool RtlpApplyRelocation(
 		DbgPrint("RtlpApplyRelocation: Main relocation failed to compute!");
 		return false;
 	}
-	
+
 #ifdef DEBUG
 	if (Length > sizeof(uintptr_t))
 		DbgPrint("RtlpApplyRelocation: Length %zu bigger than %zu??", Length, sizeof(uintptr_t));
 #endif
-	
+
 	memcpy((void*) Place, &Value, Length);
 	return true;
 }
@@ -314,14 +342,14 @@ bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 		if (!RtlpApplyRelocation(DynInfo, NULL, Rela, LoadBase, 0))
 			return false;
 	}
-	
+
 	for (size_t i = 0; i < DynInfo->RelCount; i++)
 	{
 		PELF_REL Rel = &DynInfo->RelEntries[i];
 		if (!RtlpApplyRelocation(DynInfo, Rel, NULL, LoadBase, 0))
 			return false;
 	}
-	
+
 	return true;
 }
 
@@ -333,11 +361,11 @@ bool RtlPerformRelocations(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase)
 bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uintptr_t LoadBase)
 {
 	memset(Info, 0, sizeof *Info);
-	
+
 #ifdef IS_BORON_DLL
 	PELF_DYNAMIC_ITEM Backup = DynItem;
 #endif
-	
+
 	for (; DynItem->Tag != DYN_NULL; DynItem++)
 	{
 		switch (DynItem->Tag)
@@ -345,120 +373,120 @@ bool RtlParseDynamicTable(PELF_DYNAMIC_ITEM DynItem, PELF_DYNAMIC_INFO Info, uin
 			default:
 				DbgPrint2("Dynamic entry with tag %d %x ignored", DynItem->Tag, DynItem->Tag);
 				break;
-			
+
 			case DYN_NEEDED:
 #ifdef KERNEL
 				DbgPrint("DYN_NEEDED not supported - libboron.so and drivers may not have other DLLs as dependencies");
 				return false;
 #endif
 				break;
-			
+
 			case DYN_REL:
 				Info->RelEntries = (ELF_REL*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_RELSZ:
 				Info->RelCount = DynItem->Pointer / sizeof(ELF_REL);
 				break;
-			
+
 			case DYN_RELA:
 				Info->RelaEntries = (ELF_RELA*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_RELASZ:
 				Info->RelaCount = DynItem->Pointer / sizeof(ELF_RELA);
 				break;
-				
+
 			case DYN_RELR:
 				Info->RelrEntries = (uintptr_t*)(LoadBase + DynItem->Pointer);
 				break;
-				
+
 			case DYN_RELRSZ:
 				Info->RelrCount = DynItem->Pointer / sizeof(uintptr_t);
 				break;
-			
+
 			case DYN_STRTAB:
 				Info->DynStrTable = (const char*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_SYMTAB:
 				Info->DynSymTable = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_JMPREL:
 				Info->PltRelocations = (ELF_SYMBOL*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_PLTRELSZ: // don't know why this affects JMPREL and not PLTREL like a sane person
 				Info->PltRelocationCount = DynItem->Value;
 				break;
-			
+
 			case DYN_PLTREL:
 				Info->PltUsesRela = DynItem->Value == DYN_RELA;
 				break;
-				
+
 			case DYN_HASH:
 				Info->HashTable = (ELF_HASH_TABLE*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_INIT:
 				Info->Init = (PELF_INIT_FUNC)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_FINI:
 				Info->Fini = (PELF_FINI_FUNC)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_INIT_ARRAY:
 				Info->InitTable = (PELF_INIT_FUNC*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_FINI_ARRAY:
 				Info->FiniTable = (PELF_FINI_FUNC*)(LoadBase + DynItem->Pointer);
 				break;
-			
+
 			case DYN_INIT_ARRAYSZ:
 				Info->InitTableSize = DynItem->Value;
 				break;
-			
+
 			case DYN_FINI_ARRAYSZ:
 				Info->FiniTableSize = DynItem->Value;
 				break;
 		}
 	}
-	
+
 #ifdef IS_BORON_DLL
 	// Resolve DLLs to load from DYN_NEEDED.  This is because DYN_NEEDED
 	// items may come before DYN_STRTAB is specified.
 	DynItem = Backup;
-	
+
 	for (; DynItem->Tag != DYN_NULL; DynItem++)
 	{
 		if (DynItem->Tag != DYN_NEEDED)
 			continue;
-		
+
 		if (!OSDLLAddDllToLoad(Info->DynStrTable + DynItem->Pointer))
 			return false;
 	}
 #endif
-	
+
 	return true;
 }
 
 bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char* FileName)
 {
 	const size_t Increment = DynInfo->PltUsesRela ? sizeof(ELF_RELA) : sizeof(ELF_REL);
-	
+
 	for (size_t i = 0; i < DynInfo->PltRelocationCount; i += Increment)
 	{
 		// NOTE: PELF_RELA and PELF_REL need to have the same starting members!!
 		PELF_REL Rel = (PELF_REL)((uintptr_t)DynInfo->PltRelocations + i);
-		
+
 		PELF_SYMBOL Symbol = &DynInfo->DynSymTable[ELF_R_SYM(Rel->Info)];
-		
+
 		uintptr_t SymbolOffset = Symbol->Name;
 		const char* SymbolName = DynInfo->DynStrTable + SymbolOffset;
-		
+
 		uintptr_t SymbolAddress;
 
 #ifdef KERNEL
@@ -481,7 +509,7 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 		if (!SymbolAddress)
 			return false;
 #endif
-		
+
 		if (!RtlpApplyRelocation(DynInfo,
 		                        DynInfo->PltUsesRela ? Rel : NULL,
 		                        DynInfo->PltUsesRela ? NULL : (PELF_RELA)Rel,
@@ -489,7 +517,7 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 		                        SymbolAddress))
 			return false;
 	}
-	
+
 	return true;
 }
 
@@ -501,7 +529,7 @@ bool RtlUpdateGlobalOffsetTable(uintptr_t *Got, size_t Size, uintptr_t LoadBase)
 	for (size_t i = 0; i < Size; i++) {
 		Got[i] += LoadBase;
 	}
-	
+
 	return true;
 }
 
@@ -512,30 +540,30 @@ void RtlFindSymbolTable(uint8_t* FileAddress, PELF_DYNAMIC_INFO DynInfo)
 	PELF_SECTION_HEADER SymTabSection = NULL, StrTabSection = NULL;
 	PELF_HEADER Header = (PELF_HEADER) FileAddress;
 	uintptr_t Offset = (uintptr_t) FileAddress + Header->SectionHeadersOffset;
-	
+
 	PELF_SECTION_HEADER SHStrHeader = (PELF_SECTION_HEADER)(FileAddress + Header->SectionHeadersOffset + Header->SectionHeaderNameIndex * Header->SectionHeaderSize);
 	const char* SHStringTable = (const char*)(FileAddress + SHStrHeader->OffsetInFile);
-	
+
 	for (int i = 0; i < Header->SectionHeaderCount; i++)
 	{
 		PELF_SECTION_HEADER SectionHeader = (PELF_SECTION_HEADER) Offset;
 		Offset += Header->SectionHeaderSize;
-		
+
 		// Seems like we gotta grab the name. But we have grabbed the string table already
 		const char* SectName = &SHStringTable[SectionHeader->Name];
-		
+
 		if (strcmp(SectName, ".symtab") == 0)
 			SymTabSection = SectionHeader;
 		else if (strcmp(SectName, ".strtab") == 0)
 			StrTabSection = SectionHeader;
 	}
-	
+
 	if (SymTabSection)
 	{
 		DynInfo->SymbolTable     = (PELF_SYMBOL)(FileAddress + SymTabSection->OffsetInFile);
 		DynInfo->SymbolTableSize = SymTabSection->Size / sizeof(ELF_SYMBOL);
 	}
-	
+
 	if (StrTabSection)
 	{
 		DynInfo->StringTable = (const char*)(FileAddress + StrTabSection->OffsetInFile);
@@ -546,22 +574,22 @@ void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)
 {
 	// Borrowed from mlibc (https://github.com/managarm/mlibc).
 	uintptr_t* CurrentBaseAddress = NULL;
-	
+
 	for (size_t i = 0; i < DynInfo->RelrCount; i++)
 	{
 		uintptr_t Rel = DynInfo->RelrEntries[i];
-		
+
 		if (Rel & 1)
 		{
 			// Skip the first bit because we have already relocated
 			// the first entry.
 			Rel >>= 1;
-			
+
 			for (; Rel; Rel >>= 1)
 			{
 				if (Rel & 1)
 					*CurrentBaseAddress += ImageBase;
-				
+
 				CurrentBaseAddress++;
 			}
 		}
@@ -570,7 +598,7 @@ void RtlRelocateRelrEntries(PELF_DYNAMIC_INFO DynInfo, uintptr_t ImageBase)
 			// Even entry indicates the beginning address of the range
 			// to relocate.
 			CurrentBaseAddress = (uintptr_t*) (ImageBase + Rel);
-			
+
 			// Then relocate the first entry.
 			*CurrentBaseAddress += ImageBase;
 			CurrentBaseAddress++;
@@ -585,7 +613,7 @@ BSTATUS RtlCheckValidity(PELF_HEADER Header)
 		DbgPrint("Rtl: Elf has invalid header.");
 		return STATUS_INVALID_EXECUTABLE;
 	}
-	
+
 #ifdef IS_64_BIT
 	if (Header->Identifier[ELF_IDENT_CLASS] != ELF_MCLASS_64BIT)
 #else
@@ -595,14 +623,14 @@ BSTATUS RtlCheckValidity(PELF_HEADER Header)
 		DbgPrint("Rtl: Elf isn't %d bit", sizeof(uintptr_t) * 8);
 		return STATUS_INVALID_ARCHITECTURE;
 	}
-	
+
 	// N.B. we don't support big endian, and probably will never
 	if (Header->Identifier[ELF_IDENT_DATA] != ELF_MDATA_LSB)
 	{
 		DbgPrint("Rtl: Elf is opposite endianness");
 		return STATUS_INVALID_ARCHITECTURE;
 	}
-	
+
 #if   defined TARGET_AMD64
 	const int Arch = ELF_ARCH_AMD64;
 #elif defined TARGET_I386
@@ -613,37 +641,37 @@ BSTATUS RtlCheckValidity(PELF_HEADER Header)
 
 	if (Header->Machine != Arch)
 		return STATUS_INVALID_ARCHITECTURE;
-	
+
 	if (Header->Type != ELF_TYPE_EXECUTABLE && Header->Type != ELF_TYPE_DYNAMIC)
 	{
 		DbgPrint("Rtl: Elf is type %d which we don't know about");
 		return STATUS_INVALID_EXECUTABLE;
 	}
-	
+
 	if (Header->ProgramHeaderCount == 0)
 	{
 		DbgPrint("Rtl: Elf has no program headers, probably invalid for our purposes");
 		return STATUS_INVALID_EXECUTABLE;
 	}
-	
+
 	return STATUS_SUCCESS;
 }
 
 uint32_t RtlElfHash(const char* Name)
 {
 	const uint8_t* NameU = (const uint8_t*) Name;
-	
+
 	uint32_t H = 0, G;
-	
+
 	while (*NameU)
 	{
 		H = (H << 4) + *NameU++;
-		
+
 		if ((G = H & 0xF0000000))
 			H ^= G >> 24;
-		
+
 		H &= ~G;
 	}
-	
+
 	return H;
 }
