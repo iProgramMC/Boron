@@ -68,6 +68,6 @@ struct _TMPFS_DIR_ENTRY
 
 BSTATUS TmpMountTarFile(PLOADER_MODULE Module);
 
-BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, size_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name);
+BSTATUS TmpCreateFile(PFILE_OBJECT* OutFileObject, void* InitialAddress, uint64_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name);
 
 BSTATUS TmpCreateFcb(PFCB* OutFcb, void* InitialAddress, uint64_t InitialLength, uint8_t FileType, PFCB ParentFcb, const char* Name);
