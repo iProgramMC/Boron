@@ -170,6 +170,10 @@ enum
 	//
 	// File system drivers should not set this value.
 	DISPATCH_FLAG_DIRECTLY_OPENABLE = 1 << 2,
+
+	// If this flag is set, then associated device objects may be parsed through
+	// directly as directories.
+	DISPATCH_FLAG_DEVICE_IS_DIRECTORY = 1 << 3,
 };
 
 typedef struct _IO_DISPATCH_TABLE

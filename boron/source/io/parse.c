@@ -120,7 +120,8 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 	PDEVICE_OBJECT DeviceObject = Object;
 
 	const char* Path = *Name;
-	if (!*Path)
+	bool CanBeDirectory = DeviceObject->DispatchTable->Flags & DISPATCH_FLAG_DEVICE_IS_DIRECTORY;
+	if (!*Path || CanBeDirectory)
 	{
 		// If the path is completely empty, we are opening the device itself.
 		// Create a file object for the device.
@@ -131,12 +132,16 @@ BSTATUS IopParseDevice(void* Object, const char** Name, UNUSED void* Context, UN
 		if (FAILED(Status))
 			return Status;
 
-		// Assign the output path name to NULL.
-		*Name = NULL;
+		if (!CanBeDirectory)
+		{
+			// Assign the output path name to NULL.
+			*Name = NULL;
+		}
+
 		return STATUS_SUCCESS;
 	}
 
-	// There is a path. Device objects are not directories no matter how much they say they are.
+	// There is a path. Device objects without DISPATCH_FLAG_DEVICE_IS_DIRECTORY can't be directories.
 	return STATUS_NOT_A_DIRECTORY;
 }
 
