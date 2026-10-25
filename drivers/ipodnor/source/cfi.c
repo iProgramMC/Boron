@@ -38,6 +38,37 @@ bool NorCfiIsSeekable(UNUSED PFCB Fcb)
 	return true;
 }
 
+static uint8_t* CopyMemory16(uint8_t* Dest, volatile uint16_t* Source, size_t ShortCount)
+{
+	if (!ShortCount)
+		return Dest;
+
+	bool IsUnaligned = (uintptr_t) Dest & 1;
+
+	if (LIKELY(!IsUnaligned))
+	{
+		// Aligned case
+		for (size_t i = 0; i < ShortCount; i++)
+		{
+			*(uint16_t*)Dest = Source[i];
+			Dest += 2;
+		}
+	}
+	else
+	{
+		// Unaligned case
+		for (size_t i = 0; i < ShortCount; i++)
+		{
+			uint16_t Data = Source[i];
+			Dest[0] = Data & 0xFF;
+			Dest[1] = Data >> 8;
+			Dest += 2;
+		}
+	}
+
+	return Dest;
+}
+
 BSTATUS NorCfiRead(
 	PIO_STATUS_BLOCK Iosb,
 	UNUSED PFCB Fcb,
@@ -46,6 +77,15 @@ BSTATUS NorCfiRead(
 	UNUSED uint32_t Flags
 )
 {
+	size_t SizeToRead = MdlBuffer->ByteCount;
+
+	if (SizeToRead == 0)
+	{
+		Iosb->Status = STATUS_SUCCESS;
+		Iosb->BytesRead = 0;
+		return STATUS_SUCCESS;
+	}
+
 	void* Buffer = NULL;
 	BSTATUS Status;
 	Status = MmMapPinnedPagesMdl(MdlBuffer, &Buffer);
@@ -55,19 +95,25 @@ BSTATUS NorCfiRead(
 		return Status;
 	}
 
+	// Read first byte if unaligned
 	uint8_t* Buffer8 = Buffer;
-	uint16_t* Buffer16 = Buffer;
-
-	for (size_t i = 0; i < MdlBuffer->ByteCount; i += 2)
+	if (Offset & 1)
 	{
-		volatile uint16_t* P = &REG16(NorCfiBase, (uint32_t) Offset);
-		Buffer16[i >> 1] = *P;
-		Offset += 2;
+		uint16_t CompleteShort = REG16(NorCfiBase, (uint32_t)(Offset & ~1));
+		Buffer8[0] = CompleteShort >> 8;
+		Buffer8++;
+		Offset++;
+		SizeToRead--;
 	}
 
-	if (MdlBuffer->ByteCount & 1)
+	// Read bytes in the middle
+	Buffer8 = CopyMemory16(Buffer8, &REG16(NorCfiBase, (uint32_t) Offset), SizeToRead >> 1);
+
+	// If there is one more byte to read, read that too
+	if (SizeToRead & 1)
 	{
-		Buffer8[MdlBuffer->ByteCount - 1] = (uint8_t)(REG16(NorCfiBase, (uint32_t) Offset) & 0xFF);
+		uint16_t CompleteShort = REG16(NorCfiBase, (uint32_t)(Offset & ~1));
+		Buffer8[0] = CompleteShort & 0xFF;
 	}
 
 	MmUnmapPagesMdl(MdlBuffer);

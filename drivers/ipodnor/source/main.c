@@ -56,7 +56,7 @@ void TestItNowThread(UNUSED void* Context)
 		OSExitThread();
 	}
 
-	uint64_t Offset = 0x8400;
+	uint64_t Offset = 0xFC030;
 
 	uint32_t Buffer[4];
 	Status = OSReadFile(
@@ -76,6 +76,22 @@ void TestItNowThread(UNUSED void* Context)
 
 	LogMsg("Hello from nor driver!");
 	LogMsg("16 bytes at offset %llu: %08x %08x %08x %08x", Offset, Buffer[0], Buffer[1], Buffer[2], Buffer[3]);
+
+	// Test another read
+	char Buffer2[256];
+	Status = OSReadFile(
+		&Iosb,
+		Handle,
+		Offset,
+		Buffer2,
+		sizeof Buffer2,
+		0  // Flags
+	);
+	Buffer2[255] = 0;
+
+	LogMsg("The following *SHOULD* be the nvram configuration extracted from the nor.");
+	LogMsg("Read in: %s", Buffer2);
+
 
 	OSClose(Handle);
 	OSExitThread();
