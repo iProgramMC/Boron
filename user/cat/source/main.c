@@ -404,5 +404,8 @@ int main(int ArgumentCount, char** ArgumentArray)
 	}
 
 	OSClose(OutputHandle);
+
+	OSFPrintf(FILE_STANDARD_ERROR, "\n");
+
 	return ReturnFailure ? 1 : 0;
 }
