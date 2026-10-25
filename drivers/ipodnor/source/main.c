@@ -21,8 +21,10 @@ PDEVICE_OBJECT gDeviceObject;
 
 bool UseSPIAccess()
 {
-	// TODO: determine this automatically.
-	return false;
+	const char* Model = KeLoaderParameterBlock.HardwareIdentifier;
+
+	return strcmp(Model, "m68ap") != 0 && // iPhone 2G
+	       strcmp(Model, "n45ap") != 0;   // iPod touch 1G
 }
 
 NO_RETURN

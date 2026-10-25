@@ -259,7 +259,5 @@ void KeInitSMP()
 		KeJumpstartAp(i);
 	}
 
-	LogMsg("HardwareIdentifier: '%s'", KeLoaderParameterBlock.HardwareIdentifier);
-
 	KiCPUBootstrap(BspAp);
 }
