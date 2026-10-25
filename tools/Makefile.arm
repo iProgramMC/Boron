@@ -8,4 +8,5 @@ DRIVERS_LIST = \
 	framebuf   \
 	tmpfs      \
 	ipodbtns   \
-	ipodnor
+	ipodnor    \
+	ipsyscfg
