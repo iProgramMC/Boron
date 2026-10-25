@@ -89,7 +89,7 @@ uint16_t BtnsTranslateToKbdevCode(uint8_t Code)
 	switch (Code)
 	{
 		case BTN_HOLD:     KbdevCode = KBDEV_KEY_P; break;
-		case BTN_HOME:     KbdevCode = KBDEV_KEY_H; break;
+		case BTN_HOME:     KbdevCode = KBDEV_KEY_ENTER; break; //KBDEV_KEY_H; break;
 		case BTN_RINGER:   KbdevCode = KBDEV_KEY_R; break;
 		case BTN_VOL_UP:   KbdevCode = KBDEV_KEY_UP_ARROW;   break;
 		case BTN_VOL_DOWN: KbdevCode = KBDEV_KEY_DOWN_ARROW; break;
