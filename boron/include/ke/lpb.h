@@ -90,18 +90,18 @@ typedef struct
 {
 	PLOADER_MEMORY_REGION MemoryRegions;
 	size_t MemoryRegionCount;
-	
+
 	PLOADER_FRAMEBUFFER Framebuffers;
 	size_t FramebufferCount;
-	
+
 	LOADER_MODULE_INFO ModuleInfo;
-	
+
 	LOADER_MP_INFO Multiprocessor;
-	
+
 	LOADER_INFO LoaderInfo;
-	
+
 	const char* CommandLine;
-	
+
 #ifdef IS_64_BIT
 	uintptr_t HhdmBase;
 #endif
@@ -110,6 +110,10 @@ typedef struct
 	void* RsdpAddress; // physical address of RSDP table - required for ACPI support
 	// note: Multiboot on i386 does *not* give us the pointer to the RSD PTR table,
 	// so may have to scan manually
+#endif
+
+#if defined TARGET_ARM
+	char HardwareIdentifier[16];
 #endif
 
 #if 0
