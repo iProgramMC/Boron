@@ -9,4 +9,5 @@ DRIVERS_LIST = \
 	tmpfs      \
 	ipodbtns   \
 	ipodnor    \
-	ipsyscfg
+	ipsyscfg   \
+	zephyr2
