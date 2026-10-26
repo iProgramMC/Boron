@@ -68,6 +68,8 @@ void PsStartInitialProcess(UNUSED void* ContextUnused)
 
 	// Yes, really.  We really are going to sleep for 250 milliseconds until the tmpfs finishes
 	// extracting.  I don't know why we're racing against it in the first place, but we are.
+	// TODO: Don't race against mounting filesystems.  Instead, wait on an event that's signaled
+	// when file systems are finished mounting.
 	OSSleep(250);
 
 	// Determine all the quickly determinable stuff
