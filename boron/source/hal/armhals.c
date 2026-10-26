@@ -92,7 +92,7 @@ void HalSetOutputPinGpio(int Port, int Bit)
 int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, int Unknown)
 {
 	if (!HalpVftable.TransmitSpi) {
-		HalDisplayString("WARNING: HalTransmitSpi not supported");
+		HalDisplayString("WARNING: HalTransmitSpi not supported\n");
 		return -1;
 	}
 
