@@ -16,6 +16,9 @@ Author:
 
 #define MULTITOUCH_INCREMENT 5
 
+#define PROX_CALIBRATION_ADDRESS 0x400180
+#define MT_CALIBRATION_ADDRESS   0x400200
+
 int MtModel = 0;
 const char* MtFilePath = "/Root/etc/zephyr2.bin";
 const char* MtClPath = "/Devices/HardwareConfiguration/MtCl";
@@ -142,7 +145,7 @@ bool MtAttemptUploadFirmware()
 
 		int ReturnValue = MtSpiTx(&MtFastSpeed, FirmwareBuffer, FirmwareLength);
 		if ((size_t) ReturnValue != FirmwareLength)
-			LogMsg("zephyr2: ERROR: MiSpiTx value is %d, expected %zu", ReturnValue, FirmwareLength);
+			LogMsg("zephyr2: ERROR: MtSpiTx value is %d, expected %zu", ReturnValue, FirmwareLength);
 
 		if (MtPerformHbppAtnAck() == 0x4BC1)
 			return true;
@@ -151,8 +154,99 @@ bool MtAttemptUploadFirmware()
 	return false;
 }
 
+static uint8_t OutputPacket[512];
+static uint8_t InputPacket[512];
+static uint8_t GetInfoPacket[512];
+static uint8_t GetResultPacket[512];
+
+void MakeBootloaderDataPacket(uint8_t* OutputBuffer, uint32_t TargetAddress, const uint8_t* Data, size_t DataLen, int* ChecksumOut)
+{
+	uint32_t Checksum;
+
+	OutputBuffer[0] = 0x30;
+	OutputBuffer[1] = 0x01;
+	OutputBuffer[2] = ((DataLen >> 2) >> 10) & 0xFF;
+	OutputBuffer[3] = (DataLen >> 2) & 0xFF;
+	OutputBuffer[4] = (TargetAddress >> 8) & 0xFF;
+	OutputBuffer[5] = TargetAddress & 0xFF;
+	OutputBuffer[6] = (TargetAddress >> 24) & 0xFF;
+	OutputBuffer[7] = (TargetAddress >> 16) & 0xFF;
+
+	Checksum = 0;
+	for (int i = 2; i < 8; i++) {
+		Checksum += OutputBuffer[i];
+	}
+
+	OutputBuffer[8] = (Checksum >> 8) & 0xFF;
+	OutputBuffer[9] = Checksum & 0xFF;
+
+	for (size_t i = 0; i < DataLen; i += 4)
+	{
+		OutputBuffer[10 + i + 0] = Data[i + 1];
+		OutputBuffer[10 + i + 1] = Data[i + 0];
+		OutputBuffer[10 + i + 2] = Data[i + 3];
+		OutputBuffer[10 + i + 3] = Data[i + 2];
+	}
+
+	Checksum = 0;
+	for (size_t i = 10; i < (DataLen + 10); i++) {
+		Checksum += OutputBuffer[i];
+	}
+
+	OutputBuffer[DataLen + 10] = (Checksum >> 8) & 0xFF;
+	OutputBuffer[DataLen + 11] = Checksum & 0xFF;
+	OutputBuffer[DataLen + 12] = (Checksum >> 24) & 0xFF;
+	OutputBuffer[DataLen + 13] = (Checksum >> 16) & 0xFF;
+
+	if (ChecksumOut) {
+		*ChecksumOut = Checksum;
+	}
+}
+
+bool MtAttemptUploadCalibrationData(void* Buffer, size_t Length, uint32_t Address)
+{
+	const uint8_t* Data = Buffer;
+	size_t Left = (Length + 3) & ~0x3;
+
+	while (Left > 0)
+	{
+		size_t ToUpload = Left;
+		if (ToUpload > 0x3F0)
+			ToUpload = 0x3F0;
+
+		OutputPacket[0] = 0x18;
+		OutputPacket[1] = 0xE1;
+
+		MakeBootloaderDataPacket(OutputPacket + 2, Address, Data, ToUpload, NULL);
+
+		const int Tries = 5;
+		int Try = 0;
+		for (Try = 0; Try < Tries; Try++)
+		{
+			LogMsg("zephyr2: uploading calibration data (attempt %d/%d)", Try + 1, Tries);
+
+			int ReturnValue = MtSpiTx(&MtFastSpeed, OutputPacket, ToUpload + 0x10);
+			if ((size_t) ReturnValue != ToUpload + 0x10)
+				LogMsg("zephyr2: ERROR: MtSpiTx value is %d, expected %zu", ReturnValue, ToUpload + 0x10);
+
+			if (MtPerformHbppAtnAck() == 0x4BC1)
+				break;
+		}
+
+		if (Try == 5)
+			return false;
+
+		Address += ToUpload;
+		Data += ToUpload;
+		Left -= ToUpload;
+	}
+
+	return true;
+}
+
 void MtSetupMultitouchPart2()
 {
+	bool FirmwareSucceeded = false;
 	for (int i = 0; i < 4; i++)
 	{
 		HalSetOutputPinGpio(MtGpioUnknown606(), 0);
@@ -170,18 +264,40 @@ void MtSetupMultitouchPart2()
 		if (MtAttemptUploadFirmware())
 		{
 			LogMsg("zephyr2: Firmware uploaded successfully.");
-			return;
+			FirmwareSucceeded = true;
+			break;
 		}
 	}
 
-	LogMsg("zephyr2: Failed to upload firmware.");
+	if (!FirmwareSucceeded)
+	{
+		LogMsg("zephyr2: Failed to upload firmware.");
 
-	if (!MtCalBuffer) {
-		LogMsg("zephyr2: Bypassing setup procedure. (you might be running on an emulator)");
+		if (!MtCalBuffer) {
+			LogMsg("zephyr2: Bypassing setup procedure. (you might be running on an emulator)");
+		}
+		else {
+			LogMsg("zephyr2: Multitouch will be inoperable for this session.");
+		}
+		return;
 	}
-	else {
-		LogMsg("zephyr2: Multitouch will be inoperable for this session.");
+
+	if (MtModel != N45AP)
+	{
+		if (!MtAttemptUploadCalibrationData(ProxCalBuffer, ProxCalLength, PROX_CALIBRATION_ADDRESS))
+		{
+			LogMsg("zephyr2: Failed to upload prox calibration data.");
+		}
+
+		LogMsg("zephyr2: Prox clibration data was uploaded successfully.");
 	}
+
+	if (!MtAttemptUploadCalibrationData(MtCalBuffer, MtCalLength, MT_CALIBRATION_ADDRESS))
+	{
+		LogMsg("zephyr2: Failed to upload calibration data.");
+	}
+
+	LogMsg("zephyr2: Calibration data was uploaded successfully.");
 }
 
 static BSTATUS ReadEntireFile(const char* Path, void** OutBuffer, size_t* OutSize, uint32_t CreateOptions)
