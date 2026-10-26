@@ -27,78 +27,6 @@ bool UseSPIAccess()
 	       strcmp(Model, "n45ap") != 0;   // iPod touch 1G
 }
 
-NO_RETURN
-void TestItNowThread(UNUSED void* Context)
-{
-	OSSleep(1000);
-
-	BSTATUS Status;
-	IO_STATUS_BLOCK Iosb;
-	OBJECT_ATTRIBUTES Attributes;
-	HANDLE Handle;
-	Attributes.RootDirectory = HANDLE_NONE;
-	Attributes.OpenFlags = 0;
-	Attributes.ObjectName = "/::/Devices/NorFlash";
-	Attributes.ObjectNameLength = strlen(Attributes.ObjectName);
-
-	Status = OSCreateFile(
-		&Handle,
-		&Attributes,
-		&Iosb,
-		0, // FileAttributes
-		0, // AllocationSize
-		IO_OPEN,
-		IO_FILE_ANY_TYPE,
-		NULL, // TargetName
-		0     // TargetLength
-	);
-
-	if (FAILED(Status)) {
-		LogMsg("NOR: failed to open %s: %s", Attributes.ObjectName, RtlGetStatusString(Status));
-		OSExitThread();
-	}
-
-	uint64_t Offset = 0xFC030;
-
-	uint32_t Buffer[4];
-	Status = OSReadFile(
-		&Iosb,
-		Handle,
-		Offset,
-		Buffer,
-		sizeof Buffer,
-		0  // Flags
-	);
-
-	if (FAILED(Status))
-	{
-		LogMsg("zephyr2: Could not read %zu bytes from %s: %s", sizeof(Buffer), Attributes.ObjectName, RtlGetStatusString(Status));
-		OSExitThread();
-	}
-
-	LogMsg("Hello from nor driver!");
-	LogMsg("16 bytes at offset %llu: %08x %08x %08x %08x", Offset, Buffer[0], Buffer[1], Buffer[2], Buffer[3]);
-
-	// Test another read
-	char Buffer2[256];
-	Status = OSReadFile(
-		&Iosb,
-		Handle,
-		Offset,
-		Buffer2,
-		sizeof Buffer2,
-		0  // Flags
-	);
-	Buffer2[255] = 0;
-
-	LogMsg("The following *SHOULD* be the nvram configuration extracted from the nor.");
-	LogMsg("Read in: %s", Buffer2);
-
-
-	OSClose(Handle);
-	OSExitThread();
-}
-
 size_t NorSize()
 {
 	return 16 * 1024 * 1024;
@@ -145,21 +73,6 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 
 	// Assign it a size manually.
 	gDeviceObject->Fcb->FileLength = NorSize();
-
-	PETHREAD Thread;
-	Status = PsCreateSystemThreadFast(
-		&Thread,
-		TestItNowThread,
-		NULL, // StartContext
-		false // CreateSuspended
-	);
-
-	if (FAILED(Status)) {
-		LogMsg("NOR: Cannot create test thread: %s", RtlGetStatusString(Status));
-	}
-	else {
-		ObDereferenceObject(Thread);
-	}
 
 	return STATUS_SUCCESS;
 }
