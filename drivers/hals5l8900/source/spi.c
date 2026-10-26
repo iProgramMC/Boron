@@ -38,7 +38,7 @@ static const char HalSpiClockGates[SPI_PORT_COUNT] = {
 	SPI1_CLOCK_GATE,
 	SPI2_CLOCK_GATE
 };
-static const int HalWordSizes[] = { 8, 16, 32 };
+static const int HalWordSizes[] = { 1, 2, 4 };
 
 static SPI_INFO HalSpiInfo[SPI_PORT_COUNT];
 
@@ -204,6 +204,7 @@ int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, 
 		return 0;
 
 	// TODO: Don't spin in a loop, but wait for an event to signal.
+	DbgPrint("Waiting...");
 	while (!HalSpiInfo[Port].TxDone || (REG(Base, SPI_STATUS) >> 4) & 0xF) {
 		KeSpinningHint();
 	}
@@ -401,7 +402,15 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 	PSPI_INFO Port = Context;
 	void* Base = Port->BaseAddress;
 
+	// TODO: this is kind of poorly structured?  I just copied it from OpeniBoot.
+
 	uint32_t Status = REG(Base, SPI_STATUS);
+
+	// @BUG: OpeniBoot does not flush the status here, but rather, at the end.
+	// However, this patch makes the zephyr2 firmware upload work on both emulator
+	// and real hardware.  But I think there's another bug at play here.
+	REG(Base, SPI_STATUS) = Status;
+
 	if (Status & (1 << 3))
 	{
 		Port->Counter++;
@@ -409,7 +418,6 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 
 	if (Status & (1 << 1))
 	{
-		// TODO: this is kind of poorly structured?
 		while (true)
 		{
 			// perform TX
@@ -425,6 +433,9 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 
 					HalSpiTxData(Port, Port->TxBuffer, Port->TxCurrentLen, Port->TxCurrentLen + ToTx);
 					Port->TxCurrentLen += ToTx;
+
+					// @BUG: See above note.
+					REG(Base, SPI_CTRL) = 1;
 				}
 				else
 				{
@@ -435,29 +446,27 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 
 		DoRx:
 			// perform RX
-			if (Port->RxBuffer)
-			{
-				size_t ToRx = Port->RxTotalLen - Port->RxCurrentLen;
-				size_t CanRx = RX_BUFFER_LEFT(Status) << Port->WordSize;
+			if (!Port->RxBuffer)
+				break;
 
-				if (ToRx > CanRx)
-					ToRx = CanRx;
+			size_t ToRx = Port->RxTotalLen - Port->RxCurrentLen;
+			size_t CanRx = RX_BUFFER_LEFT(Status) << Port->WordSize;
 
-				HalSpiRxData(Port, Port->RxBuffer, Port->RxCurrentLen, Port->RxCurrentLen + ToRx);
-				Port->RxCurrentLen += ToRx;
+			if (ToRx > CanRx)
+				ToRx = CanRx;
 
-				if (Port->RxCurrentLen < Port->RxTotalLen)
-					break;
+			HalSpiRxData(Port, Port->RxBuffer, Port->RxCurrentLen, Port->RxCurrentLen + ToRx);
+			Port->RxCurrentLen += ToRx;
 
-				Port->RxDone = true;
-				Port->RxBuffer = NULL;
-			}
+			if (Port->RxCurrentLen < Port->RxTotalLen)
+				break;
+
+			Port->RxDone = true;
+			Port->RxBuffer = NULL;
 		}
 	}
 	else if (Status & (1 << 0))
 	{
 		goto DoRx;
 	}
-
-	REG(Base, SPI_STATUS) = Status;
 }

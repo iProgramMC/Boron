@@ -79,6 +79,10 @@ static const HAL_VFTABLE HalpVfTable =
 	.DisableGpioInterrupt = HalDisableGpioInterrupt,
 	.SetInputPinGpio = HalSetInputPinGpio,
 	.SetOutputPinGpio = HalSetOutputPinGpio,
+	.TransmitSpi = HalTransmitSpi,
+	.ReceiveSpi = HalReceiveSpi,
+	.TransmitAndReceiveSpi = HalTransmitAndReceiveSpi,
+	.SetBaudRateSpi = HalSetBaudRateSpi,
 	.Flags = HAL_VFTABLE_LOADED,
 };
 

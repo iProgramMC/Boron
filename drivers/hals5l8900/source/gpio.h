@@ -4,16 +4,17 @@
 
 Module name:
 	gpio.h
-	
+
 Abstract:
 	This header defines values for the iPod GPIO driver.
-	
+
 Author:
 	iProgramInCpp - 5 May 2026
 ***/
 #pragma once
 
 #include "pl192.h"
+#include "gpiopins.h"
 
 #define REG(base, rgof) (* (volatile uint32_t*) ((uintptr_t)base + rgof))
 

@@ -45,17 +45,17 @@ Author:
 #define SPI2_IRQ 0xB
 
 // weird mappings, why couldn't they stay the same across versions!?
-#define GPIO_SPI0_CS0_IPH    0x400
-#define GPIO_SPI0_CS0_IPT1   0x700
+#define GPIO_SPI0_CS0_M68 0x400
+#define GPIO_SPI0_CS0_N45 0x700
 
-#define GPIO_SPI0_CS1_IPH3G  0x705
-#define GPIO_SPI0_CS2_IPH3G  0x706
+#define GPIO_SPI0_CS1_N82 0x705
+#define GPIO_SPI0_CS2_N82 0x706
 
-#define GPIO_SP1_CS0         0x1800
+#define GPIO_SP1_CS0      0x1800
 
-#define GPIO_SPI2_CS0_IPT1   0x1804
-#define GPIO_SPI2_CS1_IPT1   0x705
-#define GPIO_SPI2_CS0_IPH    0x705
+#define GPIO_SPI2_CS0_N45 0x1804
+#define GPIO_SPI2_CS1_N45 0x705
+#define GPIO_SPI2_CS0_M68 0x705
 
 #define SPI_PORT_COUNT 3
 
