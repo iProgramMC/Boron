@@ -55,9 +55,9 @@ void HalEnableGpioInterrupt(int InterruptNumber);
 
 void HalDisableGpioInterrupt(int InterruptNumber);
 
-void HalSetInputPin(int Port);
+void HalSetInputPinGpio(int Port);
 
-void HalSetOutputPin(int Port, int Bit);
+void HalSetOutputPinGpio(int Port, int Bit);
 
 int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, int Unknown);
 
