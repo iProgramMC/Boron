@@ -29,7 +29,8 @@ int MtSpiTxRx(PMT_SPI_SETTING SpiSetting, const void* OutBuffer, size_t OutBuffe
 {
 	HalSetBaudRateSpi(MtSpiPort(), SpiSetting->Speed, 8, true, true, true);
 	HalSetOutputPinGpio(MtSpiCsPin(), 0);
-	OSSleep((SpiSetting->RxDelay + 999) / 1000);
+
+	//OSSleep((SpiSetting->RxDelay + 999) / 1000);
 
 	int Ret = HalTransmitAndReceiveSpi(MtSpiPort(), OutBuffer, OutBufferLen, InBuffer, InBufferLen, true);
 
@@ -41,7 +42,7 @@ int MtSpiTx(PMT_SPI_SETTING SpiSetting, const void* OutBuffer, size_t OutBufferL
 {
 	HalSetBaudRateSpi(MtSpiPort(), SpiSetting->Speed, 8, true, true, true);
 	HalSetOutputPinGpio(MtSpiCsPin(), 0);
-	OSSleep((SpiSetting->TxDelay + 999) / 1000);
+	//OSSleep((SpiSetting->TxDelay + 999) / 1000);
 
 	int Ret = HalTransmitSpi(MtSpiPort(), OutBuffer, OutBufferLen, true, 0);
 

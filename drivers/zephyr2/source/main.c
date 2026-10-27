@@ -16,6 +16,8 @@ Author:
 
 #define MULTITOUCH_INCREMENT 5
 
+//#define BUSY_WAIT
+
 int MtModel = 0;
 #ifdef CONFIG_SMP
 #error TODO: synchronize with KeSynchronizeExecution instead of disabling interrupts!
@@ -96,7 +98,7 @@ uint32_t MtChecksum32(uint8_t* Buffer, size_t Start, size_t End)
 
 bool MtCheckForEvents(bool Wait, int TimeoutMS)
 {
-	/*
+#ifndef BUSY_WAIT
 	// This mutex is there so that nobody else can check for events before us.
 	ExAcquireFastMutex(&MtPendingMutex, false);
 
@@ -134,8 +136,7 @@ bool MtCheckForEvents(bool Wait, int TimeoutMS)
 
 	ExReleaseFastMutex(&MtPendingMutex);
 	return true;
-	*/
-
+#else // BUSY_WAIT
 	uint64_t StartTime = HalGetTickCount();
 	uint64_t EndTime = 0;
 
@@ -154,6 +155,7 @@ bool MtCheckForEvents(bool Wait, int TimeoutMS)
 	}
 	AtAddFetch(MtPendingAtnEvents, -1);
 	return true;
+#endif
 }
 
 uint16_t MtPerformHbppAtnAck()

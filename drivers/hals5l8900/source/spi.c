@@ -278,6 +278,11 @@ int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool Do
 	return BufferSize;
 }
 
+static uint64_t TixToMs(uint64_t Ticks)
+{
+	return Ticks * 1000 / HalGetTickFrequency();
+}
+
 int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLength, void* RxBuffer, size_t RxBufferLength, bool Block)
 {
 	if (Port < 0 || Port >= SPI_PORT_COUNT) {
