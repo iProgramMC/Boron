@@ -61,10 +61,7 @@ static void MakeBootloaderDataPacket(uint8_t* OutputBuffer, uint32_t TargetAddre
 	OutputBuffer[6] = (TargetAddress >> 24) & 0xFF;
 	OutputBuffer[7] = (TargetAddress >> 16) & 0xFF;
 
-	Checksum = 0;
-	for (int i = 2; i < 8; i++) {
-		Checksum += OutputBuffer[i];
-	}
+	Checksum = MtChecksum(OutputBuffer, 2, 8);
 
 	OutputBuffer[8] = (Checksum >> 8) & 0xFF;
 	OutputBuffer[9] = Checksum & 0xFF;
@@ -77,10 +74,7 @@ static void MakeBootloaderDataPacket(uint8_t* OutputBuffer, uint32_t TargetAddre
 		OutputBuffer[10 + i + 3] = Data[i + 2];
 	}
 
-	Checksum = 0;
-	for (size_t i = 10; i < (DataLen + 10); i++) {
-		Checksum += OutputBuffer[i];
-	}
+	Checksum = MtChecksum32(OutputBuffer, 10, DataLen + 10);
 
 	OutputBuffer[DataLen + 10] = (Checksum >> 8) & 0xFF;
 	OutputBuffer[DataLen + 11] = Checksum & 0xFF;
@@ -136,7 +130,6 @@ bool MtAttemptUploadCalibrationData(void* Buffer, size_t Length, uint32_t Addres
 uint32_t MtReadRegister(uint32_t Address)
 {
 	uint8_t Tx[8], Rx[8];
-	uint32_t CheckSum = 0;
 
 	Tx[0] = 0x1C;
 	Tx[1] = 0x73;
@@ -145,8 +138,7 @@ uint32_t MtReadRegister(uint32_t Address)
 	Tx[4] = (Address >> 24) & 0xFF;
 	Tx[5] = (Address >> 16) & 0xFF;
 
-	for (int i = 2; i < 6; i++)
-		CheckSum += Tx[i];
+	uint16_t CheckSum = MtChecksum(Tx, 2, 6);
 
 	Tx[6] = (CheckSum >> 8) & 0xFF;
 	Tx[7] = CheckSum & 0xFF;
@@ -159,7 +151,6 @@ uint32_t MtReadRegister(uint32_t Address)
 bool MtWriteRegister(uint32_t Address, uint32_t Value, uint32_t Mask)
 {
 	uint8_t Tx[16], Rx[16];
-	uint32_t CheckSum = 0;
 
 	Tx[0] = 0x1E;
 	Tx[1] = 0x33;
@@ -178,8 +169,7 @@ bool MtWriteRegister(uint32_t Address, uint32_t Value, uint32_t Mask)
 	Tx[12] = (Value >> 24) & 0xFF;
 	Tx[13] = (Value >> 16) & 0xFF;
 
-	for (int i = 2; i < 14; i++)
-		CheckSum += Tx[i];
+	uint16_t CheckSum = MtChecksum(Tx, 2, 14);
 
 	Tx[14] = (CheckSum >> 8) & 0xFF;
 	Tx[15] = CheckSum & 0xFF;
@@ -236,7 +226,6 @@ bool MtAttemptCalibration()
 void MtSendExecutePacket()
 {
 	uint8_t Tx[12], Rx[12];
-	uint32_t CheckSum = 0;
 
 	Tx[0] = 0x1D;
 	Tx[1] = 0x53;
@@ -249,9 +238,7 @@ void MtSendExecutePacket()
 	Tx[8] = 0x00;
 	Tx[9] = 0x00;
 
-	for (int i = 2; i < 10; i++) {
-		CheckSum += Tx[i];
-	}
+	uint16_t CheckSum = MtChecksum(Tx, 2, 10);
 
 	Tx[10] = (CheckSum >> 8) & 0xFF;
 	Tx[11] = CheckSum & 0xFF;
@@ -263,16 +250,11 @@ void MtSendExecutePacket()
 bool MtDetermineInterfaceVersion()
 {
 	uint8_t Tx[16], Rx[16];
-	uint16_t CheckSum = 0;
-
 	memset(Tx, 0, sizeof Tx);
 
 	Tx[0] = 0xE2;
 
-	CheckSum = 0;
-	for (int i = 0; i < 14; i++) {
-		CheckSum += Tx[i];
-	}
+	uint16_t CheckSum = MtChecksum(Tx, 0, 14);
 
 	// N.B.  Byte order changes after firmware upload
 	Tx[14] = CheckSum & 0xFF;
@@ -293,10 +275,7 @@ bool MtDetermineInterfaceVersion()
 		}
 
 		// verify checksum now
-		CheckSum = 0;
-		for (int i = 0; i < 14; i++) {
-			CheckSum += Rx[i];
-		}
+		uint16_t CheckSum = MtChecksum(Rx, 0, 14);
 
 		if (CheckSum != (uint16_t)(Rx[14] | (Rx[15] << 8))) {
 			LogMsg("zephyr2: Message has checksum %04x where we expected 0x%02x%02x", CheckSum, Rx[15], Rx[14]);
@@ -315,7 +294,6 @@ static int MtGetReportInfo(int id, uint8_t* Error, uint16_t* OutLength)
 {
 	uint8_t Tx[16];
 	uint8_t Rx[16];
-	uint16_t CheckSum;
 
 	for (int Try = 0; Try < 4; Try++)
 	{
@@ -324,9 +302,7 @@ static int MtGetReportInfo(int id, uint8_t* Error, uint16_t* OutLength)
 		Tx[0] = 0xE3;
 		Tx[1] = id;
 
-		CheckSum = 0;
-		for (int i = 0; i < 14; i++)
-			CheckSum += Tx[i];
+		uint16_t CheckSum = MtChecksum(Tx, 0, 14);
 
 		Tx[14] = CheckSum & 0xFF;
 		Tx[15] = (CheckSum >> 8) & 0xFF;
@@ -342,9 +318,7 @@ static int MtGetReportInfo(int id, uint8_t* Error, uint16_t* OutLength)
 			continue;
 		}
 
-		CheckSum = 0;
-		for (int i = 0; i < 14; i++)
-			CheckSum += Rx[i];
+		CheckSum = MtChecksum(Rx, 0, 14);
 
 		if ((uint16_t)(Rx[14] | (Rx[15] << 8)) != CheckSum) {
 			LogMsg("zephyr2: Report has checksum %04x where we expected 0x%02x%02x", CheckSum, Rx[15], Rx[14]);
@@ -371,9 +345,7 @@ static bool MtShortControlRead(int Id, uint8_t* Buffer, int BufferSize)
 	GetInfoPacket[3] = BufferSize & 0xFF;
 	GetInfoPacket[4] = (BufferSize >> 8) & 0xFF;
 
-	CheckSum = 0;
-	for (int i = 0; i < 5; i++)
-		CheckSum += GetInfoPacket[i];
+	CheckSum = MtChecksum(GetInfoPacket, 0, 14);
 
 	GetInfoPacket[14] = CheckSum & 0xFF;
 	GetInfoPacket[15] = (CheckSum >> 8) & 0xFF;
@@ -386,9 +358,7 @@ static bool MtShortControlRead(int Id, uint8_t* Buffer, int BufferSize)
 
 	MtSpiTxRx(&MtNormalSpeed, GetInfoPacket, 16, InputPacket, 16);
 
-	CheckSum = 0;
-	for (int i = 0; i < 14; i++)
-		CheckSum += InputPacket[i];
+	CheckSum = MtChecksum(InputPacket, 0, 14);
 
 	if ((uint16_t) (InputPacket[14] | (InputPacket[15] << 8)) != CheckSum)
 		return false;
@@ -409,9 +379,7 @@ static bool MtLongControlRead(int Id, uint8_t* Buffer, int BufferSize)
 	GetInfoPacket[3] = BufferSize & 0xFF;
 	GetInfoPacket[4] = (BufferSize >> 8) & 0xFF;
 
-	CheckSum = 0;
-	for (int i = 0; i < 5; i++)
-		CheckSum += GetInfoPacket[i];
+	CheckSum = MtChecksum(GetInfoPacket, 0, 5);
 
 	GetInfoPacket[14] = CheckSum & 0xFF;
 	GetInfoPacket[15] = (CheckSum >> 8) & 0xFF;
@@ -428,9 +396,7 @@ static bool MtLongControlRead(int Id, uint8_t* Buffer, int BufferSize)
 
 	MtSpiTxRx(&MtNormalSpeed, GetInfoPacket, BufferSize + 5, InputPacket, BufferSize + 5);
 
-	CheckSum = 0;
-	for (int i = 0; i < BufferSize + 3; i++)
-		CheckSum += InputPacket[i];
+	CheckSum = MtChecksum(InputPacket, 0, BufferSize + 3);
 
 	if ((uint16_t)(InputPacket[3 + BufferSize] | (InputPacket[3 + BufferSize + 1] << 8)) != CheckSum)
 		return false;
@@ -650,7 +616,7 @@ static void MtInitializationThread(UNUSED void* Context)
 	{
 		MtCalBuffer = NULL;
 		MtCalLength = 0;
-		LogMsg("MtCl not found. It's possible you're running this on an emulator.");
+		LogMsg("zephyr2: MtCl not found. It's possible you're running this on an emulator.");
 
 		// TODO: Actually detect this.  Don't blindly assume that we are.
 		MtEmulatorMode = true;

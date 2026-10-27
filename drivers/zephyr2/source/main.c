@@ -52,6 +52,8 @@ void MtDpcRoutine(PKDPC Dpc UNUSED, void* Context UNUSED, void* SA1 UNUSED, void
 		// That's all we have to do.
 		return;
 	}
+
+	//MtReadMultitouchFrame();
 }
 
 void MtInterruptRoutine(PKINTERRUPT Interrupt UNUSED, void* Context UNUSED)
@@ -72,6 +74,24 @@ void MtPowerMultitouch()
 	OSSleep(200);
 	HalSetOutputPinGpio(MtGpioPower(), 1);
 	OSSleep(15);
+}
+
+uint16_t MtChecksum(uint8_t* Buffer, size_t Start, size_t End)
+{
+	uint16_t CheckSum = 0;
+	for (size_t i = Start; i < End; i++)
+		CheckSum += Buffer[i];
+
+	return CheckSum;
+}
+
+uint32_t MtChecksum32(uint8_t* Buffer, size_t Start, size_t End)
+{
+	uint32_t CheckSum = 0;
+	for (size_t i = Start; i < End; i++)
+		CheckSum += Buffer[i];
+
+	return CheckSum;
 }
 
 static bool MtCheckForEvents(bool Wait, int TimeoutMS)

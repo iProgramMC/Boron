@@ -152,3 +152,6 @@ bool MtSetupInitializationThread();
 
 // Utility function. Reads the entire contents of a file into a buffer.
 BSTATUS ReadEntireFile(const char* Path, void** OutBuffer, size_t* OutSize, uint32_t CreateOptions);
+
+uint16_t MtChecksum(uint8_t* Buffer, size_t Start, size_t End);
+uint32_t MtChecksum32(uint8_t* Buffer, size_t Start, size_t End);
