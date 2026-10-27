@@ -1,3 +1,17 @@
+/***
+	The Boron Operating System
+	Copyright (C) 2026 iProgramInCpp
+
+Module name:
+	z2.h
+
+Abstract:
+	This header provides common definitions for the zephyr2
+	multitouch controller driver.
+
+Author:
+	iProgramInCpp - 26 October 2026
+***/
 #pragma once
 
 #include <ke.h>
@@ -61,6 +75,9 @@ Reversing the process for the Touch 2:
 #define MT_INFO_SENSOR_REGION_PARAM 0xA1
 #define MT_INFO_SENSOR_DIM 0xD9
 
+#define PROX_CALIBRATION_ADDRESS 0x400180
+#define MT_CALIBRATION_ADDRESS   0x400200
+
 int MtGpioPower();
 int MtGpioUnknown606();
 int MtAtnInterruptVector();
@@ -111,3 +128,24 @@ typedef struct
 }
 PACKED
 Z2_SENSOR_DIM, *PZ2_SENSOR_DIM;
+
+extern int MtModel;
+
+extern uint32_t MtInterfaceVersion;
+extern uint32_t MtMaxPacketSize;
+extern bool MtFlipNop;
+extern uint32_t MtCurNop;
+
+// I don't know what HBPP stands for, but this waits for the reply interrupt from
+// the controller and returns whatever it sends back.
+//
+// These don't seem to be used except in the initialization procedure.
+uint16_t MtPerformHbppAtnAck();
+uint32_t MtPerformHbppLongAtnAck();
+
+// Prepare the initialization thread for execution.  Once file systems are mounted,
+// this will kick in and upload the firmware to the device.
+bool MtSetupInitializationThread();
+
+// Utility function. Reads the entire contents of a file into a buffer.
+BSTATUS ReadEntireFile(const char* Path, void** OutBuffer, size_t* OutSize, uint32_t CreateOptions);
