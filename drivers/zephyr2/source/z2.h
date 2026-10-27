@@ -79,3 +79,35 @@ extern MT_SPI_SETTING MtNormalSpeed, MtFastSpeed;
 
 int MtSpiTxRx(PMT_SPI_SETTING SpiSetting, const void* OutBuffer, size_t OutBufferLen, void* InBuffer, size_t InBufferLen);
 int MtSpiTx(PMT_SPI_SETTING SpiSetting, const void* OutBuffer, size_t OutBufferLen);
+
+typedef struct
+{
+	uint8_t FamilyId;
+
+	// ...
+}
+PACKED
+Z2_FAMILY_ID, *PZ2_FAMILY_ID;
+
+typedef struct
+{
+	uint8_t Endianness;
+	uint8_t SensorRows;
+	uint8_t SensorColumns;
+	uint8_t BcdVersionUpper;
+	uint8_t BcdVersionLower;
+
+	// ...
+}
+PACKED
+Z2_SENSOR_INFO, *PZ2_SENSOR_INFO;
+
+typedef struct
+{
+	uint32_t SensorWidthRaw;
+	uint32_t SensorHeightRaw;
+
+	// ...
+}
+PACKED
+Z2_SENSOR_DIM, *PZ2_SENSOR_DIM;
