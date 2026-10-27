@@ -257,7 +257,7 @@ void MtSendExecutePacket()
 	Tx[11] = CheckSum & 0xFF;
 
 	MtSpiTxRx(&MtNormalSpeed, Tx, sizeof Tx, Rx, sizeof Rx);
-	LogMsg("zephyr2: Execute packet sent");
+	//LogMsg("zephyr2: Execute packet sent.");
 }
 
 bool MtDetermineInterfaceVersion()
@@ -485,6 +485,11 @@ void MtSetupMultitouchDevice()
 			KeSpinningHint();
 		}
 
+		if (MtEmulatorMode) {
+			LogMsg("zephyr2: Emulator mode, no need to upload firmware.");
+			goto SkipSetupInEmulatorMode;
+		}
+
 		LogMsg("zephyr2: Trying to upload firmware...");
 		if (MtAttemptUploadFirmware())
 		{
@@ -497,13 +502,7 @@ void MtSetupMultitouchDevice()
 	if (!FirmwareSucceeded)
 	{
 		LogMsg("zephyr2: Failed to upload firmware.");
-
-		if (!MtCalBuffer) {
-			LogMsg("zephyr2: Bypassing setup procedure. (you might be running on an emulator)");
-		}
-		else {
-			LogMsg("zephyr2: Multitouch will be inoperable for this session.");
-		}
+		LogMsg("zephyr2: Multitouch will be inoperable for this session.");
 		return;
 	}
 
@@ -532,6 +531,7 @@ void MtSetupMultitouchDevice()
 		return;
 	}
 
+SkipSetupInEmulatorMode:
 	LogMsg("zephyr2: Calibration successful.");
 
 	MtSendExecutePacket();
@@ -593,26 +593,26 @@ void MtSetupMultitouchDevice()
 	int SensorHeight = (13850 - SensorDim->SensorHeightRaw) * 84 / 73;
 	uint32_t BcdVersion = (SensorInfo->BcdVersionUpper << 8) | SensorInfo->BcdVersionLower;
 
-	LogMsg("Family ID:     0x%x", FamilyId->FamilyId);
-	LogMsg("Sensor rows:   0x%x", SensorInfo->SensorRows);
-	LogMsg("Sensor cols:   0x%x", SensorInfo->SensorColumns);
-	LogMsg("Sensor width:  0x%x (raw: 0x%x)", SensorWidth, SensorDim->SensorWidthRaw);
-	LogMsg("Sensor height: 0x%x (raw: 0x%x)", SensorHeight, SensorDim->SensorHeightRaw);
-	LogMsg("BCD Version:   0x%x", BcdVersion);
-	LogMsg("Endianness:    0x%x", SensorInfo->Endianness);
+	LogMsg("zephyr2: Family ID:     0x%x", FamilyId->FamilyId);
+	LogMsg("zephyr2: Sensor rows:   0x%x", SensorInfo->SensorRows);
+	LogMsg("zephyr2: Sensor cols:   0x%x", SensorInfo->SensorColumns);
+	LogMsg("zephyr2: Sensor width:  0x%x (raw: 0x%x)", SensorWidth, SensorDim->SensorWidthRaw);
+	LogMsg("zephyr2: Sensor height: 0x%x (raw: 0x%x)", SensorHeight, SensorDim->SensorHeightRaw);
+	LogMsg("zephyr2: BCD Version:   0x%x", BcdVersion);
+	LogMsg("zephyr2: Endianness:    0x%x", SensorInfo->Endianness);
 
 	uint8_t* SensorRegionDescU8 = MtSensorRegionDescBuffer;
 	uint8_t* SensorRegionParamU8 = MtSensorRegionParamBuffer;
 
 	char PrintBuffer[16];
-	LogMsg("Sensor region desc (%zu):", MtSensorRegionDescLength);
+	LogMsg("zephyr2: Sensor region desc (%zu bytes):", MtSensorRegionDescLength);
 	for (size_t i = 0; i < MtSensorRegionDescLength; i++) {
 		snprintf(PrintBuffer, sizeof PrintBuffer, "%02x ", SensorRegionDescU8[i]);
 		HalDisplayString(PrintBuffer);
 	}
 	LogMsg("");
 
-	LogMsg("Sensor region param (%zu):", MtSensorRegionParamLength);
+	LogMsg("zephyr2: Sensor region param (%zu bytes):", MtSensorRegionParamLength);
 	for (size_t i = 0; i < MtSensorRegionParamLength; i++) {
 		snprintf(PrintBuffer, sizeof PrintBuffer, "%02x ", SensorRegionParamU8[i]);
 		HalDisplayString(PrintBuffer);
@@ -627,6 +627,7 @@ void MtSetupMultitouchDevice()
 	MtCurNop = 1;
 
 	LogMsg("zephyr2: Initialized successfully.");
+	MtInitialized = true;
 }
 
 NO_RETURN
@@ -644,6 +645,17 @@ static void MtInitializationThread(UNUSED void* Context)
 		OSExitThread();
 	}
 
+	Status = ReadEntireFile(MtClPath, &MtCalBuffer, &MtCalLength, IO_FILE_ANY_TYPE);
+	if (FAILED(Status))
+	{
+		MtCalBuffer = NULL;
+		MtCalLength = 0;
+		LogMsg("MtCl not found. It's possible you're running this on an emulator.");
+
+		// TODO: Actually detect this.  Don't blindly assume that we are.
+		MtEmulatorMode = true;
+	}
+
 	if (MtModel == N45AP)
 	{
 		ProxCalBuffer = NULL;
@@ -659,15 +671,6 @@ static void MtInitializationThread(UNUSED void* Context)
 			LogMsg("zephyr2: Could not load %s: %s", PxClPath, RtlGetStatusString(Status));
 			OSExitThread();
 		}
-	}
-
-	// But Multitouch Calibration data is required
-	Status = ReadEntireFile(MtClPath, &MtCalBuffer, &MtCalLength, IO_FILE_ANY_TYPE);
-	if (FAILED(Status))
-	{
-		MtCalBuffer = NULL;
-		MtCalLength = 0;
-		LogMsg("MtCl not found. It's possible you're running this on an emulator.");
 	}
 
 	MtSetupMultitouchDevice();

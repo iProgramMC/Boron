@@ -136,6 +136,9 @@ extern uint32_t MtMaxPacketSize;
 extern bool MtFlipNop;
 extern uint32_t MtCurNop;
 
+extern volatile bool MtInitialized;
+extern volatile bool MtEmulatorMode;
+
 // I don't know what HBPP stands for, but this waits for the reply interrupt from
 // the controller and returns whatever it sends back.
 //

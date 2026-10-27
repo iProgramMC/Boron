@@ -21,6 +21,11 @@ int MtModel = 0;
 #error TODO: synchronize with KeSynchronizeExecution instead of disabling interrupts!
 #endif
 
+// NOTE: The emulator in question is my fork of qemu-ios by devos50,
+// available at https://github.com/iProgramMC/qemu-ios
+volatile bool MtInitialized = false;
+volatile bool MtEmulatorMode = false;
+
 uint32_t MtInterfaceVersion;
 uint32_t MtMaxPacketSize;
 bool MtFlipNop;
@@ -42,11 +47,15 @@ void MtDpcRoutine(PKDPC Dpc UNUSED, void* Context UNUSED, void* SA1 UNUSED, void
 {
 	ASSERT(Dpc == &MtDpc);
 	KeSetEvent(&MtPendingAtnEventsEvent, MULTITOUCH_INCREMENT);
+
+	if (!MtInitialized) {
+		// That's all we have to do.
+		return;
+	}
 }
 
 void MtInterruptRoutine(PKINTERRUPT Interrupt UNUSED, void* Context UNUSED)
 {
-	DbgPrint("Interrupt!");
 	ASSERT(Interrupt == &MtInterrupt);
 
 	AtAddFetch(MtPendingAtnEvents, 1);
@@ -114,7 +123,7 @@ uint16_t MtPerformHbppAtnAck()
 	if (!HaveEvent)
 	{
 		// no event.
-		LogMsg("zephyr2: MtPerformHbppAtnAck failed");
+		//LogMsg("zephyr2: MtPerformHbppAtnAck failed");
 		return 0xFFFF;
 	}
 
@@ -137,7 +146,7 @@ uint32_t MtPerformHbppLongAtnAck()
 	if (!HaveEvent)
 	{
 		// no event.
-		LogMsg("zephyr2: MtPerformHbppLongAtnAck failed");
+		//LogMsg("zephyr2: MtPerformHbppLongAtnAck failed");
 		return 0xFFFF;
 	}
 
@@ -151,8 +160,6 @@ uint32_t MtPerformHbppLongAtnAck()
 	Tx[7] = 0xE1;
 
 	MtSpiTxRx(&MtNormalSpeed, Tx, sizeof Tx, Rx, sizeof Rx);
-
-	LogMsg("received: %02x %02x %02x %02x %02x %02x %02x %02x", Rx[0],Rx[1],Rx[2],Rx[3],Rx[4],Rx[5],Rx[6],Rx[7]);
 
 	uint32_t Rv = 0;
 	Rv |= (uint32_t) Rx[2] << 8;
