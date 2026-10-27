@@ -31,6 +31,9 @@ uint32_t MtMaxPacketSize;
 bool MtFlipNop;
 uint32_t MtCurNop;
 
+uint32_t MtSensorWidth;
+uint32_t MtSensorHeight;
+
 // TODO: The current driver is basically a rewrite of OpeniBoot's multitouch-z2.c driver.
 //
 // Its quality is very questionable.
@@ -39,26 +42,23 @@ uint32_t MtCurNop;
 KINTERRUPT MtInterrupt;
 KSPIN_LOCK MtInterruptSpinLock; // KeSynchronizeExecution
 KDPC MtDpc;
-int MtPendingAtnEvents;
+volatile int MtPendingAtnEvents;
 KEVENT MtPendingAtnEventsEvent;
 FAST_MUTEX MtPendingMutex;
 
 void MtDpcRoutine(PKDPC Dpc UNUSED, void* Context UNUSED, void* SA1 UNUSED, void* SA2 UNUSED)
 {
+	DbgPrint("MtDpcRoutine");
+
 	ASSERT(Dpc == &MtDpc);
 	KeSetEvent(&MtPendingAtnEventsEvent, MULTITOUCH_INCREMENT);
-
-	if (!MtInitialized) {
-		// That's all we have to do.
-		return;
-	}
-
-	//MtReadMultitouchFrame();
 }
 
 void MtInterruptRoutine(PKINTERRUPT Interrupt UNUSED, void* Context UNUSED)
 {
 	ASSERT(Interrupt == &MtInterrupt);
+
+	DbgPrintString("MtInterruptRoutine\n");
 
 	AtAddFetch(MtPendingAtnEvents, 1);
 	KeEnqueueDpc(
@@ -94,8 +94,9 @@ uint32_t MtChecksum32(uint8_t* Buffer, size_t Start, size_t End)
 	return CheckSum;
 }
 
-static bool MtCheckForEvents(bool Wait, int TimeoutMS)
+bool MtCheckForEvents(bool Wait, int TimeoutMS)
 {
+	/*
 	// This mutex is there so that nobody else can check for events before us.
 	ExAcquireFastMutex(&MtPendingMutex, false);
 
@@ -115,7 +116,8 @@ static bool MtCheckForEvents(bool Wait, int TimeoutMS)
 		);
 
 		if (FAILED(Status)) {
-			DbgPrint("Failed to wait on ATN event: %s", RtlGetStatusString(Status));
+			if (Status != STATUS_TIMEOUT)
+				DbgPrint("Failed to wait on ATN event: %s", RtlGetStatusString(Status));
 			ExReleaseFastMutex(&MtPendingMutex);
 			return false;
 		}
@@ -131,6 +133,26 @@ static bool MtCheckForEvents(bool Wait, int TimeoutMS)
 	KeLowerIPL(Ipl);
 
 	ExReleaseFastMutex(&MtPendingMutex);
+	return true;
+	*/
+
+	uint64_t StartTime = HalGetTickCount();
+	uint64_t EndTime = 0;
+
+	if (TimeoutMS != TIMEOUT_INFINITE) {
+		EndTime = StartTime + TimeoutMS * HalGetTickFrequency() / 1000;
+	}
+
+	// TODO: Don't spinwait here
+	while (!MtPendingAtnEvents) {
+		KeSpinningHint();
+		if (TimeoutMS != TIMEOUT_INFINITE) {
+			if (HalGetTickCount() > EndTime) {
+				return false;
+			}
+		}
+	}
+	AtAddFetch(MtPendingAtnEvents, -1);
 	return true;
 }
 
@@ -268,6 +290,51 @@ BSTATUS ReadEntireFile(const char* Path, void** OutBuffer, size_t* OutSize, uint
 	return Status;
 }
 
+NO_RETURN
+static void MtMultitouchThread(UNUSED void* Context)
+{
+	// TODO: wait for file systems to be mounted, first.
+	OSSleep(100);
+
+	if (!MtPrepareInitialData())
+	{
+		OSExitThread();
+	}
+
+	if (!MtSetupMultitouchDevice())
+	{
+		OSExitThread();
+	}
+
+	MtRunMultitouch();
+
+	OSExitThread();
+}
+
+// Prepare the multitouch thread for execution.  Once file systems are mounted,
+// this will kick in and upload the firmware to the device, and then wait on the
+// device to read data from it.
+bool MtSetupMultitouchThread()
+{
+	PETHREAD Thread;
+	BSTATUS Status = PsCreateSystemThreadFast(
+		&Thread,
+		MtMultitouchThread,
+		NULL, // StartContext
+		false // CreateSuspended
+	);
+
+	if (FAILED(Status))
+	{
+		LogMsg("zephyr2: Cannot create multitouch thread: %s", RtlGetStatusString(Status));
+		return false;
+	}
+
+	ObDereferenceObject(Thread);
+
+	return true;
+}
+
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
 	KeInitializeEvent(&MtPendingAtnEventsEvent, EVENT_NOTIFICATION, false);
@@ -319,7 +386,7 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 
 	MtPowerMultitouch();
 
-	if (!MtSetupInitializationThread())
+	if (!MtSetupMultitouchThread())
 	{
 		return STATUS_UNLOAD;
 	}

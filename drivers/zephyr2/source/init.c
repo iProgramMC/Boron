@@ -435,7 +435,7 @@ static bool MtGetReport(int Id, void* Buffer, size_t* OutLength)
 	return false;
 }
 
-void MtSetupMultitouchDevice()
+bool MtSetupMultitouchDevice()
 {
 	bool FirmwareSucceeded = false;
 	for (int i = 0; i < 4; i++)
@@ -469,7 +469,7 @@ void MtSetupMultitouchDevice()
 	{
 		LogMsg("zephyr2: Failed to upload firmware.");
 		LogMsg("zephyr2: Multitouch will be inoperable for this session.");
-		return;
+		return false;
 	}
 
 	if (MtModel != N45AP)
@@ -477,7 +477,7 @@ void MtSetupMultitouchDevice()
 		if (!MtAttemptUploadCalibrationData(ProxCalBuffer, ProxCalLength, PROX_CALIBRATION_ADDRESS))
 		{
 			LogMsg("zephyr2: Failed to upload prox calibration data.");
-			return;
+			return false;
 		}
 
 		LogMsg("zephyr2: Prox clibration data was uploaded successfully.");
@@ -486,7 +486,7 @@ void MtSetupMultitouchDevice()
 	if (!MtAttemptUploadCalibrationData(MtCalBuffer, MtCalLength, MT_CALIBRATION_ADDRESS))
 	{
 		LogMsg("zephyr2: Failed to upload calibration data.");
-		return;
+		return false;
 	}
 
 	LogMsg("zephyr2: Calibration data was uploaded successfully.");
@@ -494,7 +494,7 @@ void MtSetupMultitouchDevice()
 	if (!MtAttemptCalibration())
 	{
 		LogMsg("zephyr2: Failed to calibrate.");
-		return;
+		return false;
 	}
 
 SkipSetupInEmulatorMode:
@@ -509,7 +509,7 @@ SkipSetupInEmulatorMode:
 	if (!MtDetermineInterfaceVersion())
 	{
 		LogMsg("zephyr2: Failed to determine interface version.");
-		return;
+		return false;
 	}
 
 	LogMsg("zephyr2: Interface version %d, max packet size %d", MtInterfaceVersion, MtMaxPacketSize);
@@ -532,23 +532,23 @@ SkipSetupInEmulatorMode:
 
 	if (!MtGetReport(MT_INFO_FAMILY_ID, MtFamilyIdBuffer, &MtFamilyIdLength)) {
 		LogMsg("zephyr2: Cannot read family ID");
-		return;
+		return false;
 	}
 	if (!MtGetReport(MT_INFO_SENSOR_INFO, MtSensorInfoBuffer, &MtSensorInfoLength)) {
 		LogMsg("zephyr2: Cannot read sensor info");
-		return;
+		return false;
 	}
 	if (!MtGetReport(MT_INFO_SENSOR_REGION_DESC, MtSensorRegionDescBuffer, &MtSensorRegionDescLength)) {
 		LogMsg("zephyr2: Cannot read sensor region desc");
-		return;
+		return false;
 	}
 	if (!MtGetReport(MT_INFO_SENSOR_REGION_PARAM, MtSensorRegionParamBuffer, &MtSensorRegionParamLength)) {
 		LogMsg("zephyr2: Cannot read sensor region param");
-		return;
+		return false;
 	}
 	if (!MtGetReport(MT_INFO_SENSOR_DIM, MtSensorDimBuffer, &MtSensorDimLength)) {
 		LogMsg("zephyr2: Cannot read sensor dim");
-		return;
+		return false;
 	}
 
 	PZ2_FAMILY_ID FamilyId = MtFamilyIdBuffer;
@@ -558,6 +558,9 @@ SkipSetupInEmulatorMode:
 	int SensorWidth = (9000 - SensorDim->SensorWidthRaw) * 84 / 73;
 	int SensorHeight = (13850 - SensorDim->SensorHeightRaw) * 84 / 73;
 	uint32_t BcdVersion = (SensorInfo->BcdVersionUpper << 8) | SensorInfo->BcdVersionLower;
+
+	MtSensorWidth = SensorWidth;
+	MtSensorHeight = SensorHeight;
 
 	LogMsg("zephyr2: Family ID:     0x%x", FamilyId->FamilyId);
 	LogMsg("zephyr2: Sensor rows:   0x%x", SensorInfo->SensorRows);
@@ -590,25 +593,27 @@ SkipSetupInEmulatorMode:
 		MtFlipNop = true;
 	}
 
+	if (MtEmulatorMode) {
+		// TODO: determine this in another way
+		MtFlipNop = false;
+	}
+
 	MtCurNop = 1;
 
 	LogMsg("zephyr2: Initialized successfully.");
 	MtInitialized = true;
+	return true;
 }
 
-NO_RETURN
-static void MtInitializationThread(UNUSED void* Context)
+bool MtPrepareInitialData()
 {
-	// TODO: wait for file systems to be mounted, first.
-	OSSleep(100);
-
 	BSTATUS Status;
 	Status = ReadEntireFile(MtFilePath, &FirmwareBuffer, &FirmwareLength, IO_FILE_REGULAR_FILE);
 	if (FAILED(Status))
 	{
 		LogMsg("zephyr2: Could not load %s: %s", MtFilePath, RtlGetStatusString(Status));
 		// TODO: Request unload
-		OSExitThread();
+		return false;
 	}
 
 	Status = ReadEntireFile(MtClPath, &MtCalBuffer, &MtCalLength, IO_FILE_ANY_TYPE);
@@ -635,32 +640,9 @@ static void MtInitializationThread(UNUSED void* Context)
 		{
 			MmFreePool(FirmwareBuffer);
 			LogMsg("zephyr2: Could not load %s: %s", PxClPath, RtlGetStatusString(Status));
-			OSExitThread();
+			return false;
 		}
 	}
-
-	MtSetupMultitouchDevice();
-
-	OSExitThread();
-}
-
-bool MtSetupInitializationThread()
-{
-	PETHREAD Thread;
-	BSTATUS Status = PsCreateSystemThreadFast(
-		&Thread,
-		MtInitializationThread,
-		NULL, // StartContext
-		false // CreateSuspended
-	);
-
-	if (FAILED(Status))
-	{
-		LogMsg("zephyr2: Cannot create upload thread: %s", RtlGetStatusString(Status));
-		return false;
-	}
-
-	ObDereferenceObject(Thread);
 
 	return true;
 }

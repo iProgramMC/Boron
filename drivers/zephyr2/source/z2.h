@@ -129,12 +129,59 @@ typedef struct
 PACKED
 Z2_SENSOR_DIM, *PZ2_SENSOR_DIM;
 
+typedef struct
+{
+	uint8_t Type;
+	uint8_t FrameNum;
+	uint8_t HeaderLength;
+	uint8_t Unk3;
+	uint32_t Timestamp;
+	uint8_t Unk8;
+	uint8_t Unk9;
+	uint8_t UnkA;
+	uint8_t UnkB;
+	uint16_t UnkC;
+	uint16_t IsImage;
+	uint8_t FingerCount;
+	uint8_t FingerDataLength;
+	uint16_t Unk12;
+	uint16_t Unk14;
+	uint16_t Unk16;
+}
+PACKED
+MT_FRAME_HEADER, *PMT_FRAME_HEADER;
+
+typedef struct
+{
+	uint8_t Id;
+	uint8_t Event;
+	uint8_t Unk2;
+	uint8_t Unk3;
+	int16_t X;
+	int16_t Y;
+	int16_t VelX;
+	int16_t VelY;
+	uint16_t Radius2;
+	uint16_t Radius3;
+	uint16_t Angle;
+	uint16_t Radius1;
+	uint16_t ContactDensity;
+	uint16_t Unk16;
+	uint16_t Unk18;
+	uint16_t Unk1A;
+}
+PACKED
+MT_FINGER_DATA, *PMT_FINGER_DATA;
+
 extern int MtModel;
 
 extern uint32_t MtInterfaceVersion;
 extern uint32_t MtMaxPacketSize;
 extern bool MtFlipNop;
 extern uint32_t MtCurNop;
+
+extern uint32_t MtSensorWidth;
+extern uint32_t MtSensorHeight;
 
 extern volatile bool MtInitialized;
 extern volatile bool MtEmulatorMode;
@@ -146,12 +193,22 @@ extern volatile bool MtEmulatorMode;
 uint16_t MtPerformHbppAtnAck();
 uint32_t MtPerformHbppLongAtnAck();
 
-// Prepare the initialization thread for execution.  Once file systems are mounted,
-// this will kick in and upload the firmware to the device.
-bool MtSetupInitializationThread();
-
 // Utility function. Reads the entire contents of a file into a buffer.
 BSTATUS ReadEntireFile(const char* Path, void** OutBuffer, size_t* OutSize, uint32_t CreateOptions);
 
 uint16_t MtChecksum(uint8_t* Buffer, size_t Start, size_t End);
 uint32_t MtChecksum32(uint8_t* Buffer, size_t Start, size_t End);
+
+bool MtPrepareInitialData();
+bool MtSetupMultitouchDevice();
+void MtRunMultitouch();
+
+bool MtCheckForEvents(bool Wait, int TimeoutMS);
+
+// Test
+void MtFillRectangle(uint32_t Color, int X, int Y, int Width, int Height);
+void MtDrawLine(uint32_t Color, int X1, int Y1, int X2, int Y2);
+void MtDrawRectangle(uint32_t Color, int X, int Y, int Width, int Height);
+int MtFramebufferWidth();
+int MtFramebufferHeight();
+void MtInitializeTestDisplay();
