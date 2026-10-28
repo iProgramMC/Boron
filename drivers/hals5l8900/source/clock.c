@@ -120,26 +120,26 @@ void HalCalculatePllFrequencies()
 	uint32_t Config = CLOCK1_CONFIG0;
 
 	uint32_t ClockPll = CLOCK1_CLOCK_PLL(Config);
-	uint32_t ClockDivisor = 1;
+	uint32_t ClockDivider = 1;
 	if (CLOCK1_CLOCK_HAS_DIVIDER(Config))
-		ClockDivisor = CLOCK1_CLOCK_DIVIDER(Config);
+		ClockDivider = CLOCK1_CLOCK_DIVIDER(Config);
 
 	uint32_t MemoryPll = CLOCK1_MEMORY_PLL(Config);
-	uint32_t MemoryDivisor = 1;
+	uint32_t MemoryDivider = 1;
 	if (CLOCK1_MEMORY_HAS_DIVIDER(Config))
-		MemoryDivisor = CLOCK1_MEMORY_DIVIDER(Config);
+		MemoryDivider = CLOCK1_MEMORY_DIVIDER(Config);
 
 	Config = CLOCK1_CONFIG1;
 
 	uint32_t BusPll = CLOCK1_BUS_PLL(Config);
-	uint32_t BusDivisor = 1;
+	uint32_t BusDivider = 1;
 	if (CLOCK1_BUS_HAS_DIVIDER(Config))
-		BusDivisor = CLOCK1_BUS_DIVIDER(Config);
+		BusDivider = CLOCK1_BUS_DIVIDER(Config);
 
 	uint32_t UnknownPll = CLOCK1_UNKNOWN_PLL(Config);
-	uint32_t UnknownDivisor = 1;
+	uint32_t UnknownDivider = 1;
 	if (CLOCK1_UNKNOWN_HAS_DIVIDER(Config))
-		UnknownDivisor = CLOCK1_UNKNOWN_DIVIDER(Config);
+		UnknownDivider = CLOCK1_UNKNOWN_DIVIDER(Config);
 
 	uint32_t PeripheralFactor = CLOCK1_PERIPHERAL_DIVIDER(Config);
 
@@ -148,9 +148,9 @@ void HalCalculatePllFrequencies()
 	// NOTE: OpeniBoot swaps DISPLAYDIVIDER and DISPLAYHASDIVIDER...?
 	// I'll assume this is incorrect...
 	uint32_t DisplayPll = CLOCK1_DISPLAY_PLL(Config);
-	uint32_t DisplayDivisor = 1;
+	uint32_t DisplayDivider = 1;
 	if (CLOCK1_DISPLAY_HAS_DIVIDER(Config))
-		DisplayDivisor = CLOCK1_DISPLAY_DIVIDER(Config) + 1;
+		DisplayDivider = CLOCK1_DISPLAY_DIVIDER(Config) + 1;
 
 	HalClockPll = ClockPll;
 	for (uint32_t Pll = 0; Pll < NUM_PLL; Pll++)
@@ -223,12 +223,12 @@ void HalCalculatePllFrequencies()
 		DbgPrint("PLL %u: %u hz", Pll, HalPllFrequencies[Pll]);
 	}
 
-	HalFrequencies[FREQ_BASE_CLOCK] = HalPllFrequencies[ClockPll] / ClockDivisor;
-	HalFrequencies[FREQ_BASE_MEMORY] = HalPllFrequencies[MemoryPll] / MemoryDivisor;
-	HalFrequencies[FREQ_BASE_BUS] = HalPllFrequencies[BusPll] / BusDivisor;
-	HalFrequencies[FREQ_BASE_UNKNOWN] = HalPllFrequencies[UnknownPll] / UnknownDivisor;
+	HalFrequencies[FREQ_BASE_CLOCK] = HalPllFrequencies[ClockPll] / ClockDivider;
+	HalFrequencies[FREQ_BASE_MEMORY] = HalPllFrequencies[MemoryPll] / MemoryDivider;
+	HalFrequencies[FREQ_BASE_BUS] = HalPllFrequencies[BusPll] / BusDivider;
+	HalFrequencies[FREQ_BASE_UNKNOWN] = HalPllFrequencies[UnknownPll] / UnknownDivider;
 	HalFrequencies[FREQ_BASE_PERIPHERAL] = HalFrequencies[FREQ_BASE_BUS] / (1 << PeripheralFactor);
-	HalFrequencies[FREQ_BASE_DISPLAY] = HalPllFrequencies[DisplayPll] / DisplayDivisor;
+	HalFrequencies[FREQ_BASE_DISPLAY] = HalPllFrequencies[DisplayPll] / DisplayDivider;
 	HalFrequencies[FREQ_BASE_FIXED] = FREQUENCY_BASE * 2;
 	HalFrequencies[FREQ_BASE_TIMEBASE] = FREQUENCY_BASE / 2;
 

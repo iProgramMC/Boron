@@ -213,7 +213,7 @@ int HalTransmitSpi(int Port, const void* Buffer, size_t BufferSize, bool Block, 
 
 	// TODO: Don't spin in a loop, but wait for an event to signal.
 	DbgPrint("Waiting...");
-	while (!HalSpiInfo[Port].TxDone || (REG(Base, SPI_STATUS) >> 4) & 0xF) {
+	while (!HalSpiInfo[Port].TxDone || TX_BUFFER_LEFT(REG(Base, SPI_STATUS)) != 0) {
 		KeSpinningHint();
 	}
 
@@ -239,6 +239,11 @@ int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool Do
 	HalSpiInfo[Port].RxCurrentLen = 0;
 	HalSpiInfo[Port].RxTotalLen = BufferSize;
 	HalSpiInfo[Port].Counter = 0;
+
+	HalSpiInfo[Port].TxBuffer = NULL;
+	HalSpiInfo[Port].TxDone = false;
+	HalSpiInfo[Port].TxTotalLen = 0;
+	HalSpiInfo[Port].TxCurrentLen = 0;
 
 	if (!DontTransmitJunk) {
 		REG(Base, SPI_SETUP) = REG(Base, SPI_SETUP) | 1;
@@ -286,11 +291,6 @@ int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool Do
 	return BufferSize;
 }
 
-static uint64_t TixToMs(uint64_t Ticks)
-{
-	return Ticks * 1000 / HalGetTickFrequency();
-}
-
 int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLength, void* RxBuffer, size_t RxBufferLength, bool Block)
 {
 	if (Port < 0 || Port >= SPI_PORT_COUNT) {
@@ -303,6 +303,11 @@ int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLeng
 
 	REG(Base, SPI_CTRL) = REG(Base, SPI_CTRL) | (1 << 2);
 	REG(Base, SPI_CTRL) = REG(Base, SPI_CTRL) | (1 << 3);
+
+	HalSpiInfo[Port].RxBuffer = NULL;
+	HalSpiInfo[Port].RxDone = false;
+	HalSpiInfo[Port].RxCurrentLen = 0;
+	HalSpiInfo[Port].RxTotalLen = 0;
 
 	HalSpiInfo[Port].TxBuffer = TxBuffer;
 	if (TxBufferLength > MAX_TX_BUFFER)
@@ -330,7 +335,7 @@ int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLeng
 		return 0;
 
 	// TODO: Don't spin in a loop, but wait for an event to signal.
-	while (!HalSpiInfo[Port].TxDone || !HalSpiInfo[Port].RxDone || (REG(Base, SPI_STATUS) >> 4) & 0xF) {
+	while (!HalSpiInfo[Port].TxDone || !HalSpiInfo[Port].RxDone || TX_BUFFER_LEFT(REG(Base, SPI_STATUS)) != 0) {
 		KeSpinningHint();
 	}
 
