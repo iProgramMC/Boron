@@ -39,9 +39,7 @@ int HalGetSpiClockTypeChipId()
 
 int HalGetSecurityEpochChipId()
 {
-	int SecEpo = REG(CPID_CHIPINFO) & 1;
-	LogMsg("HalGetSecurityEpochChipId => %d", SecEpo);
-	return SecEpo;
+	return REG(CPID_CHIPINFO) & 1;
 }
 
 void HalInitChipId()

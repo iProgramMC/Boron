@@ -250,7 +250,7 @@ int HalReceiveSpi(int Port, void* Buffer, size_t BufferSize, bool Block, bool Do
 	}
 
 	int WordType = HalSpiInfo[Port].WordSize;
-	REG(Base, SPI_SPCNT) = (BufferSize + HalWordSizes[WordType]) >> WordType;
+	REG(Base, SPI_SPCNT) = (BufferSize + HalWordSizes[WordType] - 1) >> WordType;
 	REG(Base, SPI_CTRL) = 1;
 
 	KeRestoreInterrupts(Restore);
@@ -326,7 +326,7 @@ int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLeng
 	HalSpiTxData(&HalSpiInfo[Port], TxBuffer, 0, HalSpiInfo[Port].TxCurrentLen);
 
 	int WordType = HalSpiInfo[Port].WordSize;
-	REG(Base, SPI_SPCNT) = (RxBufferLength + HalWordSizes[WordType]) >> WordType;
+	REG(Base, SPI_SPCNT) = (RxBufferLength + HalWordSizes[WordType] - 1) >> WordType;
 	REG(Base, SPI_CTRL) = 1;
 
 	KeRestoreInterrupts(Restore);
