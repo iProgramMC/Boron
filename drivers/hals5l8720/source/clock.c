@@ -272,3 +272,8 @@ bool HalUseOneShotTimer()
 {
 	return false;
 }
+
+uint32_t HalGetClockFrequency(int FrequencyBase)
+{
+	return HalFrequencies[FrequencyBase];
+}

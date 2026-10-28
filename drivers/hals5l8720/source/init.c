@@ -42,10 +42,10 @@ void HalInitTerminal();
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
 {
+	HalInitChipId();
 	HalInitCLCD();
 	HalInitTerminal();
 	HalInitPL192();
-	HalInitChipId();
 }
 
 // Initialize the HAL separately for each processor.
