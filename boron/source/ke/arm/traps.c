@@ -4,11 +4,11 @@
 
 Module name:
 	ke/armv6/traps.c
-	
+
 Abstract:
 	This header file implements support for the IDT (Interrupt
 	Dispatch Table).
-	
+
 Author:
 	iProgramInCpp - 28 December 2025
 ***/
@@ -24,7 +24,7 @@ bool KiHandlingInstructionFault()
 {
 	if (!KeGetCurrentThread())
 		return KiInitHandlingInstructionFault;
-	
+
 	return KeGetCurrentThread()->HandlingInstructionFault;
 }
 
@@ -34,26 +34,32 @@ static void KiSetHandlingInstructionFault(bool If)
 		KiInitHandlingInstructionFault = If;
 		return;
 	}
-	
+
 	KeGetCurrentThread()->HandlingInstructionFault = If;
 }
 
 PKREGISTERS KiHandleInstructionFault(PKREGISTERS Registers)
 {
+	ENABLE_INTERRUPTS();
 	KiSetHandlingInstructionFault(true);
 	KeOnPageFault(Registers);
+	DISABLE_INTERRUPTS();
 	return Registers;
 }
 
 PKREGISTERS KiHandleDataFault(PKREGISTERS Registers)
 {
+	ENABLE_INTERRUPTS();
 	KiSetHandlingInstructionFault(false);
 	KeOnPageFault(Registers);
+	DISABLE_INTERRUPTS();
 	return Registers;
 }
 
 PKREGISTERS KiHandleUndefinedInstructionFault(PKREGISTERS Registers)
 {
+	ENABLE_INTERRUPTS();
 	KeOnUndefinedInstruction(Registers);
+	DISABLE_INTERRUPTS();
 	return Registers;
 }
