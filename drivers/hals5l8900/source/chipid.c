@@ -33,7 +33,7 @@ void* HalChipIdBase;
 
 int HalGetSpiClockTypeChipId()
 {
-	return REG(CPID_SPICLOCKTYPE);
+	return (REG(CPID_SPICLOCKTYPE) >> 24) & 0xF;
 }
 
 void HalInitChipId()

@@ -34,12 +34,14 @@ void* HalChipIdBase;
 
 int HalGetSpiClockTypeChipId()
 {
-	return REG(CPID_SPICLOCKTYPE);
+	return (REG(CPID_SPICLOCKTYPE) >> 24) & 0xF;
 }
 
 int HalGetSecurityEpochChipId()
 {
-	return REG(CPID_CHIPINFO);
+	int SecEpo = REG(CPID_CHIPINFO) & 1;
+	LogMsg("HalGetSecurityEpochChipId => %d", SecEpo);
+	return SecEpo;
 }
 
 void HalInitChipId()
