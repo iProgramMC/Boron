@@ -42,11 +42,10 @@ void HalInitTerminal();
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
 {
-	HalInitChipId();
 	HalInitCLCD();
 	HalInitTerminal();
 	HalInitPL192();
-	HalInitSpi();
+	HalInitChipId();
 }
 
 // Initialize the HAL separately for each processor.
@@ -56,6 +55,7 @@ HAL_API void HalInitSystemMP()
 	HalInitClock();
 	HalInitTimer();
 	HalInitGpio();
+	HalInitSpi();
 }
 
 static const HAL_VFTABLE HalpVfTable =
