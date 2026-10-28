@@ -28,6 +28,8 @@ Author:
 #include "timer.h"
 #include "gpio.h"
 #include "crash.h"
+#include "chipid.h"
+#include "spi.h"
 
 void HalEndOfInterrupt(int InterruptNumber);
 void HalRequestIpi(uint32_t LapicId, uint32_t Flags, int Vector);
@@ -40,9 +42,11 @@ void HalInitTerminal();
 // Initialize the HAL on the BSP, for all processors.
 HAL_API void HalInitSystemUP()
 {
+	HalInitChipId();
 	HalInitCLCD();
 	HalInitTerminal();
 	HalInitPL192();
+	HalInitSpi();
 }
 
 // Initialize the HAL separately for each processor.
@@ -83,6 +87,10 @@ static const HAL_VFTABLE HalpVfTable =
 	.DisableGpioInterrupt = HalDisableGpioInterrupt,
 	.SetInputPinGpio = HalSetInputPinGpio,
 	.SetOutputPinGpio = HalSetOutputPinGpio,
+	.TransmitSpi = HalTransmitSpi,
+	.ReceiveSpi = HalReceiveSpi,
+	.TransmitAndReceiveSpi = HalTransmitAndReceiveSpi,
+	.SetBaudRateSpi = HalSetBaudRateSpi,
 	.Flags = HAL_VFTABLE_LOADED,
 };
 

@@ -24,4 +24,6 @@ Author:
 // NOTE: All pin definitions must be prefixed with N72AP to avoid
 // conflicting with ../../hals5l8900/source/gpiopins.h.
 
-/* TODO */
+#define GPIO_SPI0_CS0_N72  0
+#define GPIO_SPI1_CS0_N72  0x406
+#define GPIO_SPI4_CS0_N72  0xA07
