@@ -23,6 +23,16 @@ Author:
 #include <io.h>
 #include <mm.h>
 
+enum {
+	M68AP,
+	N45AP,
+	N82AP,
+	N72AP,
+	N88AP,
+	K48AP
+};
+extern int NorModel;
+
 extern IO_DISPATCH_TABLE NorCfiDispatchTable;
 extern IO_DISPATCH_TABLE NorSpiDispatchTable;
 
@@ -36,3 +46,7 @@ size_t NorSize();
 
 #define REG(base, rgof) (* (volatile uint32_t*) ((uintptr_t)base + (rgof)))
 #define REG16(base, rgof) (* (volatile uint16_t*) ((uintptr_t)base + (rgof)))
+
+int NorSpiCsPin();
+int NorSpiPort();
+size_t NorMaxReadBytes();

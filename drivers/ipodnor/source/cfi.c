@@ -133,8 +133,7 @@ IO_DISPATCH_TABLE NorCfiDispatchTable =
 {
 	.Read = NorCfiRead,
 	.Seekable = NorCfiIsSeekable,
-
-	// TODO: Write support.
+	// Write will not be supported.
 };
 
 bool NorCfiInit()

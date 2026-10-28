@@ -27,22 +27,39 @@ Author:
 PDRIVER_OBJECT gDriverObject;
 PDEVICE_OBJECT gDeviceObject;
 
+int NorModel;
+
 bool UseSPIAccess()
 {
-	const char* Model = KeLoaderParameterBlock.HardwareIdentifier;
-
-	return strcmp(Model, "m68ap") != 0 && // iPhone 2G
-	       strcmp(Model, "n45ap") != 0;   // iPod touch 1G
+	return NorModel != M68AP && NorModel != N45AP;
 }
 
 size_t NorSize()
 {
-	return 16 * 1024 * 1024;
+	return 1 * 1024 * 1024;
 }
 
 BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 {
 	gDriverObject = DriverObject;
+
+	const char* Model = KeLoaderParameterBlock.HardwareIdentifier;
+	if (strcmp(Model, "m68ap") == 0) {
+		NorModel = M68AP;
+	} else if (strcmp(Model, "n45ap") == 0) {
+		NorModel = N45AP;
+	} else if (strcmp(Model, "n82ap") == 0) {
+		NorModel = N82AP;
+	} else if (strcmp(Model, "n72ap") == 0) {
+		NorModel = N72AP;
+	} else if (strcmp(Model, "n88ap") == 0) {
+		NorModel = N88AP;
+	} else if (strcmp(Model, "k48ap") == 0) {
+		NorModel = K48AP;
+	} else {
+		LogMsg("Hardware configuration %s not supported.  Assuming N72AP", Model);
+		NorModel = N72AP;
+	}
 
 	PIO_DISPATCH_TABLE DispatchTable;
 
