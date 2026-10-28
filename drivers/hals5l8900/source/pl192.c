@@ -4,11 +4,19 @@
 
 Module name:
 	ha/pl192.c
-	
+
 Abstract:
 	This module contains the implementation of the PL192
 	VIC (vectored interrupt controller) driver.
-	
+
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 16 March 2026
 ***/
@@ -32,47 +40,47 @@ void HalInitPL192()
 		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("Vic0")
 	);
-	
+
 	HalVic1Base = MmMapIoSpace(
 		VIC1_BASE_PHYS,
 		PAGE_SIZE,
 		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("Vic1")
 	);
-	
+
 	if (!HalVic0Base || !HalVic1Base)
 		KeCrash("Could not map pl192 VICs");
-	
+
 	// N.B. OpeniBoot appears to write to something called an edgeic?
 	// I'll configure it later, if it turns out that my kernel will not work
 	// on real hardware.
-	
+
 	// mask all interrupts
 	VICINTENCLEAR(0) = 0xFFFFFFFF;
 	VICINTENCLEAR(1) = 0xFFFFFFFF;
-	
+
 	// 0 means use IRQs, 1 means use FIQs
 	VICINTSELECT(0) = 0;
 	VICINTSELECT(1) = 0;
-	
+
 	// Unmask all 16 interrupt levels
 	VICSWPRIORITYMASK(0) = 0xFFFF;
 	VICSWPRIORITYMASK(1) = 0xFFFF;
-	
+
 	// Set interrupt vector addresses to the interrupt number.
 	for (int i = 0; i < 0x20; i++)
 	{
 		VICVECTADDR(0)[i] = i;
 		VICVECTADDR(1)[i] = 0x20 + i;
-		
+
 		VICVECTPRIORITY(0)[i] = 0xF;
 		VICVECTPRIORITY(1)[i] = 0xF;
 	}
-	
+
 	// Clear the IPL list.
 	for (int i = 0; i < MAX_INTERRUPTS; i++)
 		HalInterruptIpls[i] = IPL_UNDEFINED;
-	
+
 	// Acknowledge all possible interrupts.
 	for (int i = 0; i < 0x20; i++)
 	{
@@ -95,9 +103,9 @@ void HalVicRegisterInterrupt(int InterruptNumber, KIPL Ipl)
 		// The GPIO interrupts themselves have already been registered, so return.
 		return;
 	}
-	
+
 	HalInterruptIpls[InterruptNumber] = Ipl;
-	
+
 	// Also let the hardware know.
 	//
 	// NOTE: Ipl is 4-bit, and it's also 4-bit in arch/arm/ipl.h, so we're good.
@@ -124,9 +132,9 @@ void HalVicDeregisterInterrupt(int InterruptNumber, UNUSED KIPL Ipl)
 		// The GPIO interrupts themselves have already been registered, so return.
 		return;
 	}
-	
+
 	HalInterruptIpls[InterruptNumber] = IPL_UNDEFINED;
-	
+
 	if (InterruptNumber >= 32)
 		VICINTENCLEAR(1) = 1U << (InterruptNumber & 0x1F);
 	else
@@ -137,12 +145,12 @@ void HalOnUpdateIpl(KIPL NewIpl, UNUSED KIPL OldIpl)
 {
 	if (!HalVic0Base || !HalVic1Base)
 		return;
-	
+
 	// 0 is lowest, 1 is highest, meaning that the mask goes 0b111...000
 	int Mask = 0xFFFF;
 	if (NewIpl != IPL_NORMAL)
 		Mask = (0xFFFF >> (NewIpl + 1)) & 0xFFFF;
-	
+
 	VICSWPRIORITYMASK(0) = Mask;
 	VICSWPRIORITYMASK(1) = Mask;
 }
@@ -183,18 +191,18 @@ KIPL HalEnterHardwareInterrupt(int InterruptNumber)
 	PKIPL IplPtr = &Prcb->Ipl;
 	KIPL OldIpl = (int) *IplPtr;
 	KIPL NewIpl = HalInterruptIpls[InterruptNumber];
-	
+
 	if (NewIpl != IPL_UNDEFINED)
 	{
 		*IplPtr = NewIpl;
-		
+
 		if (OldIpl > NewIpl)
 			// uh oh!
 			KeCrash("HalEnterHardwareInterrupt: Old IPL of %d was higher than current IPL of %d.", OldIpl, NewIpl);
-		
+
 		HalOnUpdateIpl(NewIpl, OldIpl);
 	}
-	
+
 	// now that we've set up the hardware interrupt stuff, enable interrupts.
 	ENABLE_INTERRUPTS();
 	return OldIpl;
@@ -203,16 +211,16 @@ KIPL HalEnterHardwareInterrupt(int InterruptNumber)
 void HalExitHardwareInterrupt(int InterruptNumber, KIPL OldIpl)
 {
 	DISABLE_INTERRUPTS();
-	
+
 	PKPRCB Prcb = KeGetCurrentPRCB();
 	ASSERT(Prcb);
-	
+
 	KIPL PrevIpl = Prcb->Ipl;
 	Prcb->Ipl = OldIpl;
 	HalOnUpdateIpl(OldIpl, PrevIpl);
-	
+
 	(void) InterruptNumber;
-	
+
 	// Note: safe to call here because KeDispatchPendingSoftInterrupts
 	// preserves interrupt disable state across a call to it
 	KeDispatchPendingSoftInterrupts();
@@ -222,7 +230,7 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 {
 	// Interrupts are disabled at this point.  Also, the VIC should handle IPLs for us.
 	int InterruptNumber = -1;
-	
+
 	// TODO: this might be bad if a higher priority interrupt from VIC1 is taken.
 	// Thankfully the timer is on IRQ 7, so it should be okay.
 	if (VICIRQSTATUS(0) != 0)
@@ -238,7 +246,7 @@ PKREGISTERS HalOnInterruptRequest(PKREGISTERS Registers)
 		DbgPrintString("HalOnInterruptRequest: spurious interrupt?\n");
 		return Registers;
 	}
-	
+
 	KIPL OldIpl = HalEnterHardwareInterrupt(InterruptNumber);
 	KeDispatchInterruptRequest(InterruptNumber);
 	HalExitHardwareInterrupt(InterruptNumber, OldIpl);

@@ -9,6 +9,14 @@ Abstract:
 	This module implements the reader thread for the
 	zephyr2 multitouch controller.
 
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 27 October 2026
 ***/
@@ -324,7 +332,7 @@ void MtRunMultitouch()
 
 		MtListenForClearCommand();
 
-		Result = MtCheckForEvents(true, 33);
+		Result = MtCheckForEvents(true, MtEmulatorMode ? 60 : 33);
 		if (!Result)
 		{
 			// Didn't receive touch data in more than 33 ms, that means they probably

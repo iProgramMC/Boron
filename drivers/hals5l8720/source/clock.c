@@ -4,10 +4,18 @@
 
 Module name:
 	ha/clock.c
-	
+
 Abstract:
 	This module contains the platform's clock driver.
-	
+
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 28 June 2026
 ***/
@@ -77,16 +85,16 @@ void HalSetEnabledClockGate(int Gate, bool Enabled)
 		&CLOCK1_GATES_3,
 		&CLOCK1_GATES_4,
 	};
-	
+
 	for (int Reg = 0; Reg < 4; Reg++)
 	{
 		uint32_t Data = *Regs[Reg];
-		
+
 		if (Enabled)
 			Data &= ~HalClockGateTable[Gate][Reg];
 		else
 			Data |= HalClockGateTable[Gate][Reg];
-		
+
 		*(Regs[Reg]) = Data;
 	}
 }
@@ -94,14 +102,14 @@ void HalSetEnabledClockGate(int Gate, bool Enabled)
 void HalInitClock()
 {
 	DbgPrint("%s...", __func__);
-	
+
 	HalClock0Base = MmMapIoSpace(
 		CLOCK0_MEM_BASE,
 		PAGE_SIZE,
 		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("Clk0")
 	);
-	
+
 	// DO NOT DO THIS!  This seems to stop every clock on the system and nothing works anymore
 	//CLOCK1_CL2_GATES = 0xFFFFFFFF;
 	//CLOCK1_CL3_GATES = 0xFFFFFFFF;

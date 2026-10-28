@@ -15,6 +15,15 @@ This project is licensed under the three clause BSD license, **except the follow
 - The implementation of splay and RB trees from FreeBSD - Licensed under the 2 clause BSD license
     - `common/include/rtl/fbsdtree.h`
 
+- The following ARM drivers, which are licensed under the **GNU General Public License, v3.0**,
+  and their license can be found [here](./drivers/LICENSE.ARM):
+    - `drivers/hals5l8900`
+    - `drivers/hals5l8720`
+    - `drivers/ipodnor`
+    - `drivers/ipodbtns`
+    - `drivers/ipsyscfg`
+    - `drivers/zephyr2`
+
 ### Why the codename Boron?
 (Note: The name is probably temporary, not sure, but this is what it's called right now)
 

@@ -4,10 +4,18 @@
 
 Module name:
 	ha/timer.c
-	
+
 Abstract:
 	This module contains the platform's timer driver.
-	
+
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 28 June 2026
 ***/
@@ -65,22 +73,22 @@ static void HalTimerConfig(
 )
 {
 	bool Disable = KeDisableInterrupts();
-	
+
 	// Stop the timer because we're editing it
 	TIMER_STATE(TimerIndex) = TIMER_STATE_STOP;
-	
+
 	TIMER_CONFIG(TimerIndex) = Config;
 	TIMER_COUNT_BUFFER(TimerIndex) = CountBuffer;
 	TIMER_COUNT_BUFFER2(TimerIndex) = CountBuffer2;
 	TIMER_PRESCALER(TimerIndex) = Prescaler;
-	
+
 	TIMER_STATE(TimerIndex) = TIMER_STATE_MANUAL_UPDATE;
 
-	if (Start) {	
+	if (Start) {
 		// Go!!
 		TIMER_STATE(TimerIndex) = TIMER_STATE_START;
 	}
-	
+
 	KeRestoreInterrupts(Disable);
 }
 
@@ -92,13 +100,13 @@ static void HalTimerSetUnkReg0ForInit()
 void HalTimerHandler(UNUSED PKINTERRUPT Interrupt, UNUSED void* Context)
 {
 	ASSERT(Interrupt == &HalTimerInterrupt);
-	
+
 	uint32_t Stat = TIMER_IRQSTAT;
-	
+
 	// signal to the timer controller that we're handling it
 	uint32_t Discard = TIMER_IRQLATCH;
 	Discard--;
-	
+
 	if (Stat & TIMER_SPECIAL_BIT_1)
 		TIMER_UNKREG0 |= TIMER_SPECIAL_BIT_1;
 
@@ -127,16 +135,16 @@ void HalInitTimer()
 	ASSERT(HalTimerBase);
 
 	HalSetEnabledClockGate(CLOCK_GATE_TIMER, true);
-	
+
 	for (int i = 0; i < TIMER_COUNT; i++)
 		HalTimerStop(i);
-	
+
 	HalTimerSetUnkReg0ForInit();
-	
+
 	HalTimerInitRtc();
-	
+
 	bool Restore = KeDisableInterrupts();
-	
+
 	KeInitializeInterrupt(
 		&HalTimerInterrupt,
 		&HalTimerHandler,
@@ -146,9 +154,9 @@ void HalInitTimer()
 		IPL_CLOCK,
 		false
 	);
-	
+
 	KeConnectInterrupt(&HalTimerInterrupt);
-	
+
 	// Enable event timer
 	HalTimerConfig(
 		TIMER_EVENT,
@@ -158,21 +166,21 @@ void HalInitTimer()
 		0, // Prescaler
 		true
 	);
-	
+
 	KeRestoreInterrupts(Restore);
 }
 
 uint64_t HalGetTickCount()
 {
 	uint32_t TicksHigh, TicksLow, TicksHigh2;
-	
+
 	bool Restore = KeDisableInterrupts();
 	if (!HalTimerBase)
 	{
 		KeRestoreInterrupts(Restore);
 		return 0;
 	}
-	
+
 	do
 	{
 		TicksHigh  = TIMER_TICKSHIGH;
@@ -180,7 +188,7 @@ uint64_t HalGetTickCount()
 		TicksHigh2 = TIMER_TICKSHIGH;
 	}
 	while (TicksHigh != TicksHigh2);
-	
+
 	KeRestoreInterrupts(Restore);
 	return ((uint64_t)TicksHigh << 32ULL) | TicksLow;
 }

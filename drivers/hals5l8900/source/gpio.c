@@ -4,11 +4,19 @@
 
 Module name:
 	gpio.c
-	
+
 Abstract:
 	This module implements the GPIO management functions
 	for the iPod GPIO driver.
-	
+
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 5 May 2026
 ***/
@@ -46,40 +54,40 @@ void HalGpioInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 {
 	int GroupNumber = (int) (uintptr_t) Context;
 	ASSERT(GroupNumber >= 0 && GroupNumber < GPIO_INTERRUPT_GROUP_COUNT);
-	
+
 	PGPIO_INTERRUPT_GROUP Group = &HalGpioInterruptGroups[GroupNumber];
-	
+
 	do
 	{
 		uint32_t Stat;
-		
+
 		Stat = GPIOIC_INT_STAT[GroupNumber];
 		if (Stat == 0)
 			break;
-		
+
 		for (int i = 0; i < 32; i++)
 		{
 			if (~Stat & (1 << i))
 				continue;
-			
+
 			PGPIO_INTERRUPT GpioInt = &Group->Interrupts[i];
-			
+
 			// This bit is set.
 			if (GpioInt->Trigger)
 			{
 				// Edge trigger
 				GPIOIC_INT_STAT[GroupNumber] = 1 << i;
 			}
-			
+
 			if (GpioInt->FlipLevel)
 			{
 				// Flip the interrupt level on the controller and in our flags
 				GPIOIC_INT_LEVEL[GroupNumber] ^= 1 << i;
 				GpioInt->Level ^= 1;
 			}
-			
+
 			KeDispatchInterruptRequest(APPLE_IRQ_NUMBER_GPIO_TO_NORMAL(GroupNumber * GPIO_INTERRUPTS_PER_GROUP + i));
-			
+
 			GPIOIC_INT_STAT[GroupNumber] = 1 << i;
 		}
 	}
@@ -96,18 +104,18 @@ void HalRegisterGpioInterrupt(
 	int Group = InterruptNumber >> 5;
 	int Index = InterruptNumber & 0x1F;
 	int Mask = ~(1 << Index);
-	
+
 	bool Restore = KeDisableInterrupts();
-	
+
 	PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
 	Interrupt->Trigger = TriggerEdge;
 	Interrupt->Level = Level;
 	Interrupt->FlipLevel = FlipLevel;
-	
+
 	// Now program the hardware.
 	GPIOIC_INT_TYPE[Group] = (GPIOIC_INT_TYPE[Group] & Mask) | ((TriggerEdge ? 1 : 0) << Index);
 	GPIOIC_INT_LEVEL[Group] = (GPIOIC_INT_LEVEL[Group] & Mask) | ((Level ? 1 : 0) << Index);
-	
+
 	KeRestoreInterrupts(Restore);
 }
 
@@ -115,14 +123,14 @@ void HalEnableGpioInterrupt(int InterruptNumber)
 {
 	int Group = InterruptNumber >> 5;
 	int Index = InterruptNumber & 0x1F;
-	
+
 	bool Restore = KeDisableInterrupts();
-	
+
 	//PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
-	
+
 	GPIOIC_INT_STAT[Group] = 1 << Index;
 	GPIOIC_INT_ENABLE[Group] |= 1 << Index;
-	
+
 	KeRestoreInterrupts(Restore);
 }
 
@@ -130,13 +138,13 @@ void HalDisableGpioInterrupt(int InterruptNumber)
 {
 	int Group = InterruptNumber >> 5;
 	int Index = InterruptNumber & 0x1F;
-	
+
 	bool Restore = KeDisableInterrupts();
-	
+
 	//PGPIO_INTERRUPT Interrupt = &HalGpioInterruptGroups[Group].Interrupts[Index];
-	
+
 	GPIOIC_INT_ENABLE[Group] &= ~(1 << Index);
-	
+
 	KeRestoreInterrupts(Restore);
 }
 
@@ -144,7 +152,7 @@ bool HalGetPinStateGpio(int Port)
 {
 	int Group = (Port >> 8) & 0x1F;
 	int Index = Port & 0xF;
-	
+
 	return (GPIO_DAT(Group) & (1 << Index)) != 0;
 }
 
@@ -152,7 +160,7 @@ void HalFselGpio(int Port, int Bits)
 {
 	int Group = (Port >> 8) & 0x1F;
 	int Index = Port & 0xF;
-	
+
 	GPIO_FSEL = (Group << 16) | (Index << 8) | (Bits & 0xF);
 }
 
@@ -170,7 +178,7 @@ void HalConfigurePullDownGpio(int Port, bool PullDown, bool PullUp)
 {
 	int Group = (Port >> 8) & 0x1F;
 	uint32_t Bit = 1 << (Port & 0xF);
-	
+
 	if (PullDown)
 	{
 		GPIO_PUD1(Group) &= ~Bit;
@@ -227,7 +235,7 @@ void HalInitGpio()
 			IPL_DEVICES0,
 			false // Shared
 		);
-		
+
 		KeConnectInterrupt(&HalGpioInterruptGroups[i].Interrupt);
 	}
 

@@ -4,11 +4,19 @@
 
 Module name:
 	ha/term.c
-	
+
 Abstract:
 	This module implements the terminal functions for the iPod1,1
 	platform.
-	
+
+Licensing:
+	Because this driver borrows significantly from OpeniBoot, this driver's
+	source code is licensed separately under the GNU General Public License
+	version 3.0.  You should have received a copy of the GNU General Public
+	License along with this source code file, which is available at the
+	`drivers/LICENSE.ARM` path.  Otherwise, view the web page containing the
+	license at https://gnu.org/licenses/gpl.html.
+
 Author:
 	iProgramInCpp - 15 March 2026
 ***/
@@ -41,7 +49,7 @@ static void* HalpTerminalMemAlloc(size_t sz)
 		DbgPrint("Error, running out of memory in the terminal heap");
 		return NULL;
 	}
-	
+
 	uint8_t* pCurMem = &HalpTerminalMemory[HalpTerminalMemoryHead];
 	HalpTerminalMemoryHead += sz;
 	return pCurMem;
@@ -59,43 +67,43 @@ void HalInitTerminal()
 {
 	if (KeLoaderParameterBlock.FramebufferCount == 0)
 		KeCrashBeforeSMPInit("HAL: No framebuffers found");
-	
+
 	PLOADER_FRAMEBUFFER Framebuffer = &KeLoaderParameterBlock.Framebuffers[0];
 	uint32_t defaultBG = 0x0000007f;
 	uint32_t defaultFG = 0x00ffffff;
-	
+
 	// on a 1280x800 screen, the term will have a rez of 160x50 (8000 chars).
 	// 52 bytes per character.
-	
+
 	//const int charWidth = 8, charHeight = 16;
 	const int charWidth = 6, charHeight = 12;
 	int termBufWidth  = Framebuffer->Width  / charWidth;
 	int termBufHeight = Framebuffer->Height / charHeight;
-	
+
 	const int usagePerChar     = 52; // I calculated it
 	const int fontBoolMemUsage = charWidth * charHeight * 256; // there are 256 chars
 	const int fontDataMemUsage = charWidth * charHeight * 256 / 8;
 	const int contextSize      = 256; // seems like sizeof(struct flanterm_context) is no longer exposed, so my best guess
-	
+
 	int totalMemUsage = contextSize + fontDataMemUsage + fontBoolMemUsage + termBufWidth * termBufHeight * usagePerChar;
 	size_t sizePages = (totalMemUsage + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	void* FramebufferMemory = MmMapIoSpace(
 		(uintptr_t)Framebuffer->Address,
 		Framebuffer->Pitch * Framebuffer->Height,
 		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
 		POOL_TAG("HAFB")
 	);
-	
+
 	DbgPrint("Screen resolution: %d by %d.  Will use %d Bytes.  Framebuffer mapped at %p.", Framebuffer->Width, Framebuffer->Height, sizePages * PAGE_SIZE, FramebufferMemory);
-	
+
 	HalpTerminalMemory       = MmAllocatePoolBig(POOL_FLAG_NON_PAGED, sizePages, POOL_TAG("Term"));
 	HalpTerminalMemoryHead   = 0;
 	HalpTerminalMemorySize   = sizePages * PAGE_SIZE;
-	
+
 	if (!HalpTerminalMemory)
 		KeCrashBeforeSMPInit("Error, no memory for the terminal.");
-	
+
 	HalpTerminalContext = flanterm_fb_init_alt(
 		&HalpTerminalMemAlloc,
 		&HalpTerminalFree,
@@ -119,7 +127,7 @@ void HalInitTerminal()
 		0,             // character spacing X
 		0              // character spacing Y
 	);
-	
+
 	if (!HalpTerminalContext)
 	{
 		KeCrashBeforeSMPInit("Error, no terminal context");
@@ -133,9 +141,9 @@ HAL_API void HalDisplayString(const char* Message)
 		HalPrintStringDebug(Message);
 		return;
 	}
-	
+
 	size_t Length = strlen(Message);
-	
+
 	static KSPIN_LOCK SpinLock;
 	KIPL Ipl;
 	KeAcquireSpinLock(&SpinLock, &Ipl);
