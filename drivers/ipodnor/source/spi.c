@@ -170,7 +170,7 @@ static void NorSetupChipInfo()
 
 	uint16_t Vendor, Device;
 	Vendor = DeviceId[0];
-	Device = DeviceId[1] | (DeviceId[2] << 8);
+	Device = DeviceId[2] | (DeviceId[1] << 8);
 
 	LogMsg("nor: Vendor %02x, Device %04x", Vendor, Device);
 
@@ -243,10 +243,12 @@ bool NorSpiInit()
 {
 	LogMsg("Initializing SPI NOR...");
 	ExInitializeFastMutex(&NorMutex);
-	LogMsg("Write disable...");
-	NorWriteDisable();
+	NorPrepare();
+	//LogMsg("Write disable...");
+	//NorWriteDisable();
 	LogMsg("Setup chip info...");
 	NorSetupChipInfo();
+	NorFinish();
 	LogMsg("Done...");
 	return true;
 }
