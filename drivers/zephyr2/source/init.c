@@ -480,7 +480,7 @@ bool MtSetupMultitouchDevice()
 		return false;
 	}
 
-	if (MtModel != N45AP)
+	if (MtModel != N45AP && MtModel != N72AP)
 	{
 		if (!MtAttemptUploadCalibrationData(ProxCalBuffer, ProxCalLength, PROX_CALIBRATION_ADDRESS))
 		{
@@ -635,7 +635,7 @@ bool MtPrepareInitialData()
 		MtEmulatorMode = true;
 	}
 
-	if (MtModel == N45AP || MtEmulatorMode)
+	if (MtModel == N45AP || MtModel == N72AP)
 	{
 		ProxCalBuffer = NULL;
 		ProxCalLength = 0;
