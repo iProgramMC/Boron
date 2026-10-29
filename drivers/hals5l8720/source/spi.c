@@ -375,7 +375,7 @@ void HalSetBaudRateSpi(int Port, int BaudRate, int WordSize, bool IsMaster, bool
 	bool Restore = KeDisableInterrupts();
 	void* Base = HalSpiInfo[Port].BaseAddress;
 
-	REG(Base, SPI_CTRL) = 0;
+	//REG(Base, SPI_CTRL) = 0;
 
 	switch (WordSize)
 	{
@@ -501,12 +501,13 @@ static void HalSpiProcessTxRx(PSPI_INFO Port, uint32_t Status, bool StartWithTx)
 	}
 }
 
-void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
+// @BUG: For some reason, using this as the bare interrupt handler makes
+// multitouch firmware upload really slow (but can be sped up by spamming
+// buttons).
+bool HalSpiInterruptHandler1(UNUSED PKINTERRUPT Interrupt, void* Context)
 {
 	PSPI_INFO Port = Context;
 	void* Base = Port->BaseAddress;
-
-	DbgPrintString("HalSpiInterruptHandler\n");
 
 	uint32_t Status = REG(Base, SPI_STATUS);
 
@@ -537,5 +538,30 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 	{
 		Port->SetupOptions &= ~SPI_SETUP_UNKNOWN_2;
 		REG(Base, SPI_SETUP) = Port->SetupOptions;
+		return false;
 	}
+
+	return true;
+}
+
+void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
+{
+	PSPI_INFO Port = Context;
+
+	if (Port->TxTotalLen > 10000)
+	{
+		// Burst mode.
+		//
+		// TODO: If you don't remove this, at least move the rest of the
+		// polls into a DPC, or some other kind of worker thread.
+		while (HalSpiInterruptHandler1(Interrupt, Context))
+		{
+			for (int i = 0; i < 100; i++)  {
+				KeSpinningHint();
+			}
+		}
+		return;
+	}
+
+	(void) HalSpiInterruptHandler1(Interrupt, Context);
 }
