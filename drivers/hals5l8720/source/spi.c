@@ -346,7 +346,10 @@ int HalTransmitAndReceiveSpi(int Port, const void* TxBuffer, size_t TxBufferLeng
 	HalSpiTxData(&HalSpiInfo[Port], TxBuffer, 0, HalSpiInfo[Port].TxCurrentLen);
 
 	int WordType = HalSpiInfo[Port].WordSize;
+	REG(Base, SPI_TXBUFLEN) = TxBufferLength;
 	REG(Base, SPI_SPCNT) = (RxBufferLength + HalWordSizes[WordType] - 1) >> WordType;
+	HalSpiInfo[Port].SetupOptions |= SPI_SETUP_UNKNOWN_1 | SPI_SETUP_UNKNOWN_2 | SPI_SETUP_UNKNOWN_3;
+	REG(Base, SPI_SETUP) = HalSpiInfo[Port].SetupOptions;
 	REG(Base, SPI_CTRL) = 1;
 
 	KeRestoreInterrupts(Restore);
@@ -502,6 +505,8 @@ void HalSpiInterruptHandler(UNUSED PKINTERRUPT Interrupt, void* Context)
 {
 	PSPI_INFO Port = Context;
 	void* Base = Port->BaseAddress;
+
+	DbgPrintString("HalSpiInterruptHandler\n");
 
 	uint32_t Status = REG(Base, SPI_STATUS);
 
