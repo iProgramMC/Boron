@@ -58,8 +58,6 @@ FAST_MUTEX MtPendingMutex;
 
 void MtDpcRoutine(PKDPC Dpc UNUSED, void* Context UNUSED, void* SA1 UNUSED, void* SA2 UNUSED)
 {
-	DbgPrint("MtDpcRoutine");
-
 	ASSERT(Dpc == &MtDpc);
 	KeSetEvent(&MtPendingAtnEventsEvent, MULTITOUCH_INCREMENT);
 }
@@ -67,8 +65,6 @@ void MtDpcRoutine(PKDPC Dpc UNUSED, void* Context UNUSED, void* SA1 UNUSED, void
 void MtInterruptRoutine(PKINTERRUPT Interrupt UNUSED, void* Context UNUSED)
 {
 	ASSERT(Interrupt == &MtInterrupt);
-
-	DbgPrintString("MtInterruptRoutine\n");
 
 	AtAddFetch(MtPendingAtnEvents, 1);
 	KeEnqueueDpc(
@@ -80,10 +76,14 @@ void MtInterruptRoutine(PKINTERRUPT Interrupt UNUSED, void* Context UNUSED)
 
 void MtPowerMultitouch()
 {
-	HalSetOutputPinGpio(MtGpioPower(), 0);
-	OSSleep(200);
-	HalSetOutputPinGpio(MtGpioPower(), 1);
-	OSSleep(15);
+	// On n72 I made OpeniBoot do this for us because we don't have support for PMU yet.
+	if (MtModel != N72AP)
+	{
+		HalSetOutputPinGpio(MtGpioPower(), 0);
+		OSSleep(200);
+		HalSetOutputPinGpio(MtGpioPower(), 1);
+		OSSleep(15);
+	}
 }
 
 uint16_t MtChecksum(uint8_t* Buffer, size_t Start, size_t End)
@@ -407,12 +407,48 @@ BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 // Port selection, based on hardware model
 int MtGpioPower()
 {
-	return MT_GPIO_POWER;
+	switch (MtModel)
+	{
+		default:
+			LogMsg(
+				"MtGpioPower: Please provide the correct Power GPIO number.  Returning default 0x%04x",
+				MT_GPIO_POWER
+			);
+			// fallthrough
+		case N82AP:
+		case N45AP:
+			return MT_GPIO_POWER;
+		case N72AP:
+		LogMsg(
+			"MtGpioPower: (n72) Please provide the correct Power GPIO number.  Returning default 0x%04x",
+			MT_GPIO_POWER
+		);
+			return MT_GPIO_POWER_N72;
+	}
 }
 
-int MtGpioUnknown606()
+int MtGpioResetPin()
 {
-	return MT_GPIO_UNKNOWN_606;
+	switch (MtModel)
+	{
+		default:
+			LogMsg(
+				"MtGpioPower: Please provide the correct Power GPIO number.  Returning default 0x%04x",
+				MT_GPIO_POWER
+			);
+			// fallthrough
+		case N82AP:
+		case N45AP:
+			return MT_GPIO_UNKNOWN_606;
+		case N72AP:
+			return MT_GPIO_UNKNOWN_606_N72;
+	}
+}
+
+int MtGpioResetAsserted()
+{
+	if (MtModel == N72AP) return 1;
+	return 0;
 }
 
 int MtAtnInterruptVector()

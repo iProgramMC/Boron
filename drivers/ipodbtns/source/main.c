@@ -37,6 +37,9 @@ Author:
 #define BUTTON_RINGER_SWITCH_ID  0x1603
 #define BUTTON_RINGER_SWITCH_IRQ 0x2B
 
+// NOTE: Port 0xE05 is used by something according to my reverse
+// engineering through the emulator and the OS 2.1.1 firmware
+
 #define BUTTON_IPT2G_HOME_ID         0xC01
 #define BUTTON_IPT2G_HOME_IRQ        0x79
 #define BUTTON_IPT2G_HOLD_ID         0xC02

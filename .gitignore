@@ -20,6 +20,9 @@ root/include/*
 root/usr/*
 
 root/etc/zephyr2.bin
+root/etc/zephyr2_n72.bin
+root/etc/0x0033.bin
+root/etc/0x0051.bin
 
 vdiske2.img
 vdiske2.vdi

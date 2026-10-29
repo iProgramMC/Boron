@@ -293,7 +293,7 @@ void MtListenForClearCommand()
 	if (MtKeypadHandle == HANDLE_NONE)
 		return;
 
-	uint16_t Buffer;
+	uint16_t Buffer = 0;
 	BSTATUS Status = OSReadFile(
 		&MtIosb,
 		MtKeypadHandle,
@@ -305,6 +305,10 @@ void MtListenForClearCommand()
 
 	if (IOFAILED(Status)) {
 		LogMsg("Failed to read from keypad: %s", RtlGetStatusString(Status));
+		return;
+	}
+
+	if (MtIosb.BytesRead != sizeof(uint16_t)) {
 		return;
 	}
 

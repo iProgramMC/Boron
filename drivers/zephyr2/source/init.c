@@ -41,7 +41,7 @@ bool MtAttemptUploadFirmware()
 	const int Tries = 5;
 	for (int Try = 0; Try < Tries; Try++)
 	{
-		LogMsg("zephyr2: Uploading firmware... (attempt %d/%d)", Try + 1, Tries);
+		LogMsg("zephyr2: Uploading firmware of %zu bytes... (attempt %d/%d)", FirmwareLength, Try + 1, Tries);
 
 		// GotATN = 0;
 
@@ -448,20 +448,15 @@ bool MtSetupMultitouchDevice()
 	bool FirmwareSucceeded = false;
 	for (int i = 0; i < 4; i++)
 	{
-		HalSetOutputPinGpio(MtGpioUnknown606(), 0);
+		HalSetOutputPinGpio(MtGpioResetPin(), MtGpioResetAsserted());
 		OSSleep(200);
-		HalSetOutputPinGpio(MtGpioUnknown606(), 1);
+		HalSetOutputPinGpio(MtGpioResetPin(), !MtGpioResetAsserted());
 		OSSleep(15);
 
 		LogMsg("zephyr2: Acknowledging initial events...");
 		while (MtPerformHbppAtnAck() != 0xFFFF)
 		{
 			KeSpinningHint();
-		}
-
-		if (MtEmulatorMode) {
-			LogMsg("zephyr2: Emulator mode, no need to upload firmware.");
-			goto SkipSetupInEmulatorMode;
 		}
 
 		LogMsg("zephyr2: Trying to upload firmware...");
@@ -478,6 +473,11 @@ bool MtSetupMultitouchDevice()
 		LogMsg("zephyr2: Failed to upload firmware.");
 		LogMsg("zephyr2: Multitouch will be inoperable for this session.");
 		return false;
+	}
+
+	if (MtEmulatorMode) {
+		LogMsg("zephyr2: Emulator mode, no need to upload firmware.");
+		goto SkipSetupInEmulatorMode;
 	}
 
 	if (MtModel != N45AP && MtModel != N72AP)

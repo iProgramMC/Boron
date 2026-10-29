@@ -63,10 +63,13 @@ Reversing the process for the Touch 2:
 3, 13 -> 0b011, 0b01101 -> 0b01101101 -> 0x6D
 */
 
-#define MT_GPIO_UNKNOWN_606  0x0606  // TODO: Is this different on N72?
-#define MT_GPIO_POWER        0x0701  // TODO: Is this different on N72?
+#define MT_GPIO_UNKNOWN_606  0x0606
+#define MT_GPIO_POWER        0x0701
 #define MT_ATN_INTERRUPT     0x9B
 #define MT_ATN_INTERRUPT_N72 0x6D
+
+#define MT_GPIO_UNKNOWN_606_N72 0x0a06
+#define MT_GPIO_POWER_N72       0x0a06
 
 #define MT_SPI_N82   1
 #define MT_SPI_N45   2
@@ -87,10 +90,12 @@ Reversing the process for the Touch 2:
 #define MT_CALIBRATION_ADDRESS   0x400200
 
 int MtGpioPower();
-int MtGpioUnknown606();
+int MtGpioResetPin();
 int MtAtnInterruptVector();
 int MtSpiPort();
 int MtSpiCsPin();
+int MtFirmwareSuccessfulResponse();
+int MtGpioResetAsserted();
 
 typedef struct
 {
