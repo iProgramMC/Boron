@@ -23,8 +23,8 @@ Author:
 #include "z2.h"
 
 const char* MtFilePath = "/Root/etc/zephyr2.bin";
-const char* MtClPath = "/Devices/HardwareConfiguration/SrNm";
-const char* PxClPath = "/Devices/HardwareConfiguration/Mod#";
+const char* MtClPath = "/Devices/HardwareConfiguration/MtCl";
+const char* PxClPath = "/Devices/HardwareConfiguration/PxCl";
 
 static uint8_t OutputPacket[512];
 static uint8_t InputPacket[512];
@@ -635,7 +635,7 @@ bool MtPrepareInitialData()
 		MtEmulatorMode = true;
 	}
 
-	if (MtModel == N45AP)
+	if (MtModel == N45AP || MtEmulatorMode)
 	{
 		ProxCalBuffer = NULL;
 		ProxCalLength = 0;

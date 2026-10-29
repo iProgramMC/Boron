@@ -70,11 +70,11 @@ Reversing the process for the Touch 2:
 
 #define MT_SPI_N82   1
 #define MT_SPI_N45   2
-#define MT_SPI_N72   2
+#define MT_SPI_N72   4
 
 #define MT_SPI_CS_N82 GPIO_SPI1_CS0
 #define MT_SPI_CS_N45 GPIO_SPI2_CS0_N45
-#define MT_SPI_CS_N72 0  // TODO: GPIO_SPI4_CS0_N72
+#define MT_SPI_CS_N72 GPIO_SPI4_CS0_N72
 
 // commands, presumably
 #define MT_INFO_FAMILY_ID 0xD1
