@@ -22,6 +22,7 @@ Author:
 ***/
 #include <ke.h>
 #include <io.h>
+#include <string.h>
 #include "hali.h"
 #include "pl192.h"
 #include "clock.h"
@@ -96,7 +97,12 @@ static const HAL_VFTABLE HalpVfTable =
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)
 {
-	// Note! The HAL's driver object is kind of useless, it doesn't do anything actually.
+	const char* Model = KeLoaderParameterBlock.HardwareIdentifier;
+	if (strcmp(Model, "m68ap") != 0 && strcmp(Model, "n45ap") != 0 && strcmp(Model, "n82ap") != 0)
+	{
+		DbgPrint("HalS5L8900: '%s' hardware cannot use this HAL.", Model);
+		return STATUS_UNLOAD;
+	}
 
 	// Hook the HAL's functions.
 	HalSetVftable(&HalpVfTable);
