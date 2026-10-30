@@ -4,28 +4,59 @@
 
 Module name:
 	ioctl.h
-	
+
 Abstract:
 	This header file contains I/O control structures
 	and code definitions device files.
-	
+
 Author:
 	iProgramInCpp - 8 October 2025
 ***/
 #pragma once
 
+#include <stdint.h>
+
+#define IOCTL_CODE(Class, Code) (((Class) << 16) | (Code))
+
+enum
+{
+	IOCTL_CLASS_NONE = 0,
+	IOCTL_CLASS_FRAMEBUFFER,
+	IOCTL_CLASS_TERMINAL,
+	IOCTL_CLASS_KEYBOARD,
+	IOCTL_CLASS_POINTING_DEVICE,
+	IOCTL_CLASS_VIDEO_INPUT,
+	IOCTL_CLASS_BEEPER,
+	IOCTL_CLASS_WAVE_OUTPUT,
+};
+
 enum
 {
 	// Framebuffer
-	IOCTL_FRAMEBUFFER_GET_INFO = 0x10000,
-	IOCTL_FRAMEBUFFER_FLUSH = 0x10001,
-	
+	IOCTL_FRAMEBUFFER_GET_INFO = IOCTL_CODE(IOCTL_CLASS_FRAMEBUFFER, 0),
+	IOCTL_FRAMEBUFFER_FLUSH = IOCTL_CODE(IOCTL_CLASS_FRAMEBUFFER, 1),
+
 	// Terminal (see ttys.h for structures)
-	IOCTL_TERMINAL_GET_TERMINAL_STATE = 0x20000,
-	IOCTL_TERMINAL_SET_TERMINAL_STATE = 0x20001,
-	IOCTL_TERMINAL_GET_WINDOW_SIZE = 0x20002,
-	IOCTL_TERMINAL_SET_WINDOW_SIZE = 0x20003,
+	IOCTL_TERMINAL_GET_TERMINAL_STATE = IOCTL_CODE(IOCTL_CLASS_TERMINAL, 0),
+	IOCTL_TERMINAL_SET_TERMINAL_STATE = IOCTL_CODE(IOCTL_CLASS_TERMINAL, 1),
+	IOCTL_TERMINAL_GET_WINDOW_SIZE = IOCTL_CODE(IOCTL_CLASS_TERMINAL, 2),
+	IOCTL_TERMINAL_SET_WINDOW_SIZE = IOCTL_CODE(IOCTL_CLASS_TERMINAL, 3),
+
+	// Keyboard (TODO)
+
+	// Pointing device (TODO)
+
+	// Video input device (TODO)
+
+	// Beeper device (TODO)
+
+	// Wave output device (TODO)
 };
+
+//
+// Framebuffer devices DO NOT expose read/write primitives.  I/O is performed exclusively
+// through the following I/O control codes, as well as through memory mapped I/O.
+//
 
 enum
 {
@@ -71,6 +102,12 @@ typedef struct
 	uint32_t Height;
 }
 IOCTL_FRAMEBUFFER_FLUSH_INFO, *PIOCTL_FRAMEBUFFER_FLUSH_INFO;
+
+//
+// Keyboard devices expose a stream of bytes.  The stream of bytes is only made of a
+// single 2-byte key code, where 15 bits represent the key code, and the MSB represents
+// the released state of the key.
+//
 
 enum
 {
@@ -179,9 +216,68 @@ enum
 	KBDEV_KEY_NUMBER_PAD_7,
 	KBDEV_KEY_NUMBER_PAD_8,
 	KBDEV_KEY_NUMBER_PAD_9,
-	
+
 	// Flags OR-ed onto the key code.
 	KBDEV_KEY_RELEASE = 0x8000,
-	
+
 	KBDEV_KEY_NONE = 0xFFFF,
 };
+
+//
+// Pointing devices expose a stream of bytes.  Unlike keyboard devices, the stream of bytes
+// has a more complex structure and is split up into packets.
+//
+// This is the structure that defines a pointing device frame. DON'T CHANGE ITS SIZE!
+// (If you want to support a new packet format, use an I/O control code.)
+//
+// PointerId - The # of the associated pointer.  Note that the pointer device may report
+//             multiple different pointer IDs even if only one pointer is active at a time.
+//             However, while the user has activated a pointer, the pointer ID of that
+//             pointer will not change. (e.g. if a device starts touching with finger #1, the
+//             touch won't suddenly be turned into finger #2 until after they release it.)
+//
+// Flags - List of flags that pertain to this pointer ID.
+//
+// X, Y - Either the delta movement, or the absolute position, of the pointer. In absolute
+//        mode, the X and Y coordinates are represented in 0.15 fixed point format (0-32767),
+//        which can later be converted to the screen size.  In relative mode, delta movement
+//        is reported according to the device's native units and must be converted.
+//
+typedef struct
+{
+	uint8_t PointerId;
+	uint8_t Flags;
+	int16_t X;
+	int16_t Y;
+}
+IOCTL_POINTER_EVENT, *PIOCTL_POINTER_EVENT;
+
+#define POINTER_RELEASE  0x01
+
+#define POINTER_ABSOLUTE 0x02
+
+//
+// Beeper devices expose a stream of writes which can be written to, but not read.
+//
+// To use a beeper device, write the desired frequency as a 2-byte word.  If multiple
+// writes have been performed within the same call, the space between writes is
+// device-dependent.
+//
+
+//
+// Video input devices expose a stream of bytes which can be used for synchronization.
+// When a frame is returned by the video input device, a single byte write will be returned.
+// (Even if multiple bytes are requested via OSReadFile, only one will be returned on output,
+// and the value is to be ignored.)
+//
+// Most I/O is done through the specific I/O control codes and memory mapped I/O.
+//
+typedef struct
+{
+	uint32_t Width;
+	uint32_t Height;
+	uint32_t Pitch;
+	short Bpp;
+	short ColorFormat;
+}
+IOCTL_VIDEO_INPUT_INFO, *PIOCTL_VIDEO_INPUT_INFO;
