@@ -45,8 +45,8 @@ Note: The supporting code for 32-bit x86 is called `i386`, but there is a long w
 
 Boron is planned to be ported to:
 - PowerPC (32-bit)
-- ARMv6 (32-bit)
-- AArch64 (64-bit)
+- ARMv5 and ARMv7 (32-bit)
+- AArch64/ARMv8 (64-bit)
 
 ## Building
 

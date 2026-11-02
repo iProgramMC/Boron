@@ -999,7 +999,8 @@ BSTATUS OSFlushFileCache(HANDLE FileHandle)
 		return Status;
 	}
 
-	Status = MmFlushFileCache(FileObjectV);
+	PFILE_OBJECT FileObject = FileObjectV;
+	Status = MmFlushFileCache(FileObject->Fcb);
 	if (FAILED(Status))
 	{
 		DbgPrint("OSFlushFileCache: Failed to flush data for file: %s", RtlGetStatusString(Status));
