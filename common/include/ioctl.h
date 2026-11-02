@@ -245,7 +245,8 @@ enum
 //
 typedef struct
 {
-	uint8_t PointerId;
+	uint8_t PointerId : 4;
+	uint8_t Spare0 : 4;
 	uint8_t Flags;
 	int16_t X;
 	int16_t Y;
@@ -255,6 +256,8 @@ IOCTL_POINTER_EVENT, *PIOCTL_POINTER_EVENT;
 #define POINTER_RELEASE  0x01
 
 #define POINTER_ABSOLUTE 0x02
+
+#define IO_MAX_POINTER_IDS 16
 
 //
 // Beeper devices expose a stream of writes which can be written to, but not read.
