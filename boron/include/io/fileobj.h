@@ -34,3 +34,5 @@ FILE_OBJECT, *PFILE_OBJECT;
 
 // Create a file object. This doesn't actually open the object.
 BSTATUS IoCreateFileObject(PFCB Fcb, PFILE_OBJECT* OutObject, uint32_t CreateOptions);
+
+BSTATUS IoFlushMetadataFile(PFILE_OBJECT FileObject);

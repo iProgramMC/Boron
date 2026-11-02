@@ -4,10 +4,10 @@
 
 Module name:
 	io/fcb.c
-	
+
 Abstract:
 	This module implements the I/O manager specific part of the FCB structure.
-	
+
 Author:
 	iProgramInCpp - 29 June 2024
 ***/
@@ -17,18 +17,18 @@ PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPa
 {
 	// Allocate the actual FCB object.
 	PFCB Fcb = MmAllocatePool (NonPaged ? POOL_NONPAGED : POOL_PAGED, sizeof(FCB) + ExtensionSize);
-	
+
 	if (!Fcb)
 		return NULL;
-	
+
 	Fcb->DispatchTable = Dispatch;
 	Fcb->ExtensionSize = ExtensionSize;
-	
+
 	Fcb->BlockSizeLog = 0;
-	
+
 	ExInitializeRwLock(&Fcb->RwLock);
 	IoInitializeCacheInfo(&Fcb->CacheInfo);
-	
+
 	memset(Fcb->Extension, 0, Fcb->ExtensionSize);
 	return Fcb;
 }
@@ -43,7 +43,7 @@ void IoFreeFcb(PFCB Fcb)
 void IoReferenceFcb(PFCB Fcb)
 {
 	IO_REFERENCE_METHOD RefMethod = Fcb->DispatchTable->Reference;
-	
+
 	if (RefMethod)
 		RefMethod(Fcb);
 }
@@ -51,7 +51,7 @@ void IoReferenceFcb(PFCB Fcb)
 void IoDereferenceFcb(PFCB Fcb)
 {
 	IO_DEREFERENCE_METHOD DerefMethod = Fcb->DispatchTable->Dereference;
-	
+
 	if (DerefMethod)
 		DerefMethod(Fcb);
 }
@@ -60,9 +60,9 @@ void IoDereferenceFcb(PFCB Fcb)
 bool IoIsSeekable(PFCB Fcb)
 {
 	IO_SEEKABLE_METHOD Seekable = Fcb->DispatchTable->Seekable;
-	
+
 	if (!Seekable)
 		return false;
-	
+
 	return Seekable(Fcb);
 }

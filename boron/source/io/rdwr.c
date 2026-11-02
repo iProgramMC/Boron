@@ -973,7 +973,22 @@ BSTATUS OSFlushFileCache(HANDLE FileHandle)
 	if (FAILED(Status))
 		return Status;
 
+	// Flush the metadata if needed, first.
+	Status = IoFlushMetadataFile(FileObjectV);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSFlushFileCache: Failed to flush metadata for file: %s", RtlGetStatusString(Status));
+		// TODO: do we bail here or flush what we can!?
+		ObDereferenceObject(FileObjectV);
+		return Status;
+	}
+
 	Status = MmFlushFileCache(FileObjectV);
+	if (FAILED(Status))
+	{
+		DbgPrint("OSFlushFileCache: Failed to flush data for file: %s", RtlGetStatusString(Status));
+		DbgPrint("This could result in data loss unless the backing storage becomes available again.");
+	}
 
 	ObDereferenceObject(FileObjectV);
 	return Status;

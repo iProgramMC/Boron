@@ -108,10 +108,7 @@ typedef struct _IO_PARSE_CONTEXT IO_PARSE_CONTEXT, *PIO_PARSE_CONTEXT;
 //   our view cache infrastructure relies on those! (Sure, maybe I should refactor it to use FCBs throughout, or maybe
 //   not?!)
 //
-// - TODO: I should probably refactor the ParseDir method to return an arbitrary object (FILE_OBJECT or otherwise), instead
-//   of a pure FCB.
-//
-// - TODO: Add a function that creates a symbolic link.
+// - IO_FLUSH_META_METHOD flushes the metadata associated with a file: on ext2 that is its inode.
 //
 typedef BSTATUS(*IO_MOUNT_METHOD)       (PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJECT_DIRECTORY MountDir);
 //typedef BSTATUS(*IO_CREATE_METHOD)    (PFCB Fcb, void* Context);
@@ -140,6 +137,7 @@ typedef BSTATUS(*IO_CHANGE_TIME_METHOD) (PFCB Fcb, uintptr_t CreateTime, uintptr
 typedef BSTATUS(*IO_TOUCH_METHOD)       (PFCB Fcb, bool IsWrite);
 typedef BSTATUS(*IO_BACKING_MEM_METHOD) (PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset);
 typedef size_t (*IO_ALIGN_INFO_METHOD)  (PFCB Fcb);
+typedef BSTATUS(*IO_FLUSH_META_METHOD)  (PFCB Fcb);
 
 enum
 {
@@ -207,6 +205,7 @@ typedef struct _IO_DISPATCH_TABLE
 	IO_TOUCH_METHOD        Touch;
 	IO_BACKING_MEM_METHOD  BackingMemory;
 	IO_ALIGN_INFO_METHOD   GetAlignmentInfo;
+	IO_FLUSH_META_METHOD   FlushMetadata;
 }
 IO_DISPATCH_TABLE, *PIO_DISPATCH_TABLE;
 
