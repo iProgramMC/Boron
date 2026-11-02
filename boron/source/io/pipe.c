@@ -373,6 +373,8 @@ BSTATUS IoCreatePipeObject(PFILE_OBJECT* OutFileObject, PFCB* OutFcb, POBJECT_AT
 	if (!Fcb)
 		return STATUS_INSUFFICIENT_MEMORY;
 
+	Fcb->FileType = FILE_TYPE_PIPE;
+
 	// Initialize the pipe with the specified buffer size, create its corresponding
 	// file object, and then insert it into the handle table.
 	IopInitializePipe((PPIPE) Fcb->Extension, BufferSize);

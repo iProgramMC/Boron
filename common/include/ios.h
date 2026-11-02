@@ -218,10 +218,14 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 // the same object.
 #define IO_RW_SHARED_FILE_OFFSET    (1 << 4)
 
-#ifdef KERNEL
+#if defined(KERNEL) || defined(IS_DRIVER)
+
+// This read/write operation should bypass type checks. (i.e. a directory/symbolic link should
+// behave as a regular file would.)
+#define IO_RW_BYPASS_TYPE_CHECK (1 << 27)
 
 // This write should terminate the corresponding read operation.  Supported for pipe objects.
-#define IO_RW_TERMINATE_READ   (1 << 28)
+#define IO_RW_TERMINATE_READ    (1 << 28)
 
 // Flags for IO_READ_METHOD and IO_WRITE_METHOD:
 
@@ -229,14 +233,15 @@ IO_DIRECTORY_ENTRY, *PIO_DIRECTORY_ENTRY;
 // and this isn't checked, then the routine must release the lock and re-acquire it exclusive.
 //
 // Ignored in user mode.
-#define IO_RW_LOCKEDEXCLUSIVE  (1 << 29)
+#define IO_RW_LOCKEDEXCLUSIVE   (1 << 29)
 
 // This is paging I/O.  This means memory might be very scarce or downright not available, so memory allocations
 // should be avoided.  This may make memory operations slower, but this is a worthy sacrifice considering the situation.
-#define IO_RW_PAGING           (1 << 30)
+#define IO_RW_PAGING            (1 << 30)
 
 // Forbidden flags for user mode.
 #define IO_RW_USER_MODE_FORBIDDEN_FLAGS (\
+	IO_RW_BYPASS_TYPE_CHECK | \
 	IO_RW_TERMINATE_READ | \
 	IO_RW_LOCKEDEXCLUSIVE | \
 	IO_RW_PAGING \

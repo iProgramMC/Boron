@@ -94,6 +94,18 @@ BSTATUS IoCreateDevice(
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
 
+	// Update the type of the FCB based on the device's type.
+	uint32_t FcbFileType = FILE_TYPE_UNKNOWN;
+	switch (Type)
+	{
+		case DEVICE_TYPE_CHARACTER: FcbFileType = FILE_TYPE_CHARACTER_DEVICE; break;
+		case DEVICE_TYPE_BLOCK:     FcbFileType = FILE_TYPE_BLOCK_DEVICE;     break;
+		case DEVICE_TYPE_VIDEO:     FcbFileType = FILE_TYPE_CHARACTER_DEVICE; break;
+		case DEVICE_TYPE_NETWORK:   FcbFileType = FILE_TYPE_SOCKET;           break;
+		default: DbgPrint("WARNING: IoCreateDevice: Unknown device type %d", Type);
+	}
+	DeviceObject->Fcb->FileType = FcbFileType;
+
 	// Insert the device into the driver's list of devices.
 	KIPL Ipl;
 	KeAcquireSpinLock(&DriverObject->DeviceListLock, &Ipl);

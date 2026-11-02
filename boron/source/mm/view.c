@@ -124,7 +124,13 @@ BSTATUS MmMapViewOfObject(
 	{
 		// You cannot map files that are not seekable.
 		PFILE_OBJECT FileObject = MappableObject;
-		if (!IoIsSeekable(FileObject->Fcb))
+		if (FileObject->Fcb->FileType == FILE_TYPE_DIRECTORY)
+		{
+			ObDereferenceObject(FileObject);
+			return STATUS_IS_A_DIRECTORY;
+		}
+
+		if (!IoIsSeekable(FileObject->Fcb) && !IoIsMappableFileType(FileObject->Fcb->FileType))
 		{
 			ObDereferenceObject(FileObject);
 			return STATUS_UNSUPPORTED_FUNCTION;

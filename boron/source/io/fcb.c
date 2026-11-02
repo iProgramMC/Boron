@@ -66,3 +66,17 @@ bool IoIsSeekable(PFCB Fcb)
 
 	return Seekable(Fcb);
 }
+
+bool IoIsMappableFileType(uint32_t FileType)
+{
+	return FileType == FILE_TYPE_FILE ||
+		FileType == FILE_TYPE_BLOCK_DEVICE ||
+		FileType == FILE_TYPE_CHARACTER_DEVICE;
+}
+
+bool IoIsReadWritableFileType(uint32_t FileType)
+{
+	return IoIsMappableFileType(FileType) ||
+		FileType == FILE_TYPE_PIPE ||
+		FileType == FILE_TYPE_SOCKET;
+}

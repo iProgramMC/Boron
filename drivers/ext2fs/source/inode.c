@@ -404,8 +404,11 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	// TODO: A better way?
 	uint8_t* BlockBuffer = MmAllocatePool(POOL_NONPAGED, FileSystem->BlockSize);
 	if (!BlockBuffer)
+	{
+		DbgPrint("Failed to allocate intermediate buffer for ext2.  You should actually do the TODO here, bozo");
 		// TODO: Use the builtin one for paging if Flags & PAGING
 		return STATUS_INSUFFICIENT_MEMORY;
+	}
 
 	while (Size)
 	{
@@ -429,6 +432,8 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 		// Okay, now do the read itself.
 		if (OnDiskBlock)
 		{
+			// TODO: Optimize this by using a ONE_PAGE MDL instead, in
+			// case the file offset is aligned to the block size.
 			uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem);
 			Status = IoReadFile(Iosb, FileSystem->File, BlockBuffer, FileSystem->BlockSize, 0, Address, false, true);
 			if (FAILED(Status))
@@ -454,22 +459,6 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	return Status;
 }
 
-BSTATUS Ext2ReadCopy(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, void* Buffer, size_t Size, uint32_t Flags)
-{
-	PMDL Mdl;
-	BSTATUS Status;
-
-	Status = MmCreateMdl(&Mdl, (uintptr_t) Buffer, Size, KeGetPreviousMode(), true);
-	if (FAILED(Status))
-		return IOSB_STATUS(Iosb, Status);
-
-	Status = Ext2Read(Iosb, Fcb, Offset, Mdl, Flags);
-
-	MmFreeMdl(Mdl);
-
-	return Status;
-}
-
 BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Offset, uint64_t Version, PIO_DIRECTORY_ENTRY DirectoryEntry)
 {
 	BSTATUS Status;
@@ -491,8 +480,10 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 	if (Offset >= Ext2FileSize(Fcb))
 		return IOSB_STATUS(Iosb, STATUS_END_OF_FILE);
 
+	uint32_t ReadFlags = IO_RW_BYPASS_TYPE_CHECK;
+
 	// Since we can only do reads at the moment, just read.
-	Status = IoReadFile(Iosb, FileObject, &Dirent, sizeof(EXT2_DIRENT), 0, Offset, true, true);
+	Status = IoReadFile(Iosb, FileObject, &Dirent, sizeof(EXT2_DIRENT), ReadFlags, Offset, true, true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 
@@ -507,7 +498,7 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 	if (NameLength > IO_MAX_NAME - 1)
 		NameLength = IO_MAX_NAME - 1;
 
-	Status = IoReadFile(Iosb, FileObject, &DirectoryEntry->Name, NameLength, 0, Offset + sizeof(EXT2_DIRENT), true, true);
+	Status = IoReadFile(Iosb, FileObject, &DirectoryEntry->Name, NameLength, ReadFlags, Offset + sizeof(EXT2_DIRENT), true, true);
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
 

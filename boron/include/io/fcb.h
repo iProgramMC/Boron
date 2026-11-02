@@ -4,7 +4,7 @@
 
 Module name:
 	io/fcb.h
-	
+
 Abstract:
 	This header defines the I/O manager's part of the
 	File Control Block structure.  The I/O manager takes
@@ -12,7 +12,7 @@ Abstract:
 	can be seen by the relatively few fields its FCB
 	struct features.  Control over management is instead
 	surrendered to the File System Driver (FSD).
-	
+
 Author:
 	iProgramInCpp - 22 June 2024
 ***/
@@ -23,24 +23,24 @@ Author:
 typedef struct _FCB
 {
 	PIO_DISPATCH_TABLE DispatchTable;
-	
+
 	EX_RW_LOCK RwLock;
-	
+
 	IO_CACHE_INFO CacheInfo;
-	
+
 	// FILE_TYPE
 	uint8_t FileType;
 	uint8_t BlockSizeLog; // Log of the block size (block size is 1 << BlockSizeLog)
 	uint16_t Spare0;
 	uint32_t Flags;
-	
+
 	// Valid only for files and block devices.  Otherwise it's zero.
 	//
 	// The file length is always *modified* with the rwlock acquired as
 	// exclusive, but it can be read outside of it.
 	__attribute__((aligned(8)))
 	volatile uint64_t FileLength;
-	
+
 	// FSD specific extension.  When the FCB is initialized, the
 	// size of this extension may be specified.
 	size_t ExtensionSize;
@@ -48,7 +48,7 @@ typedef struct _FCB
 }
 FCB, *PFCB;
 
-// Allocates an FCB.  
+// Allocates an FCB.
 PFCB IoAllocateFcb(PIO_DISPATCH_TABLE Dispatch, size_t ExtensionSize, bool NonPaged);
 
 // Frees an FCB.
@@ -103,3 +103,11 @@ static ALWAYS_INLINE inline bool IoIsDirectlyMappable(PFCB Fcb)
 
 // Checks if this FCB is seekable.
 bool IoIsSeekable(PFCB Fcb);
+
+// Checks if this file type can be memory mapped (directories, symbolic links,
+// pipes and sockets cannot be memory mapped).  NOT a replacement for IoIsSeekable.
+bool IoIsMappableFileType(uint32_t FileType);
+
+// Checks if this file type can be arbitrarily read/written. (directories and
+// symbolic links are not)
+bool IoIsReadWritableFileType(uint32_t FileType);

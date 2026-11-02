@@ -4,10 +4,10 @@
 
 Module name:
 	io/dir.c
-	
+
 Abstract:
 	This module implements directory-related system services.
-	
+
 Author:
 	iProgramInCpp - 4 October 2025
 ***/
@@ -30,41 +30,44 @@ BSTATUS IoReadDirectoryEntries(
 	PIO_DISPATCH_TABLE Dispatch;
 	IO_DIRECTORY_ENTRY DirEntry;
 	uint64_t Offset, Version;
-	
+
 	ASSERT(FileObject);
-	
+
 	Iosb->EntriesRead = 0;
-	
+
 	Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	Dispatch = Fcb->DispatchTable;
 	ASSERT(Dispatch);
-	
+
+	if (Fcb->FileType != FILE_TYPE_DIRECTORY)
+		return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
+
 	Status = KeWaitForSingleObject(&FileObject->FileOffsetMutex, true, TIMEOUT_INFINITE, KeGetPreviousMode());
 	if (FAILED(Status))
 		return IOSB_STATUS(Iosb, Status);
-	
+
 	Status = IoLockFcbShared(Fcb);
 	if (FAILED(Status)) {
 		KeReleaseMutex(&FileObject->FileOffsetMutex);
 		return IOSB_STATUS(Iosb, Status);
 	}
-	
+
 	Offset  = FileObject->CurrentFileOffset;
 	Version = FileObject->CurrentDirectoryVersion;
-	
+
 	IO_READ_DIR_METHOD ReadDir = Dispatch->ReadDir;
 	if (ReadDir)
 	{
 		for (size_t i = 0; i < Count; i++)
 		{
 			PIO_DIRECTORY_ENTRY PEntry;
-			
+
 			if (KeGetPreviousMode() == MODE_KERNEL)
 				PEntry = &DirectoryEntries[i];
 			else
 				PEntry = &DirEntry;
-			
+
 			Status = ReadDir(&InternalIosb, FileObject, Offset, Version, PEntry);
 			if (FAILED(Status))
 			{
@@ -72,7 +75,7 @@ BSTATUS IoReadDirectoryEntries(
 				Iosb->Status = InternalIosb.Status;
 				goto EarlyFail;
 			}
-			
+
 			// This function is called by the user-facing OSReadDirectoryEntries as well.
 			// To avert the need for an extra memory allocation, simply copy the entry here:
 			if (KeGetPreviousMode() != MODE_KERNEL)
@@ -84,12 +87,12 @@ BSTATUS IoReadDirectoryEntries(
 					goto EarlyFail;
 				}
 			}
-			
+
 			// Move on to the next directory entry.
 			Offset  = InternalIosb.ReadDir.NextOffset;
 			Version = InternalIosb.ReadDir.Version;
 		}
-		
+
 		Iosb->EntriesRead = Count;
 		Iosb->Status = STATUS_SUCCESS;
 	}
@@ -97,11 +100,11 @@ BSTATUS IoReadDirectoryEntries(
 	{
 		Status = IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 	}
-	
+
 EarlyFail:
 	FileObject->CurrentFileOffset = Offset;
 	FileObject->CurrentDirectoryVersion = Version;
-	
+
 	IoUnlockFcb(Fcb);
 	KeReleaseMutex(&FileObject->FileOffsetMutex);
 	return Status;
@@ -120,22 +123,22 @@ BSTATUS OSReadDirectoryEntries(
 )
 {
 	BSTATUS Status;
-	
+
 	Status = MmProbeAddress(Iosb, sizeof(*Iosb), true, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	Status = MmProbeAddress(DirectoryEntries, sizeof(IO_DIRECTORY_ENTRY) * DirectoryEntryCount, true, KeGetPreviousMode());
 	if (FAILED(Status))
 		return Status;
-	
+
 	void* FileObjectV;
 	Status = ObReferenceObjectByHandle(FileHandle, IoFileType, &FileObjectV);
 	if (FAILED(Status))
 		return Status;
-	
+
 	PFILE_OBJECT FileObject = FileObjectV;
-	
+
 	// NOTE: IoReadDirectoryEntries accepts userspace pointers and SPECIFICALLY checks for them.
 	// Thus, we do not need a separate memory allocation or anything - just pass the pointer in.
 	//
@@ -143,14 +146,14 @@ BSTATUS OSReadDirectoryEntries(
 	IO_STATUS_BLOCK Iosb2;
 	memset(&Iosb2, 0, sizeof(Iosb2));
 	Status = IoReadDirectoryEntries(&Iosb2, FileObject, DirectoryEntryCount, DirectoryEntries);
-	
+
 	ObDereferenceObject(FileObjectV);
-	
+
 	BSTATUS CopyStatus = MmSafeCopy(Iosb, &Iosb2, sizeof(*Iosb), KeGetPreviousMode(), true);
-	
+
 	// If the operation failed, its status code prevails.
 	if (IOSUCCEEDED(Status))
 		Status = CopyStatus;
-	
+
 	return Status;
 }

@@ -74,9 +74,14 @@ all: image
 clean:
 	@echo "Cleaning..."
 	rm -rf $(KERNEL_BUILD) $(SYSDLL_BUILD) $(BUILD_DIR) $(DRIVERS_TARGETS) $(DRIVERS_LOCAL_TARGETS) $(DRIVERS_BUILD_DIRS)
-	
+
 	@echo "Cleaning user applications..."
 	$(MAKE) -C user clean
+
+.PHONY: checkdisk
+checkdisk:
+	@echo "Checking vdiske2.img for errors ..."
+	./tools/check_disk_image.sh
 
 image: limine $(IMAGE_TARGET) $(INITRD_TARGET)
 
