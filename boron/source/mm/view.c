@@ -299,8 +299,9 @@ BSTATUS MmFlushVirtualMemory(void* BaseAddress, size_t RegionSize, bool Async)
 
 	if (!Async)
 	{
+		PFILE_OBJECT FileObject = MappedObject;
 		Status = MmFlushFileCacheEx(
-			MappedObject,
+			FileObject->Fcb,
 			SectionOffset + (StartVa - ViewBaseVa),
 			SizePages * PAGE_SIZE
 		);

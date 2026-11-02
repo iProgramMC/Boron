@@ -20,7 +20,7 @@ void MmStartFlushingModifiedPages();
 typedef struct _FILE_OBJECT FILE_OBJECT, *PFILE_OBJECT;
 
 // Flushes the page cache of a file object.
-BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject);
+BSTATUS MmFlushFileCache(PFCB Fcb);
 
 // Partially flushes the page cache of a file object.
-BSTATUS MmFlushFileCacheEx(PFILE_OBJECT FileObject, uint64_t StartOffset, size_t SizeBytes);
+BSTATUS MmFlushFileCacheEx(PFCB Fcb, uint64_t StartOffset, size_t SizeBytes);

@@ -248,14 +248,14 @@ BSTATUS MmpFlushFileCacheProcessEntry(MMPFN Pfn, uint64_t Offset, void* ProcessE
 // scanning every process' mappings to remove the writable flag from the PTEs would
 // be too expensive.
 //
-BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject)
+BSTATUS MmFlushFileCache(PFCB Fcb)
 {
 	return MmForEachEntryCcb(
-		&FileObject->Fcb->CacheInfo.PageCache,
+		&Fcb->CacheInfo.PageCache,
 		MmpFlushFileCacheFilter,
 		MmpFlushFileCacheProcessEntry,
-		NULL,           // FilterContext
-		FileObject->Fcb // ProcessEntryContext
+		NULL, // FilterContext
+		Fcb   // ProcessEntryContext
 	);
 }
 
@@ -264,17 +264,17 @@ BSTATUS MmFlushFileCache(PFILE_OBJECT FileObject)
 //
 // Same as MmFlushFileCache, but takes in an additional range.
 //
-BSTATUS MmFlushFileCacheEx(PFILE_OBJECT FileObject, uint64_t StartOffset, size_t SizeBytes)
+BSTATUS MmFlushFileCacheEx(PFCB Fcb, uint64_t StartOffset, size_t SizeBytes)
 {
 	MM_FLUSH_CACHE_FILTER_CONTEXT FilterContext;
 	FilterContext.MinOffset = StartOffset / PAGE_SIZE;
 	FilterContext.MaxOffset = (StartOffset + SizeBytes - 1) / PAGE_SIZE;
 
 	return MmForEachEntryCcb(
-		&FileObject->Fcb->CacheInfo.PageCache,
+		&Fcb->CacheInfo.PageCache,
 		MmpFlushFileCacheFilter,
 		MmpFlushFileCacheProcessEntry,
 		&FilterContext,
-		FileObject->Fcb // ProcessEntryContext
+		Fcb // ProcessEntryContext
 	);
 }
