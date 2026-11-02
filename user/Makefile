@@ -13,6 +13,7 @@ APPS := \
 	test \
 	ls \
 	cat \
+	touch \
 	VideoTerminal \
 	TestHarness \
 	MinimalShell \
