@@ -18,6 +18,8 @@ Author:
 ***/
 #include "syscfg.h"
 
+//#define DEBUG_ENTRIES
+
 #define CNTB_MAGIC 0x434e5442
 
 // TODO: Hardcoded path.
@@ -210,6 +212,7 @@ BSTATUS SyscfgParseDir(
 		NewExt->Magic = FoundMagic;
 		NewExt->Size  = IsLongEntry ? Entry->Cntb.Size : 16;
 		NewFcb->FileLength = NewExt->Size;
+		NewFcb->FileType = FILE_TYPE_FILE;
 
 		if (IsLongEntry)
 		{
@@ -325,6 +328,18 @@ BSTATUS SyscfgOpenNorIfNeeded()
 		ExReleaseFastMutex(&DeviceExt->Mutex);
 		return Status;
 	}
+
+#ifdef DEBUG_ENTRIES
+	for (uint32_t i = 0; i < DeviceExt->Header.EntryCount; i++)
+	{
+		SYSCFG_ENTRY Entry = DeviceExt->Entries[i];
+		uint32_t Magic = Entry.Magic;
+		if (Magic == CNTB_MAGIC)
+			Magic = Entry.Cntb.Magic;
+
+		LogMsg("ENTRY: '%c%c%c%c'", (Magic>>24)&0xFF, (Magic>>16)&0xFF, (Magic>>8)&0xFF, Magic&0xFF);
+	}
+#endif
 
 	ExReleaseFastMutex(&DeviceExt->Mutex);
 	return STATUS_SUCCESS;

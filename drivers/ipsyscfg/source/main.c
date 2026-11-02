@@ -57,7 +57,7 @@ BSTATUS DriverEntry(PDRIVER_OBJECT DriverObject)
 		return STATUS_UNLOAD;
 	}
 
-	DbgPrint("My DO is %p", gDeviceObject);
+	gDeviceObject->Fcb->FileType = FILE_TYPE_DIRECTORY;
 
 	PDEVICE_EXT Ext = DEXT(gDeviceObject);
 	ExInitializeFastMutex(&Ext->Mutex);
