@@ -14,6 +14,7 @@ APPS := \
 	ls \
 	cat \
 	touch \
+	sync \
 	VideoTerminal \
 	TestHarness \
 	MinimalShell \
