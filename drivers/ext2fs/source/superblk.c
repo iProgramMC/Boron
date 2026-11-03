@@ -12,7 +12,6 @@ Author:
 	iProgramInCpp - 3 November 2026
 ***/
 #include "ext2.h"
-#include <string.h>
 
 void Ext2IncrementFreeBlocksSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,

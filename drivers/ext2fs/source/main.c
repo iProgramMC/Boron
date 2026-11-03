@@ -24,6 +24,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.ReadDir = Ext2ReadDir,
 	.ParseDir = Ext2ParseDir,
 	.Seekable = Ext2Seekable,
+	.FlushMetadata = Ext2FlushMetadata,
 };
 
 // The only reason we make a type of object is so that we
@@ -64,7 +65,7 @@ BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 
 	PEXT2_FILE_SYSTEM FileSystem = Object;
 
-	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
+	ExInitializeFastMutex(&FileSystem->InodeTreeMutex);
 	InitializeRbTree(&FileSystem->InodeTree);
 
 	ExInitializeFastMutex(&FileSystem->BlockAllocationMutex);

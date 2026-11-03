@@ -16,8 +16,8 @@ Author:
 // Prepare the extension.
 #define PREP_EXT PEXT2_FCB_EXT Ext = EXT(Fcb)
 
-#define AcquireInodeTreeMutex(fs) KeWaitForSingleObject(&(fs)->InodeTreeMutex, false, TIMEOUT_INFINITE, MODE_KERNEL)
-#define ReleaseInodeTreeMutex(fs) KeReleaseMutex(&(fs)->InodeTreeMutex)
+#define AcquireInodeTreeMutex(fs) ExAcquireFastMutex(&(fs)->InodeTreeMutex, false)
+#define ReleaseInodeTreeMutex(fs) ExReleaseFastMutex(&(fs)->InodeTreeMutex)
 
 #define AcquireBlockRwlockShared(in)    ExAcquireSharedRwLock(&(in)->BlockRwlock, false, false, false)
 #define AcquireBlockRwlockExclusive(in) ExAcquireExclusiveRwLock(&(in)->BlockRwlock, false, false)
@@ -91,8 +91,10 @@ PFCB Ext2CreateFcb(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber)
 	Ext->ReferenceCount = 1;
 	Ext->OwnerFS = FileSystem;
 	Ext->InodeTreeEntry.Key = InodeNumber;
+	Ext->InodeDataIsDirty = false;
 	ObReferenceObjectByPointer(FileSystem);
 	ExInitializeRwLock(&Ext->BlockRwlock);
+	ExInitializeFastMutex(&Ext->InodeDataMutex);
 
 	return Fcb;
 }
@@ -187,6 +189,7 @@ BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 	// Now, fill in this FCB's data:
 	Fcb->FileType = Ext2InodeModeToFileType(Ext->Inode.Mode);
 	Fcb->FileLength = Ext2FileSize(Fcb);
+	Ext->InodeWritebackAddress = Address;
 	return STATUS_SUCCESS;
 }
 
@@ -575,4 +578,67 @@ BSTATUS Ext2ParseDir(
 
 		return IOSB_STATUS(Iosb, STATUS_NOT_A_DIRECTORY);
 	}
+}
+
+BSTATUS Ext2FlushMetadata(PFCB Fcb)
+{
+	BSTATUS Status = STATUS_SUCCESS;
+	PREP_EXT;
+	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
+
+	EXT2_INODE InodeCopy;
+	bool WritebackInodeCopy = false;
+
+	// If this node's metadata is dirty, write it.
+	ExAcquireFastMutex(&Ext->InodeDataMutex, false);
+
+	if (Ext->InodeDataIsDirty)
+	{
+		memcpy(&InodeCopy, &Ext->Inode, sizeof(EXT2_INODE));
+		Ext->InodeDataIsDirty = false;
+		WritebackInodeCopy = true;
+	}
+
+	ExReleaseFastMutex(&Ext->InodeDataMutex);
+
+	if (WritebackInodeCopy)
+	{
+		Status = CcWriteFileCopy(
+			FileSystem->File,
+			Ext->InodeWritebackAddress,
+			&InodeCopy,
+			sizeof(EXT2_INODE)
+		);
+
+		if (FAILED(Status))
+		{
+			DbgPrint("Ext2: Cannot flush inode metadata to disk: %s", RtlGetStatusString(Status));
+			return Status;
+		}
+	}
+
+	// TODO: Flush the block mapping data to disk here? Too complicated for now,
+	// so we'll hand it off to the disk cache instead.
+
+	if (Fcb != FileSystem->RootInode)
+		return Status;
+
+	// We're the root inode.  There are some special semantics: a call to flush
+	// the whole node leads to a complete synchronization for this file system.
+	AcquireInodeTreeMutex(FileSystem);
+
+	for (PRBTREE_ENTRY Entry = GetFirstEntryRbTree(&FileSystem->InodeTree);
+		Entry != NULL;
+		Entry = GetNextEntryRbTree(Entry))
+	{
+		PFCB ChildFcb = FCB(CONTAINING_RECORD(Entry, EXT2_FCB_EXT, InodeTreeEntry));
+
+		// NOTE: Ignoring status.
+		(void) Ext2FlushMetadata(ChildFcb);
+	}
+
+	ReleaseInodeTreeMutex(FileSystem);
+
+	// Call flush on the backing disk, too.
+	return MmFlushFileCache(FileSystem->File->Fcb);
 }

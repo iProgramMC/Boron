@@ -16,6 +16,7 @@ Author:
 #pragma once
 
 #include <main.h>
+#include <string.h>
 #include <io.h>
 #include <ob.h>
 #include <mm.h>
@@ -37,7 +38,12 @@ typedef struct _EXT2_FCB_EXT
 	uintptr_t ReferenceCount;
 
 	// The on-disk representation of the file.
+	//
+	// TODO: Use the mutex in more places.
+	FAST_MUTEX InodeDataMutex;
 	EXT2_INODE Inode;
+	bool InodeDataIsDirty;
+	uint64_t InodeWritebackAddress;
 
 	// This guards the direct block array.
 	EX_RW_LOCK BlockRwlock;
@@ -81,6 +87,8 @@ BSTATUS Ext2ReadDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, uint64_t Off
 
 BSTATUS Ext2ParseDir(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, const char* ParsePath, UNUSED int ParseLoopCount, PIO_PARSE_CONTEXT ParseContext);
 
+BSTATUS Ext2FlushMetadata(PFCB Fcb);
+
 // *** Ext2 File System Struct ***
 
 // The file system instance.  Has a reference for every in-memory inode.
@@ -111,7 +119,7 @@ struct _EXT2_FILE_SYSTEM
 
 	// This is for lookup by inode #.
 	RBTREE InodeTree;
-	KMUTEX InodeTreeMutex;
+	FAST_MUTEX InodeTreeMutex;
 
 	// This mutex is for resource allocation.
 	FAST_MUTEX BlockAllocationMutex;
