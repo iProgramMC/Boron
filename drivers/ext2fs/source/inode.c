@@ -632,6 +632,8 @@ BSTATUS Ext2FlushMetadata(PFCB Fcb)
 		Entry = GetNextEntryRbTree(Entry))
 	{
 		PFCB ChildFcb = FCB(CONTAINING_RECORD(Entry, EXT2_FCB_EXT, InodeTreeEntry));
+		if (ChildFcb == Fcb)
+			continue;
 
 		// NOTE: Ignoring status.
 		(void) Ext2FlushMetadata(ChildFcb);
