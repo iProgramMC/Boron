@@ -111,13 +111,13 @@ struct _EXT2_FILE_SYSTEM
 	bool ForceReadOnly;
 
 	// Some pre-calculated items.
-	int FirstInode;
-	int InodeSize;
-	int BlockSize;
-	int FragmentSize;
-	int InodesPerGroup;
-	int BlocksPerGroup;
-	int BlockSizeLog2;
+	uint32_t FirstInode;
+	uint32_t InodeSize;
+	uint32_t BlockSize;
+	uint32_t FragmentSize;
+	uint32_t InodesPerGroup;
+	uint32_t BlocksPerGroup;
+	uint32_t BlockSizeLog2;
 
 	// This is for lookup by inode #.
 	RBTREE InodeTree;
@@ -136,6 +136,9 @@ struct _EXT2_FILE_SYSTEM
 	FAST_MUTEX TempBlockSizeBufferMutex;
 	void* TempBlockSizeBuffer;
 	PMDL TempBlockSizeBufferMdl;
+
+	// This buffer is used for certain cleaning operations.
+	MDL_ONEPAGE ZeroPageBufferMdl;
 
 	// This is a quick reference to the root directory.
 	PFCB RootInode;

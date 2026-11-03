@@ -102,7 +102,6 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	if (Pfn == PFN_INVALID)
 	{
-		ObDereferenceObject(FileSystem);
 		DbgPrint("Ext2: Failed to allocate temporary page-size read buffer");
 		Status = STATUS_INSUFFICIENT_MEMORY;
 		goto Failure;
@@ -154,6 +153,21 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	}
 
 	FileSystem->TempBlockSizeBuffer = BlockSizeBuffer;
+
+	// Finally, allocate a completely zeroed page for certain cleaning operations.
+	MMPFN ZeroPagePfn = MmAllocatePhysicalPage();
+	if (ZeroPagePfn == PFN_INVALID)
+	{
+		DbgPrint("Ext2: Failed to allocate temporary zero page buffer");
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Failure;
+	}
+
+	MmInitializeSinglePageMdl(
+		&FileSystem->ZeroPageBufferMdl,
+		ZeroPagePfn,
+		0 // Flags
+	);
 
 	// Read the "/" inode.  It is inode 2.
 	PFCB RootFcb;
