@@ -589,6 +589,11 @@ BSTATUS Ext2FlushMetadata(PFCB Fcb)
 	EXT2_INODE InodeCopy;
 	bool WritebackInodeCopy = false;
 
+	if (FileSystem->ForceReadOnly)
+	{
+		return STATUS_SUCCESS;
+	}
+
 	// If this node's metadata is dirty, write it.
 	ExAcquireFastMutex(&Ext->InodeDataMutex, false);
 
@@ -644,4 +649,49 @@ BSTATUS Ext2FlushMetadata(PFCB Fcb)
 
 	// Call flush on the backing disk, too.
 	return MmFlushFileCache(FileSystem->File->Fcb);
+}
+
+BSTATUS Ext2Resize(PFCB Fcb, uint64_t NewLength)
+{
+	BSTATUS Status = STATUS_SUCCESS;
+	PREP_EXT;
+	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
+
+	if (FileSystem->ForceReadOnly)
+	{
+		return STATUS_WRITE_PROTECTED;
+	}
+
+	if (NewLength >= 0x100000000 && FileSystem->SuperBlock.Version == 0)
+	{
+		DbgPrint("Ext2Resize: Cannot create a file > 4 GiB on version 0 ext2 partitions.");
+		return STATUS_INSUFFICIENT_SPACE;
+	}
+
+	AcquireBlockRwlockExclusive(Ext);
+
+	uint64_t CurrentBlockCount = (Fcb->FileLength + FileSystem->BlockSize - 1) / FileSystem->BlockSize;
+	uint64_t NewBlockCount = (NewLength + FileSystem->BlockSize - 1) / FileSystem->BlockSize;
+
+	if (CurrentBlockCount == NewBlockCount)
+	{
+		Fcb->FileLength = NewLength;
+
+		ExAcquireFastMutex(&Ext->InodeDataMutex, false);
+
+		Ext->InodeDataIsDirty = true;
+		Ext->Inode.Size = (uint32_t)(NewLength & 0xFFFFFFFF);
+
+		if (FileSystem->SuperBlock.Version > 0)
+			Ext->Inode.SizeUpper = (uint32_t)(NewLength >> 32);
+
+		ExReleaseFastMutex(&Ext->InodeDataMutex);
+		ReleaseBlockRwlock(Ext);
+		return STATUS_SUCCESS;
+	}
+
+	DbgPrint("Ext2: TODO: Ext2ResizeFile with allocating/freeing blocks.");
+	ReleaseBlockRwlock(Ext);
+
+	return STATUS_UNIMPLEMENTED;
 }

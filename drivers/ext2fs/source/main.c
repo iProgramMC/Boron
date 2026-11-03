@@ -24,6 +24,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.ReadDir = Ext2ReadDir,
 	.ParseDir = Ext2ParseDir,
 	.Seekable = Ext2Seekable,
+	.Resize = Ext2Resize,
 	.FlushMetadata = Ext2FlushMetadata,
 };
 

@@ -4,11 +4,11 @@
 
 Module name:
 	status.h
-	
+
 Abstract:
 	This header file contains the status code enumeration
 	definition for the Boron operating system.
-	
+
 Author:
 	iProgramInCpp - 30 October 2023
 ***/
@@ -20,7 +20,7 @@ enum
 {
 	// NOTE: Keep synced with rtl/status.c!
 	STATUS_SUCCESS,             // Must ALWAYS be defined as zero!
-	
+
 	// Generic errors
 	STATUS_INVALID_PARAMETER,
 	STATUS_ACCESS_VIOLATION,
@@ -29,18 +29,18 @@ enum
 	STATUS_IPL_TOO_HIGH,        // The operation was attempted at high IPL.
 	STATUS_REFAULT,             // The page fault should be re-attempted.
 	STATUS_REFAULT_SLEEP,       // The page fault should be re-attempted and the thread should sleep for a bit.
-	
+
 	// Wait for object(s) errors
 	STATUS_WAITING,             // these 3 are returned by the KeWaitFor*Object(s) functions.
 	STATUS_ALERTED,             // Received a user APC while waiting
 	STATUS_TIMEOUT,             // Timeout or would block
 	STATUS_KILLED,              // Thread was killed
 	STATUS_KERNEL_APC,          // Received a kernel APC, resume waiting
-	
+
 	// Probe errors
 	STATUS_FAULT,               // returned by MmProbeAddress when an invalid page fault was triggered.
 	STATUS_NO_REMAP,            // returned by MmProbeAddress if remapping in kernel space failed, or by MmMapMDL if the MDL is already mapped
-	
+
 	// Object errors
 	STATUS_NAME_INVALID,        // If the object's name is invalid
 	STATUS_NAME_COLLISION,      // If there is already an object with the same name in the directory.
@@ -58,12 +58,12 @@ enum
 	STATUS_ALREADY_LINKED,      // The object is already linked to a directory.
 	STATUS_INVALID_HANDLE,      // The handle is invalid.
 	STATUS_BUFFER_OVERFLOW,     // The provided buffer is too small to fit the requested data.
-	
+
 	// Handle table errors
 	STATUS_TABLE_NOT_EMPTY,     // The handle table is not empty.
 	STATUS_DELETE_CANCELED,     // The handle delete operation was canceled.
 	STATUS_TOO_MANY_HANDLES,    // Too many handles have been opened.
-	
+
 	// I/O errors/status codes
 	STATUS_PENDING,             // Operation in progress
 	STATUS_INVALID_HEADER,      // The header is invalid.  First used for MBR/GPT validation but could have more uses
@@ -83,28 +83,29 @@ enum
 	STATUS_DIRECTORY_NOT_EMPTY, // The directory is not empty.
 	STATUS_OUT_OF_FILE_BOUNDS,  // The specified offset is located outside of this file's boundaries.
 	STATUS_NOT_A_TERMINAL,      // The specified file is not a terminal
-	
+	STATUS_WRITE_PROTECTED,     // Write protected media
+
 	// Memory manager error codes
 	STATUS_INSUFFICIENT_VA_SPACE, // Insufficient virtual address space
 	STATUS_VA_NOT_AT_BASE,      // The virtual address given is not the beginning of a reserved region
 	STATUS_MEMORY_NOT_RESERVED, // There is no memory reserved at that address
 	STATUS_MEMORY_COMMITTED,    // There is committed memory but decommit wasn't explicitly requested.
 	STATUS_CONFLICTING_ADDRESSES, // The given address range conflicts with existing address space, or overlaps multiple reserved regions, or overlaps unreserved regions.
-	
+
 	// Execution error codes
 	STATUS_INVALID_EXECUTABLE,  // The executable file is invalid.
 	STATUS_INVALID_ARCHITECTURE,// The executable file is valid, but for a machine type other than the current machine.
 	STATUS_IS_CHILD_PROCESS,    // After an OSForkProcess() operation is performed, the child process sees this as the return value and the parent sees STATUS_SUCCESS.
-	
+
 	// Process error codes.
 	STATUS_STILL_RUNNING,       // The process is still running
-	
+
 	// IPC error codes
 	STATUS_PORT_CLOSED,         // The host closed the port before the client could connect to it.
 	STATUS_MESSAGE_TOO_LONG,    // The message cannot be created because the buffer is too long.
-	
+
 	STATUS_MAX,
-	
+
 	// Wait for object(s) error ranges
 	STATUS_RANGE_WAIT           = 0x1000000, // range 0..MAXIMUM_WAIT_BLOCKS
 	STATUS_RANGE_ABANDONED_WAIT = 0x1000040, // range 0..MAXIMUM_WAIT_BLOCKS
