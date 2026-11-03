@@ -135,7 +135,7 @@ static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL
 	if (ByteCount + Offset < ByteCount || ByteCount + Offset < Offset)
 		return STATUS_INVALID_PARAMETER;
 
-	if (LIKELY(~Flags & (IO_RW_BYPASS_TYPE_CHECK | IO_RW_PAGING)))
+	if (LIKELY(!(Flags & (IO_RW_BYPASS_TYPE_CHECK | IO_RW_PAGING))))
 	{
 		if (Fcb->FileType == FILE_TYPE_DIRECTORY)
 			return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
@@ -239,7 +239,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	if (!Dispatch->Write)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 
-	if (LIKELY(~Flags & (IO_RW_BYPASS_TYPE_CHECK | IO_RW_PAGING)))
+	if (LIKELY(!(Flags & (IO_RW_BYPASS_TYPE_CHECK | IO_RW_PAGING))))
 	{
 		if (Fcb->FileType == FILE_TYPE_DIRECTORY)
 			return IOSB_STATUS(Iosb, STATUS_IS_A_DIRECTORY);
