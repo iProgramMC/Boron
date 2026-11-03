@@ -203,7 +203,7 @@ typedef struct
 }
 MM_FLUSH_CACHE_FILTER_CONTEXT, *PMM_FLUSH_CACHE_FILTER_CONTEXT;
 
-bool MmpFlushFileCacheFilter(MMPFN Pfn, UNUSED uint64_t Offset, UNUSED void* FilterContext)
+bool MmpFlushFileCacheFilter(MMPFN Pfn, uint64_t Offset, void* FilterContext)
 {
 	if (Pfn == PFN_INVALID) {
 		return false;
@@ -277,4 +277,54 @@ BSTATUS MmFlushFileCacheEx(PFCB Fcb, uint64_t StartOffset, size_t SizeBytes)
 		&FilterContext,
 		Fcb // ProcessEntryContext
 	);
+}
+
+bool MmpTruncateFileCacheFilter(MMPFN Pfn, uint64_t Offset, void* FilterContext)
+{
+	if (Pfn == PFN_INVALID) {
+		return false;
+	}
+
+	uint64_t* StartPageIndex = (uint64_t*) FilterContext;
+	return Offset >= *StartPageIndex;
+}
+
+BSTATUS MmpTruncateFileCacheProcessEntry(MMPFN Pfn, uint64_t Offset, UNUSED void* ProcessEntryContext)
+{
+#ifdef DEBUG
+	uint64_t PfdbeOffset;
+	KIPL Ipl = MiLockPfdb();
+	PfdbeOffset = PFDBE_Offset(MmGetPageFrameFromPFN(Pfn));
+	MiUnlockPfdb(Ipl);
+	ASSERT(Offset == PfdbeOffset && "These should match.  Did you screw up the SLA structure?");
+#endif
+
+	// TODO: tear this page out of each process' page table... for now it just becomes
+	// anonymous memory.
+	//
+	// NOTE: Since we're holding a WEAK reference to this page, we don't need to call
+	// MmFreePhysicalPage.
+	MmRelinquishPageFromCache(Pfn);
+	return STATUS_SUCCESS;
+}
+
+//
+// Truncates a region of the file cache, freeing every page beyond a certain offset.
+//
+// NOTE: I don't see why this
+//
+void MmTruncateFileCache(PFCB Fcb, uint64_t StartOffset)
+{
+	UNUSED BSTATUS Status;
+	uint64_t StartPageIndex = (StartOffset + PAGE_SIZE - 1) / PAGE_SIZE;
+
+	Status = MmForEachEntryCcb(
+		&Fcb->CacheInfo.PageCache,
+		MmpTruncateFileCacheFilter,
+		MmpTruncateFileCacheProcessEntry,
+		&StartPageIndex,
+		Fcb
+	);
+
+	ASSERT(SUCCEEDED(Status));
 }
