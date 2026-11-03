@@ -93,14 +93,67 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	FileSystem->InodesPerGroup = Sb->InodesPerGroup;
 	FileSystem->BlocksPerGroup = Sb->BlocksPerGroup;
 
-	// Initialize the rest of the file system data structure.
-	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
-	InitializeRbTree(&FileSystem->InodeTree);
-
 	FileSystem->BackingDevice = BackingDevice;
 	FileSystem->File = BackingFile;
 
 	IoSetBlockSizeFile(BackingFile, FileSystem->BlockSize);
+
+	// Allocate a page for the temporary page-size read buffer.
+	MMPFN Pfn = MmAllocatePhysicalPage();
+	if (Pfn == PFN_INVALID)
+	{
+		ObDereferenceObject(FileSystem);
+		DbgPrint("Ext2: Failed to allocate temporary page-size read buffer");
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Failure;
+	}
+
+	// Then map it into memory.
+	FileSystem->TempPageSizeBuffer = MmMapIoSpace(
+		MmPFNToPhysPage(Pfn),
+		PAGE_SIZE,
+		MM_PROT_READ | MM_PROT_WRITE,
+		POOL_TAG("E2Tb")
+	);
+
+	if (!FileSystem->TempPageSizeBuffer)
+	{
+		MmFreePhysicalPage(Pfn);
+		DbgPrint("Ext2: Failed to allocate temporary page-size read buffer");
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Failure;
+	}
+
+	MmInitializeSinglePageMdl(
+		&FileSystem->TempPageSizeBufferMdl,
+		Pfn,
+		MDL_FLAG_WRITE
+	);
+
+	// Allocate a block for the temporary block-size read buffer.
+	void* BlockSizeBuffer = MmAllocatePool(POOL_NONPAGED, FileSystem->BlockSize);
+	if (!BlockSizeBuffer)
+	{
+		DbgPrint("Ext2: Failed to allocate temporary block-size read buffer");
+		Status = STATUS_INSUFFICIENT_MEMORY;
+		goto Failure;
+	}
+
+	Status = MmCreateMdl(
+		&FileSystem->TempBlockSizeBufferMdl,
+		(uintptr_t) BlockSizeBuffer,
+		FileSystem->BlockSize,
+		MODE_KERNEL,
+		true
+	);
+	if (FAILED(Status))
+	{
+		MmFreePool(BlockSizeBuffer);
+		DbgPrint("Ext2: Failed to allocate MDL for temporary block-size read buffer");
+		goto Failure;
+	}
+
+	FileSystem->TempBlockSizeBuffer = BlockSizeBuffer;
 
 	// Read the "/" inode.  It is inode 2.
 	PFCB RootFcb;
@@ -128,13 +181,6 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 Failure:
 	ObDereferenceObject(FileSystem);
 	return Status;
-}
-
-void Ext2DeleteFileSystem(void* FileSystemV)
-{
-	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
-	DbgPrint("Ext2: File System %p Deleted (TODO: clean up)", FileSystem);
-	// TODO
 }
 
 BSTATUS Ext2ParseFileSystem(

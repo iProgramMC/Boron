@@ -149,24 +149,6 @@ void Ext2DereferenceInode(PFCB Fcb)
 	}
 }
 
-BSTATUS Ext2ReadBlockGroupDescriptor(PEXT2_FILE_SYSTEM FileSystem, uint32_t BlockGroup, PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor)
-{
-	// If the block's size is 1024, then the block group descriptor table
-	// is at block 2, otherwise it's bigger, so at block 1.
-	uint64_t Address = FileSystem->BlockSize;
-	if (Address == 1024)
-		Address = 2048;
-
-	Address += BlockGroup * sizeof(EXT2_BLOCK_GROUP_DESCRIPTOR);
-
-	return CcReadFileCopy(
-		FileSystem->File,
-		Address,
-		Descriptor,
-		sizeof *Descriptor
-	);
-}
-
 BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 {
 	EXT2_BLOCK_GROUP_DESCRIPTOR Descriptor;

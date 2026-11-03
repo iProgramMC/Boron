@@ -62,8 +62,27 @@ BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out)
 		return Status;
 	}
 
-	*Out = Object;
+	PEXT2_FILE_SYSTEM FileSystem = Object;
+
+	KeInitializeMutex(&FileSystem->InodeTreeMutex, 0);
+	InitializeRbTree(&FileSystem->InodeTree);
+
+	ExInitializeFastMutex(&FileSystem->BlockAllocationMutex);
+	ExInitializeFastMutex(&FileSystem->InodeAllocationMutex);
+	ExInitializeFastMutex(&FileSystem->TempPageSizeBufferMutex);
+	ExInitializeFastMutex(&FileSystem->TempBlockSizeBufferMutex);
+
+	KeInitializeSpinLock(&FileSystem->SuperBlockSpinLock);
+
+	*Out = FileSystem;
 	return STATUS_SUCCESS;
+}
+
+void Ext2DeleteFileSystem(void* FileSystemV)
+{
+	PEXT2_FILE_SYSTEM FileSystem = FileSystemV;
+	DbgPrint("Ext2: File System %p Deleted (TODO: clean up)", FileSystem);
+	// TODO
 }
 
 BSTATUS DriverEntry(UNUSED PDRIVER_OBJECT Object)

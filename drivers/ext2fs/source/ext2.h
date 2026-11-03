@@ -20,6 +20,7 @@ Author:
 #include <ob.h>
 #include <mm.h>
 #include <cc.h>
+#include <ex.h>
 
 #include "dskstrct.h"
 
@@ -88,7 +89,13 @@ struct _EXT2_FILE_SYSTEM
 	PDEVICE_OBJECT BackingDevice;
 	PFILE_OBJECT File;
 
+	// TODO: Use super block APIs instead of poking directly into the superblock.
+	//
+	// NOTE: We use a spin lock here because the super block is high traffic but operations
+	// on the super block are very simple.
+	KSPIN_LOCK SuperBlockSpinLock;
 	EXT2_SUPERBLOCK SuperBlock;
+	bool SuperBlockIsDirty;
 
 	// If this file system is read only because it uses features that make it so.
 	bool ForceReadOnly;
@@ -106,6 +113,20 @@ struct _EXT2_FILE_SYSTEM
 	RBTREE InodeTree;
 	KMUTEX InodeTreeMutex;
 
+	// This mutex is for resource allocation.
+	FAST_MUTEX BlockAllocationMutex;
+	FAST_MUTEX InodeAllocationMutex;
+
+	// This buffer is used for read/write operations in memory-constrained environments.
+	FAST_MUTEX TempPageSizeBufferMutex;
+	void* TempPageSizeBuffer;
+	MDL_ONEPAGE TempPageSizeBufferMdl;
+
+	// This buffer is used for reads of block/inode bitmaps.
+	FAST_MUTEX TempBlockSizeBufferMutex;
+	void* TempBlockSizeBuffer;
+	PMDL TempBlockSizeBufferMdl;
+
 	// This is a quick reference to the root directory.
 	PFCB RootInode;
 };
@@ -120,3 +141,40 @@ BSTATUS Ext2ParseFileSystem(void* FileSystemV, const char** Name, void* Context,
 BSTATUS Ext2CreateFileSystemObject(PEXT2_FILE_SYSTEM* Out);
 
 BSTATUS Ext2OpenInode(PEXT2_FILE_SYSTEM FileSystem, uint32_t InodeNumber, PFCB* OutFcb);
+
+BSTATUS Ext2ReadBlockGroupDescriptor(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockGroup,
+	PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor
+);
+
+BSTATUS Ext2WriteBlockGroupDescriptor(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockGroup,
+	PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor
+);
+
+void Ext2IncrementAllocatedBlocksSuperBlock(
+	PEXT2_FILE_SYSTEM FileSystem,
+	int32_t AmountBy
+);
+
+void Ext2ModifyAllocatedInodesSuperBlock(
+	PEXT2_FILE_SYSTEM FileSystem,
+	bool Decrement
+);
+
+bool Ext2GetSuperBlockSnapshot(
+	PEXT2_FILE_SYSTEM FileSystem,
+	PEXT2_SUPERBLOCK OutSuperblock,
+	bool ClearDirty,
+	bool CopyEvenIfClean
+);
+
+BSTATUS Ext2AllocateBlocks(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockHint,
+	size_t BlockCount,
+	uint32_t* OutBlockStart,
+	size_t* OutBlockCount
+);

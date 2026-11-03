@@ -4,11 +4,11 @@
 
 Module name:
 	dskstrct.h
-	
+
 Abstract:
 	This header defines the ext2 structures as they
 	are defined on disk.
-	
+
 Author:
 	iProgramInCpp - 8 June 2025
 ***/
@@ -49,7 +49,7 @@ Author:
 typedef union _EXT2_SUPERBLOCK
 {
 	uint8_t Bytes[1024];
-	
+
 	struct
 	{
 		// Base super block fields
@@ -78,7 +78,7 @@ typedef union _EXT2_SUPERBLOCK
 		uint32_t Version;
 		uint16_t ReservedBlockUid;
 		uint16_t ReservedBlockGid;
-		
+
 		// Extended super block fields (EXT2_DYNAMIC_REV)
 		uint32_t FirstNonReservedInode;
 		uint16_t InodeStructureSize;
@@ -109,7 +109,7 @@ static_assert(sizeof(EXT2_SUPERBLOCK) == 1024);
 typedef union _EXT2_BLOCK_GROUP_DESCRIPTOR
 {
 	uint8_t Bytes[32];
-	
+
 	struct
 	{
 		uint32_t BlockBitmapBlockId;
@@ -138,7 +138,7 @@ typedef struct _EXT2_INODE
 	uint32_t BlockCount;
 	uint32_t Flags;
 	uint32_t OSSpecific1;
-	
+
 	union
 	{
 		struct
@@ -148,10 +148,10 @@ typedef struct _EXT2_INODE
 			uint32_t DoublyIndirectBlockPointer;
 			uint32_t TriplyIndirectBlockPointer;
 		};
-		
+
 		char ShortSymLinkContents[60];
 	};
-	
+
 	uint32_t Generation;
 	uint32_t ExtendedAttributeBlockId;
 	uint32_t SizeUpper;
@@ -166,7 +166,7 @@ typedef struct _EXT2_DIRENT
 {
 	uint32_t InodeNumber;
 	uint16_t RecordLength;
-	
+
 	union
 	{
 		struct
@@ -174,7 +174,7 @@ typedef struct _EXT2_DIRENT
 			uint8_t NameLength;
 			uint8_t TypeIndicator;
 		};
-		
+
 		uint16_t NameLength16;
 	};
 }
@@ -204,11 +204,11 @@ enum
 	EXT2_S_IFCHR  = 0x2000, // Character Device
 	EXT2_S_IFIFO  = 0x1000, // FIFO
 	EXT2_S_IFMSK  = 0xF000, // File Type Mask
-	
+
 	EXT2_S_ISUID  = 0x0800, // Is Set UID
 	EXT2_S_ISGID  = 0x0400, // Is Set GID
 	EXT2_S_ISVTX  = 0x0200, // Is Sticky
-	
+
 	EXT2_S_IRUSR  = 0x0100, // Read User
 	EXT2_S_IWUSR  = 0x0080, // Write User
 	EXT2_S_IXUSR  = 0x0040, // Execute User
