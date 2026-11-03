@@ -636,6 +636,7 @@ BSTATUS Ext2FlushMetadata(PFCB Fcb)
 			continue;
 
 		// NOTE: Ignoring status.
+		(void) MmFlushFileCache(ChildFcb);
 		(void) Ext2FlushMetadata(ChildFcb);
 	}
 
