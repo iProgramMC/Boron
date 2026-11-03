@@ -296,7 +296,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	// If the truncation attempt happens in the middle of the write function, and we did
 	// exclusively lock the FCB to check this, then the truncation would be delayed to after
 	// this function succeeds.
-	else if (IsSeekable && EndOffset > Fcb->FileLength)
+	else if (IsSeekable && EndOffset > Fcb->FileLength && !(Flags & IO_RW_PAGING))
 	{
 		// Expansion required.  Acquire the lock, and expand.
 		Status = IoLockFcbExclusive(Fcb);
