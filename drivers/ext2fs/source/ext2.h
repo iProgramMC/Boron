@@ -154,14 +154,14 @@ BSTATUS Ext2WriteBlockGroupDescriptor(
 	PEXT2_BLOCK_GROUP_DESCRIPTOR Descriptor
 );
 
-void Ext2IncrementAllocatedBlocksSuperBlock(
+void Ext2IncrementFreeBlocksSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,
 	int32_t AmountBy
 );
 
-void Ext2ModifyAllocatedInodesSuperBlock(
+void Ext2ModifyFreeInodesSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,
-	bool Decrement
+	bool Allocating
 );
 
 bool Ext2GetSuperBlockSnapshot(
@@ -177,4 +177,9 @@ BSTATUS Ext2AllocateBlocks(
 	size_t BlockCount,
 	uint32_t* OutBlockStart,
 	size_t* OutBlockCount
+);
+
+BSTATUS Ext2FreeBlock(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockIndex
 );

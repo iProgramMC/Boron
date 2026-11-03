@@ -14,7 +14,7 @@ Author:
 #include "ext2.h"
 #include <string.h>
 
-void Ext2IncrementAllocatedBlocksSuperBlock(
+void Ext2IncrementFreeBlocksSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,
 	int32_t AmountBy
 )
@@ -53,7 +53,7 @@ void Ext2IncrementAllocatedBlocksSuperBlock(
 	KeReleaseSpinLock(&FileSystem->SuperBlockSpinLock, Ipl);
 }
 
-void Ext2ModifyAllocatedInodesSuperBlock(
+void Ext2ModifyFreeInodesSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,
 	bool Decrement
 )

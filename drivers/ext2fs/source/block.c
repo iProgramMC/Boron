@@ -173,6 +173,8 @@ static BSTATUS Ext2pAllocateBlocksInBlockGroup(
 		int BitmapIndex = BlockIndex / 64;
 		uint64_t Bits = Bitmap[BitmapIndex];
 
+		// TODO: For big-endian, perform byteswap here...
+
 		for (int i = 0; i < BitsToCount; i++)
 		{
 			if ((Bits >> i) & 1)
@@ -208,6 +210,7 @@ static BSTATUS Ext2pAllocateBlocksInBlockGroup(
 		}
 
 		if (WriteBack) {
+			// TODO: For big endian... and here.
 			Bitmap[BitmapIndex] = Bits;
 		}
 
@@ -270,7 +273,7 @@ static BSTATUS Ext2pAllocateBlocksInBlockGroup(
 	// Update this block group descriptor's allocated blocks count, as well as the super block's.
 	ASSERT(BlockCount < 65535 && "The amount of blocks allocated shouldn't have exceeded the max "
 		"from the block group descriptor");
-	Ext2IncrementAllocatedBlocksSuperBlock(FileSystem, -((int32_t) BlockCount));
+	Ext2IncrementFreeBlocksSuperBlock(FileSystem, -((int32_t) BlockCount));
 
 	if (Descriptor.FreeBlockCount < BlockCount)
 	{
@@ -431,4 +434,102 @@ BSTATUS Ext2AllocateBlocks(
 	ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
 	DbgPrint("Ext2AllocateBlocks  ERROR: Could not allocate blocks! Out of blocks to allocate! (hint not given)");
 	return STATUS_INSUFFICIENT_SPACE;
+}
+
+// TODO: Allow for freeing multiple blocks in a batch or range.
+BSTATUS Ext2FreeBlock(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockIndex
+)
+{
+	BSTATUS Status;
+	uint32_t BlockGroup, BlockIndexInGroup;
+	BlockGroup = Ext2pGetBlockGroupForBlock(
+		FileSystem,
+		BlockIndex,
+		&BlockIndexInGroup
+	);
+
+	ExAcquireFastMutex(&FileSystem->BlockAllocationMutex, false);
+
+	// Read the block group descriptor now.
+	EXT2_BLOCK_GROUP_DESCRIPTOR Descriptor;
+	Status = Ext2ReadBlockGroupDescriptor(
+		FileSystem,
+		BlockGroup,
+		&Descriptor
+	);
+
+	if (FAILED(Status))
+	{
+		ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
+		DbgPrint("Ext2: Cannot read block group descriptor while freeing: %s", RtlGetStatusString(Status));
+		return Status;
+	}
+
+	uint64_t Address = (uint64_t) Descriptor.BlockBitmapBlockId * FileSystem->BlockSize;
+	Address += BlockIndexInGroup / 8;
+
+	int BitIndex = BlockIndexInGroup % 8;
+	uint8_t AllocationMask = (1 << BitIndex);
+
+	uint8_t AllocationBitmap = 0;
+
+	// Since CcReadFile/CcWriteFile support arbitrary sized writes (even if the underlying block
+	// devices don't), we can just do this, and it'll translate to a block-size write later.
+	Status = CcReadFileCopy(
+		FileSystem->File,
+		Address,
+		&AllocationBitmap,
+		sizeof AllocationBitmap
+	);
+
+	if (FAILED(Status))
+	{
+		ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
+		DbgPrint("Ext2: Cannot read allocation bitmap while freeing: %s", RtlGetStatusString(Status));
+		return Status;
+	}
+
+	if (!(AllocationBitmap & AllocationMask))
+	{
+		ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
+		DbgPrint("Ext2: Cannot free already freed block %u", BlockIndex);
+		return STATUS_HARDWARE_IO_ERROR;
+	}
+
+	AllocationBitmap &= ~AllocationMask;
+	Descriptor.FreeBlockCount++;
+	ASSERT(Descriptor.FreeBlockCount != 0 && "Block count overflow!");
+
+	// Write it back now.
+	Status = CcWriteFileCopy(
+		FileSystem->File,
+		Address,
+		&AllocationBitmap,
+		sizeof AllocationBitmap
+	);
+
+	if (FAILED(Status))
+	{
+		ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
+		DbgPrint("Ext2: Cannot write allocation bitmap while freeing: %s", RtlGetStatusString(Status));
+		return Status;
+	}
+
+	// Write the descriptor too. However, a failure in this routine isn't fatal.
+	Status = Ext2WriteBlockGroupDescriptor(
+		FileSystem,
+		BlockGroup,
+		&Descriptor
+	);
+
+	if (FAILED(Status))
+		DbgPrint("Ext2: Cannot rewrite block group descriptor while freeing: %s", RtlGetStatusString(Status));
+
+	ExReleaseFastMutex(&FileSystem->BlockAllocationMutex);
+
+	Ext2IncrementFreeBlocksSuperBlock(FileSystem, 1);
+
+	return STATUS_SUCCESS;
 }
