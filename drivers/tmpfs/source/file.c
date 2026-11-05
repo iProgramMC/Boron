@@ -798,6 +798,12 @@ void TmpOnDeleteObjectFcb(PFCB Fcb, UNUSED PFILE_OBJECT FileObject)
 	TmpPurgeViewsForDeletedFileIfNeeded(Fcb);
 }
 
+BSTATUS TmpTouchFcb(UNUSED PFCB Fcb, UNUSED bool IsWrite)
+{
+	// TODO: Set modification/access time...
+	return STATUS_SUCCESS;
+}
+
 IO_DISPATCH_TABLE TmpDispatchTable =
 {
 	.Seekable = TmpFileSeekable,
@@ -805,6 +811,7 @@ IO_DISPATCH_TABLE TmpDispatchTable =
 	.Dereference = TmpDereferenceFcb,
 	.DeleteObject = TmpOnDeleteObjectFcb,
 	.BackingMemory = TmpBackingMemory,
+	.Touch = TmpTouchFcb,
 	.Read = TmpRead,
 	.Write = TmpWrite,
 	.Resize = TmpResize,
