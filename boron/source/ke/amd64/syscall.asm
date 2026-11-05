@@ -69,6 +69,7 @@ extern OSSetCurrentTeb
 extern OSSetEvent
 extern OSSetExitCode
 extern OSSetImageNameProcess
+extern OSSetLengthFile
 extern OSSetPebProcess
 extern OSSetSuspendedThread
 extern OSShutDownSystem
@@ -133,6 +134,7 @@ KiSystemServiceTable:
 	dq OSSetEvent
 	dq OSSetExitCode
 	dq OSSetImageNameProcess
+	dq OSSetLengthFile
 	dq OSSetPebProcess
 	dq OSSetSuspendedThread
 	dq OSShutDownSystem

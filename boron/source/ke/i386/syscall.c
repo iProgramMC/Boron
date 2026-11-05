@@ -190,6 +190,7 @@ const void* const KiSystemServiceTable[] =
 	OSSetEvent,
 	OSSetExitCode,
 	OSSetImageNameProcess,
+	OSSetLengthFile,
 	OSSetPebProcess,
 	OSSetSuspendedThread,
 	OSShutDownSystem,

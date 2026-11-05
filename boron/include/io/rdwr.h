@@ -108,6 +108,8 @@ BSTATUS IoDeviceIoControl(
 
 BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOutOffset);
 
+BSTATUS IoSetLengthFile(PFILE_OBJECT FileObject, uint64_t NewLength, uint64_t* OldLength);
+
 // ** SYSTEM SERVICES **
 
 BSTATUS OSReadFile(PIO_STATUS_BLOCK Iosb, HANDLE Handle, uint64_t ByteOffset, void* Buffer, size_t Length, uint32_t Flags);
@@ -139,6 +141,8 @@ BSTATUS OSCreateFile(
 	const char* TargetName,
 	size_t TargetNameLength
 );
+
+BSTATUS OSSetLengthFile(HANDLE Handle, uint64_t* OldLength, uint64_t NewLength);
 
 #ifdef KERNEL
 

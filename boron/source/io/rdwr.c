@@ -904,6 +904,28 @@ BSTATUS IoCreateFile(
 	return Status;
 }
 
+BSTATUS IoSetLengthFile(PFILE_OBJECT FileObject, uint64_t NewLength, uint64_t* OldLength)
+{
+	BSTATUS Status;
+	ASSERT(FileObject);
+
+	PFCB Fcb = FileObject->Fcb;
+	ASSERT(Fcb);
+	ASSERT(Fcb->DispatchTable);
+
+	Status = IoLockFcbExclusive(Fcb);
+
+	if (FAILED(Status))
+		return Status;
+
+	*OldLength = Fcb->FileLength;
+	Status = IopSetFileSize(Fcb, NewLength);
+
+	IoUnlockFcb(Fcb);
+
+	return Status;
+}
+
 // =========== User-facing API ===========
 
 BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
@@ -918,6 +940,28 @@ BSTATUS OSTouchFile(HANDLE Handle, bool IsWrite)
 	PFILE_OBJECT FileObject = FileObjectV;
 
 	Status = IopTouchFile(FileObject->Fcb, IsWrite ? IO_OP_WRITE : IO_OP_READ);
+
+	ObDereferenceObject(FileObject);
+	return Status;
+}
+
+BSTATUS OSSetLengthFile(HANDLE Handle, uint64_t* OldLength, uint64_t NewLength)
+{
+	BSTATUS Status;
+
+	void* FileObjectV;
+	Status = ObReferenceObjectByHandle(Handle, IoFileType, &FileObjectV);
+	if (FAILED(Status))
+		return Status;
+
+	PFILE_OBJECT FileObject = FileObjectV;
+	uint64_t OldLength2 = 0;
+	Status = IoSetLengthFile(FileObject, NewLength, &OldLength2);
+
+	if (SUCCEEDED(Status) && OldLength != NULL)
+	{
+		Status = MmSafeCopy(OldLength, &OldLength2, sizeof(uint64_t), KeGetPreviousMode(), true);
+	}
 
 	ObDereferenceObject(FileObject);
 	return Status;

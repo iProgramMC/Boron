@@ -180,6 +180,8 @@ BSTATUS OSSetExitCode(int ExitCode);
 
 BSTATUS OSSetImageNameProcess(HANDLE ProcessHandle, const char* ImageName, size_t ImageNameLength);
 
+BSTATUS OSSetLengthFile(HANDLE Handle, uint64_t* OldLength, uint64_t NewLength);
+
 BSTATUS OSSetPebProcess(HANDLE ProcessHandle, void* PebPtr);
 
 BSTATUS OSSetSuspendedThread(HANDLE ThreadHandle, bool IsSuspended);

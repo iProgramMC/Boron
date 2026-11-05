@@ -53,16 +53,17 @@ CALL 46, 1, OSSetCurrentTeb
 CALL 47, 1, OSSetEvent
 CALL 48, 1, OSSetExitCode
 CALL 49, 3, OSSetImageNameProcess
-CALL 50, 2, OSSetPebProcess
-CALL 51, 2, OSSetSuspendedThread
-CALL 52, 1, OSShutDownSystem
-CALL 53, 1, OSSleep
-CALL 54, 1, OSTerminateThread
-CALL 55, 1, OSTouchFile
-CALL 56, 5, OSWaitForMultipleObjects
-CALL 57, 3, OSWaitForSingleObject
-//   58     OSWriteFile
-CALL 59, 4, OSWriteVirtualMemory
+CALL 50, 4, OSSetLengthFile
+CALL 51, 2, OSSetPebProcess
+CALL 52, 2, OSSetSuspendedThread
+CALL 53, 1, OSShutDownSystem
+CALL 54, 1, OSSleep
+CALL 55, 1, OSTerminateThread
+CALL 56, 1, OSTouchFile
+CALL 57, 5, OSWaitForMultipleObjects
+CALL 58, 3, OSWaitForSingleObject
+//   59     OSWriteFile
+CALL 60, 4, OSWriteVirtualMemory
 
 // The following system calls use at least one 64-bit parameter.
 // On 32-bit, 64-bit arguments typically get passed as high/low pairs of 32-bit arguments.
@@ -71,7 +72,7 @@ CALL 59, 4, OSWriteVirtualMemory
 CALL 30, 7, OSMapViewOfObject
 CALL 40, 6, OSReadFile
 CALL 44, 4, OSSeekFile
-CALL 58, 7, OSWriteFile
+CALL 59, 7, OSWriteFile
 
 #elif defined TARGET_ARM
 
@@ -85,13 +86,13 @@ CALL 40, 7, OSReadFile
 // r0 = FileHandle, r1 = dummy padding, r2 and r3 = Offset
 CALL 44, 5, OSSeekFile
 // no change, ByteOffset occupies r2 and r3
-CALL 58, 8, OSWriteFile
+CALL 59, 8, OSWriteFile
 
 #else
 
 CALL 30, 8, OSMapViewOfObject
 CALL 40, 7, OSReadFile
 CALL 44, 5, OSSeekFile
-CALL 58, 8, OSWriteFile
+CALL 59, 8, OSWriteFile
 
 #endif
