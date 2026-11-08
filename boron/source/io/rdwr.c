@@ -63,7 +63,10 @@ static BSTATUS IopTouchFile(PFCB Fcb, int IoType)
 	if (!Dispatch->Touch)
 		return STATUS_UNSUPPORTED_FUNCTION;
 
-	return Dispatch->Touch(Fcb, IO_IS_WRITE(IoType));
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = Dispatch->Touch(Fcb, IO_IS_WRITE(IoType));
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 static size_t IopGetAlignmentInfo(PFCB Fcb)
@@ -75,7 +78,10 @@ static size_t IopGetAlignmentInfo(PFCB Fcb)
 	if (!Dispatch->GetAlignmentInfo)
 		return 1;
 
-	return Dispatch->GetAlignmentInfo(Fcb);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	uint64_t Info = Dispatch->GetAlignmentInfo(Fcb);
+	KeSetAddressMode(Mode);
+	return Info;
 }
 
 static BSTATUS IopReadFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset)
@@ -90,7 +96,10 @@ static BSTATUS IopReadFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint
 	if (!ReadMethod)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 
-	return ReadMethod(Iosb, Fcb, Offset, Mdl, Flags);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = ReadMethod(Iosb, Fcb, Offset, Mdl, Flags);
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uint32_t Flags, uint64_t Offset)
@@ -105,7 +114,10 @@ static BSTATUS IopWriteFileLocked(PIO_STATUS_BLOCK Iosb, PFCB Fcb, PMDL Mdl, uin
 	if (!WriteMethod)
 		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
 
-	return WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = WriteMethod(Iosb, Fcb, Offset, Mdl, Flags);
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 // NOTE: Must have the FCB's rwlock acquired exclusive!
@@ -114,7 +126,26 @@ static BSTATUS IopSetFileSize(PFCB Fcb, uint64_t NewFileSize)
 	if (!Fcb->DispatchTable->Resize)
 		return STATUS_UNSUPPORTED_FUNCTION;
 
-	return Fcb->DispatchTable->Resize(Fcb, NewFileSize);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = Fcb->DispatchTable->Resize(Fcb, NewFileSize);
+	KeSetAddressMode(Mode);
+	return Status;
+}
+
+BSTATUS IoFlushMetadataFile(PFILE_OBJECT FileObject)
+{
+	IO_FLUSH_META_METHOD FlushMetadata = FileObject->Fcb->DispatchTable->FlushMetadata;
+
+	if (!FlushMetadata)
+	{
+		DbgPrint("Warning: IoFlushMetadataFile is not implemented for FCB %p, but just returning success", FileObject->Fcb);
+		return STATUS_SUCCESS;
+	}
+
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = FlushMetadata(FileObject->Fcb);
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 static BSTATUS IopReadFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMDL Mdl, uint32_t Flags, uint64_t Offset, bool Cached, uint64_t* OutFileSize)
@@ -688,7 +719,10 @@ BSTATUS IoDeviceIoControl(
 	if (!IoControl)
 		return STATUS_UNSUPPORTED_FUNCTION;
 
-	return IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = IoControl(Fcb, IoControlCode, InBuffer, InBufferSize, OutBuffer, OutBufferSize);
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 BSTATUS IoMakeHardLink(
@@ -703,7 +737,10 @@ BSTATUS IoMakeHardLink(
 	if (!MakeHardLink)
 		return STATUS_UNSUPPORTED_FUNCTION;
 
-	return MakeHardLink(Fcb, Name, ReferencedFileObject->Fcb);
+	KPROCESSOR_MODE Mode = KeSetAddressMode(MODE_KERNEL);
+	BSTATUS Status = MakeHardLink(Fcb, Name, ReferencedFileObject->Fcb);
+	KeSetAddressMode(Mode);
+	return Status;
 }
 
 BSTATUS IoSeekFile(PFILE_OBJECT FileObject, int64_t Offset, int Whence, uint64_t* NewOffset)

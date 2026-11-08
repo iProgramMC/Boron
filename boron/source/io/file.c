@@ -97,17 +97,4 @@ void IopDeleteFile(void* Object)
 	IoDereferenceFcb(File->Fcb);
 }
 
-BSTATUS IoFlushMetadataFile(PFILE_OBJECT FileObject)
-{
-	IO_FLUSH_META_METHOD FlushMetadata = FileObject->Fcb->DispatchTable->FlushMetadata;
-
-	if (!FlushMetadata)
-	{
-		DbgPrint("Warning: IoFlushMetadataFile is not implemented for FCB %p, but just returning success", FileObject->Fcb);
-		return STATUS_SUCCESS;
-	}
-
-	return FlushMetadata(FileObject->Fcb);
-}
-
 // IopParseFile is implemented in io/parse.c
