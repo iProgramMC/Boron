@@ -99,7 +99,7 @@ bool Ext2GetSuperBlockSnapshot(
 	KeAcquireSpinLock(&FileSystem->SuperBlockSpinLock, &Ipl);
 
 	bool WasDirty = FileSystem->SuperBlockIsDirty;
-	if (CopyEvenIfClean) {
+	if (WasDirty || CopyEvenIfClean) {
 		memcpy(OutSuperblock, &FileSystem->SuperBlock, sizeof(EXT2_SUPERBLOCK));
 	}
 

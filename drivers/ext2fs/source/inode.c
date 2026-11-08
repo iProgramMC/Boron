@@ -580,6 +580,32 @@ BSTATUS Ext2ParseDir(
 	}
 }
 
+static BSTATUS Ext2pFlushSuperBlock(PEXT2_FILE_SYSTEM FileSystem)
+{
+	BSTATUS Status;
+	EXT2_SUPERBLOCK SuperBlock;
+
+	if (!Ext2GetSuperBlockSnapshot(FileSystem, &SuperBlock, true, false))
+	{
+		// Clean superblock.
+		return STATUS_SUCCESS;
+	}
+
+	Status = CcWriteFileCopy(
+		FileSystem->File,
+		1024,
+		&SuperBlock,
+		sizeof(EXT2_SUPERBLOCK)
+	);
+
+	if (FAILED(Status))
+	{
+		FileSystem->SuperBlockIsDirty = true;
+	}
+
+	return Status;
+}
+
 BSTATUS Ext2FlushMetadata(PFCB Fcb)
 {
 	BSTATUS Status = STATUS_SUCCESS;
@@ -646,6 +672,13 @@ BSTATUS Ext2FlushMetadata(PFCB Fcb)
 	}
 
 	ReleaseInodeTreeMutex(FileSystem);
+
+	Status = Ext2pFlushSuperBlock(FileSystem);
+	if (FAILED(Status))
+	{
+		DbgPrint("Ext2: Could not flush super block: %s", RtlGetStatusString(Status));
+		return Status;
+	}
 
 	// Call flush on the backing disk, too.
 	return MmFlushFileCache(FileSystem->File->Fcb);
