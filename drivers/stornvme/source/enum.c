@@ -134,8 +134,20 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 	// According to the specification, the lower 12 bits are reserved, so they are ignored.
 	uintptr_t BaseAddress = HalPciReadBarAddress(&Device->Address, 0);
 
-	// Use the HHDM offset to determine the address in virtual memory.
-	PNVME_CONTROLLER Controller = MmGetHHDMOffsetAddr(BaseAddress);
+	// Map the controller in memory for easy access.
+	// TODO: Don't assume 16 KB
+	PNVME_CONTROLLER Controller = MmMapIoSpace(
+		BaseAddress,
+		PAGE_SIZE * 4,
+		MM_PROT_READ | MM_PROT_WRITE | MM_MISC_DISABLE_CACHE,
+		POOL_TAG("Nvme")
+	);
+
+	if (!Controller)
+	{
+		DbgPrint("StorNvme ERROR: Could not map I/O space for controller");
+		goto CleanupAndGoAway;
+	}
 
 	ContExtension->Controller = Controller;
 
@@ -148,10 +160,14 @@ bool NvmePciDeviceEnumerated(PPCI_DEVICE Device, UNUSED void* CallbackContext)
 			Device->Address.Slot,
 			Device->Address.Function
 		);
-
 	CleanupAndGoAway:
 		ObUnlinkObject(ControllerObject);
 		ObDereferenceObject(ControllerObject);
+
+		if (Controller) {
+			MmFreePoolBig((void*) Controller);
+		}
+
 		return false;
 	}
 

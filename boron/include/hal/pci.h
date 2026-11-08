@@ -4,11 +4,11 @@
 
 Module name:
 	hal/pci.h
-	
+
 Abstract:
 	This header file defines the PCI related data types
 	for the kernel-HAL interface.
-	
+
 Author:
 	iProgramInCpp - 7 July 2024
 ***/
@@ -117,7 +117,7 @@ typedef union
 		uint16_t VendorId;
 		uint16_t DeviceId;
 	};
-	
+
 	uint32_t VendorAndDeviceId;
 }
 PCI_IDENTIFIER, *PPCI_IDENTIFIER;
@@ -135,7 +135,7 @@ typedef union
 		uint8_t SubClass;
 		uint8_t Class;
 	};
-	
+
 	uint32_t Register;
 }
 PCI_CLASS, *PPCI_CLASS;
@@ -213,7 +213,7 @@ HalPciEnumerate(
 //
 // MSI-X table entry.
 //
-typedef struct
+typedef volatile struct
 {
 	uint64_t Address;
 	uint32_t MessageData;
@@ -266,12 +266,12 @@ void HalPciMsixSetFunctionMask(PPCI_DEVICE Device, bool Mask) {
 		&Device->Address,
 		Device->MsixData.CapabilityOffset
 	);
-	
+
 	if ((Mask))
 		U |= (PCI_MSIX_MC_FUNMASK << 16);
 	else
 		U &= ~(PCI_MSIX_MC_FUNMASK << 16);
-	
+
 	HalPciConfigWriteDword(
 		&Device->Address,
 		Device->MsixData.CapabilityOffset,
@@ -306,24 +306,20 @@ uintptr_t HalPciMsiCreateAddress(uint8_t ProcessorId)
 // Assign an MSI message to the specific vector for an MSI-X capable device.
 //
 // Parameters:
-//   Device      - The device affected by this change
-//   Index       - The index within the MSI-X vector table affected by this change.
-//   Vector      - The interrupt vector triggered when this message signalled interrupt is fired
-//   EdgeTrigger - 
+//   Device - The device affected by this change
+//   Index - The index within the MSI-X vector table affected by this change.
+//   Vector - The interrupt vector triggered when this message signalled interrupt is fired
+//   EdgeTrigger - TBD
+//   Deassert - TBD
+//   MappedBarAddress - Must be specified if the device's BAR is >4GB or otherwise unavailable
+//                      through the HHDM.
 //
-FORCE_INLINE
-void HalPciMsixSetInterrupt(PPCI_DEVICE Device, int Index, uint8_t ProcessorId, uint8_t Vector, bool EdgeTrigger, bool Deassert)
-{
-	uintptr_t Address = HalPciReadBarAddress(&Device->Address, Device->MsixData.Bir);
-	
-	MmBeginUsingHHDM();
-	
-	PPCI_MSIX_TABLE_ENTRY Table = MmGetHHDMOffsetAddr(Address + Device->MsixData.TableOffset);
-	Table += Index;
-	
-	Table->Address = HalPciMsiCreateAddress(ProcessorId);
-	Table->MessageData = HalPciMsiCreateMessage(Vector, EdgeTrigger, Deassert);
-	Table->VectorControl = 0;
-	
-	MmEndUsingHHDM();
-}
+void HalPciMsixSetInterrupt(
+	PPCI_DEVICE Device,
+	int Index,
+	uint8_t ProcessorId,
+	uint8_t Vector,
+	bool EdgeTrigger,
+	bool Deassert,
+	void* MappedBarAddress
+);

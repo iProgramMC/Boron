@@ -4,11 +4,11 @@
 
 Module name:
 	hal/pcihal.c
-	
+
 Abstract:
 	This module contains the implementation of the HAL dispatch
 	functions for PCI enumeration & processing.
-	
+
 Author:
 	iProgramInCpp - 6 May 2026
 ***/
@@ -66,6 +66,40 @@ uint32_t HalPciReadBarIoAddress(PPCI_ADDRESS Address, int BarIndex)
 uintptr_t HalPciReadBarAddress(PPCI_ADDRESS Address, int BarIndex)
 {
 	return HalpVftable.PciReadBarAddress(Address, BarIndex);
+}
+
+void HalPciMsixSetInterrupt(
+	PPCI_DEVICE Device,
+	int Index,
+	uint8_t ProcessorId,
+	uint8_t Vector,
+	bool EdgeTrigger,
+	bool Deassert,
+	void* MappedBarAddress
+)
+{
+	bool UsingHHDM = false;
+
+	if (!MappedBarAddress)
+	{
+		uintptr_t Address = HalPciReadBarAddress(&Device->Address, Device->MsixData.Bir);
+
+		MmBeginUsingHHDM();
+		UsingHHDM = true;
+		MappedBarAddress = MmGetHHDMOffsetAddr(Address);
+	}
+
+	PPCI_MSIX_TABLE_ENTRY Table = (volatile void*) ((uintptr_t) MappedBarAddress + Device->MsixData.TableOffset);
+	Table += Index;
+
+	Table->Address = HalPciMsiCreateAddress(ProcessorId);
+	Table->MessageData = HalPciMsiCreateMessage(Vector, EdgeTrigger, Deassert);
+	Table->VectorControl = 0;
+
+	if (UsingHHDM)
+	{
+		MmEndUsingHHDM();
+	}
 }
 
 #endif

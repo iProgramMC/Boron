@@ -63,7 +63,7 @@ static void NvmeService(PKINTERRUPT Interrupt, void* Context)
 	KeEnqueueDpc(&Qcb->Dpc, NULL, NULL);
 }
 
-static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex)
+static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex, PNVME_CONTROLLER Controller)
 {
 	PPCI_DEVICE Device = Qcb->Controller->PciDevice;
 	KIPL Ipl;
@@ -86,7 +86,15 @@ static void NvmeCreateInterruptForQueue(PQUEUE_CONTROL_BLOCK Qcb, int MsixIndex)
 	UNUSED bool Connected = KeConnectInterrupt(&Qcb->Interrupt);
 	ASSERT(Connected);
 
-	HalPciMsixSetInterrupt(Device, MsixIndex, KeGetCurrentPRCB()->LapicId, Vector, false, true);
+	HalPciMsixSetInterrupt(
+		Device,
+		MsixIndex,
+		KeGetCurrentPRCB()->LapicId,
+		Vector,
+		false,
+		true,
+		(void*) Controller
+	);
 
 	HalPciMsixSetFunctionMask(Device, false);
 }
@@ -178,7 +186,7 @@ void NvmeSetupQueue(
 	KeInitializeSemaphore(&Qcb->Semaphore, ARRAY_COUNT(Qcb->Entries), SEMAPHORE_LIMIT_NONE);
 
 	// Create the queue interrupt.
-	NvmeCreateInterruptForQueue(Qcb, MsixIndex);
+	NvmeCreateInterruptForQueue(Qcb, MsixIndex, ContExtension->Controller);
 }
 
 PQUEUE_CONTROL_BLOCK NvmeChooseIoQueue(PCONTROLLER_EXTENSION Extension)
