@@ -21,10 +21,11 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
 	.Read = Ext2Read,
+	.Resize = Ext2ResizeFile,
+	.Touch = Ext2TouchFile,
 	.ReadDir = Ext2ReadDir,
 	.ParseDir = Ext2ParseDir,
 	.Seekable = Ext2Seekable,
-	.Resize = Ext2Resize,
 	.FlushMetadata = Ext2FlushMetadata,
 };
 

@@ -948,7 +948,14 @@ static void Ext2pSetFileSizeFcb(PFCB Fcb, uint64_t NewLength)
 		Ext->Inode.SizeUpper = (uint32_t)(NewLength >> 32);
 }
 
-BSTATUS Ext2Resize(PFCB Fcb, uint64_t NewLength)
+BSTATUS Ext2TouchFile(PFCB Fcb, bool IsWrite)
+{
+	// TODO
+	DbgPrint("TODO: Ext2TouchFile(%p, %s)", Fcb, IsWrite ? "WRITE" : "READ");
+	return STATUS_SUCCESS;
+}
+
+BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 {
 	BSTATUS Status = STATUS_SUCCESS;
 	PREP_EXT;

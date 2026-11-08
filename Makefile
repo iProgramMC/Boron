@@ -83,6 +83,12 @@ checkdisk:
 	@echo "Checking vdiske2.img for errors ..."
 	./tools/check_disk_image.sh
 
+.PHONY: restoredisk
+restoredisk:
+	@echo "Restoring disk from backup ..."
+	@rm -rf ./vdiske2.img
+	@cp ./keep/vdiske2.img ./vdiske2.img
+
 image: limine $(IMAGE_TARGET) $(INITRD_TARGET)
 
 include tools/build_image_$(TARGETL).mk

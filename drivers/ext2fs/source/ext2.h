@@ -81,7 +81,9 @@ void Ext2DereferenceInode(PFCB Fcb);
 
 bool Ext2Seekable(PFCB Fcb);
 
-BSTATUS Ext2Resize(PFCB Fcb, uint64_t NewLength);
+BSTATUS Ext2TouchFile(PFCB Fcb, bool IsWrite);
+
+BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength);
 
 BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffer, uint32_t Flags);
 
