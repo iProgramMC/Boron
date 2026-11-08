@@ -9,6 +9,22 @@ const char* ProgramName = "touch";
 uint32_t CreateDisposition = IO_CREATE_OR_OPEN;
 uint32_t CreateOptions = IO_FILE_ANY_TYPE;
 bool TouchWrite = false;
+bool Truncate = false;
+size_t TruncationSize = 0;
+
+size_t StringToInteger(const char* Ptr)
+{
+	size_t Value = 0;
+
+	for (; *Ptr != 0; Ptr++)
+	{
+		if (*Ptr >= '0' && *Ptr <= '9') {
+			Value = Value * 10 + (*Ptr - '0');
+		}
+	}
+
+	return Value;
+}
 
 BSTATUS TouchFile(const char* PathName)
 {
@@ -37,6 +53,17 @@ BSTATUS TouchFile(const char* PathName)
 
 	Status = OSTouchFile(Handle, TouchWrite);
 
+	// FOR TESTING
+	if (SUCCEEDED(Status) && Truncate)
+	{
+		DbgPrint("Truncating file %s to size %zu", PathName, TruncationSize);
+		Status = OSSetLengthFile(Handle, NULL, TruncationSize);
+
+		if (FAILED(Status)) {
+			DbgPrint("... failed: %s", RtlGetStatusString(Status));
+		}
+	}
+
 	OSClose(Handle);
 
 	return Status;
@@ -47,10 +74,11 @@ void ShowHelp()
 	OSFPrintf(
 		FILE_STANDARD_ERROR,
 		"Usage: %s [-chm?] [file names to touch]\n"
-		"-c : Do not create the file if it doesn't exist\n"
-		"-h : Modify a symbolic link rather than the file it points to\n"
-		"-m : Update the modification time of the file too\n"
-		"-? : Show this message\n",
+		"-c         : Do not create the file if it doesn't exist\n"
+		"-h         : Modify a symbolic link rather than the file it points to\n"
+		"-m         : Update the modification time of the file too\n"
+		"-?         : Show this message\n"
+		"-tr <size> : Create/resize a file to the specified size\n",
 		ProgramName
 	);
 }
@@ -70,6 +98,19 @@ int main(int ArgumentCount, char** ArgumentArray)
 
 	for (int i = 1; i < ArgumentCount; i++)
 	{
+		if (strcmp(ArgumentArray[i], "-tr") == 0)
+		{
+			if (i + 1 >= ArgumentCount) {
+				OSFPrintf(FILE_STANDARD_ERROR, "-tr requires an argument\n");
+				return 1;
+			}
+
+			Truncate = true;
+			TruncationSize = StringToInteger(ArgumentArray[i + 1]);
+			i++;
+			continue;
+		}
+
 		if (ArgumentArray[i][0] == '-')
 		{
 			for (int j = 1; ArgumentArray[i][j] != 0; j++)
