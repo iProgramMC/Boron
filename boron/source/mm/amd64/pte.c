@@ -60,8 +60,9 @@ MMPTE MmBuildZeroPte()
 
 MMPTE MmSetPfnPte(MMPTE Pte, MMPFN NewPfn)
 {
+	uintptr_t NewPfnLong = NewPfn;
 	MmHardwarePte(Pte) &= ~MM_AMD64_PTE_ADDRESSMASK;
-	MmHardwarePte(Pte) |= (NewPfn << 12);
+	MmHardwarePte(Pte) |= (NewPfnLong << 12);
 	return Pte;
 }
 
