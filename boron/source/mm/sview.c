@@ -77,6 +77,9 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	//Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	//Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
 
+	uint64_t NewSectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
+	Vad->ViewCacheEntry.Key = (uintptr_t)(NewSectionOffset / VIEW_CACHE_SIZE);
+
 	*BaseAddressOut = (void*) Vad->Node.StartVa + PageOffset;
 
 	MmUnlockVadList(VadList);
