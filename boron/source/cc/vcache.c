@@ -14,6 +14,7 @@ Author:
 ***/
 #include "cci.h"
 #include <io.h>
+#include <string.h>
 
 // Purge any VADs associated with this FCB.
 void CcPurgeViewsForFile(PFCB Fcb)
@@ -201,6 +202,8 @@ bool CcMarkBlockDeviceModified(PFILE_OBJECT FileObject, uint64_t FileOffset, siz
 //
 // NOTE: This will always block, because we cannot control when a page
 // fault will block or will not block.
+//
+// NOTE: If Mdl is NULL, then writes zeroes instead.
 BSTATUS CcWriteFileMdl(
 	PFILE_OBJECT FileObject,
 	uint64_t FileOffset,
@@ -262,8 +265,16 @@ BSTATUS CcWriteFileMdl(
 			return Status;
 		}
 
-		// The view exists, so let's copy.
-		MmCopyFromMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
+		// The view exists, so let's write.
+		//
+		// TODO: Optimize this so that no I/O is performed when the whole page is going to
+		// be written anyway.
+		if (Mdl) {
+			MmCopyFromMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
+		} else {
+			memset((char*) View + ViewOffset, 0, CopyAmount);
+		}
+
 		CcMarkFileModified(FileObject, FileOffset, CopyAmount);
 
 		MdlOffset += CopyAmount;
