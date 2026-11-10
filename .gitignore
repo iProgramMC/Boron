@@ -23,6 +23,8 @@ root/etc/zephyr2.bin
 root/etc/zephyr2_n72.bin
 root/etc/0x0033.bin
 root/etc/0x0051.bin
+root/etc/zephyr_aspeed.bin
+root/etc/zephyr_main.bin
 
 vdiske2.img
 vdiske2.vdi

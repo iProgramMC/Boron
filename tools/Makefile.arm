@@ -11,4 +11,5 @@ DRIVERS_LIST = \
 	ipodbtns   \
 	ipodnor    \
 	ipsyscfg   \
+	zephyr1    \
 	zephyr2
