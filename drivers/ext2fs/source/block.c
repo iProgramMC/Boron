@@ -273,7 +273,7 @@ static BSTATUS Ext2pAllocateBlocksInBlockGroup(
 	// Update this block group descriptor's allocated blocks count, as well as the super block's.
 	ASSERT(BlockCount < 65535 && "The amount of blocks allocated shouldn't have exceeded the max "
 		"from the block group descriptor");
-	Ext2IncrementFreeBlocksSuperBlock(FileSystem, -((int32_t) BlockCount));
+	Ext2DecrementFreeBlocksSuperBlock(FileSystem, BlockCount);
 
 	if (Descriptor.FreeBlockCount < BlockCount)
 	{

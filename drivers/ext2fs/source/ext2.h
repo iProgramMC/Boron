@@ -171,7 +171,12 @@ BSTATUS Ext2WriteBlockGroupDescriptor(
 
 void Ext2IncrementFreeBlocksSuperBlock(
 	PEXT2_FILE_SYSTEM FileSystem,
-	int32_t AmountBy
+	uint32_t AmountBy
+);
+
+bool Ext2DecrementFreeBlocksSuperBlock(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t AmountBy
 );
 
 void Ext2ModifyFreeInodesSuperBlock(
