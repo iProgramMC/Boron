@@ -111,3 +111,6 @@ bool IoIsMappableFileType(uint32_t FileType);
 // Checks if this file type can be arbitrarily read/written. (directories and
 // symbolic links are not)
 bool IoIsReadWritableFileType(uint32_t FileType);
+
+// Set a page as modified within the FCB.
+BSTATUS IoSetPageModifiedFcb(PFCB Fcb, uint64_t SectionOffset);

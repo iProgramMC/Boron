@@ -86,6 +86,24 @@ BSTATUS CcWriteFileMdl(
 	size_t ByteCount
 );
 
+// Same as CcReadFileMdl, but takes in a bare FCB rather than a FILE_OBJECT.
+BSTATUS CcReadFileMdlFcb(
+	PFCB Fcb,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+);
+
+// Same as CcWriteFileMdl, but takes in a bare FCB rather than a FILE_OBJECT.
+BSTATUS CcWriteFileMdlFcb(
+	PFCB Fcb,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+);
+
 // Reads the contents of a file and copies them to a buffer.
 BSTATUS CcReadFileCopy(
 	PFILE_OBJECT FileObject,

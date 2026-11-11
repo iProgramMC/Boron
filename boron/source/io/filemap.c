@@ -4,11 +4,11 @@
 
 Module name:
 	io/filemap.c
-	
+
 Abstract:
 	This module implements the file object's mappable
 	object trait.
-	
+
 Author:
 	iProgramInCpp - 9 December 2025
 ***/
@@ -29,13 +29,13 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 	PFILE_OBJECT FileObject = MappableObject;
 	PFCB Fcb = FileObject->Fcb;
 	BSTATUS Status;
-	
+
 	IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
 	if (BackingMemory)
 	{
 		IO_STATUS_BLOCK Iosb;
 		Status = BackingMemory(&Iosb, Fcb, SectionOffset * PAGE_SIZE);
-		
+
 		if (FAILED(Status))
 		{
 			if (Status != STATUS_OUT_OF_FILE_BOUNDS)
@@ -49,7 +49,7 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 				);
 				return Status;
 			}
-			
+
 			// Outside of the file's boundaries.  We should handle this normally using the
 			// page cache.  This is because the temporary file system implements files using
 			// the BackingMemory call, and sometimes ELF mappings can reach outside the file.
@@ -65,23 +65,23 @@ static BSTATUS IopGetPageFromFile(void* MappableObject, uint64_t SectionOffset, 
 			return STATUS_SUCCESS;
 		}
 	}
-	
+
 	MMPFN Pfn = PFN_INVALID;
 	PCCB PageCache = &Fcb->CacheInfo.PageCache;
-	
+
 	Pfn = MmGetEntryCcb(PageCache, SectionOffset);
-	
+
 	// Did we find the PFN already?
 	if (Pfn != PFN_INVALID)
 	{
 		// Yes, we did, so return it.
 		MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, SectionOffset * PAGE_SIZE);
 		*OutPfn = Pfn;
-		
+
 		FPFDbgPrint("%s: hooray! request for offset %llu fulfilled by cached fetch", __func__, SectionOffset);
 		return STATUS_SUCCESS;
 	}
-	
+
 	// No, so the PFN must be read.  Forward to the page fault handler.
 	return STATUS_MORE_PROCESSING_REQUIRED;
 }
@@ -92,7 +92,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	PFCB Fcb = FileObject->Fcb;
 	PCCB PageCache = &Fcb->CacheInfo.PageCache;
 	IO_STATUS_BLOCK Iosb;
-	
+
 	BSTATUS Status = MmSetEntryCcb(PageCache, SectionOffset, PFN_INVALID, NULL);
 	if (FAILED(Status))
 	{
@@ -102,17 +102,17 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 			FPFDbgPrint("%s: Redirecting to GetPage", __func__);
 			return IopGetPageFromFile(MappableObject, SectionOffset, OutPfn);
 		}
-		
+
 		DbgPrint(
 			"%s: Failed to set empty entry to CCB at %lld: %s",
 			__func__,
 			SectionOffset,
 			RtlGetStatusString(Status)
 		);
-		
+
 		return Status;
 	}
-	
+
 	// Allocate a PFN now, do a read, and then put it into the CCB.
 	MMPFN Pfn = MmAllocatePhysicalPage();
 	if (Pfn == PFN_INVALID)
@@ -120,20 +120,20 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 		DbgPrint("%s: out of memory because a page frame couldn't be allocated", __func__);
 		return STATUS_INSUFFICIENT_MEMORY;
 	}
-	
+
 	// Okay.  Let's perform the IO on this PFN.
 	MDL_ONEPAGE Mdl;
 	MmInitializeSinglePageMdl(&Mdl, Pfn, MDL_FLAG_WRITE);
-	
+
 	Status = IoPerformPagingRead(
 		&Iosb,
 		FileObject,
 		&Mdl.Base,
 		SectionOffset * PAGE_SIZE
 	);
-	
+
 	MmFreeMdl(&Mdl.Base);
-	
+
 	if (FAILED(Status))
 	{
 		// Ran out of memory trying to read this file, or a hardware I/O error occurred.
@@ -146,7 +146,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 		MmFreePhysicalPage(Pfn);
 		return Status;
 	}
-	
+
 	// The I/O operation has succeeded.
 	// It's time to put this in the CCB and then map.
 	MM_PROTOTYPE_PTE_PTR PrototypePtePtr;
@@ -154,7 +154,7 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 	if (FAILED(Status))
 	{
 		MmFreePhysicalPage(Pfn);
-		
+
 		if (Status == STATUS_CONFLICTING_ADDRESSES)
 		{
 			// Need to throw away our hard work as someone finished it before us.
@@ -171,35 +171,33 @@ static BSTATUS IopReadPageFromFile(void* MappableObject, uint64_t SectionOffset,
 			ASSERT(Status == STATUS_INSUFFICIENT_MEMORY);
 			DbgPrint("%s: out of memory because CCB entry couldn't be allocated (2)", __func__);
 		}
-		
+
 		return Status;
 	}
-	
+
 	// Success! This is the right PFN. Now that we've assigned it, it's time to return it.
 	MmSetCacheDetailsPfn(Pfn, FileObject->Fcb, SectionOffset * PAGE_SIZE);
 	MmSetPrototypePtePfn(Pfn, PrototypePtePtr);
 	*OutPfn = Pfn;
-	
+
 	FPFDbgPrint("%s: hooray! request fulfilled by I/O read", __func__);
 	return STATUS_SUCCESS;
 }
 
-static BSTATUS IopSetPageModifiedFile(void* MappableObject, uint64_t SectionOffset)
+BSTATUS IoSetPageModifiedFcb(PFCB Fcb, uint64_t SectionOffset)
 {
 	// Files are shared, so the only special programming required is to
 	// mark modified pages as modified so that they're properly written
 	// back to disk.
-	PFILE_OBJECT FileObject = MappableObject;
-	PFCB Fcb = FileObject->Fcb;
 	PCCB PageCache = &Fcb->CacheInfo.PageCache;
-	
+
 	MMPFN Pfn = PFN_INVALID;
 	IO_BACKING_MEM_METHOD BackingMemory = Fcb->DispatchTable->BackingMemory;
 	if (BackingMemory)
 	{
 		IO_STATUS_BLOCK Iosb;
 		BSTATUS Status = BackingMemory(&Iosb, Fcb, SectionOffset * PAGE_SIZE);
-		
+
 		if (FAILED(Status) && Status != STATUS_OUT_OF_FILE_BOUNDS)
 		{
 			DbgPrint(
@@ -211,33 +209,41 @@ static BSTATUS IopSetPageModifiedFile(void* MappableObject, uint64_t SectionOffs
 			);
 			return Status;
 		}
-		
+
 		if (SUCCEEDED(Status))
 			Pfn = MmPhysPageToPFN(Iosb.BackingMemory.PhysicalAddress);
 	}
-	
+
 	if (Pfn == PFN_INVALID) {
 		Pfn = MmGetEntryCcb(PageCache, SectionOffset);
 	}
-	
+
 	ASSERT(Pfn != PFN_INVALID && "IopSetPageModifiedFile: The PFN should be present at this offset.");
-	
+
 	MmSetModifiedPage(Pfn);
 	MmFreePhysicalPage(Pfn);
-	
+
 	return STATUS_SUCCESS;
+}
+
+static BSTATUS IopSetPageModifiedFile(void* MappableObject, uint64_t SectionOffset)
+{
+	PFILE_OBJECT FileObject = MappableObject;
+	PFCB Fcb = FileObject->Fcb;
+
+	return IoSetPageModifiedFcb(Fcb, SectionOffset);
 }
 
 static BSTATUS IopPrepareWriteFile(void* MappableObject, uint64_t SectionOffset)
 {
 	(void) MappableObject;
 	(void) SectionOffset;
-	
+
 	// The modified state of shared pages in a file does not need to be set
 	// instantly when a page is written.  The only requirement is that the page
 	// is set as modified at SOME point in order to flush it to disk -- this
 	// may simply be done when unmapping the file from memory.
-	
+
 	return STATUS_SUCCESS;
 }
 

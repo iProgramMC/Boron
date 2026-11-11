@@ -81,8 +81,8 @@ static BSTATUS CciGetViewOfFile(PFCB Fcb, uint64_t FileOffset, void** ViewOut)
 //
 // NOTE: This will always block, because we cannot control when a page
 // fault will block or will not block.
-BSTATUS CcReadFileMdl(
-	PFILE_OBJECT FileObject,
+BSTATUS CcReadFileMdlFcb(
+	PFCB Fcb,
 	uint64_t FileOffset,
 	PMDL Mdl,
 	uintptr_t MdlOffset,
@@ -93,9 +93,6 @@ BSTATUS CcReadFileMdl(
 	BSTATUS Status;
 	size_t Size = ByteCount;
 
-	ASSERT(FileObject);
-
-	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 
@@ -115,7 +112,7 @@ BSTATUS CcReadFileMdl(
 		//
 		// If it does not exist, CcGetViewOfFile creates one for it.
 		void* View = NULL;
-		Status = CciGetViewOfFile(FileObject->Fcb, FileOffset, &View);
+		Status = CciGetViewOfFile(Fcb, FileOffset, &View);
 
 		if (FAILED(Status))
 		{
@@ -124,6 +121,8 @@ BSTATUS CcReadFileMdl(
 		}
 
 		// The view exists, so let's copy.
+		//
+		// TODO: This could fail, use probing APIs instead.
 		MmCopyIntoMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
 
 		MdlOffset += CopyAmount;
@@ -133,6 +132,23 @@ BSTATUS CcReadFileMdl(
 
 	ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	return STATUS_SUCCESS;
+}
+
+BSTATUS CcReadFileMdl(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+)
+{
+	return CcReadFileMdlFcb(
+		FileObject->Fcb,
+		FileOffset,
+		Mdl,
+		MdlOffset,
+		ByteCount
+	);
 }
 
 // Reads the contents of a file and copies them to a buffer.
@@ -157,7 +173,7 @@ BSTATUS CcReadFileCopy(
 	return Status;
 }
 
-void CcMarkFileModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t SizeBytes)
+void CcMarkFileModified(PFCB Fcb, uint64_t FileOffset, size_t SizeBytes)
 {
 	if (SizeBytes == 0) {
 		return;
@@ -168,7 +184,7 @@ void CcMarkFileModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t Siz
 
 	for (uint64_t i = SectionOffsetStart; i <= SectionOffsetEnd; i++)
 	{
-		(void) MmSetPageModifiedMappable(FileObject, i);
+		(void) IoSetPageModifiedFcb(Fcb, i);
 	}
 }
 
@@ -176,9 +192,9 @@ void CcMarkFileModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t Siz
 //
 // This function may fail for an out-of-memory reason, so DO NOT invoke it in the paging
 // codepath at all!
-bool CcMarkBlockDeviceModified(PFILE_OBJECT FileObject, uint64_t FileOffset, size_t SizeBytes)
+bool CcMarkBlockDeviceModified(PFCB Fcb, uint64_t FileOffset, size_t SizeBytes)
 {
-	size_t BlockSize = FileObject->Fcb->CacheInfo.BlockSize;
+	size_t BlockSize = Fcb->CacheInfo.BlockSize;
 	if (BlockSize == 0)
 	{
 		// No block size specified, there is no reason to continue.
@@ -191,7 +207,7 @@ bool CcMarkBlockDeviceModified(PFILE_OBJECT FileObject, uint64_t FileOffset, siz
 	uint64_t EndBlockOffset = EndFileOffset / BlockSize;
 
 	return IoSetRangeModifiedCacheInfo(
-		&FileObject->Fcb->CacheInfo,
+		&Fcb->CacheInfo,
 		StartBlockOffset,
 		EndBlockOffset - StartBlockOffset + 1
 	);
@@ -203,8 +219,8 @@ bool CcMarkBlockDeviceModified(PFILE_OBJECT FileObject, uint64_t FileOffset, siz
 // fault will block or will not block.
 //
 // NOTE: If Mdl is NULL, then writes zeroes instead.
-BSTATUS CcWriteFileMdl(
-	PFILE_OBJECT FileObject,
+BSTATUS CcWriteFileMdlFcb(
+	PFCB Fcb,
 	uint64_t FileOffset,
 	PMDL Mdl,
 	uintptr_t MdlOffset,
@@ -218,9 +234,6 @@ BSTATUS CcWriteFileMdl(
 	BSTATUS Status;
 	size_t Size = ByteCount;
 
-	ASSERT(FileObject);
-
-	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 
@@ -228,7 +241,7 @@ BSTATUS CcWriteFileMdl(
 	// modified first, they could see the blocks modified bitmap and think "oh, nothing to write!?"
 	// and bail before we get to write things.  Also, this can fail, so if we already wrote data but
 	// have no way to signal that it was written, we're screwed and will lose data.
-	if (!CcMarkBlockDeviceModified(FileObject, FileOffset, ByteCount))
+	if (!CcMarkBlockDeviceModified(Fcb, FileOffset, ByteCount))
 	{
 		// The write can't happen because the block device can't have this range of memory modified.
 		//
@@ -256,7 +269,7 @@ BSTATUS CcWriteFileMdl(
 		//
 		// If it does not exist, CcGetViewOfFile creates one for it.
 		void* View = NULL;
-		Status = CciGetViewOfFile(FileObject->Fcb, FileOffset, &View);
+		Status = CciGetViewOfFile(Fcb, FileOffset, &View);
 
 		if (FAILED(Status))
 		{
@@ -268,13 +281,15 @@ BSTATUS CcWriteFileMdl(
 		//
 		// TODO: Optimize this so that no I/O is performed when the whole page is going to
 		// be written anyway.
+		//
+		// TODO: This could fail, use probing APIs instead.
 		if (Mdl) {
 			MmCopyFromMdl(Mdl, MdlOffset, (char*)View + ViewOffset, CopyAmount);
 		} else {
 			memset((char*) View + ViewOffset, 0, CopyAmount);
 		}
 
-		CcMarkFileModified(FileObject, FileOffset, CopyAmount);
+		CcMarkFileModified(Fcb, FileOffset, CopyAmount);
 
 		MdlOffset += CopyAmount;
 		FileOffset += CopyAmount;
@@ -283,6 +298,23 @@ BSTATUS CcWriteFileMdl(
 
 	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 	return STATUS_SUCCESS;
+}
+
+BSTATUS CcWriteFileMdl(
+	PFILE_OBJECT FileObject,
+	uint64_t FileOffset,
+	PMDL Mdl,
+	uintptr_t MdlOffset,
+	size_t ByteCount
+)
+{
+	return CcWriteFileMdlFcb(
+		FileObject->Fcb,
+		FileOffset,
+		Mdl,
+		MdlOffset,
+		ByteCount
+	);
 }
 
 // Writes an arbitrary non-MDL buffer to file.
