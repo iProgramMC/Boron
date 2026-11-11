@@ -463,6 +463,29 @@ BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 			else {
 				Ext->Inode.BlockCount -= SectorsFreed;
 			}
+
+			// Ensure the last page of this file has zeroes at the end.
+			uint64_t PageAlignedSize = NewLength & ~((uint64_t) PAGE_SIZE - 1);
+			if (PageAlignedSize != NewLength)
+			{
+				uint64_t End = PageAlignedSize + PAGE_SIZE;
+				size_t Length = (size_t)(End - NewLength);
+
+				ASSERT(Length != 0);
+				ASSERT(Length < PAGE_SIZE);
+
+				Status = CcWriteFileMdlFcb(
+					Fcb,
+					NewLength,
+					NULL,  // Mdl -- write zeroes
+					0,     // MdlOffset
+					Length
+				);
+
+				if (FAILED(Status)) {
+					DbgPrint("Ext2: Could not zero out end of file: %s", RtlGetStatusString(Status));
+				}
+			}
 		}
 		else
 		{
