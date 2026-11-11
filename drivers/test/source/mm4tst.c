@@ -58,7 +58,7 @@ void PerformMm4Test_()
 	LogMsg("Mapping it");
 	void* BaseAddress = NULL;
 	size_t RegionSize = 32768;
-	Status = MmMapViewOfFileInSystemSpace(FileObject, &BaseAddress, RegionSize, 0, Offset, PAGE_READ);
+	Status = MmMapViewOfFileInSystemSpace(FileObject->Fcb, &BaseAddress, RegionSize, 0, Offset, PAGE_READ);
 	if (FAILED(Status))
 		KeCrash("Mm4: Cannot map file: %d", FileToOpen, Status);
 

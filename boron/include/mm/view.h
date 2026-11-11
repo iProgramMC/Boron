@@ -26,7 +26,7 @@ BSTATUS MmMapViewOfObject(
 );
 
 BSTATUS MmMapViewOfFileInSystemSpace(
-	PFILE_OBJECT FileObject,
+	PFCB Fcb,
 	void** BaseAddressOut,
 	size_t ViewSize,
 	int AllocationType,

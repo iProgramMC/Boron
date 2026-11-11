@@ -43,9 +43,8 @@ void CcPurgeViewsForFile(PFCB Fcb)
 }
 
 // NOTE: The view cache mutex needs to be locked.
-static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, void** ViewOut)
+static BSTATUS CciGetViewOfFile(PFCB Fcb, uint64_t FileOffset, void** ViewOut)
 {
-	PFCB Fcb = FileObject->Fcb;
 	ASSERT(Fcb);
 
 	BSTATUS Status = STATUS_SUCCESS;
@@ -63,7 +62,7 @@ static BSTATUS CciGetViewOfFile(PFILE_OBJECT FileObject, uint64_t FileOffset, vo
 	{
 		// Does not exist.  Try to map it in.
 		Status = MmMapViewOfFileInSystemSpace(
-			FileObject,
+			Fcb,
 			&View,
 			VIEW_CACHE_SIZE,
 			MEM_RESERVE | MEM_COMMIT,
@@ -116,7 +115,7 @@ BSTATUS CcReadFileMdl(
 		//
 		// If it does not exist, CcGetViewOfFile creates one for it.
 		void* View = NULL;
-		Status = CciGetViewOfFile(FileObject, FileOffset, &View);
+		Status = CciGetViewOfFile(FileObject->Fcb, FileOffset, &View);
 
 		if (FAILED(Status))
 		{
@@ -257,7 +256,7 @@ BSTATUS CcWriteFileMdl(
 		//
 		// If it does not exist, CcGetViewOfFile creates one for it.
 		void* View = NULL;
-		Status = CciGetViewOfFile(FileObject, FileOffset, &View);
+		Status = CciGetViewOfFile(FileObject->Fcb, FileOffset, &View);
 
 		if (FAILED(Status))
 		{

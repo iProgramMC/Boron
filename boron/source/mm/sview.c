@@ -18,7 +18,7 @@ Author:
 #include <cc.h>
 
 BSTATUS MmMapViewOfFileInSystemSpace(
-	PFILE_OBJECT FileObject,
+	PFCB Fcb,
 	void** BaseAddressOut,
 	size_t ViewSize,
 	int AllocationType,
@@ -26,9 +26,18 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	int Protection
 )
 {
+	BSTATUS Status;
+
 	// You cannot map files that are not seekable.
-	if (!IoIsSeekable(FileObject->Fcb))
+	if (!IoIsSeekable(Fcb))
 		return STATUS_UNSUPPORTED_FUNCTION;
+
+	// Allocate a file object for this mapping.
+	// TODO: Optimize this?
+	PFILE_OBJECT FileObject;
+	Status = IoCreateFileObject(Fcb, &FileObject, 0);
+	if (FAILED(Status))
+		return Status;
 
 	size_t PageOffset = SectionOffset & (PAGE_SIZE - 1);
 	size_t ViewSizePages = (ViewSize + PageOffset + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -45,10 +54,15 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	// First, allocate the space.
 	void* StartAddress = MmAllocatePoolBig(POOL_FLAG_CALLER_CONTROLLED, ViewSizePages, POOL_TAG("MmVw"));
 	if (!StartAddress)
+	{
+		ObDereferenceObject(FileObject);
 		return STATUS_INSUFFICIENT_MEMORY;
+	}
+
+	uint64_t VadSectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 
 	// Then try to initialize and add the VAD.
-	BSTATUS Status = MiInitializeAndInsertVad(
+	Status = MiInitializeAndInsertVad(
 		VadList,
 		&Vad,
 		StartAddress,
@@ -57,10 +71,13 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 		Protection,
 		false,
 		FileObject,
-		SectionOffset,
+		VadSectionOffset,
 		NULL,  // ViewOverride
 		0      // ViewOffset
 	);
+
+	// MiInitializeAndInsertVad references the FileObject.  So we shouldn't keep our reference here.
+	ObDereferenceObject(FileObject);
 
 	if (FAILED(Status))
 	{
@@ -68,14 +85,6 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 		MmFreePoolBig(StartAddress);
 		return Status;
 	}
-
-	// TODO rewrite this after finishing rewrite of vad.c
-
-	// Vad Protection and Private are filled in by MiInitializeAndInsertVad.
-	//Vad->Flags.Committed = 1;
-	//Vad->MappedObject = ObReferenceObjectByPointer(FileObject);
-	//Vad->SectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
-	//Vad->ViewCacheEntry.Key = (uintptr_t)(Vad->SectionOffset / VIEW_CACHE_SIZE);
 
 	uint64_t NewSectionOffset = SectionOffset & ~(PAGE_SIZE - 1);
 	Vad->ViewCacheEntry.Key = (uintptr_t)(NewSectionOffset / VIEW_CACHE_SIZE);
@@ -85,8 +94,6 @@ BSTATUS MmMapViewOfFileInSystemSpace(
 	MmUnlockVadList(VadList);
 
 	// Add this VAD into the FCB's view cache.
-	PFCB Fcb = FileObject->Fcb;
-
 	ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
 	InsertItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
 	ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
@@ -118,14 +125,13 @@ void MmUnmapViewOfFileInSystemSpace(void* ViewPointer, bool RemoveFromFcbViewCac
 	// Remove the VAD from the FCB's view cache.
 	if (RemoveFromFcbViewCache)
 	{
-		// TODO: rewrite this for the new view system
-		//PFILE_OBJECT FileObject = Vad->MappedObject;
-		//ASSERT(ObGetObjectType(FileObject) == IoFileType);
-		//
-		//PFCB Fcb = FileObject->Fcb;
-		//KeWaitForSingleObject(&Fcb->CacheInfo.ViewCacheMutex, false, TIMEOUT_INFINITE, MODE_KERNEL);
-		//RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
-		//KeReleaseMutex(&Fcb->CacheInfo.ViewCacheMutex);
+		PFILE_OBJECT FileObject = Vad->View->BackingObject;
+		ASSERT(ObGetObjectType(FileObject) == IoFileType);
+
+		PFCB Fcb = FileObject->Fcb;
+		ExAcquireFastMutex(&Fcb->CacheInfo.ViewCacheMutex, false);
+		RemoveItemRbTree(&Fcb->CacheInfo.ViewCache, &Vad->ViewCacheEntry);
+		ExReleaseFastMutex(&Fcb->CacheInfo.ViewCacheMutex);
 	}
 
 	// Then, clean up.
