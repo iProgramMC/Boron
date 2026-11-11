@@ -23,3 +23,21 @@ Author:
 #define AcquireBlockRwlockExclusive(in) ExAcquireExclusiveRwLock(&(in)->BlockRwlock, false, false)
 #define DemoteBlockRwlockToShared(in)   ExDemoteToSharedRwLock(&(in)->BlockRwlock)
 #define ReleaseBlockRwlock(in) ExReleaseRwLock(&(in)->BlockRwlock)
+
+#define IOSB_STATUS(iosb, stat) (iosb->Status = stat)
+
+FORCE_INLINE uint64_t Ext2FileSize(PFCB Fcb)
+{
+	PREP_EXT;
+
+	if (Ext->OwnerFS->SuperBlock.Version == 0)
+		return Ext->Inode.Size;
+	else
+		return Ext->Inode.Size | ((uint64_t) Ext->Inode.SizeUpper << 32);
+}
+
+BSTATUS Ext2pFindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlockOut, bool AllocateIfNeeded);
+
+int Ext2TypeIndicatorToFileType(uint8_t TypeIndicator);
+
+int Ext2InodeModeToFileType(uint16_t Mode);
