@@ -353,153 +353,155 @@ BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 	}
 
 	// Are we shrinking the file?
-	if (CurrentBlockCount > NewBlockCount)
+	if (CurrentBlockCount <= NewBlockCount)
 	{
-		// Determine which indirection regions are worth keeping.
-		ExAcquireFastMutex(&Ext->InodeDataMutex, false);
+		// No, expand it.
 
-		// Do the OS-level rigmarole of decreasing the size already.
-		Ext2pSetFileSizeFcb(Fcb, NewLength);
-		MmTruncateFileCache(Fcb, NewLength);
+		DbgPrint("Ext2: TODO: Ext2ResizeFile with allocating blocks.");
+		ReleaseBlockRwlock(Ext);
 
-		size_t EntriesPerBlock = FileSystem->BlockSize / sizeof(uint32_t);
-		uint64_t LevelLimits[4];
-		LevelLimits[0] = 12;
-		LevelLimits[1] = LevelLimits[0] + (uint64_t) EntriesPerBlock;
-		LevelLimits[2] = LevelLimits[1] + (uint64_t) EntriesPerBlock * EntriesPerBlock;
-		LevelLimits[3] = LevelLimits[2] + (uint64_t) EntriesPerBlock * EntriesPerBlock * EntriesPerBlock;
+		return STATUS_UNIMPLEMENTED;
+	}
 
-		uint64_t BlocksFreedCount = 0;
+	// Determine which indirection regions are worth keeping.
+	ExAcquireFastMutex(&Ext->InodeDataMutex, false);
 
-		// Level 0.
-		for (uint64_t i = 0; i < 12; i++)
+	// Do the OS-level rigmarole of decreasing the size already.
+	Ext2pSetFileSizeFcb(Fcb, NewLength);
+	MmTruncateFileCache(Fcb, NewLength);
+
+	size_t EntriesPerBlock = FileSystem->BlockSize / sizeof(uint32_t);
+	uint64_t LevelLimits[4];
+	LevelLimits[0] = 12;
+	LevelLimits[1] = LevelLimits[0] + (uint64_t) EntriesPerBlock;
+	LevelLimits[2] = LevelLimits[1] + (uint64_t) EntriesPerBlock * EntriesPerBlock;
+	LevelLimits[3] = LevelLimits[2] + (uint64_t) EntriesPerBlock * EntriesPerBlock * EntriesPerBlock;
+
+	uint64_t BlocksFreedCount = 0;
+
+	// Level 0.
+	for (uint64_t i = 0; i < 12; i++)
+	{
+		if (NewBlockCount <= i)
 		{
-			if (NewBlockCount <= i)
-			{
-				if (Ext->Inode.DirectBlockPointer[i] == 0)
-					continue;
+			if (Ext->Inode.DirectBlockPointer[i] == 0)
+				continue;
 
-				Status = Ext2FreeBlock(FileSystem, Ext->Inode.DirectBlockPointer[i]);
-				if (FAILED(Status))
-					break;
+			Status = Ext2FreeBlock(FileSystem, Ext->Inode.DirectBlockPointer[i]);
+			if (FAILED(Status))
+				break;
 
-				Ext->Inode.DirectBlockPointer[i] = 0;
-				Ext->InodeDataIsDirty = true;
-				BlocksFreedCount++;
-			}
+			Ext->Inode.DirectBlockPointer[i] = 0;
+			Ext->InodeDataIsDirty = true;
+			BlocksFreedCount++;
+		}
+	}
+
+	if (FAILED(Status))
+		goto Fail;
+
+	// Levels 1-3.
+	for (int Level = 1; Level <= 3; Level++)
+	{
+		uint32_t* Slot = &Ext->Inode.BlockPointers[12 + Level - 1];
+		if (*Slot == 0) {
+			// Unallocated.
+			continue;
 		}
 
-		if (FAILED(Status))
-			goto Fail;
+		uint64_t Start = LevelLimits[Level - 1];
+		uint64_t End = LevelLimits[Level];
 
-		// Levels 1-3.
-		for (int Level = 1; Level <= 3; Level++)
+		if (NewBlockCount >= End) {
+			// Keep this level.
+			continue;
+		}
+
+		if (NewBlockCount <= Start)
 		{
-			uint32_t* Slot = &Ext->Inode.BlockPointers[12 + Level - 1];
-			if (*Slot == 0) {
-				// Unallocated.
-				continue;
-			}
-
-			uint64_t Start = LevelLimits[Level - 1];
-			uint64_t End = LevelLimits[Level];
-
-			if (NewBlockCount >= End) {
-				// Keep this level.
-				continue;
-			}
-
-			if (NewBlockCount <= Start)
-			{
-				Status = Ext2pFreeIndirectBlockLevel(
-					FileSystem,
-					Level,
-					*Slot,
-					&BlocksFreedCount
-				);
-				if (FAILED(Status))
-					break;
-
-				Status = Ext2FreeBlock(FileSystem, *Slot);
-				if (FAILED(Status))
-					break;
-
-				*Slot = 0;
-				Ext->InodeDataIsDirty = true;
-				BlocksFreedCount++;
-				continue;
-			}
-
-			// Partial free.
-			Status = Ext2pFreePartialIndirectBlockLevel(
+			Status = Ext2pFreeIndirectBlockLevel(
 				FileSystem,
 				Level,
 				*Slot,
-				NewBlockCount - Start,
 				&BlocksFreedCount
 			);
-
 			if (FAILED(Status))
 				break;
+
+			Status = Ext2FreeBlock(FileSystem, *Slot);
+			if (FAILED(Status))
+				break;
+
+			*Slot = 0;
+			Ext->InodeDataIsDirty = true;
+			BlocksFreedCount++;
+			continue;
 		}
 
-	Fail:
-		// This should NEVER run out of memory. Out of memory should trigger the flushing of file
-		// pages to their backing store (which doesn't call this function in the first place), and
-		// BLOCK this thread until there is sufficient memory.  The only failures we expect to see
-		// here are hardware I/O errors, which are not considered recoverable (any attempt to access
-		// the volume will result in another failure, either way).
-		ASSERT(Status != STATUS_INSUFFICIENT_MEMORY);
+		// Partial free.
+		Status = Ext2pFreePartialIndirectBlockLevel(
+			FileSystem,
+			Level,
+			*Slot,
+			NewBlockCount - Start,
+			&BlocksFreedCount
+		);
 
-		if (SUCCEEDED(Status))
-		{
-			uint32_t SectorsPerBlock = FileSystem->BlockSize / 512;
-			uint32_t SectorsFreed = (uint32_t)(SectorsPerBlock * BlocksFreedCount);
-
-			if (Ext->Inode.BlockCount < SectorsFreed) {
-				DbgPrint("Ext2: Accounting error: Sector count is %u, but freed %u sectors", Ext->Inode.BlockCount, SectorsFreed);
-				Ext->Inode.BlockCount = 0;
-			}
-			else {
-				Ext->Inode.BlockCount -= SectorsFreed;
-			}
-
-			// Ensure the last page of this file has zeroes at the end.
-			uint64_t PageAlignedSize = NewLength & ~((uint64_t) PAGE_SIZE - 1);
-			if (PageAlignedSize != NewLength)
-			{
-				uint64_t End = PageAlignedSize + PAGE_SIZE;
-				size_t Length = (size_t)(End - NewLength);
-
-				ASSERT(Length != 0);
-				ASSERT(Length < PAGE_SIZE);
-
-				Status = CcWriteFileMdlFcb(
-					Fcb,
-					NewLength,
-					NULL,  // Mdl -- write zeroes
-					0,     // MdlOffset
-					Length
-				);
-
-				if (FAILED(Status)) {
-					DbgPrint("Ext2: Could not zero out end of file: %s", RtlGetStatusString(Status));
-				}
-			}
-		}
-		else
-		{
-			DbgPrint("Ext2: Could not resize file: %s", RtlGetStatusString(Status));
-			DbgPrint("Ext2: You might need to run 'fsck' on this partition.");
-		}
-
-		ExReleaseFastMutex(&Ext->InodeDataMutex);
-		ReleaseBlockRwlock(Ext);
-		return Status;
+		if (FAILED(Status))
+			break;
 	}
 
-	DbgPrint("Ext2: TODO: Ext2ResizeFile with allocating blocks.");
-	ReleaseBlockRwlock(Ext);
+Fail:
+	// This should NEVER run out of memory. Out of memory should trigger the flushing of file
+	// pages to their backing store (which doesn't call this function in the first place), and
+	// BLOCK this thread until there is sufficient memory.  The only failures we expect to see
+	// here are hardware I/O errors, which are not considered recoverable (any attempt to access
+	// the volume will result in another failure, either way).
+	ASSERT(Status != STATUS_INSUFFICIENT_MEMORY);
 
-	return STATUS_UNIMPLEMENTED;
+	if (SUCCEEDED(Status))
+	{
+		uint32_t SectorsPerBlock = FileSystem->BlockSize / 512;
+		uint32_t SectorsFreed = (uint32_t)(SectorsPerBlock * BlocksFreedCount);
+
+		if (Ext->Inode.BlockCount < SectorsFreed) {
+			DbgPrint("Ext2: Accounting error: Sector count is %u, but freed %u sectors", Ext->Inode.BlockCount, SectorsFreed);
+			Ext->Inode.BlockCount = 0;
+		}
+		else {
+			Ext->Inode.BlockCount -= SectorsFreed;
+		}
+
+		// Ensure the last page of this file has zeroes at the end.
+		uint64_t PageAlignedSize = NewLength & ~((uint64_t) PAGE_SIZE - 1);
+		if (PageAlignedSize != NewLength)
+		{
+			uint64_t End = PageAlignedSize + PAGE_SIZE;
+			size_t Length = (size_t)(End - NewLength);
+
+			ASSERT(Length != 0);
+			ASSERT(Length < PAGE_SIZE);
+
+			Status = CcWriteFileMdlFcb(
+				Fcb,
+				NewLength,
+				NULL,  // Mdl -- write zeroes
+				0,     // MdlOffset
+				Length
+			);
+
+			if (FAILED(Status)) {
+				DbgPrint("Ext2: Could not zero out end of file: %s", RtlGetStatusString(Status));
+			}
+		}
+	}
+	else
+	{
+		DbgPrint("Ext2: Could not resize file: %s", RtlGetStatusString(Status));
+		DbgPrint("Ext2: You might need to run 'fsck' on this partition.");
+	}
+
+	ExReleaseFastMutex(&Ext->InodeDataMutex);
+	ReleaseBlockRwlock(Ext);
+	return Status;
 }
