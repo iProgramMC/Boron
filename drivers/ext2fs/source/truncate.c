@@ -307,10 +307,15 @@ static void Ext2pSetFileSizeFcb(PFCB Fcb, uint64_t NewLength)
 	Ext->InodeDataIsDirty = true;
 	Ext->Inode.Size = (uint32_t)(NewLength & 0xFFFFFFFF);
 
-	if (FileSystem->SuperBlock.Version > 0)
+	if (FileSystem->SuperBlock.Version > 0) {
 		Ext->Inode.SizeUpper = (uint32_t)(NewLength >> 32);
+	}
+	else {
+		ASSERT(NewLength < 0x100000000ULL);
+	}
 }
 
+// TODO: Support eager allocation of blocks inside of here.
 BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 {
 	BSTATUS Status = STATUS_SUCCESS;
@@ -333,15 +338,20 @@ BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 	uint64_t CurrentBlockCount = (Fcb->FileLength + FileSystem->BlockSize - 1) / FileSystem->BlockSize;
 	uint64_t NewBlockCount = (NewLength + FileSystem->BlockSize - 1) / FileSystem->BlockSize;
 
-	if (CurrentBlockCount == NewBlockCount)
+	// Are we expanding or keeping the same size?  If so, we DON'T need to do anything else.
+	//
+	// The same block count represents a trivial case.
+	// Ext2 does sparse allocation by default, so the blocks will be allocated when writing.
+	//
+	// All the block slots that have been uncovered should be zero: otherwise, there will be
+	// information leaks.  TODO: Enforce this.
+	if (CurrentBlockCount >= NewBlockCount)
 	{
-		Fcb->FileLength = NewLength;
-
 		ExAcquireFastMutex(&Ext->InodeDataMutex, false);
 
 		Ext2pSetFileSizeFcb(Fcb, NewLength);
 
-		if (FileSystem->BlockSize > PAGE_SIZE) {
+		if (FileSystem->BlockSize > PAGE_SIZE && CurrentBlockCount == NewBlockCount) {
 			// If the block size is LARGER than the page size, truncation may still be
 			// necessary.
 			MmTruncateFileCache(Fcb, NewLength);
@@ -352,16 +362,9 @@ BSTATUS Ext2ResizeFile(PFCB Fcb, uint64_t NewLength)
 		return STATUS_SUCCESS;
 	}
 
-	// Are we shrinking the file?
-	if (CurrentBlockCount <= NewBlockCount)
-	{
-		// No, expand it.
 
-		DbgPrint("Ext2: TODO: Ext2ResizeFile with allocating blocks.");
-		ReleaseBlockRwlock(Ext);
-
-		return STATUS_UNIMPLEMENTED;
-	}
+	// We are shrinking the file -- eagerly free everything.
+	// (TODO: designate all this work to a worker thread instead!)
 
 	// Determine which indirection regions are worth keeping.
 	ExAcquireFastMutex(&Ext->InodeDataMutex, false);
