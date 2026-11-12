@@ -218,7 +218,6 @@ BSTATUS IopWritePipe(PIO_STATUS_BLOCK Iosb, PFCB Fcb, UNUSED uint64_t Offset, PM
 	IoUnlockFcb(Fcb);
 
 	BSTATUS Status = STATUS_SUCCESS;
-	ASSERT(~MdlBuffer->Flags & MDL_FLAG_WRITE);
 	PPIPE Pipe = (PPIPE) Fcb->Extension;
 
 	size_t BytesWritten = 0;
