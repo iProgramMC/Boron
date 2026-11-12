@@ -864,8 +864,6 @@ BSTATUS IopWriteMessageQueue(
 	PIO_MESSAGE_QUEUE MessageQueue = EXT(Fcb)->MessageQueue;
 	BSTATUS Status = STATUS_SUCCESS;
 
-	ASSERT(~MdlBuffer->Flags & MDL_FLAG_WRITE);
-
 	size_t BytesWritten = 0;
 	Iosb->BytesWritten = 0;
 	Iosb->Status = Status;
