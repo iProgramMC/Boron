@@ -21,6 +21,7 @@ IO_DISPATCH_TABLE Ext2DispatchTable =
 	.Dereference = Ext2DereferenceInode,
 	.Mount = Ext2Mount,
 	.Read = Ext2Read,
+	.Write = Ext2Write,
 	.Resize = Ext2ResizeFile,
 	.Touch = Ext2TouchFile,
 	.ReadDir = Ext2ReadDir,
