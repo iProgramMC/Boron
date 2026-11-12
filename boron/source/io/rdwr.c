@@ -295,21 +295,8 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 
 	uint64_t EndOffset = Offset + Mdl->ByteCount;
 
-	// If we need to append, then lock exclusively unconditionally.
-	// Then make the offset the file's length.
-	if (Flags & IO_RW_APPEND)
-	{
-		Status = IoLockFcbExclusive(Fcb);
-
-		if (FAILED(Status))
-			return IOSB_STATUS(Iosb, Status);
-
-		Flags |= IO_RW_LOCKEDEXCLUSIVE;
-
-		Offset = Fcb->FileLength;
-	}
 	// If the capability flags demand an exclusive lock.
-	else if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
+	if (Dispatch->Flags & DISPATCH_FLAG_EXCLUSIVE)
 	{
 		Status = IoLockFcbExclusive(Fcb);
 
@@ -318,6 +305,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
+
 	// Check if the file needs to be expanded at all.
 	//
 	// This check is not performed atomically at all.  Frankly, if a truncation of the file
@@ -327,7 +315,12 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	// If the truncation attempt happens in the middle of the write function, and we did
 	// exclusively lock the FCB to check this, then the truncation would be delayed to after
 	// this function succeeds.
-	else if (IsSeekable && EndOffset > Fcb->FileLength && !(Flags & IO_RW_PAGING))
+	if (!IsSeekable)
+	{
+		// Not seekable, therefore expansion is not possible.
+		goto NoExpansion;
+	}
+	else if ((Flags & IO_RW_APPEND) || (EndOffset > Fcb->FileLength && !(Flags & IO_RW_PAGING)))
 	{
 		// Expansion required.  Acquire the lock, and expand.
 		Status = IoLockFcbExclusive(Fcb);
@@ -335,15 +328,28 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 		if (FAILED(Status))
 			return IOSB_STATUS(Iosb, Status);
 
+		if (Flags & IO_RW_APPEND)
+		{
+			Offset = Fcb->FileLength;
+			EndOffset = Offset + Mdl->ByteCount;
+		}
+
 		Status = IopSetFileSize(Fcb, EndOffset);
 
-		// TODO: Allow reporting of the status here.  It's possible this failed because
-		// the disk ran out of space, for example.
+		// (Should we report the status here? Because it is possible this failed if
+		// the disk ran out of space, for example, but do we want it to be returned
+		// HERE or during the actual write?)
+		if (FAILED(Status))
+		{
+			IoUnlockFcb(Fcb);
+			return IOSB_STATUS(Iosb, Status);
+		}
 
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
 	else
 	{
+	NoExpansion:
 		Status = IoLockFcbShared(Fcb);
 
 		if (FAILED(Status))
