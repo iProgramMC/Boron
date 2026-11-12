@@ -166,7 +166,7 @@ bool PerformConcatenate(
 				0, // ByteOffset
 				Buffer + BufferOffset,
 				BytesToWrite,
-				IO_RW_SHARED_FILE_OFFSET,
+				IO_RW_SHARED_FILE_OFFSET | IO_RW_APPEND,
 				&Unused
 			);
 
