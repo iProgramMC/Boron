@@ -163,8 +163,6 @@ BSTATUS NvmeRead(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL Mdl, uin
 BSTATUS NvmeWrite(PIO_STATUS_BLOCK Iosb, UNUSED PFCB Fcb, UNUSED uint64_t Offset, UNUSED PMDL Mdl, UNUSED uint32_t Flags)
 {
 	//ASSERT(!"Are you actually writing to NVMe volumes? Remove this!");
-	ASSERT(~Mdl->Flags & MDL_FLAG_WRITE);
-
 	size_t Length = Mdl->ByteCount;
 
 	PFCB_EXTENSION FcbExtension = (PFCB_EXTENSION) Fcb->Extension;
