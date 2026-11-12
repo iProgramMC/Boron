@@ -170,6 +170,21 @@ BSTATUS Ext2ReadInode(PEXT2_FILE_SYSTEM FileSystem, PFCB Fcb)
 	Fcb->FileType = Ext2InodeModeToFileType(Ext->Inode.Mode);
 	Fcb->FileLength = Ext2FileSize(Fcb);
 	Ext->InodeWritebackAddress = Address;
+
+	// By default, this will be the first block within the block group.
+	// But if there are any entries within the direct block mapping, use those instead.
+	//
+	// It actually uses the block bitmap's block ID as a hint, but this should be fine,
+	// as long as BlockBitmapBlockId is marked as allocated.
+	Ext->LastAllocatedBlockNumber = Descriptor.BlockBitmapBlockId;
+	for (int i = 0; i < 15; i++)
+	{
+		if (Ext->Inode.BlockPointers[i] != 0 &&
+			Ext->Inode.BlockPointers[i] > Ext->LastAllocatedBlockNumber) {
+			Ext->LastAllocatedBlockNumber = Ext->Inode.BlockPointers[i];
+		}
+	}
+
 	return STATUS_SUCCESS;
 }
 
@@ -235,6 +250,154 @@ Retry:
 	return STATUS_SUCCESS;
 }
 
+static BSTATUS Ext2pEnsureBlockIsAllocated(
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t* LastBlockHint,
+	uint32_t* EntryToEnsure,
+	bool* OutAllocatedABlock,
+	bool* OutAllocatedABlock2,
+	PFAST_MUTEX InodeDataMutex
+)
+{
+	BSTATUS Status;
+	if (*EntryToEnsure != 0)
+		return STATUS_SUCCESS;
+
+	if (InodeDataMutex) {
+		ExAcquireFastMutex(InodeDataMutex, false);
+	}
+
+	if (*EntryToEnsure != 0)
+	{
+		if (InodeDataMutex) {
+			ExReleaseFastMutex(InodeDataMutex);
+		}
+		return STATUS_SUCCESS;
+	}
+
+	size_t BlockCount = 0;
+	Status = Ext2AllocateBlocks(
+		FileSystem,
+		*LastBlockHint,
+		1,             // BlockCount
+		EntryToEnsure, // OutBlockStart
+		&BlockCount    // OutBlockCount
+	);
+
+	if (FAILED(Status)) {
+		DbgPrint("Ext2: failed to allocate block: %s", RtlGetStatusString(Status));
+		if (InodeDataMutex) {
+			ExReleaseFastMutex(InodeDataMutex);
+		}
+		return Status;
+	}
+
+	*LastBlockHint = *EntryToEnsure;
+
+	if (OutAllocatedABlock)
+		*OutAllocatedABlock = true;
+
+	if (OutAllocatedABlock2)
+		*OutAllocatedABlock2 = true;
+
+	if (InodeDataMutex) {
+		ExReleaseFastMutex(InodeDataMutex);
+	}
+
+	ASSERT(BlockCount == 1);
+
+	return STATUS_SUCCESS;
+}
+
+// Note: Level == 0 corresponds to singly indirect, and Level == 2 corresponds to triply indirect.
+static BSTATUS Ext2pFindOnDiskBlockIndirect(
+	PFCB Fcb,
+	PEXT2_FILE_SYSTEM FileSystem,
+	uint32_t BlockIndex,
+	uint32_t* IndirectBlockPointer,
+	uint32_t* OnDiskBlockOut,
+	bool AllocateIfNeeded,
+	bool* OutAllocatedBlock,
+	int Level
+)
+{
+	BSTATUS Status;
+	PREP_EXT;
+
+	ASSERT(Level >= 0 && Level <= 2 && "Invalid level");
+
+	uintptr_t AddrsPerBlock = FileSystem->BlockSize / sizeof(uint32_t);
+
+	if (!(*IndirectBlockPointer))
+	{
+		if (!AllocateIfNeeded) {
+			*OnDiskBlockOut = 0;
+			return STATUS_SUCCESS;
+		}
+
+		Status = Ext2pEnsureBlockIsAllocated(
+			FileSystem,
+			&Ext->LastAllocatedBlockNumber,
+			IndirectBlockPointer,
+			OutAllocatedBlock,
+			&Ext->InodeDataIsDirty,
+			&Ext->InodeDataMutex
+		);
+
+		if (FAILED(Status)) {
+			return Status;
+		}
+	}
+
+	uint32_t BlockNumber = *IndirectBlockPointer;
+	for (int i = 0; i <= Level; i++)
+	{
+		uint32_t Divisor = 1;
+		for (int j = 0; j < Level - i; j++) {
+			Divisor *= AddrsPerBlock;
+		}
+
+		uint32_t SubBlockIndex = BlockIndex / Divisor % AddrsPerBlock;
+
+		// Read the block number.
+		uint64_t Address = BLOCK_ADDRESS(BlockNumber, FileSystem);
+		Status = CcReadFileCopy(FileSystem->File, Address + 4 * SubBlockIndex, &BlockNumber, sizeof(uint32_t));
+		if (FAILED(Status)) {
+			return Status;
+		}
+
+		if (!AllocateIfNeeded && BlockNumber == 0) {
+			break;
+		}
+
+		if (BlockNumber != 0) {
+			continue;
+		}
+
+		// It's zero, so allocate a new block and write it back.
+		Status = Ext2pEnsureBlockIsAllocated(
+			FileSystem,
+			&Ext->LastAllocatedBlockNumber,
+			&BlockNumber,
+			OutAllocatedBlock,
+			NULL,     // OutAllocatedABlock2
+			NULL      // InodeDataMutex
+		);
+
+		if (FAILED(Status)) {
+			return Status;
+		}
+
+		Status = CcWriteFileCopy(FileSystem->File, Address + 4 * SubBlockIndex, &BlockNumber, sizeof(uint32_t));
+		if (FAILED(Status)) {
+			return Status;
+		}
+	}
+
+	*OnDiskBlockOut = BlockNumber;
+	return STATUS_SUCCESS;
+}
+
 //
 // Finds an on-disk block number, by its offset within the file, and returns it.
 //
@@ -242,104 +405,85 @@ Retry:
 // - shared, if AllocateIfNeeded is false
 // - exclusive, if AllocateIfNeeded is true
 //
-BSTATUS Ext2pFindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlockOut, bool AllocateIfNeeded)
+// TODO: Optimize it so that blocks are allocated with Ext2AllocateBlocks, and
+// regions are
+//
+BSTATUS Ext2FindOnDiskBlock(
+	PFCB Fcb,
+	uint32_t BlockIndex,
+	uint32_t* OnDiskBlockOut,
+	bool AllocateIfNeeded,
+	bool* OutAllocatedBlock
+)
 {
 	BSTATUS Status;
+
 	PREP_EXT;
 	PEXT2_FILE_SYSTEM FileSystem = Ext->OwnerFS;
 
-	uintptr_t AddrsPerBlock = FileSystem->BlockSize >> 2;
+	uintptr_t AddrsPerBlock = FileSystem->BlockSize / sizeof(uint32_t);
+
+	if (OutAllocatedBlock) {
+		*OutAllocatedBlock = false;
+	}
 
 	if (BlockIndex < 12)
 	{
 		// Oh, easy, this is just the index within the block.
+		if (AllocateIfNeeded)
+		{
+			Status = Ext2pEnsureBlockIsAllocated(
+				FileSystem,
+				&Ext->LastAllocatedBlockNumber,
+				&Ext->Inode.DirectBlockPointer[BlockIndex],
+				OutAllocatedBlock,
+				&Ext->InodeDataIsDirty,
+				&Ext->InodeDataMutex
+			);
+
+			if (FAILED(Status)) {
+				return Status;
+			}
+		}
+
 		*OnDiskBlockOut = Ext->Inode.DirectBlockPointer[BlockIndex];
 		return STATUS_SUCCESS;
 	}
 
 	BlockIndex -= 12;
 
-	// Is this the singly indirect block pointer.
-	if (BlockIndex < AddrsPerBlock)
+	uint32_t MaxBlockIndex = AddrsPerBlock;
+	for (int Level = 0; Level < 3; Level++)
 	{
-		if (!Ext->Inode.SinglyIndirectBlockPointer)
-			goto ZeroBlock;
+		if (BlockIndex >= MaxBlockIndex) {
+			BlockIndex -= MaxBlockIndex;
+			MaxBlockIndex *= AddrsPerBlock;
+			continue;
+		}
 
-		uint64_t Address = BLOCK_ADDRESS(Ext->Inode.SinglyIndirectBlockPointer, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * BlockIndex, OnDiskBlockOut, sizeof(uint32_t));
+		uint32_t* IndirectBlockPointer = &Ext->Inode.BlockPointers[12 + Level];
+
+		// This is the correct level.
+		return Ext2pFindOnDiskBlockIndirect(
+			Fcb,
+			FileSystem,
+			BlockIndex,
+			IndirectBlockPointer,
+			OnDiskBlockOut,
+			AllocateIfNeeded,
+			OutAllocatedBlock,
+			Level
+		);
 	}
 
-	BlockIndex -= AddrsPerBlock;
-
-	// Is this the doubly indirect block pointer.
-	if (BlockIndex < AddrsPerBlock * AddrsPerBlock)
-	{
-		if (!Ext->Inode.DoublyIndirectBlockPointer)
-			goto ZeroBlock;
-
-		// TODO: Optimize these divisions away
-		uint32_t Part1 = BlockIndex / AddrsPerBlock;
-		uint32_t Part2 = BlockIndex % AddrsPerBlock;
-		uint64_t Address;
-
-		Address = BLOCK_ADDRESS(Ext->Inode.DoublyIndirectBlockPointer, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
-		if (FAILED(Status))
-			return Status;
-
-		if (Part1 == 0)
-			goto ZeroBlock;
-
-		Address = BLOCK_ADDRESS(Part1, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * Part2, OnDiskBlockOut, sizeof(uint32_t));
+	// Can't go past this offset.
+	if (AllocateIfNeeded) {
+		return STATUS_INSUFFICIENT_SPACE;
 	}
-
-	BlockIndex -= AddrsPerBlock;
-
-	if (BlockIndex < AddrsPerBlock * AddrsPerBlock * AddrsPerBlock)
-	{
-		if (!Ext->Inode.TriplyIndirectBlockPointer)
-			goto ZeroBlock;
-
-		// TODO: Optimize these divisions away
-		uint32_t Part1 = BlockIndex / AddrsPerBlock / AddrsPerBlock;
-		uint32_t Part2 = BlockIndex / AddrsPerBlock % AddrsPerBlock;
-		uint32_t Part3 = BlockIndex % AddrsPerBlock;
-		uint64_t Address;
-
-		Address = BLOCK_ADDRESS(Ext->Inode.TriplyIndirectBlockPointer, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part1, &Part1, sizeof(uint32_t));
-		if (FAILED(Status))
-			return Status;
-
-		if (Part1 == 0)
-			goto ZeroBlock;
-
-		Address = BLOCK_ADDRESS(Part1, FileSystem);
-		Status = CcReadFileCopy(FileSystem->File, Address + 4 * Part2, &Part2, sizeof(uint32_t));
-		if (FAILED(Status))
-			return Status;
-
-		if (Part2 == 0)
-			goto ZeroBlock;
-
-		Address = BLOCK_ADDRESS(Part2, FileSystem);
-		return CcReadFileCopy(FileSystem->File, Address + 4 * Part3, OnDiskBlockOut, sizeof(uint32_t));
+	else {
+		DbgPrint("Ext2: Max possible file offset reached, what do we do here!?");
+		return STATUS_END_OF_FILE;
 	}
-
-	// Can't write more data
-	return STATUS_INSUFFICIENT_SPACE;
-
-ZeroBlock:
-	if (AllocateIfNeeded)
-	{
-		// TODO: Unimplemented
-		DbgPrint("NYI Ext2pFindOnDiskBlock, with allocation");
-		return STATUS_UNIMPLEMENTED;
-	}
-
-	*OnDiskBlockOut = 0;
-	return STATUS_SUCCESS;
 }
 
 bool Ext2Seekable(UNUSED PFCB Fcb)

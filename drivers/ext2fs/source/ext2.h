@@ -45,6 +45,9 @@ typedef struct _EXT2_FCB_EXT
 	bool InodeDataIsDirty;
 	uint64_t InodeWritebackAddress;
 
+	// Hint for future block allocations.
+	uint32_t LastAllocatedBlockNumber;
+
 	// This guards the direct block array.
 	EX_RW_LOCK BlockRwlock;
 

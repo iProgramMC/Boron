@@ -149,11 +149,7 @@ typedef struct _EXT2_INODE
 			uint32_t TriplyIndirectBlockPointer;
 		};
 
-		struct
-		{
-			uint32_t BlockPointers[15];
-		};
-
+		uint32_t BlockPointers[15];
 		char ShortSymLinkContents[60];
 	};
 

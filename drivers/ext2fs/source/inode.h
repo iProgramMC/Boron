@@ -36,7 +36,7 @@ FORCE_INLINE uint64_t Ext2FileSize(PFCB Fcb)
 		return Ext->Inode.Size | ((uint64_t) Ext->Inode.SizeUpper << 32);
 }
 
-BSTATUS Ext2pFindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlockOut, bool AllocateIfNeeded);
+BSTATUS Ext2FindOnDiskBlock(PFCB Fcb, uint32_t BlockIndex, uint32_t* OnDiskBlockOut, bool AllocateIfNeeded, bool* AllocatedBlock);
 
 int Ext2TypeIndicatorToFileType(uint8_t TypeIndicator);
 

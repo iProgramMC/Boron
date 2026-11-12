@@ -41,6 +41,16 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
 
+	if (Fcb->FileType == FILE_TYPE_SYMBOLIC_LINK && Fcb->FileLength <= 15 * sizeof(uint32_t))
+	{
+		// TODO: Support symbolic links.
+		//
+		// Links shorter than or equal to 60 characters place their contents directly inside the
+		// list of block pointers, rather than using a block to store their contents.
+		DbgPrint("Ext2: Reading from a symbolic link shorter than 60 chars is not supported");
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	}
+
 	if (Size + Offset >= FileSize)
 		Size = FileSize - Offset;
 
@@ -86,7 +96,7 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 
 		AcquireBlockRwlockShared(Ext);
 
-		Status = Ext2pFindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, false);
+		Status = Ext2FindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, false, NULL);
 
 		if (FAILED(Status)) {
 			ReleaseBlockRwlock(Ext);
@@ -177,6 +187,16 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 		return IOSB_STATUS(Iosb, STATUS_SUCCESS);
 	}
 
+	if (Fcb->FileType == FILE_TYPE_SYMBOLIC_LINK && Fcb->FileLength <= 15 * sizeof(uint32_t))
+	{
+		// TODO: Support symbolic links.
+		//
+		// Links shorter than or equal to 60 characters place their contents directly inside the
+		// list of block pointers, rather than using a block to store their contents.
+		DbgPrint("Ext2: Writing to a symbolic link shorter than 60 chars is not supported");
+		return IOSB_STATUS(Iosb, STATUS_UNSUPPORTED_FUNCTION);
+	}
+
 	if (Size + Offset >= FileSize)
 		Size = FileSize - Offset;
 
@@ -195,7 +215,7 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 			(uintptr_t) BlockBuffer,
 			FileSystem->BlockSize,
 			KeGetPreviousMode(),
-			false // IsWrite
+			true  // IsWrite
 		);
 
 		if (FAILED(Status)) {
@@ -222,12 +242,14 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 
 		AcquireBlockRwlockShared(Ext);
 
-		Status = Ext2pFindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, false);
+		Status = Ext2FindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, false, NULL);
 
 		if (FAILED(Status)) {
 			ReleaseBlockRwlock(Ext);
 			break;
 		}
+
+		bool ClearThisBlockToZero = false;
 
 		// If the block is zero, we need to allocate it.
 		if (OnDiskBlock == 0)
@@ -239,7 +261,7 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 			AcquireBlockRwlockExclusive(Ext);
 
 			// NOTE: this will also fill in the correct entry number, too.
-			Status = Ext2pFindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, true);
+			Status = Ext2FindOnDiskBlock(Fcb, BlockIndex, &OnDiskBlock, true, &ClearThisBlockToZero);
 			if (FAILED(Status)) {
 				ReleaseBlockRwlock(Ext);
 				break;
@@ -257,10 +279,18 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 
 		uint64_t Address = BLOCK_ADDRESS(OnDiskBlock, FileSystem);
 
-		// First, check if we need to read anything.
-		if (BlockOffset != 0 || CopyAmount != FileSystem->BlockSize)
+		// First, check if we depend on the contents of this block at all.
+		if (BlockOffset == 0 && CopyAmount == FileSystem->BlockSize)
 		{
-			// Yes.  Read the block before modifying it.
+			// We do not.
+		}
+		else if (ClearThisBlockToZero)
+		{
+			memset(BlockBuffer, 0, FileSystem->BlockSize);
+		}
+		else
+		{
+			// Read the block before modifying it.
 			Status = IoReadFileMdl(
 				Iosb,
 				FileSystem->File,
@@ -276,6 +306,7 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 			}
 		}
 
+		// Copy the actual data in.
 		MmCopyFromMdl(MdlBuffer, MdlOffset, BlockBuffer + BlockOffset, CopyAmount);
 
 		// Finally, write the block.

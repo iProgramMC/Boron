@@ -93,6 +93,17 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 	FileSystem->InodesPerGroup = Sb->InodesPerGroup;
 	FileSystem->BlocksPerGroup = Sb->BlocksPerGroup;
 
+	if (FileSystem->BlockSize >= 32768)
+	{
+		// TODO: Use 64-bit indices for block indexing which fixes this issue.
+		LogMsg(
+			"Warning: Ext2 partition %s has a block size of %zu, which is not supported.",
+			FileSystem->BlockSize
+		);
+		Status = STATUS_UNIMPLEMENTED;
+		goto Failure;
+	}
+
 	FileSystem->BackingDevice = BackingDevice;
 	FileSystem->File = BackingFile;
 
@@ -143,7 +154,7 @@ BSTATUS Ext2Mount(PDEVICE_OBJECT BackingDevice, PFILE_OBJECT BackingFile, POBJEC
 		(uintptr_t) BlockSizeBuffer,
 		FileSystem->BlockSize,
 		MODE_KERNEL,
-		true
+		true   // IsWrite
 	);
 	if (FAILED(Status))
 	{

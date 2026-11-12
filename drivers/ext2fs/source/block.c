@@ -467,6 +467,14 @@ BSTATUS Ext2FreeBlock(
 		return Status;
 	}
 
+	// This check is incomplete, and that's OK.
+	ASSERT(BlockIndex != Descriptor.InodeTableBlockId && "Why are we trying to free the inode table?");
+
+	// These checks are complete, though, since the block bitmap and table are both
+	// 1 block in size.
+	ASSERT(BlockIndex != Descriptor.BlockBitmapBlockId && "Why are we trying to free the block bitmap?");
+	ASSERT(BlockIndex != Descriptor.InodeBitmapBlockId && "Why are we trying to free the inode bitmap?");
+
 	uint64_t Address = (uint64_t) Descriptor.BlockBitmapBlockId * FileSystem->BlockSize;
 	Address += BlockIndexInGroup / 8;
 
