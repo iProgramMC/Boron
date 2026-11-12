@@ -405,8 +405,7 @@ static BSTATUS Ext2pFindOnDiskBlockIndirect(
 // - shared, if AllocateIfNeeded is false
 // - exclusive, if AllocateIfNeeded is true
 //
-// TODO: Optimize it so that blocks are allocated with Ext2AllocateBlocks, and
-// regions are
+// TODO: Use multiple block allocation for Ext2AllocateBlocks.
 //
 BSTATUS Ext2FindOnDiskBlock(
 	PFCB Fcb,
