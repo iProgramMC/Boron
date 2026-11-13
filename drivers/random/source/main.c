@@ -44,7 +44,6 @@ static void Generate(size_t Size)
 	for (size_t i = 0; i < Size; i++)
 	{
 		RandomBuffer[i] = NextByte();
-		DbgPrint("generated %c", RandomBuffer[i]);
 	}
 }
 
