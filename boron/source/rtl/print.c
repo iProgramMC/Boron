@@ -4,11 +4,11 @@
 
 Module name:
 	rtl/print.c
-	
+
 Abstract:
 	This module implements the platform independent part of the
 	printing code.
-	
+
 Author:
 	iProgramInCpp - 20 August 2023
 ***/
@@ -48,7 +48,7 @@ void LogMsg(const char* msg, ...)
 	int chars = vsnprintf(buffer, sizeof buffer - 3, msg, va);
 	strcpy(buffer + chars, "\n");
 	va_end(va);
-	
+
 #ifdef KERNEL
 	HalDisplayString(buffer);
 #else
@@ -64,12 +64,18 @@ void DbgPrint(const char* msg, ...)
 {
 	va_list va;
 	va_start(va, msg);
+
+#ifdef KERNEL
 	char buffer[512]; // should be big enough...
+#else
+	char buffer[8192];
+#endif
+
 	buffer[sizeof buffer - 1] = 0;
 	int chars = vsnprintf(buffer, sizeof buffer - 1, msg, va);
 	strcpy(buffer + chars, "\n");
 	va_end(va);
-	
+
 #ifdef KERNEL
 	// This one goes to the debug log.
 	// Debug2 turns off the spin locks associated with the debug prints.
