@@ -158,7 +158,7 @@ bool PerformConcatenate(
 		size_t BytesToWrite = Iosb.BytesRead, BufferOffset = 0;
 		while (BytesToWrite != 0)
 		{
-			DbgPrint("writing '%s'", Buffer);
+			//DbgPrint("writing '%s'", Buffer);
 
 			Status = OSWriteFile(
 				&Iosb,
