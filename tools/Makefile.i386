@@ -8,5 +8,6 @@ DRIVERS_LIST = \
 	i8042prt   \
 	ext2fs     \
 	tmpfs      \
+	null       \
+	random     \
 	test
-

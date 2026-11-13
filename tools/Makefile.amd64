@@ -9,6 +9,8 @@ DRIVERS_LIST = \
 	stornvme   \
 	ext2fs     \
 	tmpfs      \
+	null       \
+	random     \
 	test
 
 # Amd64 has a special sysroot path since we'll be porting mlibc on it. 32-bit currently
@@ -17,5 +19,3 @@ DRIVERS_LIST = \
 # copy the `root` directory again. Bad, but I don't know how to disable commands inside of rules.
 BORON_SYSROOT_AMD64_PATH ?= root
 BORON_SYSROOT_PATH := $(BORON_SYSROOT_AMD64_PATH)
-
-
