@@ -121,7 +121,7 @@ bool PerformConcatenate(
 			InputFile,
 			0, // ByteOffset
 			Buffer,
-			sizeof Buffer,
+			BytesToRead,
 			IO_RW_SHARED_FILE_OFFSET | ExtraFlags
 		);
 
@@ -178,7 +178,7 @@ bool PerformConcatenate(
 			BufferOffset += Iosb.BytesWritten;
 			BytesToWrite -= Iosb.BytesWritten;
 
-			if (ReadSize != 0)
+			if (ReadSize != 0 && ReportProgress)
 			{
 				OSFPrintf(
 					FILE_STANDARD_ERROR,
