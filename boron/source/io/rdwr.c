@@ -305,7 +305,6 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 
 		Flags |= IO_RW_LOCKEDEXCLUSIVE;
 	}
-
 	// Check if the file needs to be expanded at all.
 	//
 	// This check is not performed atomically at all.  Frankly, if a truncation of the file
@@ -315,7 +314,7 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 	// If the truncation attempt happens in the middle of the write function, and we did
 	// exclusively lock the FCB to check this, then the truncation would be delayed to after
 	// this function succeeds.
-	if (!IsSeekable)
+	else if (!IsSeekable)
 	{
 		// Not seekable, therefore expansion is not possible.
 		goto NoExpansion;
@@ -326,7 +325,10 @@ static BSTATUS IopWriteFile2(PIO_STATUS_BLOCK Iosb, PFILE_OBJECT FileObject, PMD
 		Status = IoLockFcbExclusive(Fcb);
 
 		if (FAILED(Status))
+		{
+			IoUnlockFcb(Fcb);
 			return IOSB_STATUS(Iosb, Status);
+		}
 
 		if (Flags & IO_RW_APPEND)
 		{
