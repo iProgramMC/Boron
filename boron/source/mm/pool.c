@@ -4,11 +4,11 @@
 
 Module name:
 	mm/pool.c
-	
+
 Abstract:
 	This module contains the implementation of the pool
 	memory allocator API.
-	
+
 Author:
 	iProgramInCpp - 27 November 2023
 ***/
@@ -37,29 +37,30 @@ void MmSetPoolFlagsFromAddress(void* Address, uintptr_t Flags)
 void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 {
 	void* OutputAddress = NULL;
-	
+
 	int ReserveFlags = 0;
 	if (PoolFlags & POOL_FLAG_LAZY_RELEASE)
 		ReserveFlags |= MI_POOL_ENTRY_LAZY_RELEASE;
-	
+
 	MIPOOL_SPACE_HANDLE OutHandle = (MIPOOL_SPACE_HANDLE) MiReservePoolSpaceTagged (
 		PageCount,
 		&OutputAddress,
 		Tag,
 		PoolFlags,
-		ReserveFlags);
-	
+		ReserveFlags
+	);
+
 	if (!OutHandle)
 		return NULL;
-	
+
 	if (~PoolFlags & POOL_FLAG_CALLER_CONTROLLED)
 	{
 		bool NonPaged = false;
 		if (PoolFlags & POOL_FLAG_NON_PAGED)
 			NonPaged = true;
-		
+
 		MmLockKernelSpaceExclusive();
-		
+
 		// Map the memory in!  This will affect ALL page maps
 		if (!MiMapAnonPages(
 			(uintptr_t) OutputAddress,
@@ -71,40 +72,40 @@ void* MmAllocatePoolBig(int PoolFlags, size_t PageCount, int Tag)
 			MiFreePoolSpace(OutHandle);
 			return NULL;
 		}
-		
+
 		MmUnlockKernelSpace();
 	}
-	
+
 	return OutputAddress;
 }
 
 void MmFreePoolBig(void* Address)
 {
 	MIPOOL_SPACE_HANDLE Handle = MiGetPoolSpaceHandleFromAddress(Address);
-	
+
 	int PoolFlags = (int) MiGetUserDataFromPoolSpaceHandle(Handle);
 	if ((~PoolFlags & POOL_FLAG_CALLER_CONTROLLED) ||
 		(PoolFlags & POOL_FLAG_UNMAP_ANYWAY))
 	{
 		MmLockKernelSpaceExclusive();
-		
+
 		bool InvokeTlbShootdown = true;
-		
+
 		// If lazy release is set, don't invoke a TLB shootdown.
 		// The TLB shootdown will be invoked later.
 		if (PoolFlags & POOL_FLAG_LAZY_RELEASE)
 			InvokeTlbShootdown = false;
-		
+
 		// De-allocate the memory first.  Ideally this will affect ALL page maps
 		MiUnmapPages(
 			(uintptr_t)Address,
 			MiGetSizeFromPoolSpaceHandle(Handle),
 			InvokeTlbShootdown
 		);
-		
+
 		MmUnlockKernelSpace();
 	}
-	
+
 	// Then release its pool space handle
 	MiFreePoolSpace((MIPOOL_SPACE_HANDLE) Handle);
 }
@@ -112,7 +113,7 @@ void MmFreePoolBig(void* Address)
 void* MmAllocatePool(int PoolFlags, size_t Size)
 {
 	void* Result = MiSlabAllocate(PoolFlags & POOL_FLAG_NON_PAGED, Size);
-	
+
 	// The commented-out format is for a tool I wrote which finds memory allocation leaks.
 #ifdef POOLDEBUG
 	DbgPrint("MmAllocatePool(%d, %5zu) => %p (RA: %p)", PoolFlags, Size, Result, CallerAddress());
@@ -125,7 +126,7 @@ void* MmAllocatePool(int PoolFlags, size_t Size)
 void MmFreePool(void* Pointer)
 {
 	MiSlabFree(Pointer);
-	
+
 #ifdef POOLDEBUG
 	DbgPrint("MmFreePool()             <= %p (RA: %p)", Pointer, CallerAddress());
 	//DbgPrint("MmFreePool,%p,%p", Pointer, CallerAddress());
@@ -135,13 +136,12 @@ void MmFreePool(void* Pointer)
 void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t PermissionsAndCaching, int Tag)
 {
 	if (Tag == 0) Tag = POOL_TAG("MMIS");
-	
+
 	// Ensure the starting address is page aligned.
-	Size += PhysicalAddress & (PAGE_SIZE - 1);
-	PhysicalAddress &= ~(PAGE_SIZE - 1);
-	
+	ASSERT((PhysicalAddress & (PAGE_SIZE - 1)) == 0 && "You will have to provide a page-aligned address.");
+
 	size_t SizePages = (Size + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	// Allocate some pool space.
 	void* Space = MmAllocatePoolBig(
 		POOL_FLAG_CALLER_CONTROLLED | POOL_FLAG_UNMAP_ANYWAY,
@@ -149,12 +149,12 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t Permissions
 		Tag
 	);
 	uintptr_t VirtualAddress = (uintptr_t) Space;
-	
+
 	if (!Space)
 		return Space;
-	
+
 	MmLockKernelSpaceExclusive();
-	
+
 	for (size_t i = 0; i < SizePages; i++, PhysicalAddress += PAGE_SIZE, VirtualAddress += PAGE_SIZE)
 	{
 		if (!MiMapPhysicalPage(PhysicalAddress, VirtualAddress, PermissionsAndCaching))
@@ -163,7 +163,7 @@ void* MmMapIoSpace(uintptr_t PhysicalAddress, size_t Size, uintptr_t Permissions
 			goto Rollback;
 		}
 	}
-	
+
 	MmUnlockKernelSpace();
 	return Space;
 
