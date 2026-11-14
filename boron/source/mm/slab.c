@@ -4,10 +4,10 @@
 
 Module name:
 	mm/slab.c
-	
+
 Abstract:
 	This is the implementation of the slab allocator.
-	
+
 Author:
 	iProgramInCpp - 24 September 2023
 ***/
@@ -46,13 +46,13 @@ static MISLAB_CONTAINER MiSlabContainer[2][MISLAB_SIZE_COUNT];
 //
 // TODO: There is probably going to be a ton of contention on this lock, we need something better.
 KSPIN_LOCK MmpSlabItemTopLock;
-RBTREE    MmpSlabItemTopTree;
+RBTREE     MmpSlabItemTopTree;
 
 static size_t MmpSlabItemDetermineLength(int ItemSize)
 {
 	if (ItemSize < PAGE_SIZE / 4)
 		return PAGE_SIZE;
-	
+
 	// Allow at least 4 items to fit.
 	return (ItemSize * 4 + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
@@ -67,12 +67,12 @@ static bool MmpAddSlabItemToTree(PMISLAB_ITEM SlabItem)
 	RBTREE_KEY Key = (RBTREE_KEY)(uintptr_t)SlabItem;
 	InitializeRbTreeEntry(&SlabItem->TreeEntry);
 	SlabItem->TreeEntry.Key = Key;
-	
+
 	KIPL Ipl;
 	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
-	
+
 	bool Inserted = InsertItemRbTree(&MmpSlabItemTopTree, &SlabItem->TreeEntry);
-	
+
 	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
 	return Inserted;
 }
@@ -82,9 +82,9 @@ static bool MmpRemoveSlabItemFromTree(PMISLAB_ITEM SlabItem)
 	KIPL Ipl;
 	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
 	ASSERT(SlabItem->TreeEntry.Key == (RBTREE_KEY)(uintptr_t)SlabItem);
-	
+
 	bool Removed = RemoveItemRbTree(&MmpSlabItemTopTree, &SlabItem->TreeEntry);
-	
+
 	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
 	return Removed;
 }
@@ -117,7 +117,7 @@ int MmGetSmallestSlabSizeThatFitsSize(size_t Size)
 		if ((size_t)MiSlabSizes[i] == Size)
 			return i;
 	}
-	
+
 	// Check for generic matches.
 	for (i = MISLAB_GENERIC_START; i < MISLAB_GENERIC_LIMIT; i++)
 	{
@@ -132,32 +132,32 @@ void* MmpSlabItemTryAllocate(PMISLAB_ITEM Item, int EntrySize)
 	int EntriesPerItem     = (Item->Length - sizeof(*Item)) / EntrySize;
 	int BitmapWrdsToCheck  = (EntriesPerItem + 63) / 64;
 	int LastBitmapBitCount = EntriesPerItem % 64;
-	
+
 	// NOTE: If the slab item has an AVL tree index into it, it can only store
 	// at most 4 items inside, so therefore only one of the bitmaps will actually
 	// be checked.
-	
+
 	for (int BitmapIndex = 0; BitmapIndex < BitmapWrdsToCheck; BitmapIndex++)
 	{
 		int Count = 64;
 		if (BitmapIndex == BitmapWrdsToCheck - 1 && LastBitmapBitCount)
 			Count = LastBitmapBitCount;
-		
+
 		uint64_t BitMap = Item->Bitmap[BitmapIndex];
-		
+
 		for (int Index = 0; Index < Count; Index++)
 		{
 			if (~BitMap & (1ULL << Index))
 			{
 				Item->Bitmap[BitmapIndex] |= 1ULL << Index;
-				
+
 				int Index2 = (64 * BitmapIndex + Index) * EntrySize;
-				
+
 				return &Item->Data[Index2];
 			}
 		}
 	}
-	
+
 	return NULL;
 }
 
@@ -165,14 +165,14 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&Container->Lock, &OldIpl);
-	
+
 	// Look for any pre-existing free elements.
 	PLIST_ENTRY ItemEntry = Container->ListHead.Flink;
-	
+
 	while (ItemEntry != &Container->ListHead)
 	{
 		PMISLAB_ITEM Item = CONTAINING_RECORD(ItemEntry, MISLAB_ITEM, ListEntry);
-		
+
 		void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 		if (Mem)
 		{
@@ -180,52 +180,52 @@ void* MmpSlabContainerAllocate(PMISLAB_CONTAINER Container)
 			memset(Mem, 0, Container->ItemSize);
 			return Mem;
 		}
-		
+
 		ItemEntry = ItemEntry->Flink;
 	}
-	
+
 	// Allocate a new slab item.
 	PMISLAB_ITEM Item;
-	
+
 	int Length = MmpSlabItemDetermineLength(Container->ItemSize);
-	
+
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
-	
+
 	// TODO: Fix that since we're locking a spinlock, we can't take
 	// page faults on that memory.  Even if we mapped it all already,
 	// it's going to cause issues when freeing too..
-	
+
 	void* Addr = MmAllocatePoolBig(
 		//Container->NonPaged ? POOL_FLAG_NON_PAGED : 0,
 		POOL_FLAG_NON_PAGED,
 		(Length + PAGE_SIZE - 1) / PAGE_SIZE,
 		POOL_TAG("SbIt")
 	);
-	
+
 	if (!Addr)
 	{
 		DbgPrint("ERROR: MmpSlabContainerAllocate: Out of memory! What will we do?!");
 		//KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return NULL;
 	}
-	
+
 	Item = Addr;
-	
+
 	memset(Item, 0, sizeof *Item);
-	
+
 	Item->Check  = MI_SLAB_ITEM_CHECK;
 	Item->Parent = Container;
 	Item->Length = Length;
-	
+
 	KeAcquireSpinLock(&Container->Lock, &OldIpl);
-	
+
 	// Link it to the list:
 	InsertTailList(&Container->ListHead, &Item->ListEntry);
-	
+
 	// If the entry size is big enough, we're going to want to insert it into the AVL tree too.
 	if (MmpRequiresRbTreeEntry(Container->ItemSize))
 		MmpAddSlabItemToTree(Item);
-	
+
 	void* Mem = MmpSlabItemTryAllocate(Item, Container->ItemSize);
 	ASSERT(Mem);
 	memset(Mem, 0, Container->ItemSize);
@@ -237,16 +237,16 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 {
 	KIPL OldIpl;
 	KeAcquireSpinLock(&Container->Lock, &OldIpl);
-	
+
 	uint8_t* PtrBytes = Ptr;
-	
+
 	if (Item->Check != MI_SLAB_ITEM_CHECK || Item->Parent != Container)
 	{
 		DbgPrint("Error in MmpSlabContainerFree: Pointer %p isn't actually part of this container!", Ptr);
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return;
 	}
-	
+
 	// Get the offset.
 	ptrdiff_t Diff = PtrBytes - (uint8_t*)Item->Data;
 	if (Diff % Container->ItemSize != 0)
@@ -255,15 +255,15 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 		KeReleaseSpinLock(&Container->Lock, OldIpl);
 		return;
 	}
-	
+
 	Diff /= Container->ItemSize;
-	
+
 	// Unset the relevant bit
 	Item->Bitmap[Diff / 64] &= ~(1ULL << (Diff % 64));
-	
+
 	void* MemoryToFreeBig = NULL;
 	bool RequiresRbTreeEntry = MmpRequiresRbTreeEntry(Container->ItemSize);
-	
+
 	// Check if it's all zero:
 #ifdef IS_64_BIT
 	if (!Item->Bitmap[0] && (RequiresRbTreeEntry || (!Item->Bitmap[1] && !Item->Bitmap[2] && !Item->Bitmap[3])))
@@ -272,41 +272,41 @@ void MmpSlabContainerFree(PMISLAB_CONTAINER Container, PMISLAB_ITEM Item, void* 
 #endif
 	{
 		RemoveEntryList(&Item->ListEntry);
-		
+
 		if (RequiresRbTreeEntry)
 			MmpRemoveSlabItemFromTree(Item);
-		
+
 		// Free the memory.
 		MemoryToFreeBig = Item;
 	}
-	
+
 	KeReleaseSpinLock(&Container->Lock, OldIpl);
-	
+
 	if (MemoryToFreeBig)
 		MmFreePoolBig(MemoryToFreeBig);
 }
 
 void* MmpAllocateHuge(bool IsNonPaged, size_t Size)
-{	
+{
 	size_t PageCount = (Size + sizeof(HUGE_MEMORY_BLOCK) + PAGE_SIZE - 1) / PAGE_SIZE;
-	
+
 	void* Addr = MmAllocatePoolBig(
 		IsNonPaged ? POOL_FLAG_NON_PAGED : 0,
 		PageCount,
 		POOL_TAG("BHUG")
 	);
-	
+
 	if (!Addr)
 	{
 		DbgPrint("ERROR: MmpAllocateHuge: Out of memory!");
 		ASSERT(!"Out of memory!");
 		return NULL;
 	}
-	
+
 	PHUGE_MEMORY_BLOCK Hmb = Addr;
 	Hmb->Check = MI_HUGE_MEMORY_CHECK;
 	memset(Hmb->Data, 0, Size);
-	
+
 	return Hmb->Data;
 }
 
@@ -318,72 +318,92 @@ void MmpFreeHuge(PHUGE_MEMORY_BLOCK Hmb)
 void* MiSlabAllocate(bool IsNonPaged, size_t Size)
 {
 	int Index = MmGetSmallestSlabSizeThatFitsSize(Size);
-	
+
 	if (Index >= MISLAB_SIZE_COUNT)
 	{
 		return MmpAllocateHuge(IsNonPaged, Size);
 	}
-	
+
 	return MmpSlabContainerAllocate(&MiSlabContainer[IsNonPaged][Index]);
 }
 
 void MiSlabFree(void* Ptr)
 {
 	void* PageAlignedPtr = (void*)((uintptr_t)Ptr & ~(PAGE_SIZE - 1));
-	
-	// Test for huge memory blocks.
-	PHUGE_MEMORY_BLOCK Hmb = PageAlignedPtr;
-	if (Hmb->Check == MI_HUGE_MEMORY_CHECK)
-	{
-		// FIX ASAP
-		// TODO: this is vulnerable to attacks where someone fills the memory with this
-		// TODO TODO TODO
-		
-		// Free it as a huge memory block.
-		MmpFreeHuge(Hmb);
-		return;
-	}
-	
+
+	// There are three types of pointers we can expect to receive through this function:
+	//
+	// - Pointers allocated via a page-sized slab.  These don't belong to the top tree,
+	//   and the page aligned pointer is enough to determine their controller.
+	//
+	// - Pointers allocated via a slab that requires an RB-tree entry, a/k/a a slab whose
+	//   size is a multiple of page alignment.  These belong to the top tree.
+	//
+	// - Pointers allocated via "huge" APIs (HUGE_MEMORY_BLOCK).  These DON'T belong to
+	//   the top tree despite their size.  Attempting to free a memory region by anything
+	//   other than the pointer returned by the header is undefined behavior, so we don't
+	//   need to retrack anything.
+	//
+	// TODO: Reduce lock contention on MmpSlabItemTopLock.
 	PMISLAB_ITEM Item = PageAlignedPtr;
-	
+
 	KIPL Ipl;
 	KeAcquireSpinLock(&MmpSlabItemTopLock, &Ipl);
-	
+
 	// Check if the slab item top tree has it.
 	//
 	// If the entry is not NULL, it will point to a valid slab item. But we should also check
 	// if the pointer in question belongs inside of that item. If it does, call MmpSlabContainerFree
 	// on the tree thing, otherwise, hope that this is a standard small item.
 	PRBTREE_ENTRY Entry = LookUpItemApproximateRbTree(&MmpSlabItemTopTree, (uintptr_t) PageAlignedPtr);
-	
+
 	// NOTE: We don't want to delay releasing the tree lock. The entry should stick around until
 	// the free is committed, otherwise we have a double-free and I clearly won't define that.
-	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
-	
-	if (!Entry)
-		// There are no entries in the slab item top tree. This means that no allocations whose slab items
-		// couldn't fit inside of one page have been issued. Therefore, handle it as if it were a standard
-		// small item.
-		goto StandardHandling;
-	
-	// Well, it was, get the pointer to that item.
-	Item = CONTAINING_RECORD(Entry, MISLAB_ITEM, TreeEntry);
-	
-	// This item pointer is page aligned.
-	ASSERT(((uintptr_t)Item & (PAGE_SIZE - 1)) == 0);
-	
-	// Now check if the pointer we were passed actually belongs inside this slab item.
-	if ((char*)Ptr < Item->Data || Item->Data + Item->Length - sizeof(Item) <= (char*)Ptr)
+	//KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
+
+	bool DoHugeMemoryCheck = true;
+
+	if (Entry)
 	{
-		// No, so we will want to handle it the normal way.
-		Item = PageAlignedPtr;
+		// Well, we did find an entry, but let's check if this entry actually contains our address.
+		Item = CONTAINING_RECORD(Entry, MISLAB_ITEM, TreeEntry);
+
+		// This item pointer is page aligned.
+		ASSERT(((uintptr_t)Item & (PAGE_SIZE - 1)) == 0);
+
+		bool IsEntryInside = Item->Data <= (char*) Ptr && (char*) Ptr < Item->Data + Item->Length - sizeof(*Item);
+
+		if (!IsEntryInside)
+		{
+			// Not inside, so this entry is unrelated and we can safely treat it as either a page-sized
+			// slab or a huge memory block.
+			Item = PageAlignedPtr;
+		}
+		else
+		{
+			// This can't POSSIBLY be a huge memory region, so don't even bother with the check.
+			DoHugeMemoryCheck = false;
+		}
 	}
-	
-StandardHandling:
-	if (Item->Check != MI_SLAB_ITEM_CHECK) {
+
+	KeReleaseSpinLock(&MmpSlabItemTopLock, Ipl);
+
+	if (DoHugeMemoryCheck)
+	{
+		PHUGE_MEMORY_BLOCK Hmb = PageAlignedPtr;
+		if (Hmb->Check == MI_HUGE_MEMORY_CHECK)
+		{
+			MmpFreeHuge(Hmb);
+			return;
+		}
+	}
+
+	if (Item->Check != MI_SLAB_ITEM_CHECK)
+	{
 		DbgPrint("ERROR: ItemCheck is %d (%x)", Item->Check, Item->Check);
 	}
+
 	ASSERT(Item->Check == MI_SLAB_ITEM_CHECK);
-	
+
 	MmpSlabContainerFree(Item->Parent, Item, Ptr);
 }
