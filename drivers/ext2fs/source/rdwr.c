@@ -158,7 +158,6 @@ BSTATUS Ext2Read(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuffe
 	Iosb->BytesRead = BytesRead;
 	Iosb->Status = Status;
 
-	MmFreePool(BlockBuffer);
 	return Status;
 }
 
@@ -345,6 +344,5 @@ BSTATUS Ext2Write(PIO_STATUS_BLOCK Iosb, PFCB Fcb, uint64_t Offset, PMDL MdlBuff
 	Iosb->BytesRead = BytesRead;
 	Iosb->Status = Status;
 
-	MmFreePool(BlockBuffer);
 	return Status;
 }
