@@ -172,7 +172,7 @@ void MiFreePoolHeaderSlab(PMIPOOL_ENTRY_SLAB Address)
 
 	// clear the PTE
 	*Pte = MmBuildZeroPte();
-	MmIssueTLBShootDown(Address, PAGE_SIZE, NULL);
+	MmIssueTLBShootDown((uintptr_t) Address, PAGE_SIZE, NULL);
 
 	// then free
 	MmFreePhysicalPage(Pfn);
