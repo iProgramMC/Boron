@@ -1,14 +1,23 @@
 # I386 Compiler Toolchain
 
 HOST_ARCH = $(shell uname -m)
+HOST_SYSTEM = $(shell uname -s)
 ifeq ($(HOST_ARCH),x86_64)
 	BLD ?= ld
 else
 	BLD ?= ld.lld
 endif
 
-BCC  ?= clang
-BCXX ?= clang++
+# Apple clang doesn't compile i386 builds correctly at the moment.
+# Have to use Homebrew clang instead.
+ifeq ($(HOST_SYSTEM),Darwin)
+	CLANG_PFX = /opt/homebrew/opt/llvm/bin/
+else
+	CLANG_PFX =
+endif
+
+BCC  ?= $(CLANG_PFX)clang
+BCXX ?= $(CLANG_PFX)clang++
 BASM ?= nasm
 
 # We are not using a freestanding toolchain (e.g. i?86-elf-gcc) (although we really should),
