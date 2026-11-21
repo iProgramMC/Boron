@@ -10,6 +10,14 @@
 
 #ifdef TARGET_I386
 
+// Old clang workaround I did a while ago to workaround a clang-22 bug on i386.
+// Clang 23 seems to have fixed it, though.
+//#define OLD_CLANG_WORKAROUND
+
+#endif
+
+#ifdef OLD_CLANG_WORKAROUND
+
 // Due to a Clang assembler bug, I cannot mark the GOT as hidden,
 // as it'll generate a bad offset access in RtlGetImageBase.
 extern HIDDEN ELF_DYNAMIC_ITEM _DYNAMIC[];
@@ -62,7 +70,7 @@ NO_RETURN
 void OSDLLRelocateSelf(PPEB Peb)
 {
 	size_t RelOffset = 0, RelSize = 0, RelaOffset = 0, RelaSize = 0, RelrOffset = 0, RelrSize = 0;
-	
+
 	PELF_DYNAMIC_ITEM DynItem = _DYNAMIC;
 	for (; DynItem->Tag != DYN_NULL; DynItem++)
 	{
@@ -88,17 +96,17 @@ void OSDLLRelocateSelf(PPEB Peb)
 				break;
 		}
 	}
-	
+
 	uintptr_t ImageBase = RtlGetImageBase();
-	
+
 	for (size_t i = 0; i < RelaSize; i += sizeof(ELF_RELA))
 	{
 		PELF_RELA Rela = (PELF_RELA) (ImageBase + RelaOffset + i);
-		
+
 		uint32_t RelType = ELF_R_TYPE(Rela->Info);
 		if (ELF_R_SYM(Rela->Info))
 			BUG_UNREACHABLE();
-		
+
 	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
 	#elif defined TARGET_I386
@@ -113,21 +121,21 @@ void OSDLLRelocateSelf(PPEB Peb)
 			// other libraries.  As such, the only relocation type you
 			// should see is R_*_RELATIVE.
 			BUG_UNREACHABLE();
-		
+
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rela->Offset);
 		*Reloc = ImageBase + Rela->Addend;
 	}
-	
+
 	for (size_t i = 0; i < RelSize; i += sizeof(ELF_REL))
 	{
 		PELF_REL Rel = (PELF_REL) (ImageBase + RelOffset + i);
-		
+
 		uint32_t RelType = ELF_R_TYPE(Rel->Info);
 		if (ELF_R_SYM(Rel->Info)) {
 			// some symbol here has an info
 			BUG_UNREACHABLE();
 		}
-		
+
 	#if   defined TARGET_AMD64
 		if (RelType != R_X86_64_RELATIVE)
 	#elif defined TARGET_I386
@@ -140,29 +148,29 @@ void OSDLLRelocateSelf(PPEB Peb)
 			// other libraries.  As such, the only relocation type you
 			// should see is R_*_RELATIVE.
 			BUG_UNREACHABLE();
-		
+
 		uintptr_t* Reloc = (uintptr_t*) (ImageBase + Rel->Offset);
 		*Reloc += ImageBase;
 	}
-	
+
 	// Thanks to mlibc for this one.
 	uintptr_t* CurrentBaseAddress = NULL;
-	
+
 	for (size_t i = 0; i < RelrSize; i += sizeof(uintptr_t))
 	{
 		uintptr_t Rel = *(uintptr_t*) (ImageBase + RelrOffset + i);
-		
+
 		if (Rel & 1)
 		{
 			// Skip the first bit because we have already relocated
 			// the first entry.
 			Rel >>= 1;
-			
+
 			for (; Rel; Rel >>= 1)
 			{
 				if (Rel & 1)
 					*CurrentBaseAddress += ImageBase;
-				
+
 				CurrentBaseAddress++;
 			}
 		}
@@ -171,13 +179,13 @@ void OSDLLRelocateSelf(PPEB Peb)
 			// Even entry indicates the beginning address of the range
 			// to relocate.
 			CurrentBaseAddress = (uintptr_t*) (ImageBase + Rel);
-			
+
 			// Then relocate the first entry.
 			*CurrentBaseAddress += ImageBase;
 			CurrentBaseAddress++;
 		}
 	}
-	
+
 	// Finally, run the entry point.
 	DLLEntryPoint(Peb);
 }
