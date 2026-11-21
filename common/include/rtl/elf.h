@@ -4,11 +4,11 @@
 
 Module name:
 	rtl/elf.h
-	
+
 Abstract:
 	This header file defines function prototypes for
 	ELF loading helpers.
-	
+
 Author:
 	iProgramInCpp - 30 April 2024
 ***/
@@ -22,6 +22,7 @@ typedef void(*PELF_FINI_FUNC)();
 // Struct not part of the ELF format, but part of the loader.
 typedef struct ELF_DYNAMIC_INFO_tag
 {
+	void*       Context;
 	const char *DynStrTable;
 	PELF_SYMBOL DynSymTable;
 	const void *PltRelocations;

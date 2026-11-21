@@ -31,7 +31,7 @@ Author:
 
 extern bool OSDLLAddDllToLoad(const char* DllName);
 
-extern uintptr_t OSDLLGetProcedureAddress(const char* ProcName);
+extern uintptr_t OSDLLGetProcedureAddressEx(const char* ProcName, void* Context);
 
 #endif
 
@@ -249,7 +249,7 @@ static uintptr_t RtlpResolveSymbolAddress(PELF_DYNAMIC_INFO DynInfo, int SymbolI
 
 	return Address;
 #else
-	return OSDLLGetProcedureAddress(SymbolName);
+	return OSDLLGetProcedureAddressEx(SymbolName, DynInfo->Context);
 #endif
 }
 
@@ -498,13 +498,16 @@ bool RtlLinkPlt(PELF_DYNAMIC_INFO DynInfo, uintptr_t LoadBase, UNUSED const char
 			SymbolAddress = DbgLookUpAddress(SymbolName);
 #else
 		// OSDLL simply scans all of the loaded modules in loading order.
-		SymbolAddress = OSDLLGetProcedureAddress(SymbolName);
+		SymbolAddress = OSDLLGetProcedureAddressEx(SymbolName, DynInfo->Context);
 #endif
 
 #ifdef KERNEL
 		if (!SymbolAddress)
 			KeCrashBeforeSMPInit("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);
 #else
+		if (!SymbolAddress)
+			DbgPrint("RtlLinkPlt: Module %s: lookup of function %s failed (Offset: %zu)", FileName, SymbolName, SymbolOffset);
+
 		ASSERT(SymbolAddress);
 		if (!SymbolAddress)
 			return false;
