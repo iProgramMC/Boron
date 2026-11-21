@@ -76,8 +76,10 @@ available in `tools` might not work.
 
 ### i386
 
-To build for i386, you will need to use `clang-22`, `binutils`, `nasm`, and then additionally,
+To build for i386, you will need to use `clang` >= 22, `binutils`, `nasm`, and then additionally,
 `tar` and `xorriso`.
+
+(Note: On macOS, you will need to install `llvm` and `ld.lld` from brew.)
 
 Run:
 ```

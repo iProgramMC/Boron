@@ -11,13 +11,15 @@ endif
 # Apple clang doesn't compile i386 builds correctly at the moment.
 # Have to use Homebrew clang instead.
 ifeq ($(HOST_SYSTEM),Darwin)
-	CLANG_PFX = /opt/homebrew/opt/llvm/bin/
+	CLANG_PFX ?= /opt/homebrew/opt/llvm/bin/
+	CLANG_SFX ?=
 else
-	CLANG_PFX =
+	CLANG_PFX ?=
+	CLANG_SFX ?=
 endif
 
-BCC  ?= $(CLANG_PFX)clang
-BCXX ?= $(CLANG_PFX)clang++
+BCC  ?= $(CLANG_PFX)clang$(CLANG_SFX)
+BCXX ?= $(CLANG_PFX)clang++$(CLANG_SFX)
 BASM ?= nasm
 
 # We are not using a freestanding toolchain (e.g. i?86-elf-gcc) (although we really should),
